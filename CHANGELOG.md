@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+No unreleased changes.
+
+## v0.2.0 - 2026-07-08
+
 ### Added
 
 - Added Phase 2-A1 local list page advanced filtering for keyword, status, one

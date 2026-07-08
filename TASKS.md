@@ -200,3 +200,14 @@
 - [x] 补充模板下载、字段映射、错误路径、预览不写库、部分错误行、结果摘要和中英文页面测试
 - [x] 更新 README / TASKS / REVIEW / CHANGELOG，记录 Phase 2-A4 未发布改动
 - [x] 确认本轮未接入外部内容源、URL 导入、爬虫、adapter、远程图片拉取、自动同步、推荐系统、AI 助手、云同步、多用户系统或大型前端框架
+
+## v0.2.0 发布准备
+
+- [x] 确认 `main` 已包含 Phase 2-A1 高级筛选 / 排序 / 分页
+- [x] 确认 `main` 已包含 Phase 2-A2 批量编辑
+- [x] 确认 `main` 已包含 Phase 2-A3 详情页增强
+- [x] 确认 `main` 已包含 Phase 2-A4 导入增强
+- [x] 将 CHANGELOG 的 `Unreleased` 内容整理为 `v0.2.0` 发布段
+- [x] 更新 README 当前版本状态与 Phase 2 发布说明
+- [x] 保持 `v0.1.0` tag 不变
+- [x] 本轮仅做 release 文档准备，不新增业务功能、不进入 Phase 3

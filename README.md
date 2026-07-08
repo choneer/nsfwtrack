@@ -2,17 +2,31 @@
 
 NSFWTrack is a local single-user content record manager / collection tracker.
 
-Current status: `v0.1.0 / Phase 1 MVP`.
+Current status: `v0.2.0 / Phase 2 local enhancements`.
 
-Phase 1 is intentionally local-only. It is designed for manual records, local
-SQLite persistence, LAN deployment, and simple personal collection management.
+NSFWTrack remains intentionally local-only. It is designed for manual records,
+local SQLite persistence, LAN deployment, and simple personal collection
+management.
 
-## Unreleased: Phase 2 List Enhancements
+## Features in v0.2.0
+
+`v0.2.0` adds local Phase 2 enhancements on top of the Phase 1 MVP:
+
+- Phase 2-A1 advanced local filters, sorting, and pagination.
+- Phase 2-A2 current-page bulk editing.
+- Phase 2-A3 item detail page enhancements.
+- Phase 2-A4 CSV / JSON import enhancements.
+
+These features continue to use only the local SQLite database. They do not add
+external content sources, URL import, crawlers, adapters, remote image fetching,
+recommendations, AI assistants, cloud sync, or multi-user support.
+
+## Phase 2 Local Enhancements
 
 ### Phase 2-A1 Advanced List Filters
 
-The current `main` branch includes local list page improvements for finding and
-reviewing existing records:
+`v0.2.0` includes local list page improvements for finding and reviewing
+existing records:
 
 - Advanced local filters by keyword, status, one tag, one creator, minimum
   rating, and created / updated time range.
@@ -29,8 +43,7 @@ recommendations, AI assistants, cloud sync, or multi-user support.
 
 ### Phase 2-A2 Bulk Editing
 
-The current `main` branch also includes local bulk management for items on the
-current list page:
+`v0.2.0` also includes local bulk management for items on the current list page:
 
 - Select individual items, select the current page, or clear the current
   selection.
@@ -49,7 +62,7 @@ recommendations, AI assistants, cloud sync, or multi-user support.
 
 ### Phase 2-A3 Detail Page Enhancements
 
-The current `main` branch also improves the local item detail page:
+`v0.2.0` also improves the local item detail page:
 
 - Detail information is split into basic information, state information, tags,
   creators, and actions.
@@ -70,7 +83,7 @@ sync, recommendations, AI assistants, cloud sync, or multi-user support.
 
 ### Phase 2-A4 Import Enhancements
 
-The current `main` branch also improves local CSV / JSON import:
+`v0.2.0` also improves local CSV / JSON import:
 
 - The import page provides downloadable CSV and JSON templates for the supported
   local import structure.
@@ -113,13 +126,14 @@ sync, recommendations, AI assistants, cloud sync, or multi-user support.
 - GitHub Actions CI
 - Basic test coverage
 
-## Phase 1 Boundaries
+## Local Boundaries
 
-`v0.1.0` is still a local MVP. It does not include external content sources,
-crawlers, adapters, remote image fetching, third-party cookie/token management,
-automatic sync, multi-source search, random exploration, recommendation systems,
-AI assistants, URL backup import, cloud backup, scheduled backup, overwrite
-restore, complex permissions, or multi-user support.
+`v0.2.0` is still a local single-user release. It does not include external
+content sources, crawlers, adapters, remote image fetching, third-party
+cookie/token management, automatic sync, multi-source search, random
+exploration, recommendation systems, AI assistants, URL import, cloud backup,
+scheduled backup, overwrite restore, complex permissions, or multi-user
+support.
 
 ## Local Development
 
@@ -207,13 +221,13 @@ Keep this directory out of git. For backups, prefer exporting JSON from
 
 ## Security Notes
 
-Phase 1 is a local single-user MVP. Do not expose it directly to the public
+NSFWTrack is a local single-user app. Do not expose it directly to the public
 internet. If you put it behind a reverse proxy, frpc, VPN, or any other remote
 access layer, confirm `APP_PASSWORD` is strong first and keep the remote access
 layer protected as well.
 
 NSFWTrack does not need third-party cookies, tokens, crawlers, or external
-content source credentials in Phase 1.
+content source credentials in this release.
 
 ## Import
 
