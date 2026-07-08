@@ -16,22 +16,22 @@
 </section>
 
 {% if preview_result %}
-  <section class="notice">
+  <section class="flash success">
     {{ t("backup.preview_success", schema=preview_result.schema, items=preview_result["items"], tags=preview_result.tags, creators=preview_result.creators, item_tags=preview_result.item_tags, item_creators=preview_result.item_creators, user_item_states=preview_result.user_item_states) }}
   </section>
 {% endif %}
 {% if preview_error %}
-  <section class="notice">
+  <section class="flash error">
     {{ t("backup.preview_error", error=preview_error) }}
   </section>
 {% endif %}
 {% if restore_result %}
-  <section class="notice">
+  <section class="flash success">
     {{ t("backup.restore_success", created=restore_result.created, updated=restore_result.updated, skipped=restore_result.skipped) }}
   </section>
 {% endif %}
 {% if restore_error %}
-  <section class="notice">
+  <section class="flash error">
     {{ t("backup.restore_error", error=restore_error) }}
   </section>
 {% endif %}

@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session, selectinload
 from app.auth import is_authenticated, logout_user, require_page_auth
 from app.config import get_settings
 from app.database import get_db
+from app.flash import add_flash, pop_flash_messages
 from app.i18n import get_language, set_language, status_translator, translate, translator
 from app.models import Creator, Item, Tag, UserItemState
 from app.schemas import CreatorCreate, ItemCreate, ItemUpdate, StateCreate, TagCreate
@@ -48,6 +49,7 @@ def _base_context(request: Request, **values: Any) -> dict[str, Any]:
         "status_label": status_translator(language),
         "status_options": STATUS_OPTIONS,
         "max_backup_upload_mb": get_settings().max_backup_upload_mb,
+        "flash_messages": pop_flash_messages(request, language),
     }
     context.update(values)
     return context
@@ -100,6 +102,7 @@ def logout_page(
 ) -> RedirectResponse:
     del authenticated
     logout_user(request)
+    add_flash(request, "info", "flash.logout_success")
     return _redirect("/login")
 
 
@@ -190,6 +193,7 @@ def new_item_page(request: Request) -> HTMLResponse:
 
 @router.post("/items", dependencies=[Depends(require_page_auth)])
 def create_item_page(
+    request: Request,
     title: str = Form(...),
     cover_path: str | None = Form(default=None),
     summary: str | None = Form(default=None),
@@ -202,18 +206,23 @@ def create_item_page(
     extra_json: str | None = Form(default=None),
     db: Session = Depends(get_db),
 ) -> RedirectResponse:
-    item = create_item(
-        db,
-        _item_form_payload(
-            title, cover_path, summary, release_date, tags, creators, extra_json
-        ),
-    )
-    if status_value:
-        set_state(
+    try:
+        item = create_item(
             db,
-            item,
-            StateCreate(status=status_value, rating=rating, review=review),
+            _item_form_payload(
+                title, cover_path, summary, release_date, tags, creators, extra_json
+            ),
         )
+        if status_value:
+            set_state(
+                db,
+                item,
+                StateCreate(status=status_value, rating=rating, review=review),
+            )
+    except ValueError:
+        add_flash(request, "error", "flash.item_save_failed")
+        return _redirect("/items/new")
+    add_flash(request, "success", "flash.item_created")
     return _redirect(f"/items/{item.id}")
 
 
@@ -261,6 +270,7 @@ def edit_item_page(
 
 @router.post("/items/{item_id}/edit", dependencies=[Depends(require_page_auth)])
 def update_item_page(
+    request: Request,
     item_id: int,
     title: str = Form(...),
     cover_path: str | None = Form(default=None),
@@ -272,32 +282,46 @@ def update_item_page(
     db: Session = Depends(get_db),
 ) -> RedirectResponse:
     item = get_item_or_404(db, item_id)
-    update_item(
-        db,
-        item,
-        ItemUpdate(
-            title=title,
-            cover_path=cover_path,
-            summary=summary,
-            release_date=release_date,
-            extra=_parse_extra_json(extra_json),
-            tags=split_names(tags),
-            creators=split_names(creators),
-        ),
-    )
+    try:
+        update_item(
+            db,
+            item,
+            ItemUpdate(
+                title=title,
+                cover_path=cover_path,
+                summary=summary,
+                release_date=release_date,
+                extra=_parse_extra_json(extra_json),
+                tags=split_names(tags),
+                creators=split_names(creators),
+            ),
+        )
+    except ValueError:
+        add_flash(request, "error", "flash.item_save_failed")
+        return _redirect(f"/items/{item_id}/edit")
+    add_flash(request, "success", "flash.item_updated")
     return _redirect(f"/items/{item_id}")
 
 
 @router.post("/items/{item_id}/delete", dependencies=[Depends(require_page_auth)])
-def delete_item_page(item_id: int, db: Session = Depends(get_db)) -> RedirectResponse:
-    item = get_item_or_404(db, item_id)
+def delete_item_page(
+    request: Request,
+    item_id: int,
+    db: Session = Depends(get_db),
+) -> RedirectResponse:
+    item = db.get(Item, item_id)
+    if item is None:
+        add_flash(request, "error", "flash.item_delete_failed")
+        return _redirect("/items")
     db.delete(item)
     db.commit()
+    add_flash(request, "success", "flash.item_deleted")
     return _redirect("/items")
 
 
 @router.post("/items/{item_id}/state", dependencies=[Depends(require_page_auth)])
 def set_item_state_page(
+    request: Request,
     item_id: int,
     status_value: str = Form(...),
     rating: int | None = Form(default=None),
@@ -306,16 +330,19 @@ def set_item_state_page(
 ) -> RedirectResponse:
     item = get_item_or_404(db, item_id)
     set_state(db, item, StateCreate(status=status_value, rating=rating, review=review))
+    add_flash(request, "success", "flash.state_saved")
     return _redirect(f"/items/{item_id}")
 
 
 @router.post("/items/{item_id}/state/delete", dependencies=[Depends(require_page_auth)])
 def delete_item_state_page(
+    request: Request,
     item_id: int,
     db: Session = Depends(get_db),
 ) -> RedirectResponse:
     item = get_item_or_404(db, item_id)
     delete_state(db, item)
+    add_flash(request, "info", "flash.state_cleared")
     return _redirect(f"/items/{item_id}")
 
 
@@ -331,6 +358,7 @@ def tags_page(request: Request, db: Session = Depends(get_db)) -> HTMLResponse:
 
 @router.post("/tags", dependencies=[Depends(require_page_auth)])
 def create_tag_page(
+    request: Request,
     name: str = Form(...),
     category: str | None = Form(default=None),
     db: Session = Depends(get_db),
@@ -342,16 +370,25 @@ def create_tag_page(
         db.commit()
     except IntegrityError:
         db.rollback()
+        add_flash(request, "error", "flash.tag_create_failed")
+    else:
+        add_flash(request, "success", "flash.tag_created")
     return _redirect("/tags")
 
 
 @router.post("/tags/{tag_id}/delete", dependencies=[Depends(require_page_auth)])
-def delete_tag_page(tag_id: int, db: Session = Depends(get_db)) -> RedirectResponse:
+def delete_tag_page(
+    request: Request,
+    tag_id: int,
+    db: Session = Depends(get_db),
+) -> RedirectResponse:
     tag = db.get(Tag, tag_id)
     if tag is None:
-        raise HTTPException(status_code=404, detail="Tag not found")
+        add_flash(request, "error", "flash.tag_delete_failed")
+        return _redirect("/tags")
     db.delete(tag)
     db.commit()
+    add_flash(request, "success", "flash.tag_deleted")
     return _redirect("/tags")
 
 
@@ -371,6 +408,7 @@ def creators_page(request: Request, db: Session = Depends(get_db)) -> HTMLRespon
 
 @router.post("/creators", dependencies=[Depends(require_page_auth)])
 def create_creator_page(
+    request: Request,
     name: str = Form(...),
     type_value: str = Form(default="other"),
     avatar_path: str | None = Form(default=None),
@@ -387,6 +425,9 @@ def create_creator_page(
         db.commit()
     except IntegrityError:
         db.rollback()
+        add_flash(request, "error", "flash.creator_create_failed")
+    else:
+        add_flash(request, "success", "flash.creator_created")
     return _redirect("/creators")
 
 
@@ -416,14 +457,17 @@ def creator_detail_page(
 
 @router.post("/creators/{creator_id}/delete", dependencies=[Depends(require_page_auth)])
 def delete_creator_page(
+    request: Request,
     creator_id: int,
     db: Session = Depends(get_db),
 ) -> RedirectResponse:
     creator = db.get(Creator, creator_id)
     if creator is None:
-        raise HTTPException(status_code=404, detail="Creator not found")
+        add_flash(request, "error", "flash.creator_delete_failed")
+        return _redirect("/creators")
     db.delete(creator)
     db.commit()
+    add_flash(request, "success", "flash.creator_deleted")
     return _redirect("/creators")
 
 
@@ -486,6 +530,7 @@ def _import_template(
     request: Request,
     result: dict[str, Any] | None = None,
     preview_rows: list[dict[str, Any]] | None = None,
+    import_error: str | None = None,
 ) -> HTMLResponse:
     rows = preview_rows or []
     return templates.TemplateResponse(
@@ -498,6 +543,7 @@ def _import_template(
             preview_headers=_preview_headers(rows[:20]),
             preview_count=len(rows),
             payload_json=json.dumps(rows, ensure_ascii=False),
+            import_error=import_error,
         ),
     )
 
@@ -511,7 +557,13 @@ async def import_csv_page(
     request: Request,
     file: UploadFile = File(...),
 ) -> HTMLResponse:
-    return _import_template(request, preview_rows=parse_csv_rows(await file.read()))
+    try:
+        return _import_template(request, preview_rows=parse_csv_rows(await file.read()))
+    except (UnicodeDecodeError, ValueError):
+        return _import_template(
+            request,
+            import_error=translate(get_language(request), "import.preview_error"),
+        )
 
 
 @router.post(
@@ -523,7 +575,13 @@ async def import_json_page(
     request: Request,
     file: UploadFile = File(...),
 ) -> HTMLResponse:
-    return _import_template(request, preview_rows=parse_json_rows(await file.read()))
+    try:
+        return _import_template(request, preview_rows=parse_json_rows(await file.read()))
+    except (UnicodeDecodeError, ValueError):
+        return _import_template(
+            request,
+            import_error=translate(get_language(request), "import.preview_error"),
+        )
 
 
 @router.post(
@@ -536,7 +594,13 @@ def import_confirm_page(
     payload_json: str = Form(...),
     db: Session = Depends(get_db),
 ) -> HTMLResponse:
-    payload = json.loads(payload_json)
+    try:
+        payload = json.loads(payload_json)
+    except json.JSONDecodeError:
+        return _import_template(
+            request,
+            import_error=translate(get_language(request), "import.confirm_error"),
+        )
     rows = payload if isinstance(payload, list) else []
     clean_rows = [row for row in rows if isinstance(row, dict)]
     result = import_rows(db, clean_rows)

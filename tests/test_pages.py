@@ -3,6 +3,13 @@ from __future__ import annotations
 from fastapi.testclient import TestClient
 
 
+def test_login_failure_shows_clear_error(client: TestClient) -> None:
+    response = client.post("/api/auth/login", data={"password": "wrong-password"})
+
+    assert response.status_code == 200
+    assert "登录失败：密码无效。" in response.text
+
+
 def test_import_page_previews_before_confirming(auth_client: TestClient) -> None:
     csv_content = b"title,tags,creators,status\nPreview Item,tag-x,creator-x,watched\n"
 
@@ -28,6 +35,16 @@ def test_import_page_previews_before_confirming(auth_client: TestClient) -> None
     assert confirm_response.status_code == 200
     assert "已导入 1 条" in confirm_response.text
     assert auth_client.get("/api/items").json()["total"] == 1
+
+
+def test_import_page_shows_clear_preview_error(auth_client: TestClient) -> None:
+    response = auth_client.post(
+        "/import/json",
+        files={"file": ("items.json", b"{", "application/json")},
+    )
+
+    assert response.status_code == 200
+    assert "导入预览失败" in response.text
 
 
 def test_language_switch_renders_chinese_and_english(client: TestClient) -> None:

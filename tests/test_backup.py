@@ -322,3 +322,16 @@ def test_backup_page_renders_chinese_and_english(auth_client: TestClient) -> Non
     assert "merge strategy" in en_response.text
     assert "URL import" in en_response.text
     assert "Preview Backup" in en_response.text
+
+
+def test_backup_page_preview_failure_shows_clear_error(
+    auth_client: TestClient,
+) -> None:
+    response = auth_client.post(
+        "/backup/preview",
+        files={"file": ("backup.json", b"{", "application/json")},
+    )
+
+    assert response.status_code == 200
+    assert "预览失败" in response.text
+    assert "JSON 格式错误" in response.text

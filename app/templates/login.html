@@ -8,9 +8,6 @@
   </section>
   <section class="card">
     <h2>{{ t("login.title") }}</h2>
-    {% if error %}
-      <p class="notice">{{ t("login.invalid_password") }}</p>
-    {% endif %}
     <form class="stack" action="/api/auth/login" method="post">
       <label>{{ t("login.password") }}
         <input name="password" type="password" autocomplete="current-password" required autofocus>

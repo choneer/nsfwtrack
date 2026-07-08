@@ -112,3 +112,13 @@
 - [x] 删除 `docs/legacy/`
 - [x] 确认当前代码不依赖 `docs/legacy/`
 - [x] 确认未引入外部 HTTP 请求、爬虫、adapter、远程图片拉取、第三方 cookie/token 管理、自动同步、多源搜索或随机探索接口
+
+## Phase 1 收尾体验修复
+
+- [x] 增加轻量 session flash message，支持 success / error / info 与中英文文案
+- [x] 登录、退出、条目、标签、创作者、状态等页面表单操作提供明确反馈
+- [x] CSV / JSON 导入预览和确认失败路径提供页面错误提示
+- [x] 备份预览 / 恢复成功失败提示复用统一样式，保留本地合并恢复边界
+- [x] README 补充本地开发、Docker Compose、N100 局域网部署、`.env`、数据持久化、安全和测试说明
+- [x] 确认 TestClient warning 来源，暂不引入不稳定依赖或大范围测试重写
+- [x] 补充登录失败、导入失败和备份预览失败页面测试

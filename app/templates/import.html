@@ -2,8 +2,13 @@
 {% block title %}{{ t("import.title") }} - NSFWTrack{% endblock %}
 {% block content %}
 <h1>{{ t("import.title") }}</h1>
+{% if import_error %}
+  <section class="flash error">
+    {{ import_error }}
+  </section>
+{% endif %}
 {% if result %}
-  <section class="notice">
+  <section class="flash success">
     {{ t("import.result", imported=result.imported, skipped=result.skipped) }}
   </section>
   {% if result.errors %}
