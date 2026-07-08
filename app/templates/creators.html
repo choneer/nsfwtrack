@@ -16,28 +16,30 @@
     <button type="submit">{{ t("creators.add") }}</button>
   </label>
 </form>
-<table>
-  <thead>
-    <tr>
-      <th>{{ t("common.name") }}</th>
-      <th>{{ t("common.type") }}</th>
-      <th></th>
-    </tr>
-  </thead>
-  <tbody>
-    {% for creator in creators %}
+<div class="table-scroll">
+  <table>
+    <thead>
       <tr>
-        <td><a href="/creators/{{ creator.id }}">{{ creator.name }}</a></td>
-        <td>{{ creator.type }}</td>
-        <td>
-          <form class="inline-form" action="/creators/{{ creator.id }}/delete" method="post">
-            <button class="danger" type="submit">{{ t("common.delete") }}</button>
-          </form>
-        </td>
+        <th>{{ t("common.name") }}</th>
+        <th>{{ t("common.type") }}</th>
+        <th></th>
       </tr>
-    {% else %}
-      <tr><td colspan="3" class="muted">{{ t("creators.empty") }}</td></tr>
-    {% endfor %}
-  </tbody>
-</table>
+    </thead>
+    <tbody>
+      {% for creator in creators %}
+        <tr>
+          <td><a href="/creators/{{ creator.id }}">{{ creator.name }}</a></td>
+          <td>{{ creator.type }}</td>
+          <td>
+            <form class="inline-form" action="/creators/{{ creator.id }}/delete" method="post">
+              <button class="danger" type="submit">{{ t("common.delete") }}</button>
+            </form>
+          </td>
+        </tr>
+      {% else %}
+        <tr><td colspan="3" class="muted">{{ t("creators.empty") }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
 {% endblock %}

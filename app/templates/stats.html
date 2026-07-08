@@ -19,29 +19,33 @@
 <div class="split" style="margin-top: 18px;">
   <section>
     <h2>{{ t("stats.states") }}</h2>
-    <table>
-      <thead><tr><th>{{ t("common.status") }}</th><th>{{ t("common.count") }}</th></tr></thead>
-      <tbody>
-        {% for status, count in summary.states.items() %}
-          <tr><td>{{ status_label(status) }}</td><td>{{ count }}</td></tr>
-        {% else %}
-          <tr><td colspan="2" class="muted">{{ t("stats.no_states") }}</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>{{ t("common.status") }}</th><th>{{ t("common.count") }}</th></tr></thead>
+        <tbody>
+          {% for status, count in summary.states.items() %}
+            <tr><td>{{ status_label(status) }}</td><td>{{ count }}</td></tr>
+          {% else %}
+            <tr><td colspan="2" class="muted">{{ t("stats.no_states") }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
   </section>
   <section>
     <h2>{{ t("stats.timeline") }}</h2>
-    <table>
-      <thead><tr><th>{{ t("common.date") }}</th><th>{{ t("common.count") }}</th></tr></thead>
-      <tbody>
-        {% for date_value, count in timeline %}
-          <tr><td>{{ date_value }}</td><td>{{ count }}</td></tr>
-        {% else %}
-          <tr><td colspan="2" class="muted">{{ t("stats.no_items") }}</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>{{ t("common.date") }}</th><th>{{ t("common.count") }}</th></tr></thead>
+        <tbody>
+          {% for date_value, count in timeline %}
+            <tr><td>{{ date_value }}</td><td>{{ count }}</td></tr>
+          {% else %}
+            <tr><td colspan="2" class="muted">{{ t("stats.no_items") }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
   </section>
 </div>
 {% endblock %}

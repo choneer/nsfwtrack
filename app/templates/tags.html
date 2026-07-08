@@ -13,28 +13,30 @@
     <button type="submit">{{ t("tags.add") }}</button>
   </label>
 </form>
-<table>
-  <thead>
-    <tr>
-      <th>{{ t("common.name") }}</th>
-      <th>{{ t("common.category") }}</th>
-      <th></th>
-    </tr>
-  </thead>
-  <tbody>
-    {% for tag in tags %}
+<div class="table-scroll">
+  <table>
+    <thead>
       <tr>
-        <td>{{ tag.name }}</td>
-        <td>{{ tag.category or '' }}</td>
-        <td>
-          <form class="inline-form" action="/tags/{{ tag.id }}/delete" method="post">
-            <button class="danger" type="submit">{{ t("common.delete") }}</button>
-          </form>
-        </td>
+        <th>{{ t("common.name") }}</th>
+        <th>{{ t("common.category") }}</th>
+        <th></th>
       </tr>
-    {% else %}
-      <tr><td colspan="3" class="muted">{{ t("tags.empty") }}</td></tr>
-    {% endfor %}
-  </tbody>
-</table>
+    </thead>
+    <tbody>
+      {% for tag in tags %}
+        <tr>
+          <td>{{ tag.name }}</td>
+          <td>{{ tag.category or '' }}</td>
+          <td>
+            <form class="inline-form" action="/tags/{{ tag.id }}/delete" method="post">
+              <button class="danger" type="submit">{{ t("common.delete") }}</button>
+            </form>
+          </td>
+        </tr>
+      {% else %}
+        <tr><td colspan="3" class="muted">{{ t("tags.empty") }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
 {% endblock %}

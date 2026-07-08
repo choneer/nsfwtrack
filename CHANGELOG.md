@@ -2,7 +2,27 @@
 
 ## Unreleased
 
-No unreleased changes.
+### Added
+
+- Added lightweight responsive structure tests for the dashboard, item list,
+  item detail, import preview, backup, stats, tags, and creators pages.
+
+### Changed
+
+- Polished shared responsive CSS for the top navigation, main content spacing,
+  cards, grids, forms, buttons, pills, flash messages, pagination, and item
+  selection controls.
+- Improved narrow-screen layouts for the item list filters, current-page bulk
+  editing panel, item cards, detail page sections, relation forms, import page
+  preview / mapping tables, item forms, backup page, stats page, tag list, and
+  creator list.
+- Contained long local titles, tags, creator names, JSON blocks, and table
+  content with wrapping or local table scrolling so mobile pages avoid obvious
+  whole-page horizontal overflow.
+- Kept Phase 2-B1 limited to responsive UI and page layout polish, with no new
+  business features, dependencies, database structure changes, external content
+  sources, URL import, crawlers, adapters, recommendation systems, AI
+  assistants, cloud sync, or multi-user support.
 
 ## v0.2.0 - 2026-07-08
 
