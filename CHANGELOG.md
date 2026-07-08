@@ -33,6 +33,21 @@
   search, filters, sorting, page, and page size.
 - Added Chinese / English UI text and tests for detail rendering, state edits,
   tag / creator relation management, safe `next`, and i18n labels.
+- Added Phase 2-A4 CSV / JSON import template downloads with local-only example
+  data and login protection.
+- Added import field guidance for supported CSV / JSON fields, required
+  `title`, valid internal `status` values, `rating` rules, tag / creator
+  handling, preview flow, and local-only boundaries.
+- Added CSV field mapping during preview, including `title`, `summary`,
+  `status`, `rating`, `note`, `tags`, `creators`, `extra`, and ignored columns.
+- Added enhanced import previews with total rows, importable rows, error rows,
+  tags and creators to create, first five recognized rows, and readable error
+  rows.
+- Added import result summaries with imported, skipped, created tag, created
+  creator, tag link, creator link, state record, and error counts.
+- Added tests for import template auth and downloads, CSV automatic and manual
+  mapping, mapping failures, CSV / JSON error paths, preview no-write behavior,
+  partial valid imports, result summaries, and Chinese / English copy.
 
 ### Changed
 
@@ -48,6 +63,12 @@
 - Kept the Phase 2-A3 implementation local-only and limited to lightweight
   detail page display, state edits, relation management, and safe list-return
   context.
+- Reworked the import service so parsing, preview validation, field mapping,
+  error rows, and result summaries share one local-only code path.
+- Kept the Phase 2-A4 implementation local-only and limited to uploaded CSV /
+  JSON files, with no URL import, external content sources, crawlers, adapters,
+  remote image fetching, automatic sync, recommendations, AI assistants, cloud
+  sync, or multi-user support.
 
 ## v0.1.0 - 2026-07-08
 

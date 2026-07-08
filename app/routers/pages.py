@@ -36,7 +36,17 @@ from app.services.bulk_actions import (
     set_items_rating,
     set_items_status,
 )
-from app.services.importer import import_rows, parse_csv_rows, parse_json_rows
+from app.services.importer import (
+    IMPORT_FIELDS,
+    TARGET_FIELDS,
+    ImportDataError,
+    build_mapping,
+    import_valid_rows,
+    preview_csv_import,
+    preview_csv_rows,
+    preview_json_import,
+    preview_json_rows,
+)
 from app.services.item_detail import (
     ItemDetailError,
     add_existing_creator,
@@ -715,47 +725,44 @@ def stats_page(request: Request, db: Session = Depends(get_db)) -> HTMLResponse:
     dependencies=[Depends(require_page_auth)],
 )
 def import_page(request: Request) -> HTMLResponse:
-    return templates.TemplateResponse(
-        request,
-        "import.html",
-        _base_context(
-            request,
-            result=None,
-            preview_rows=None,
-            preview_headers=[],
-            payload_json="",
-        ),
-    )
+    return _import_template(request)
 
 
-def _preview_headers(rows: list[dict[str, Any]]) -> list[str]:
-    headers: list[str] = []
-    seen: set[str] = set()
-    for row in rows:
-        for key in row:
-            if key not in seen:
-                seen.add(key)
-                headers.append(key)
-    return headers
+def _import_field_specs() -> list[dict[str, Any]]:
+    return [
+        {"name": "title", "required": True},
+        {"name": "summary", "required": False},
+        {"name": "status", "required": False},
+        {"name": "rating", "required": False},
+        {"name": "note", "required": False},
+        {"name": "tags", "required": False},
+        {"name": "creators", "required": False},
+        {"name": "extra", "required": False},
+    ]
+
+
+def _import_error_message(request: Request, code: str) -> str:
+    return translate(get_language(request), f"import.error_{code}")
 
 
 def _import_template(
     request: Request,
     result: dict[str, Any] | None = None,
-    preview_rows: list[dict[str, Any]] | None = None,
+    preview: dict[str, Any] | None = None,
     import_error: str | None = None,
 ) -> HTMLResponse:
-    rows = preview_rows or []
+    raw_rows = preview["raw_rows"] if preview else []
     return templates.TemplateResponse(
         request,
         "import.html",
         _base_context(
             request,
             result=result,
-            preview_rows=rows[:20],
-            preview_headers=_preview_headers(rows[:20]),
-            preview_count=len(rows),
-            payload_json=json.dumps(rows, ensure_ascii=False),
+            preview=preview,
+            payload_json=json.dumps(raw_rows, ensure_ascii=False),
+            import_fields=IMPORT_FIELDS,
+            target_fields=TARGET_FIELDS,
+            import_field_specs=_import_field_specs(),
             import_error=import_error,
         ),
     )
@@ -768,14 +775,26 @@ def _import_template(
 )
 async def import_csv_page(
     request: Request,
-    file: UploadFile = File(...),
+    file: UploadFile | None = File(default=None),
+    db: Session = Depends(get_db),
 ) -> HTMLResponse:
-    try:
-        return _import_template(request, preview_rows=parse_csv_rows(await file.read()))
-    except (UnicodeDecodeError, ValueError):
+    if file is None:
         return _import_template(
             request,
-            import_error=translate(get_language(request), "import.preview_error"),
+            import_error=_import_error_message(request, "missing_file"),
+        )
+    if not (file.filename or "").lower().endswith(".csv"):
+        return _import_template(
+            request,
+            import_error=_import_error_message(request, "unsupported_file_type"),
+        )
+    try:
+        preview = preview_csv_import(db, await file.read())
+        return _import_template(request, preview=preview)
+    except ImportDataError as exc:
+        return _import_template(
+            request,
+            import_error=_import_error_message(request, exc.code),
         )
 
 
@@ -786,14 +805,26 @@ async def import_csv_page(
 )
 async def import_json_page(
     request: Request,
-    file: UploadFile = File(...),
+    file: UploadFile | None = File(default=None),
+    db: Session = Depends(get_db),
 ) -> HTMLResponse:
-    try:
-        return _import_template(request, preview_rows=parse_json_rows(await file.read()))
-    except (UnicodeDecodeError, ValueError):
+    if file is None:
         return _import_template(
             request,
-            import_error=translate(get_language(request), "import.preview_error"),
+            import_error=_import_error_message(request, "missing_file"),
+        )
+    if not (file.filename or "").lower().endswith(".json"):
+        return _import_template(
+            request,
+            import_error=_import_error_message(request, "unsupported_file_type"),
+        )
+    try:
+        preview = preview_json_import(db, await file.read())
+        return _import_template(request, preview=preview)
+    except ImportDataError as exc:
+        return _import_template(
+            request,
+            import_error=_import_error_message(request, exc.code),
         )
 
 
@@ -805,6 +836,9 @@ async def import_json_page(
 def import_confirm_page(
     request: Request,
     payload_json: str = Form(...),
+    source_type: str = Form(default="json"),
+    source_header: list[str] | None = Form(default=None),
+    target_field: list[str] | None = Form(default=None),
     db: Session = Depends(get_db),
 ) -> HTMLResponse:
     try:
@@ -816,7 +850,23 @@ def import_confirm_page(
         )
     rows = payload if isinstance(payload, list) else []
     clean_rows = [row for row in rows if isinstance(row, dict)]
-    result = import_rows(db, clean_rows)
+
+    if source_type == "csv":
+        headers = source_header or []
+        targets = target_field or []
+        mapping = build_mapping(headers, targets)
+        preview = preview_csv_rows(db, clean_rows, headers, mapping)
+    else:
+        preview = preview_json_rows(db, clean_rows)
+
+    if not preview["valid_rows"]:
+        return _import_template(
+            request,
+            preview=preview,
+            import_error=_import_error_message(request, "no_importable_rows"),
+        )
+
+    result = import_valid_rows(db, preview["valid_rows"], preview["errors"])
     return _import_template(request, result=result)
 
 

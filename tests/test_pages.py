@@ -44,7 +44,7 @@ def test_import_page_shows_clear_preview_error(auth_client: TestClient) -> None:
     )
 
     assert response.status_code == 200
-    assert "导入预览失败" in response.text
+    assert "JSON 格式错误" in response.text
 
 
 def test_language_switch_renders_chinese_and_english(client: TestClient) -> None:

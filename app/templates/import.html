@@ -1,68 +1,285 @@
 {% extends "base.html" %}
 {% block title %}{{ t("import.title") }} - NSFWTrack{% endblock %}
 {% block content %}
-<h1>{{ t("import.title") }}</h1>
+<div class="toolbar">
+  <div>
+    <h1>{{ t("import.title") }}</h1>
+    <p class="muted">{{ t("import.local_only_description") }}</p>
+  </div>
+  <a class="button secondary" href="/items">{{ t("common.back") }}</a>
+</div>
+
 {% if import_error %}
   <section class="flash error">
     {{ import_error }}
   </section>
 {% endif %}
+
 {% if result %}
-  <section class="flash success">
-    {{ t("import.result", imported=result.imported, skipped=result.skipped) }}
-  </section>
-  {% if result.errors %}
-    <table>
-      <thead><tr><th>{{ t("import.row") }}</th><th>{{ t("import.error") }}</th></tr></thead>
-      <tbody>
-        {% for error in result.errors %}
-          <tr><td>{{ error.row }}</td><td>{{ error.error }}</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  {% endif %}
-{% endif %}
-{% if preview_rows %}
   <section class="card stack">
     <div>
-      <h2>{{ t("import.preview") }}</h2>
-      <p class="muted">{{ t("import.preview_ready", count=preview_count) }}</p>
+      <h2>{{ t("import.result_title") }}</h2>
+      <p class="muted">{{ t("import.result", imported=result.imported, skipped=result.skipped) }}</p>
+      <p class="muted">{{ t("import.result_hint") }}</p>
     </div>
+    <div class="metric-grid">
+      <div class="metric"><strong>{{ result.imported }}</strong><span>{{ t("import.imported_count") }}</span></div>
+      <div class="metric"><strong>{{ result.skipped }}</strong><span>{{ t("import.skipped_count") }}</span></div>
+      <div class="metric"><strong>{{ result.created_tags }}</strong><span>{{ t("import.created_tags") }}</span></div>
+      <div class="metric"><strong>{{ result.created_creators }}</strong><span>{{ t("import.created_creators") }}</span></div>
+      <div class="metric"><strong>{{ result.linked_tags }}</strong><span>{{ t("import.linked_tags") }}</span></div>
+      <div class="metric"><strong>{{ result.linked_creators }}</strong><span>{{ t("import.linked_creators") }}</span></div>
+      <div class="metric"><strong>{{ result.state_records }}</strong><span>{{ t("import.state_records") }}</span></div>
+      <div class="metric"><strong>{{ result.error_rows }}</strong><span>{{ t("import.error_count") }}</span></div>
+    </div>
+    {% if result.imported == 0 %}
+      <section class="flash error">{{ t("import.no_valid_data") }}</section>
+    {% endif %}
+    {% if result.errors %}
+      <section class="flash info">{{ t("import.result_has_errors") }}</section>
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>{{ t("import.row_number") }}</th>
+              <th>{{ t("import.error_reason") }}</th>
+              <th>{{ t("import.source_content") }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for error in result.errors %}
+              <tr>
+                <td>{{ error.row or "-" }}</td>
+                <td>{{ t("import.error_" ~ error.code) }}</td>
+                <td>{{ error.source or "-" }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% endif %}
+  </section>
+{% endif %}
+
+<section class="grid">
+  <div class="card stack">
+    <h2>{{ t("import.templates") }}</h2>
+    <p class="muted">{{ t("import.templates_hint") }}</p>
+    <div class="actions">
+      <a class="button" href="/api/import/template/csv">{{ t("import.download_csv_template") }}</a>
+      <a class="button secondary" href="/api/import/template/json">{{ t("import.download_json_template") }}</a>
+    </div>
+  </div>
+
+  <div class="card stack">
+    <h2>{{ t("import.boundary_title") }}</h2>
+    <p>{{ t("import.local_files_only") }}</p>
+    <p class="muted">{{ t("import.no_url_import") }}</p>
+    <p class="muted">{{ t("import.no_external_source") }}</p>
+  </div>
+</section>
+
+<section class="card stack">
+  <div>
+    <h2>{{ t("import.field_help") }}</h2>
+    <p class="muted">{{ t("import.field_help_hint") }}</p>
+  </div>
+  <div class="table-scroll">
     <table>
       <thead>
         <tr>
-          {% for header in preview_headers %}
-            <th>{{ header }}</th>
-          {% endfor %}
+          <th>{{ t("import.field_name") }}</th>
+          <th>{{ t("import.required_field") }}</th>
+          <th>{{ t("import.field_description") }}</th>
         </tr>
       </thead>
       <tbody>
-        {% for row in preview_rows %}
+        {% for field in import_field_specs %}
           <tr>
-            {% for header in preview_headers %}
-              <td>{{ row.get(header, "") }}</td>
-            {% endfor %}
+            <td><code>{{ field.name }}</code></td>
+            <td>
+              {% if field.required %}
+                {{ t("import.required_yes") }}
+              {% else %}
+                {{ t("import.optional_field") }}
+              {% endif %}
+            </td>
+            <td>{{ t("import.field_" ~ field.name) }}</td>
           </tr>
         {% endfor %}
       </tbody>
     </table>
-    <form action="/import/confirm" method="post">
+  </div>
+  <div class="notice">
+    {{ t("import.preview_notice") }}
+  </div>
+</section>
+
+{% if preview %}
+  <section class="card stack">
+    <div>
+      <h2>{{ t("import.preview") }}</h2>
+      <p class="muted">
+        {% if preview.partial_errors %}
+          {{ t("import.partial_errors_notice") }}
+        {% else %}
+          {{ t("import.preview_ready") }}
+        {% endif %}
+      </p>
+    </div>
+    <div class="metric-grid">
+      <div class="metric"><strong>{{ preview.summary.total_rows }}</strong><span>{{ t("import.total_rows") }}</span></div>
+      <div class="metric"><strong>{{ preview.summary.valid_rows }}</strong><span>{{ t("import.importable_count") }}</span></div>
+      <div class="metric"><strong>{{ preview.summary.error_rows }}</strong><span>{{ t("import.error_count") }}</span></div>
+      <div class="metric"><strong>{{ preview.summary.new_tags }}</strong><span>{{ t("import.new_tags") }}</span></div>
+      <div class="metric"><strong>{{ preview.summary.new_creators }}</strong><span>{{ t("import.new_creators") }}</span></div>
+    </div>
+
+    <form class="stack" action="/import/confirm" method="post">
+      <input type="hidden" name="source_type" value="{{ preview.source_type }}">
       <textarea name="payload_json" hidden>{{ payload_json }}</textarea>
-      <button type="submit">{{ t("import.confirm") }}</button>
+
+      {% if preview.source_type == "csv" %}
+        <section class="stack">
+          <div>
+            <h3>{{ t("import.csv_mapping") }}</h3>
+            <p class="muted">{{ t("import.csv_mapping_hint") }}</p>
+          </div>
+          <div class="table-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>{{ t("import.source_field") }}</th>
+                  <th>{{ t("import.target_field") }}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for header in preview.source_headers %}
+                  <tr>
+                    <td>
+                      <code>{{ header }}</code>
+                      <input type="hidden" name="source_header" value="{{ header }}">
+                    </td>
+                    <td>
+                      <select name="target_field">
+                        {% for field in target_fields %}
+                          <option value="{{ field }}" {% if preview.mapping.get(header) == field %}selected{% endif %}>
+                            {% if field == "ignore" %}{{ t("import.ignore_column") }}{% else %}{{ field }}{% endif %}
+                          </option>
+                        {% endfor %}
+                      </select>
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      {% endif %}
+
+      <section class="stack">
+        <div>
+          <h3>{{ t("import.preview_rows") }}</h3>
+          <p class="muted">{{ t("import.preview_rows_hint") }}</p>
+        </div>
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                {% if preview.preview_rows %}
+                  {% for field in import_fields %}
+                    <th>{{ field }}</th>
+                  {% endfor %}
+                {% elif preview.source_type == "csv" %}
+                  {% for header in preview.source_headers %}
+                    <th>{{ header }}</th>
+                  {% endfor %}
+                {% endif %}
+              </tr>
+            </thead>
+            <tbody>
+              {% if preview.preview_rows %}
+                {% for row in preview.preview_rows %}
+                  <tr>
+                    {% for field in import_fields %}
+                      <td>
+                        {% if field in ["tags", "creators"] %}
+                          {{ row.get(field, []) | join("; ") }}
+                        {% elif field == "extra" and row.get(field) %}
+                          <code>{{ row.get(field) }}</code>
+                        {% else %}
+                          {{ row.get(field) or "" }}
+                        {% endif %}
+                      </td>
+                    {% endfor %}
+                  </tr>
+                {% endfor %}
+              {% elif preview.source_type == "csv" %}
+                {% for row in preview.raw_rows[:5] %}
+                  <tr>
+                    {% for header in preview.source_headers %}
+                      <td>{{ row.get(header, "") }}</td>
+                    {% endfor %}
+                  </tr>
+                {% endfor %}
+              {% endif %}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      {% if preview.errors %}
+        <section class="stack">
+          <div>
+            <h3>{{ t("import.error_rows") }}</h3>
+            <p class="muted">{{ t("import.error_rows_hint") }}</p>
+          </div>
+          <div class="table-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>{{ t("import.row_number") }}</th>
+                  <th>{{ t("import.error_reason") }}</th>
+                  <th>{{ t("import.source_content") }}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for error in preview.errors %}
+                  <tr>
+                    <td>{{ error.row or "-" }}</td>
+                    <td>{{ t("import.error_" ~ error.code) }}</td>
+                    <td>{{ error.source or "-" }}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      {% endif %}
+
+      <div class="actions">
+        {% if preview.can_import or preview.mapping_errors %}
+          <button type="submit">{{ t("import.confirm") }}</button>
+        {% else %}
+          <button type="submit" disabled>{{ t("import.confirm") }}</button>
+        {% endif %}
+        <a class="button secondary" href="/import">{{ t("import.cancel_import") }}</a>
+      </div>
     </form>
   </section>
 {% endif %}
-<div class="grid">
-  <section class="card">
+
+<section class="grid">
+  <div class="card">
     <h2>CSV</h2>
     <form class="stack" action="/import/csv" method="post" enctype="multipart/form-data">
       <label>{{ t("common.file") }}
-        <input name="file" type="file" accept=".csv" required>
+        <input name="file" type="file" accept=".csv,text/csv" required>
       </label>
       <button type="submit">{{ t("import.preview_csv") }}</button>
     </form>
-  </section>
-  <section class="card">
+  </div>
+  <div class="card">
     <h2>JSON</h2>
     <form class="stack" action="/import/json" method="post" enctype="multipart/form-data">
       <label>{{ t("common.file") }}
@@ -70,6 +287,6 @@
       </label>
       <button type="submit">{{ t("import.preview_json") }}</button>
     </form>
-  </section>
-</div>
+  </div>
+</section>
 {% endblock %}

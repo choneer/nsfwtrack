@@ -68,6 +68,30 @@ Detail enhancements only operate on local SQLite records. They do not create
 external content sources, crawlers, adapters, remote image fetching, automatic
 sync, recommendations, AI assistants, cloud sync, or multi-user support.
 
+### Phase 2-A4 Import Enhancements
+
+The current `main` branch also improves local CSV / JSON import:
+
+- The import page provides downloadable CSV and JSON templates for the supported
+  local import structure.
+- The import page explains supported fields, required and optional fields, valid
+  internal status values, rating rules, tag / creator handling, and local-only
+  boundaries.
+- CSV preview now shows a one-time field mapping table so custom source columns
+  can map to `title`, `summary`, `status`, `rating`, `note`, `tags`,
+  `creators`, `extra`, or be ignored.
+- Import preview shows total rows, importable rows, error rows, tags to create,
+  creators to create, the first five recognized rows, and readable error rows.
+- Confirmed import shows a result summary with imported, skipped, created tag,
+  created creator, tag link, creator link, state record, and error counts.
+- Chinese / English UI text and tests cover templates, mapping, preview errors,
+  partial valid imports, result summaries, and local-only import boundaries.
+
+Import enhancements only accept uploaded local CSV / JSON files and only write
+to the local SQLite database after confirmation. They do not add URL import,
+external content sources, crawlers, adapters, remote image fetching, automatic
+sync, recommendations, AI assistants, cloud sync, or multi-user support.
+
 ## Features in v0.1.0
 
 - Single-user login protection with session cookies
@@ -190,6 +214,44 @@ layer protected as well.
 
 NSFWTrack does not need third-party cookies, tokens, crawlers, or external
 content source credentials in Phase 1.
+
+## Import
+
+Open `/import` after logging in.
+
+Available local-only actions:
+
+- Download the CSV template: `GET /api/import/template/csv`
+- Download the JSON template: `GET /api/import/template/json`
+- Preview a local CSV upload on `/import`
+- Preview a local JSON upload on `/import`
+- Confirm import only after reviewing the preview
+
+The CSV template uses these headers:
+
+```text
+title,summary,status,rating,note,tags,creators,extra
+```
+
+The JSON template uses an `items` array with the same field names. Field names
+are not translated. `title` is required. `status` must be one of the internal
+values `wish`, `watching`, `watched`, `like`, `dislike`, or `ignore`.
+`rating` must be `1` to `5`. `tags` and `creators` are created or linked using
+the current local import logic.
+
+CSV preview includes a field mapping table. If a source CSV has custom column
+names, choose which source column maps to `title`, `summary`, `status`,
+`rating`, `note`, `tags`, `creators`, or `extra`; columns can also be ignored.
+The mapping is used only for the current import and is not saved.
+
+Preview does not write to the database. It shows total rows, importable rows,
+error rows, tags and creators that would be created, the first five recognized
+rows, and error rows with row number, reason, and brief source content. If some
+rows are invalid, confirmation imports only valid rows and reports the skipped
+rows. If every row is invalid, confirmation is disabled.
+
+Import only accepts uploaded local files. NSFWTrack does not import from URLs,
+external data sources, crawlers, adapters, cloud sync, or remote fetchers.
 
 ## Backup And Export
 
