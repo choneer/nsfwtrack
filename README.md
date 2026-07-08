@@ -1,15 +1,40 @@
 # NSFWTrack
 
-Phase 1 local single-user media record manager.
+NSFWTrack is a local single-user content record manager / collection tracker.
 
-NSFWTrack is intentionally local-only in Phase 1. It supports manual records,
-tags, creators, states, local search, simple stats, CSV/JSON import, login
-protection, local JSON/CSV export, JSON backup restore, Docker Compose
-deployment, and Chinese / English UI switching.
+Current status: `v0.1.0 / Phase 1 MVP`.
 
-Phase 1 still forbids external content sources, crawlers, adapters, remote image
-fetching, third-party cookie/token management, automatic sync, multi-source
-search, random exploration, recommendation systems, and AI assistants.
+Phase 1 is intentionally local-only. It is designed for manual records, local
+SQLite persistence, LAN deployment, and simple personal collection management.
+
+## Features In v0.1.0
+
+- Single-user login protection with session cookies
+- Chinese / English UI switching
+- Local item CRUD
+- Tag management
+- Creator management
+- Item state tracking
+- Local title / tag / state search
+- Simple stats
+- CSV / JSON import
+- Complete JSON backup export
+- Readable CSV export
+- JSON backup restore
+- Backup preview before restore
+- Configurable backup upload size limit
+- Docker Compose deployment
+- SQLite local persistence under `./data`
+- GitHub Actions CI
+- Basic test coverage
+
+## Phase 1 Boundaries
+
+`v0.1.0` is still a local MVP. It does not include external content sources,
+crawlers, adapters, remote image fetching, third-party cookie/token management,
+automatic sync, multi-source search, random exploration, recommendation systems,
+AI assistants, URL backup import, cloud backup, scheduled backup, overwrite
+restore, complex permissions, or multi-user support.
 
 ## Local Development
 
@@ -143,17 +168,27 @@ Direct routes are also available:
 /set-language?lang=en
 ```
 
-## Tests
+## Tests And CI
 
 ```bash
 pip install -r requirements-dev.txt
 python -m pytest
 ```
 
-CI runs the same test command on Python 3.12.
+GitHub Actions runs on Python 3.12, installs `requirements-dev.txt`, and runs
+`python -m pytest`.
 
 Current local test runs may show a FastAPI / Starlette TestClient deprecation
 warning from `fastapi.testclient` about `httpx` and `httpx2`. The warning does
 not affect current NSFWTrack functionality. It is intentionally not hidden or
 worked around with a broad test rewrite; revisit it after the FastAPI /
 Starlette TestClient dependency path stabilizes.
+
+## Known Limitations
+
+- Only one local user is supported.
+- The app is intended for local network / LAN deployment.
+- Direct public internet exposure is not recommended.
+- Backup restore is append / merge based, not an overwrite restore.
+- There are no external content sources, crawlers, recommendation systems, or AI assistants.
+- The current TestClient warning does not affect functionality and can be revisited after dependencies stabilize.

@@ -122,3 +122,11 @@
 - [x] README 补充本地开发、Docker Compose、N100 局域网部署、`.env`、数据持久化、安全和测试说明
 - [x] 确认 TestClient warning 来源，暂不引入不稳定依赖或大范围测试重写
 - [x] 补充登录失败、导入失败和备份预览失败页面测试
+
+## v0.1.0 发布前整理
+
+- [x] README 标注 `v0.1.0 / Phase 1 MVP`，列出已包含功能与本地 MVP 边界
+- [x] CHANGELOG 增加 `v0.1.0` 小节，包含 Added / Changed / Fixed / Security / Known limitations
+- [x] 确认 FastAPI 应用版本号为 `0.1.0`
+- [x] 确认 GitHub Actions CI 使用 `requirements-dev.txt` 并运行 `python -m pytest`
+- [x] 保持 tag / GitHub Release 仅为发布准备，本轮不自动创建
