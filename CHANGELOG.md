@@ -4,11 +4,23 @@
 
 ### Added
 
+- Added a local SQLite stats service for overview metrics, status
+  distribution, rating distribution, tag ranking, creator ranking, recent
+  activity, and data completeness counts.
+- Added an enhanced stats dashboard with pure HTML / CSS bars, local ranking
+  lists, recent created / updated activity blocks, and empty data states.
+- Added Chinese / English text and tests for empty stats, overview counts,
+  status and rating distributions, tag / creator ranking order, recent activity
+  counts, data completeness counts, and stats page rendering.
 - Added lightweight responsive structure tests for the dashboard, item list,
   item detail, import preview, backup, stats, tags, and creators pages.
 
 ### Changed
 
+- Kept Phase 2-B2 limited to local SQLite statistics, with no external content
+  sources, URL import, crawlers, adapters, recommendation system, AI analysis,
+  prediction model, chart library, new dependency, database structure change,
+  cloud sync, or multi-user support.
 - Polished shared responsive CSS for the top navigation, main content spacing,
   cards, grids, forms, buttons, pills, flash messages, pagination, and item
   selection controls.

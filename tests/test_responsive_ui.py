@@ -93,7 +93,10 @@ def test_backup_stats_tags_and_creators_pages_use_responsive_tables(
 
     stats_response = auth_client.get("/stats")
     assert stats_response.status_code == 200
-    assert stats_response.text.count('class="table-scroll"') >= 2
+    assert 'class="stats-section"' in stats_response.text
+    assert 'class="metric-grid"' in stats_response.text
+    assert "统计总览" in stats_response.text
+    assert "没有状态数据。" in stats_response.text
 
     tags_response = auth_client.get("/tags")
     assert tags_response.status_code == 200

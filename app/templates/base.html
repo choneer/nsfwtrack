@@ -326,6 +326,84 @@
       color: var(--muted);
       font-size: 13px;
     }
+    .compact-metrics {
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 120px), 1fr));
+    }
+    .stats-section {
+      margin-top: 18px;
+    }
+    .stats-section:first-of-type {
+      margin-top: 0;
+    }
+    .stats-section-heading {
+      display: grid;
+      gap: 4px;
+    }
+    .stats-section-heading h2,
+    .stats-section-heading p {
+      margin-bottom: 0;
+    }
+    .stats-bar-list,
+    .ranking-list,
+    .activity-list {
+      display: grid;
+      gap: 12px;
+    }
+    .stats-bar-row,
+    .ranking-row,
+    .activity-row {
+      display: grid;
+      gap: 7px;
+      min-width: 0;
+    }
+    .stats-bar-heading {
+      align-items: center;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: space-between;
+      min-width: 0;
+    }
+    .stats-bar-heading strong,
+    .ranking-row strong {
+      min-width: 0;
+      overflow-wrap: anywhere;
+    }
+    .stats-bar-heading span {
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .bar-track {
+      background: #e9edf3;
+      border-radius: 999px;
+      height: 10px;
+      overflow: hidden;
+      width: 100%;
+    }
+    .bar-fill {
+      background: var(--accent);
+      border-radius: inherit;
+      display: block;
+      height: 100%;
+      min-width: 2px;
+      width: var(--bar-width, 0%);
+    }
+    .secondary-track {
+      background: #eef2ff;
+    }
+    .secondary-fill {
+      background: var(--info);
+    }
+    .activity-bars {
+      align-items: center;
+      display: grid;
+      gap: 7px;
+      grid-template-columns: auto minmax(80px, 1fr) auto;
+    }
+    .activity-bars span {
+      color: var(--muted);
+      font-size: 13px;
+    }
     .pagination {
       align-items: center;
       display: flex;
@@ -515,6 +593,9 @@
       h2 { font-size: 18px; }
       .card { padding: 14px; }
       .grid, .item-grid, .form-grid, .bulk-controls, .metric-grid {
+        grid-template-columns: 1fr;
+      }
+      .activity-bars {
         grid-template-columns: 1fr;
       }
       .split { grid-template-columns: 1fr; }

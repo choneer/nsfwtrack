@@ -2,11 +2,33 @@
 
 NSFWTrack is a local single-user content record manager / collection tracker.
 
-Current status: `main after v0.2.0 / Phase 2-B1 responsive UI polish`.
+Current status: `main after v0.2.0 / Phase 2-B2 stats dashboard enhancements`.
 
 NSFWTrack remains intentionally local-only. It is designed for manual records,
 local SQLite persistence, LAN deployment, and simple personal collection
 management.
+
+## Unreleased: Phase 2-B2 Stats Dashboard Enhancements
+
+Current `main` includes local SQLite statistics dashboard enhancements on top
+of `v0.2.0` and Phase 2-B1:
+
+- The stats page now has overview cards for total items, tags, creators, items
+  with state, items with rating, average rating, and recent 7 / 30 day created
+  counts.
+- Status and rating distributions use pure HTML / CSS bars, with empty states
+  when there is no local data.
+- Tag usage and creator link rankings show the top 10 local associations and
+  their share of all local links.
+- Recent activity shows 7 / 30 day created and updated counts plus a 7-day
+  local trend block.
+- Data completeness shows neutral counts for items without tags, creators,
+  state records, ratings, or summaries.
+
+These stats are generated only from local SQLite data. They do not add external
+content sources, URL import, crawlers, adapters, recommendation systems, AI
+analysis, prediction models, chart libraries, new dependencies, database schema
+changes, cloud sync, or multi-user support.
 
 ## Unreleased: Phase 2-B1 Responsive UI Polish
 

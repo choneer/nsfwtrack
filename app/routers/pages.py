@@ -16,7 +16,7 @@ from app.config import get_settings
 from app.database import get_db
 from app.flash import add_flash, pop_flash_messages
 from app.i18n import get_language, set_language, status_translator, translate, translator
-from app.models import Creator, Item, Tag, UserItemState
+from app.models import Creator, Item, Tag
 from app.schemas import CreatorCreate, ItemCreate, ItemUpdate, StateCreate, TagCreate
 from app.services.catalog import (
     create_item,
@@ -63,6 +63,7 @@ from app.services.item_query import (
     list_item_filter_options,
     query_items,
 )
+from app.services.stats import build_stats_dashboard
 
 router = APIRouter(tags=["pages"])
 templates = Jinja2Templates(directory="app/templates")
@@ -696,26 +697,10 @@ def delete_creator_page(
 
 @router.get("/stats", response_class=HTMLResponse, dependencies=[Depends(require_page_auth)])
 def stats_page(request: Request, db: Session = Depends(get_db)) -> HTMLResponse:
-    state_rows = db.execute(
-        select(UserItemState.status, func.count(UserItemState.id)).group_by(
-            UserItemState.status
-        )
-    ).all()
-    timeline = db.execute(
-        select(func.date(Item.created_at), func.count(Item.id))
-        .group_by(func.date(Item.created_at))
-        .order_by(func.date(Item.created_at).asc())
-    ).all()
-    summary = {
-        "total_items": db.scalar(select(func.count(Item.id))) or 0,
-        "total_tags": db.scalar(select(func.count(Tag.id))) or 0,
-        "total_creators": db.scalar(select(func.count(Creator.id))) or 0,
-        "states": dict(state_rows),
-    }
     return templates.TemplateResponse(
         request,
         "stats.html",
-        _base_context(request, summary=summary, timeline=timeline),
+        _base_context(request, stats=build_stats_dashboard(db)),
     )
 
 
