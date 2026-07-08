@@ -5,30 +5,134 @@
   <h1>{{ t("items.title") }}</h1>
   <a class="button" href="/items/new">{{ t("items.new") }}</a>
 </div>
-<form class="card form-grid" method="get" action="/items">
-  <label>{{ t("common.title") }}
-    <input name="q" value="{{ q }}" placeholder="{{ t('items.placeholder_title') }}">
-  </label>
-  <label>{{ t("common.tags") }}
-    <input name="tag" value="{{ tag }}" placeholder="{{ t('items.placeholder_tag') }}">
+<form class="card form-grid filter-panel" method="get" action="/items">
+  <div class="filter-heading">{{ t("items.advanced_filters") }}</div>
+  <input type="hidden" name="page" value="1">
+  <label>{{ t("items.keyword") }}
+    <input name="q" value="{{ filters.q }}" placeholder="{{ t('items.placeholder_title') }}">
   </label>
   <label>{{ t("common.status") }}
     <select name="state">
       <option value="">{{ t("common.any") }}</option>
-      {% for option in status_options %}
-        <option value="{{ option }}" {% if selected_state == option %}selected{% endif %}>{{ status_label(option) }}</option>
+      {% for option in filter_options.statuses %}
+        <option value="{{ option }}" {% if filters.state == option %}selected{% endif %}>{{ status_label(option) }}</option>
       {% endfor %}
     </select>
   </label>
-  <label>&nbsp;
-    <button type="submit">{{ t("common.search") }}</button>
+  <label>{{ t("common.tags") }}
+    <select name="tag">
+      <option value="">{{ t("common.any") }}</option>
+      {% for tag_option in filter_options.tags %}
+        <option value="{{ tag_option.name }}" {% if filters.tag == tag_option.name %}selected{% endif %}>{{ tag_option.name }}</option>
+      {% endfor %}
+    </select>
   </label>
+  <label>{{ t("common.creators") }}
+    <select name="creator">
+      <option value="">{{ t("common.any") }}</option>
+      {% for creator_option in filter_options.creators %}
+        <option value="{{ creator_option.name }}" {% if filters.creator == creator_option.name %}selected{% endif %}>{{ creator_option.name }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label>{{ t("items.min_rating") }}
+    <select name="min_rating">
+      <option value="">{{ t("common.any") }}</option>
+      {% for rating in filter_options.min_ratings %}
+        <option value="{{ rating }}" {% if filters.min_rating == rating %}selected{% endif %}>{{ t("items.rating_at_least", rating=rating) }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label>{{ t("items.date_field") }}
+    <select name="date_field">
+      {% for option in filter_options.date_fields %}
+        <option value="{{ option }}" {% if filters.date_field == option %}selected{% endif %}>{{ t("items.date_field_" ~ option) }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label>{{ t("items.time_range") }}
+    <select name="time_range">
+      {% for option in filter_options.time_ranges %}
+        <option value="{{ option }}" {% if filters.time_range == option %}selected{% endif %}>{{ t("items.time_" ~ option) }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label>{{ t("items.sort") }}
+    <select name="sort">
+      {% for option in filter_options.sort_options %}
+        <option value="{{ option }}" {% if filters.sort == option %}selected{% endif %}>{{ t("items.sort_" ~ option) }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label>{{ t("items.page_size") }}
+    <select name="page_size">
+      {% for size in filter_options.page_sizes %}
+        <option value="{{ size }}" {% if filters.page_size == size %}selected{% endif %}>{{ size }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <div class="filter-actions">
+    <button type="submit">{{ t("items.apply_filters") }}</button>
+    <a class="button secondary" href="/items">{{ t("items.clear_filters") }}</a>
+  </div>
 </form>
+
+<div class="filter-summary">
+  <strong>{{ t("items.current_filters") }}</strong>
+  {% if filters.has_filters %}
+    {% if filters.q %}
+      <span class="pill">{{ t("items.keyword") }}: {{ filters.q }}</span>
+    {% endif %}
+    {% if filters.state %}
+      <span class="pill">{{ t("common.status") }}: {{ status_label(filters.state) }}</span>
+    {% endif %}
+    {% if filters.tag %}
+      <span class="pill">{{ t("common.tags") }}: {{ filters.tag }}</span>
+    {% endif %}
+    {% if filters.creator %}
+      <span class="pill">{{ t("common.creators") }}: {{ filters.creator }}</span>
+    {% endif %}
+    {% if filters.min_rating %}
+      <span class="pill">{{ t("items.min_rating") }}: {{ t("items.rating_at_least", rating=filters.min_rating) }}</span>
+    {% endif %}
+    {% if filters.time_range != "all" %}
+      <span class="pill">{{ t("items.date_field_" ~ filters.date_field) }}: {{ t("items.time_" ~ filters.time_range) }}</span>
+    {% endif %}
+  {% else %}
+    <span class="pill">{{ t("items.all_items") }}</span>
+  {% endif %}
+  <span class="pill">{{ t("items.current_sort") }}: {{ t("items.sort_" ~ filters.sort) }}</span>
+  <span class="pill">{{ t("items.page_size") }}: {{ filters.page_size }}</span>
+</div>
+
 <div class="item-grid">
   {% for item in items %}
     {% include "_item_card.html" %}
   {% else %}
-    <p class="muted">{{ t("items.no_matching") }}</p>
+    <div class="card empty-state">
+      <p class="muted">{{ t("items.no_matching") }}</p>
+      <a class="button secondary" href="/items">{{ t("items.clear_filters") }}</a>
+    </div>
   {% endfor %}
 </div>
+{% if pagination.total > 0 %}
+  <nav class="pagination" aria-label="{{ t('items.pagination') }}">
+    <span class="muted">{{ t("items.showing_count", start=pagination.start, end=pagination.end, total=pagination.total) }}</span>
+    <div class="page-links">
+      {% if pagination.has_prev %}
+        <a class="button secondary page-link" href="{{ pagination.prev_url }}">{{ t("items.previous_page") }}</a>
+      {% else %}
+        <span class="button secondary page-link disabled">{{ t("items.previous_page") }}</span>
+      {% endif %}
+      {% for page_link in pagination.page_urls %}
+        <a class="button secondary page-link {% if page_link.page == pagination.page %}active{% endif %}" href="{{ page_link.url }}">{{ page_link.page }}</a>
+      {% endfor %}
+      {% if pagination.has_next %}
+        <a class="button secondary page-link" href="{{ pagination.next_url }}">{{ t("items.next_page") }}</a>
+      {% else %}
+        <span class="button secondary page-link disabled">{{ t("items.next_page") }}</span>
+      {% endif %}
+    </div>
+  </nav>
+{% endif %}
 {% endblock %}

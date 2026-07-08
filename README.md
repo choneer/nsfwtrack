@@ -7,6 +7,24 @@ Current status: `v0.1.0 / Phase 1 MVP`.
 Phase 1 is intentionally local-only. It is designed for manual records, local
 SQLite persistence, LAN deployment, and simple personal collection management.
 
+## Unreleased: Phase 2-A1 List Enhancements
+
+The current `main` branch includes local list page improvements for finding and
+reviewing existing records:
+
+- Advanced local filters by keyword, status, one tag, one creator, minimum
+  rating, and created / updated time range.
+- Sorting by created time, updated time, title, or rating.
+- Page size selection with `10`, `20`, `50`, or `100` items per page.
+- Query-string based filters, sorting, and pagination so refreshes and copied
+  links keep the same list state.
+- Current filter summary, clear filters action, and clearer empty results.
+- Chinese / English UI text for the new list controls.
+
+These enhancements still only query the local SQLite database. They do not add
+external content sources, crawlers, adapters, remote image fetching,
+recommendations, AI assistants, cloud sync, or multi-user support.
+
 ## Features in v0.1.0
 
 - Single-user login protection with session cookies

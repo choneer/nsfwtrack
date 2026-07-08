@@ -159,6 +159,31 @@
       gap: 12px;
       grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
     }
+    .filter-panel {
+      margin-bottom: 14px;
+    }
+    .filter-heading {
+      color: var(--text);
+      font-size: 15px;
+      font-weight: 700;
+      grid-column: 1 / -1;
+    }
+    .filter-actions {
+      align-items: end;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .filter-summary {
+      align-items: center;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+    .filter-summary strong {
+      margin-right: 2px;
+    }
     label {
       color: var(--muted);
       display: grid;
@@ -215,6 +240,40 @@
       display: flex;
       flex-wrap: wrap;
       gap: 8px;
+    }
+    .empty-state {
+      align-items: start;
+      display: grid;
+      gap: 10px;
+      justify-items: start;
+    }
+    .pagination {
+      align-items: center;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: space-between;
+      margin-top: 18px;
+    }
+    .page-links {
+      align-items: center;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .button.page-link {
+      min-width: 38px;
+      padding-left: 10px;
+      padding-right: 10px;
+    }
+    .button.active {
+      background: var(--accent-strong);
+      border-color: var(--accent-strong);
+    }
+    .button.disabled {
+      cursor: default;
+      opacity: 0.55;
+      pointer-events: none;
     }
     table {
       background: var(--panel);
@@ -277,8 +336,8 @@
     <nav class="nav">
       <a class="brand" href="/">NSFWTrack</a>
       <div class="language-switch">
-        <a class="{% if lang == 'zh' %}active{% endif %}" href="/set-language?lang=zh&next={{ request.url.path }}">{{ t("language.zh") }}</a>
-        <a class="{% if lang == 'en' %}active{% endif %}" href="/set-language?lang=en&next={{ request.url.path }}">{{ t("language.en") }}</a>
+        <a class="{% if lang == 'zh' %}active{% endif %}" href="/set-language?lang=zh&next={{ current_path }}">{{ t("language.zh") }}</a>
+        <a class="{% if lang == 'en' %}active{% endif %}" href="/set-language?lang=en&next={{ current_path }}">{{ t("language.en") }}</a>
       </div>
       {% if authenticated %}
       <div class="nav-links">

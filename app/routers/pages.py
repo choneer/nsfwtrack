@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from typing import Any
+from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile, status
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
@@ -28,11 +29,15 @@ from app.services.catalog import (
 )
 from app.services.backup import BackupError, preview_backup_data, restore_backup_data
 from app.services.importer import import_rows, parse_csv_rows, parse_json_rows
+from app.services.item_query import (
+    STATUS_OPTIONS,
+    build_item_list_url,
+    list_item_filter_options,
+    query_items,
+)
 
 router = APIRouter(tags=["pages"])
 templates = Jinja2Templates(directory="app/templates")
-
-STATUS_OPTIONS = ["wish", "watching", "watched", "like", "dislike", "ignore"]
 
 
 def _redirect(url: str) -> RedirectResponse:
@@ -41,10 +46,14 @@ def _redirect(url: str) -> RedirectResponse:
 
 def _base_context(request: Request, **values: Any) -> dict[str, Any]:
     language = get_language(request)
+    current_path = request.url.path
+    if request.url.query:
+        current_path = f"{current_path}?{request.url.query}"
     context = {
         "request": request,
         "authenticated": is_authenticated(request),
         "lang": language,
+        "current_path": quote(current_path, safe="/"),
         "t": translator(language),
         "status_label": status_translator(language),
         "status_options": STATUS_OPTIONS,
@@ -141,39 +150,66 @@ def index_page(request: Request, db: Session = Depends(get_db)) -> HTMLResponse:
     )
 
 
+def _pagination_context(result: Any) -> dict[str, Any]:
+    filters = result.filters
+    total = result.total
+    start = ((filters.page - 1) * filters.page_size) + 1 if total else 0
+    end = min(filters.page * filters.page_size, total) if total else 0
+    return {
+        "page": filters.page,
+        "page_size": filters.page_size,
+        "total": total,
+        "total_pages": result.total_pages,
+        "start": start,
+        "end": end,
+        "has_prev": filters.page > 1,
+        "has_next": filters.page < result.total_pages,
+        "prev_url": build_item_list_url(filters, page=filters.page - 1),
+        "next_url": build_item_list_url(filters, page=filters.page + 1),
+        "page_urls": [
+            {"page": page_number, "url": build_item_list_url(filters, page=page_number)}
+            for page_number in result.page_numbers
+        ],
+    }
+
+
 @router.get("/items", response_class=HTMLResponse, dependencies=[Depends(require_page_auth)])
 def items_page(
     request: Request,
     q: str | None = None,
     tag: str | None = None,
+    creator: str | None = None,
     state: str | None = None,
+    min_rating: str | None = None,
+    time_range: str | None = None,
+    date_field: str | None = None,
+    sort: str | None = None,
+    page: str | None = None,
+    page_size: str | None = None,
     db: Session = Depends(get_db),
 ) -> HTMLResponse:
-    stmt = select(Item)
-    if q:
-        stmt = stmt.where(Item.title.ilike(f"%{q.strip()}%"))
-    if tag:
-        stmt = stmt.join(Item.tags).where(Tag.name == tag.strip())
-    if state:
-        stmt = stmt.join(Item.state).where(UserItemState.status == state.strip())
-    items = db.scalars(
-        stmt.options(
-            selectinload(Item.tags),
-            selectinload(Item.creators),
-            selectinload(Item.state),
-        )
-        .distinct()
-        .order_by(Item.created_at.desc(), Item.id.desc())
-    ).all()
+    result = query_items(
+        db,
+        q=q,
+        tag=tag,
+        creator=creator,
+        state=state,
+        min_rating=min_rating,
+        time_range=time_range,
+        date_field=date_field,
+        sort=sort,
+        page=page,
+        page_size=page_size,
+    )
     return templates.TemplateResponse(
         request,
         "items.html",
         _base_context(
             request,
-            items=items,
-            q=q or "",
-            tag=tag or "",
-            selected_state=state or "",
+            items=result.items,
+            filters=result.filters,
+            filter_options=list_item_filter_options(db),
+            pagination=_pagination_context(result),
         ),
     )
 

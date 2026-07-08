@@ -1,5 +1,28 @@
 # Changelog / 变更记录
 
+## Unreleased
+
+### Added
+
+- Added Phase 2-A1 local list page advanced filtering for keyword, status, one
+  tag, one creator, minimum rating, and created / updated time range.
+- Added list sorting by created time, updated time, title, and rating in both
+  directions.
+- Added page size selection for `10`, `20`, `50`, and `100` items per page with
+  query-string state preservation.
+- Added current filter summary, clear filters action, and empty result prompt on
+  the item list page.
+- Added Chinese / English UI text and tests for the new list filters, sorting,
+  pagination, retained form state, invalid pagination fallback, and empty state.
+
+### Changed
+
+- Moved item list query normalization and SQLAlchemy query construction into a
+  dedicated local service.
+- Kept the Phase 2-A1 implementation local-only with no external content
+  sources, crawlers, adapters, remote image fetching, recommendation system, AI
+  assistant, cloud sync, or multi-user support.
+
 ## v0.1.0 - 2026-07-08
 
 ### Added

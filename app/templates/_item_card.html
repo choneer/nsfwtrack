@@ -11,6 +11,9 @@
   </a>
   {% if item.state %}
     <span class="pill state">{{ status_label(item.state.status) }}</span>
+    {% if item.state.rating %}
+      <span class="pill">{{ t("common.rating") }} {{ item.state.rating }}</span>
+    {% endif %}
   {% endif %}
   <div class="tag-row">
     {% for tag in item.tags[:5] %}
