@@ -1,4 +1,10 @@
 <article class="card">
+  {% if bulk_select %}
+    <label class="bulk-card-select">
+      <input class="bulk-item-checkbox" type="checkbox" name="item_ids" value="{{ item.id }}">
+      <span>{{ t("items.select_item") }}</span>
+    </label>
+  {% endif %}
   <a href="/items/{{ item.id }}">
     <div class="cover">
       {% if item.cover_path %}

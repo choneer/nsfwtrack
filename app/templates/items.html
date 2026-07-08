@@ -105,16 +105,83 @@
   <span class="pill">{{ t("items.page_size") }}: {{ filters.page_size }}</span>
 </div>
 
-<div class="item-grid">
-  {% for item in items %}
-    {% include "_item_card.html" %}
-  {% else %}
+{% if items %}
+  <form id="bulk-form" method="post" action="/items/bulk">
+    <input type="hidden" name="next" value="{{ current_url_path }}">
+    <section class="card bulk-panel">
+      <div class="bulk-heading">
+        <h2>{{ t("items.bulk_actions") }}</h2>
+        <span class="pill">{{ t("items.selected") }} <strong id="bulk-selected-count">0</strong></span>
+      </div>
+      <div class="actions">
+        <button class="secondary" type="button" id="bulk-select-page">{{ t("items.select_current_page") }}</button>
+        <button class="secondary" type="button" id="bulk-clear-selection">{{ t("items.clear_selection") }}</button>
+        <span class="pill warning">{{ t("items.dangerous_action") }}</span>
+        <span class="muted">{{ t("items.delete_irreversible") }}</span>
+      </div>
+      <div class="bulk-controls">
+        <label>{{ t("items.bulk_update_status") }}
+          <select name="status_value">
+            <option value="">{{ t("common.any") }}</option>
+            {% for option in filter_options.statuses %}
+              <option value="{{ option }}">{{ status_label(option) }}</option>
+            {% endfor %}
+          </select>
+          <button type="submit" name="bulk_action" value="status">{{ t("items.bulk_update_status") }}</button>
+        </label>
+        <label>{{ t("items.bulk_add_tag") }}
+          <select name="add_tag_id">
+            <option value="">{{ t("common.any") }}</option>
+            {% for tag_option in filter_options.tags %}
+              <option value="{{ tag_option.id }}">{{ tag_option.name }}</option>
+            {% endfor %}
+          </select>
+          <button type="submit" name="bulk_action" value="add_tag">{{ t("items.bulk_add_tag") }}</button>
+        </label>
+        <label>{{ t("items.bulk_remove_tag") }}
+          <select name="remove_tag_id">
+            <option value="">{{ t("common.any") }}</option>
+            {% for tag_option in filter_options.tags %}
+              <option value="{{ tag_option.id }}">{{ tag_option.name }}</option>
+            {% endfor %}
+          </select>
+          <button type="submit" name="bulk_action" value="remove_tag">{{ t("items.bulk_remove_tag") }}</button>
+        </label>
+        <label>{{ t("items.bulk_set_rating") }}
+          <select name="rating">
+            <option value="">{{ t("common.any") }}</option>
+            {% for rating in filter_options.min_ratings %}
+              <option value="{{ rating }}">{{ rating }}</option>
+            {% endfor %}
+          </select>
+          <button type="submit" name="bulk_action" value="rating">{{ t("items.bulk_set_rating") }}</button>
+        </label>
+      </div>
+      <div class="actions">
+        <button
+          class="danger"
+          type="submit"
+          name="bulk_action"
+          value="delete"
+          data-confirm-message="{{ t('items.confirm_bulk_delete') }}"
+        >{{ t("items.bulk_delete") }}</button>
+      </div>
+    </section>
+    <div class="item-grid">
+      {% set bulk_select = true %}
+      {% for item in items %}
+        {% include "_item_card.html" %}
+      {% endfor %}
+    </div>
+  </form>
+{% else %}
+  <div class="item-grid">
     <div class="card empty-state">
       <p class="muted">{{ t("items.no_matching") }}</p>
       <a class="button secondary" href="/items">{{ t("items.clear_filters") }}</a>
     </div>
-  {% endfor %}
-</div>
+  </div>
+{% endif %}
 {% if pagination.total > 0 %}
   <nav class="pagination" aria-label="{{ t('items.pagination') }}">
     <span class="muted">{{ t("items.showing_count", start=pagination.start, end=pagination.end, total=pagination.total) }}</span>
@@ -135,4 +202,38 @@
     </div>
   </nav>
 {% endif %}
+<script>
+  (() => {
+    const form = document.getElementById("bulk-form");
+    if (!form) return;
+
+    const checkboxes = Array.from(form.querySelectorAll(".bulk-item-checkbox"));
+    const count = document.getElementById("bulk-selected-count");
+    const updateCount = () => {
+      count.textContent = checkboxes.filter((checkbox) => checkbox.checked).length;
+    };
+
+    document.getElementById("bulk-select-page")?.addEventListener("click", () => {
+      checkboxes.forEach((checkbox) => { checkbox.checked = true; });
+      updateCount();
+    });
+    document.getElementById("bulk-clear-selection")?.addEventListener("click", () => {
+      checkboxes.forEach((checkbox) => { checkbox.checked = false; });
+      updateCount();
+    });
+    checkboxes.forEach((checkbox) => {
+      checkbox.addEventListener("change", updateCount);
+    });
+    form.addEventListener("submit", (event) => {
+      const submitter = event.submitter;
+      if (submitter?.value === "delete") {
+        const message = submitter.dataset.confirmMessage;
+        if (message && !window.confirm(message)) {
+          event.preventDefault();
+        }
+      }
+    });
+    updateCount();
+  })();
+</script>
 {% endblock %}

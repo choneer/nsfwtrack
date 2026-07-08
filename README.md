@@ -7,7 +7,9 @@ Current status: `v0.1.0 / Phase 1 MVP`.
 Phase 1 is intentionally local-only. It is designed for manual records, local
 SQLite persistence, LAN deployment, and simple personal collection management.
 
-## Unreleased: Phase 2-A1 List Enhancements
+## Unreleased: Phase 2 List Enhancements
+
+### Phase 2-A1 Advanced List Filters
 
 The current `main` branch includes local list page improvements for finding and
 reviewing existing records:
@@ -23,6 +25,26 @@ reviewing existing records:
 
 These enhancements still only query the local SQLite database. They do not add
 external content sources, crawlers, adapters, remote image fetching,
+recommendations, AI assistants, cloud sync, or multi-user support.
+
+### Phase 2-A2 Bulk Editing
+
+The current `main` branch also includes local bulk management for items on the
+current list page:
+
+- Select individual items, select the current page, or clear the current
+  selection.
+- Bulk update status, add one existing tag, remove one existing tag, and set
+  rating.
+- Bulk delete selected items with browser confirmation and a visible dangerous
+  action warning.
+- Return to the previous list URL after bulk actions so filters, sorting, and
+  page size are preserved where possible.
+- Unified Chinese / English success and error messages showing processed and
+  skipped counts.
+
+Bulk editing only affects selected local SQLite records. It does not select
+items across pages and does not add external sources, crawlers, adapters,
 recommendations, AI assistants, cloud sync, or multi-user support.
 
 ## Features in v0.1.0

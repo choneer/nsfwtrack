@@ -184,6 +184,35 @@
     .filter-summary strong {
       margin-right: 2px;
     }
+    .bulk-panel {
+      display: grid;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+    .bulk-heading {
+      align-items: center;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: space-between;
+    }
+    .bulk-controls {
+      display: grid;
+      gap: 12px;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    }
+    .bulk-card-select {
+      align-items: center;
+      color: var(--text);
+      display: flex;
+      font-size: 13px;
+      gap: 7px;
+      margin-bottom: 10px;
+    }
+    .bulk-card-select input {
+      min-height: 0;
+      width: auto;
+    }
     label {
       color: var(--muted);
       display: grid;
@@ -230,6 +259,11 @@
       background: #fff;
       border-color: #efb5ae;
       color: var(--danger);
+    }
+    button.warning, .button.warning {
+      background: #fff7ed;
+      border-color: #fed7aa;
+      color: var(--warn);
     }
     .inline-form {
       display: inline-flex;

@@ -28,6 +28,14 @@ from app.services.catalog import (
     update_item,
 )
 from app.services.backup import BackupError, preview_backup_data, restore_backup_data
+from app.services.bulk_actions import (
+    BulkActionError,
+    add_items_tag,
+    delete_items,
+    remove_items_tag,
+    set_items_rating,
+    set_items_status,
+)
 from app.services.importer import import_rows, parse_csv_rows, parse_json_rows
 from app.services.item_query import (
     STATUS_OPTIONS,
@@ -44,6 +52,12 @@ def _redirect(url: str) -> RedirectResponse:
     return RedirectResponse(url, status_code=status.HTTP_303_SEE_OTHER)
 
 
+def _safe_next_url(next_url: str | None) -> str:
+    if not next_url or not next_url.startswith("/") or next_url.startswith("//"):
+        return "/items"
+    return next_url
+
+
 def _base_context(request: Request, **values: Any) -> dict[str, Any]:
     language = get_language(request)
     current_path = request.url.path
@@ -53,6 +67,7 @@ def _base_context(request: Request, **values: Any) -> dict[str, Any]:
         "request": request,
         "authenticated": is_authenticated(request),
         "lang": language,
+        "current_url_path": current_path,
         "current_path": quote(current_path, safe="/"),
         "t": translator(language),
         "status_label": status_translator(language),
@@ -212,6 +227,46 @@ def items_page(
             pagination=_pagination_context(result),
         ),
     )
+
+
+@router.post("/items/bulk", dependencies=[Depends(require_page_auth)])
+def bulk_items_page(
+    request: Request,
+    bulk_action: str = Form(...),
+    item_ids: list[str] | None = Form(default=None),
+    status_value: str | None = Form(default=None),
+    add_tag_id: str | None = Form(default=None),
+    remove_tag_id: str | None = Form(default=None),
+    rating: str | None = Form(default=None),
+    next_url: str = Form(default="/items", alias="next"),
+    db: Session = Depends(get_db),
+) -> RedirectResponse:
+    target = _safe_next_url(next_url)
+    try:
+        if bulk_action == "status":
+            result = set_items_status(db, item_ids, status_value)
+        elif bulk_action == "add_tag":
+            result = add_items_tag(db, item_ids, add_tag_id)
+        elif bulk_action == "remove_tag":
+            result = remove_items_tag(db, item_ids, remove_tag_id)
+        elif bulk_action == "rating":
+            result = set_items_rating(db, item_ids, rating)
+        elif bulk_action == "delete":
+            result = delete_items(db, item_ids)
+        else:
+            raise BulkActionError("invalid_action")
+    except BulkActionError as exc:
+        add_flash(request, "error", f"flash.bulk_{exc.code}")
+        return _redirect(target)
+
+    add_flash(
+        request,
+        "success",
+        "flash.bulk_action_success",
+        processed=result.processed,
+        skipped=result.skipped,
+    )
+    return _redirect(target)
 
 
 @router.get(

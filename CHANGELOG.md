@@ -14,14 +14,26 @@
   the item list page.
 - Added Chinese / English UI text and tests for the new list filters, sorting,
   pagination, retained form state, invalid pagination fallback, and empty state.
+- Added Phase 2-A2 current-page item selection and local bulk actions for status
+  updates, adding one existing tag, removing one existing tag, setting rating,
+  and deleting selected items.
+- Added browser confirmation and visible dangerous-action copy for bulk delete.
+- Added bulk action success / error flash messages with processed and skipped
+  counts in Chinese / English.
+- Added tests for bulk login protection, missing selection, invalid inputs,
+  tag handling, rating updates, delete cleanup, preserved list URLs, and i18n
+  labels.
 
 ### Changed
 
 - Moved item list query normalization and SQLAlchemy query construction into a
   dedicated local service.
+- Moved bulk item mutation logic into a dedicated local service.
 - Kept the Phase 2-A1 implementation local-only with no external content
   sources, crawlers, adapters, remote image fetching, recommendation system, AI
   assistant, cloud sync, or multi-user support.
+- Kept the Phase 2-A2 implementation local-only and limited to selected items on
+  the current page.
 
 ## v0.1.0 - 2026-07-08
 
