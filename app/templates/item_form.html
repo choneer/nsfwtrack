@@ -3,7 +3,7 @@
 {% block content %}
 <div class="toolbar">
   <h1>{{ t(mode_key) }}</h1>
-  <a class="button secondary" href="{% if item %}/items/{{ item.id }}{% else %}/items{% endif %}">{{ t("common.back") }}</a>
+  <a class="button secondary" href="{% if item %}/items/{{ item.id }}{% if return_list_url and return_list_url != '/items' %}?next={{ return_list_url_quoted }}{% endif %}{% else %}/items{% endif %}">{{ t("common.back") }}</a>
 </div>
 <form class="card stack" action="{{ action }}" method="post">
   <div class="form-grid">

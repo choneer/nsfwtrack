@@ -47,6 +47,27 @@ Bulk editing only affects selected local SQLite records. It does not select
 items across pages and does not add external sources, crawlers, adapters,
 recommendations, AI assistants, cloud sync, or multi-user support.
 
+### Phase 2-A3 Detail Page Enhancements
+
+The current `main` branch also improves the local item detail page:
+
+- Detail information is split into basic information, state information, tags,
+  creators, and actions.
+- The page shows title, description, created / updated time, readable
+  `extra JSON`, current state, rating, short review, linked tags, and linked
+  creators.
+- The detail page can update status, rating, and short review without opening
+  the full item edit form.
+- The detail page can add or remove one existing tag and attach or detach one
+  existing creator.
+- Item links from the list page carry a safe `next` value so returning from the
+  detail page preserves filters, sorting, page, and page size where possible.
+- Chinese / English UI text and flash messages cover the new detail actions.
+
+Detail enhancements only operate on local SQLite records. They do not create
+external content sources, crawlers, adapters, remote image fetching, automatic
+sync, recommendations, AI assistants, cloud sync, or multi-user support.
+
 ## Features in v0.1.0
 
 - Single-user login protection with session cookies

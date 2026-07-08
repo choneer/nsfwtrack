@@ -37,6 +37,16 @@ from app.services.bulk_actions import (
     set_items_status,
 )
 from app.services.importer import import_rows, parse_csv_rows, parse_json_rows
+from app.services.item_detail import (
+    ItemDetailError,
+    add_existing_creator,
+    add_existing_tag,
+    list_available_creators,
+    list_available_tags,
+    remove_existing_creator,
+    remove_existing_tag,
+    save_item_state,
+)
 from app.services.item_query import (
     STATUS_OPTIONS,
     build_item_list_url,
@@ -56,6 +66,20 @@ def _safe_next_url(next_url: str | None) -> str:
     if not next_url or not next_url.startswith("/") or next_url.startswith("//"):
         return "/items"
     return next_url
+
+
+def _item_detail_url(item_id: int, next_url: str | None = None) -> str:
+    target = _safe_next_url(next_url)
+    if target == "/items":
+        return f"/items/{item_id}"
+    return f"/items/{item_id}?next={quote(target, safe='')}"
+
+
+def _item_edit_url(item_id: int, next_url: str | None = None) -> str:
+    target = _safe_next_url(next_url)
+    if target == "/items":
+        return f"/items/{item_id}/edit"
+    return f"/items/{item_id}/edit?next={quote(target, safe='')}"
 
 
 def _base_context(request: Request, **values: Any) -> dict[str, Any]:
@@ -328,10 +352,21 @@ def item_detail_page(
     db: Session = Depends(get_db),
 ) -> HTMLResponse:
     item = get_item_or_404(db, item_id)
+    return_list_url = _safe_next_url(request.query_params.get("next"))
     return templates.TemplateResponse(
         request,
         "detail.html",
-        _base_context(request, item=item, extra=parse_extra(item.extra)),
+        _base_context(
+            request,
+            item=item,
+            extra=parse_extra(item.extra),
+            available_tags=list_available_tags(db, item.id),
+            available_creators=list_available_creators(db, item.id),
+            return_list_url=return_list_url,
+            return_list_url_quoted=quote(return_list_url, safe=""),
+            detail_url=_item_detail_url(item.id, return_list_url),
+            edit_url=_item_edit_url(item.id, return_list_url),
+        ),
     )
 
 
@@ -346,15 +381,18 @@ def edit_item_page(
     db: Session = Depends(get_db),
 ) -> HTMLResponse:
     item = get_item_or_404(db, item_id)
+    return_list_url = _safe_next_url(request.query_params.get("next"))
     return templates.TemplateResponse(
         request,
         "item_form.html",
         _base_context(
             request,
             item=item,
-            action=f"/items/{item.id}/edit",
+            action=_item_edit_url(item.id, return_list_url),
             mode_key="items.edit_title",
             extra=parse_extra(item.extra),
+            return_list_url=return_list_url,
+            return_list_url_quoted=quote(return_list_url, safe=""),
         ),
     )
 
@@ -373,6 +411,7 @@ def update_item_page(
     db: Session = Depends(get_db),
 ) -> RedirectResponse:
     item = get_item_or_404(db, item_id)
+    return_list_url = _safe_next_url(request.query_params.get("next"))
     try:
         update_item(
             db,
@@ -389,52 +428,135 @@ def update_item_page(
         )
     except ValueError:
         add_flash(request, "error", "flash.item_save_failed")
-        return _redirect(f"/items/{item_id}/edit")
+        return _redirect(_item_edit_url(item_id, return_list_url))
     add_flash(request, "success", "flash.item_updated")
-    return _redirect(f"/items/{item_id}")
+    return _redirect(_item_detail_url(item_id, return_list_url))
 
 
 @router.post("/items/{item_id}/delete", dependencies=[Depends(require_page_auth)])
 def delete_item_page(
     request: Request,
     item_id: int,
+    next_url: str = Form(default="/items", alias="next"),
     db: Session = Depends(get_db),
 ) -> RedirectResponse:
+    target = _safe_next_url(next_url)
     item = db.get(Item, item_id)
     if item is None:
         add_flash(request, "error", "flash.item_delete_failed")
-        return _redirect("/items")
+        return _redirect(target)
     db.delete(item)
     db.commit()
     add_flash(request, "success", "flash.item_deleted")
-    return _redirect("/items")
+    return _redirect(target)
 
 
 @router.post("/items/{item_id}/state", dependencies=[Depends(require_page_auth)])
 def set_item_state_page(
     request: Request,
     item_id: int,
-    status_value: str = Form(...),
-    rating: int | None = Form(default=None),
+    status_value: str | None = Form(default=None),
+    rating: str | None = Form(default=None),
     review: str | None = Form(default=None),
+    next_url: str = Form(default="/items", alias="next"),
     db: Session = Depends(get_db),
 ) -> RedirectResponse:
-    item = get_item_or_404(db, item_id)
-    set_state(db, item, StateCreate(status=status_value, rating=rating, review=review))
-    add_flash(request, "success", "flash.state_saved")
-    return _redirect(f"/items/{item_id}")
+    target = _item_detail_url(item_id, next_url)
+    try:
+        save_item_state(db, item_id, status_value, rating, review)
+    except ItemDetailError as exc:
+        add_flash(request, "error", f"flash.detail_{exc.code}")
+        return _redirect(target)
+    add_flash(request, "success", "flash.detail_state_updated")
+    return _redirect(target)
 
 
 @router.post("/items/{item_id}/state/delete", dependencies=[Depends(require_page_auth)])
 def delete_item_state_page(
     request: Request,
     item_id: int,
+    next_url: str = Form(default="/items", alias="next"),
     db: Session = Depends(get_db),
 ) -> RedirectResponse:
     item = get_item_or_404(db, item_id)
     delete_state(db, item)
     add_flash(request, "info", "flash.state_cleared")
-    return _redirect(f"/items/{item_id}")
+    return _redirect(_item_detail_url(item_id, next_url))
+
+
+@router.post("/items/{item_id}/tags", dependencies=[Depends(require_page_auth)])
+def add_item_tag_page(
+    request: Request,
+    item_id: int,
+    tag_id: str | None = Form(default=None),
+    next_url: str = Form(default="/items", alias="next"),
+    db: Session = Depends(get_db),
+) -> RedirectResponse:
+    target = _item_detail_url(item_id, next_url)
+    try:
+        add_existing_tag(db, item_id, tag_id)
+    except ItemDetailError as exc:
+        add_flash(request, "error", f"flash.detail_{exc.code}")
+        return _redirect(target)
+    add_flash(request, "success", "flash.detail_tag_added")
+    return _redirect(target)
+
+
+@router.post("/items/{item_id}/tags/{tag_id}/delete", dependencies=[Depends(require_page_auth)])
+def remove_item_tag_page(
+    request: Request,
+    item_id: int,
+    tag_id: int,
+    next_url: str = Form(default="/items", alias="next"),
+    db: Session = Depends(get_db),
+) -> RedirectResponse:
+    target = _item_detail_url(item_id, next_url)
+    try:
+        remove_existing_tag(db, item_id, tag_id)
+    except ItemDetailError as exc:
+        add_flash(request, "error", f"flash.detail_{exc.code}")
+        return _redirect(target)
+    add_flash(request, "success", "flash.detail_tag_removed")
+    return _redirect(target)
+
+
+@router.post("/items/{item_id}/creators", dependencies=[Depends(require_page_auth)])
+def add_item_creator_page(
+    request: Request,
+    item_id: int,
+    creator_id: str | None = Form(default=None),
+    next_url: str = Form(default="/items", alias="next"),
+    db: Session = Depends(get_db),
+) -> RedirectResponse:
+    target = _item_detail_url(item_id, next_url)
+    try:
+        add_existing_creator(db, item_id, creator_id)
+    except ItemDetailError as exc:
+        add_flash(request, "error", f"flash.detail_{exc.code}")
+        return _redirect(target)
+    add_flash(request, "success", "flash.detail_creator_added")
+    return _redirect(target)
+
+
+@router.post(
+    "/items/{item_id}/creators/{creator_id}/delete",
+    dependencies=[Depends(require_page_auth)],
+)
+def remove_item_creator_page(
+    request: Request,
+    item_id: int,
+    creator_id: int,
+    next_url: str = Form(default="/items", alias="next"),
+    db: Session = Depends(get_db),
+) -> RedirectResponse:
+    target = _item_detail_url(item_id, next_url)
+    try:
+        remove_existing_creator(db, item_id, creator_id)
+    except ItemDetailError as exc:
+        add_flash(request, "error", f"flash.detail_{exc.code}")
+        return _redirect(target)
+    add_flash(request, "success", "flash.detail_creator_removed")
+    return _redirect(target)
 
 
 @router.get("/tags", response_class=HTMLResponse, dependencies=[Depends(require_page_auth)])

@@ -3,80 +3,204 @@
 {% block content %}
 <div class="toolbar">
   <div>
+    <p class="muted">{{ t("detail.title") }}</p>
     <h1>{{ item.title }}</h1>
     {% if item.release_date %}<p class="muted">{{ item.release_date }}</p>{% endif %}
   </div>
   <div class="actions">
-    <a class="button secondary" href="/items/{{ item.id }}/edit">{{ t("detail.edit") }}</a>
-    <form class="inline-form" action="/items/{{ item.id }}/delete" method="post">
-      <button class="danger" type="submit">{{ t("common.delete") }}</button>
-    </form>
+    <a class="button secondary" href="{{ return_list_url }}">{{ t("detail.back_to_list") }}</a>
+    <a class="button secondary" href="{{ edit_url }}">{{ t("detail.edit_item") }}</a>
   </div>
 </div>
-<div class="split">
-  <section class="stack">
-    <div class="cover">
-      {% if item.cover_path %}
-        <img src="{{ item.cover_path }}" alt="">
+
+<div class="detail-layout">
+  <section class="card detail-section">
+    <h2>{{ t("detail.basic_info") }}</h2>
+    <div class="detail-overview">
+      <div class="cover">
+        {% if item.cover_path %}
+          <img src="{{ item.cover_path }}" alt="">
+        {% else %}
+          {{ t("common.no_cover") }}
+        {% endif %}
+      </div>
+      <div class="stack">
+        <div class="detail-field">
+          <span class="muted">{{ t("common.title") }}</span>
+          <strong>{{ item.title }}</strong>
+        </div>
+        <div class="detail-field">
+          <span class="muted">{{ t("detail.description") }}</span>
+          {% if item.summary %}
+            <p>{{ item.summary }}</p>
+          {% else %}
+            <p class="muted">{{ t("common.none") }}</p>
+          {% endif %}
+        </div>
+        <div class="detail-meta-grid">
+          <div class="detail-field">
+            <span class="muted">{{ t("detail.created_at") }}</span>
+            <span>{{ item.created_at }}</span>
+          </div>
+          <div class="detail-field">
+            <span class="muted">{{ t("detail.updated_at") }}</span>
+            <span>{{ item.updated_at }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="detail-field">
+      <h3>{{ t("detail.extra_json") }}</h3>
+      {% if extra %}
+        <pre class="json-block">{{ extra|tojson(indent=2) }}</pre>
       {% else %}
-        {{ t("common.no_cover") }}
+        <p class="muted">{{ t("detail.no_extra") }}</p>
       {% endif %}
     </div>
-    {% if item.summary %}
-      <p>{{ item.summary }}</p>
-    {% endif %}
-    <div>
-      <h2>{{ t("common.tags") }}</h2>
-      <div class="tag-row">
-        {% for tag in item.tags %}
-          <span class="pill">{{ tag.name }}</span>
-        {% else %}
-          <span class="muted">{{ t("common.none") }}</span>
-        {% endfor %}
-      </div>
-    </div>
-    <div>
-      <h2>{{ t("common.creators") }}</h2>
-      <div class="tag-row">
-        {% for creator in item.creators %}
-          <a class="pill" href="/creators/{{ creator.id }}">{{ creator.name }}</a>
-        {% else %}
-          <span class="muted">{{ t("common.none") }}</span>
-        {% endfor %}
-      </div>
-    </div>
-    {% if extra %}
-      <div>
-        <h2>{{ t("common.extra") }}</h2>
-        <pre class="card">{{ extra|tojson(indent=2) }}</pre>
-      </div>
-    {% endif %}
   </section>
-  <aside class="card">
-    <h2>{{ t("common.status") }}</h2>
+
+  <section class="card detail-section">
+    <h2>{{ t("detail.status_info") }}</h2>
+    <div class="detail-current">
+      {% if item.state %}
+        <span class="pill state">{{ status_label(item.state.status) }}</span>
+        {% if item.state.rating %}
+          <span class="pill">{{ t("common.rating") }} {{ item.state.rating }}</span>
+        {% else %}
+          <span class="pill">{{ t("detail.no_rating") }}</span>
+        {% endif %}
+        {% if item.state.review %}
+          <p>{{ item.state.review }}</p>
+        {% else %}
+          <p class="muted">{{ t("detail.no_review") }}</p>
+        {% endif %}
+      {% else %}
+        <p class="muted">{{ t("detail.no_state") }}</p>
+      {% endif %}
+    </div>
     <form class="stack" action="/items/{{ item.id }}/state" method="post">
-      <label>{{ t("common.status") }}
+      <input type="hidden" name="next" value="{{ return_list_url }}">
+      <label>{{ t("detail.change_status") }}
         <select name="status_value" required>
           {% for option in status_options %}
             <option value="{{ option }}" {% if item.state and item.state.status == option %}selected{% endif %}>{{ status_label(option) }}</option>
           {% endfor %}
         </select>
       </label>
-      <label>{{ t("common.rating") }}
-        <input name="rating" type="number" min="1" max="5" value="{{ item.state.rating if item.state and item.state.rating else '' }}">
+      <label>{{ t("detail.change_rating") }}
+        <select name="rating">
+          <option value="">{{ t("detail.clear_rating") }}</option>
+          {% for rating in [1, 2, 3, 4, 5] %}
+            <option value="{{ rating }}" {% if item.state and item.state.rating == rating %}selected{% endif %}>{{ rating }}</option>
+          {% endfor %}
+        </select>
       </label>
-      <label>{{ t("common.review") }}
+      <label>{{ t("detail.short_review") }}
         <textarea name="review" placeholder="{{ t('items.placeholder_review') }}">{{ item.state.review if item.state and item.state.review else '' }}</textarea>
       </label>
       <div class="actions">
-        <button type="submit">{{ t("common.save") }}</button>
+        <button type="submit">{{ t("detail.save_state") }}</button>
+        <button class="secondary" type="submit">{{ t("detail.save_rating") }}</button>
+        <button class="secondary" type="submit">{{ t("detail.save_review") }}</button>
       </div>
     </form>
     {% if item.state %}
       <form class="inline-form" action="/items/{{ item.id }}/state/delete" method="post">
+        <input type="hidden" name="next" value="{{ return_list_url }}">
         <button class="danger" type="submit">{{ t("detail.clear_state") }}</button>
       </form>
     {% endif %}
-  </aside>
+  </section>
+
+  <section class="card detail-section">
+    <h2>{{ t("detail.tag_info") }}</h2>
+    <h3>{{ t("detail.current_tags") }}</h3>
+    <div class="relation-list">
+      {% for tag in item.tags|sort(attribute="name") %}
+        <form class="relation-row" action="/items/{{ item.id }}/tags/{{ tag.id }}/delete" method="post">
+          <input type="hidden" name="next" value="{{ return_list_url }}">
+          <span class="pill">{{ tag.name }}</span>
+          <button class="secondary compact" type="submit">{{ t("detail.remove_tag") }}</button>
+        </form>
+      {% else %}
+        <p class="muted">{{ t("detail.no_tags") }}</p>
+      {% endfor %}
+    </div>
+    <form class="relation-form" action="/items/{{ item.id }}/tags" method="post">
+      <input type="hidden" name="next" value="{{ return_list_url }}">
+      <label>{{ t("detail.add_tag") }}
+        <select name="tag_id">
+          <option value="">{{ t("common.any") }}</option>
+          {% for tag in available_tags %}
+            <option value="{{ tag.id }}">{{ tag.name }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <button type="submit">{{ t("detail.add_tag") }}</button>
+    </form>
+    {% if not available_tags %}
+      <p class="muted">{{ t("detail.no_available_tags") }}</p>
+    {% endif %}
+  </section>
+
+  <section class="card detail-section">
+    <h2>{{ t("detail.creator_info") }}</h2>
+    <h3>{{ t("detail.current_creators") }}</h3>
+    <div class="relation-list">
+      {% for creator in item.creators|sort(attribute="name") %}
+        <form class="relation-row" action="/items/{{ item.id }}/creators/{{ creator.id }}/delete" method="post">
+          <input type="hidden" name="next" value="{{ return_list_url }}">
+          <a class="pill" href="/creators/{{ creator.id }}">{{ creator.name }}</a>
+          <button class="secondary compact" type="submit">{{ t("detail.remove_creator") }}</button>
+        </form>
+      {% else %}
+        <p class="muted">{{ t("detail.no_creators") }}</p>
+      {% endfor %}
+    </div>
+    <form class="relation-form" action="/items/{{ item.id }}/creators" method="post">
+      <input type="hidden" name="next" value="{{ return_list_url }}">
+      <label>{{ t("detail.add_creator") }}
+        <select name="creator_id">
+          <option value="">{{ t("common.any") }}</option>
+          {% for creator in available_creators %}
+            <option value="{{ creator.id }}">{{ creator.name }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <button type="submit">{{ t("detail.add_creator") }}</button>
+    </form>
+    {% if not available_creators %}
+      <p class="muted">{{ t("detail.no_available_creators") }}</p>
+    {% endif %}
+  </section>
+
+  <section class="card detail-section detail-actions-panel">
+    <h2>{{ t("detail.actions") }}</h2>
+    <div class="actions">
+      <a class="button secondary" href="{{ return_list_url }}">{{ t("detail.back_to_list") }}</a>
+      <a class="button secondary" href="{{ edit_url }}">{{ t("detail.edit_item") }}</a>
+      <form class="inline-form" action="/items/{{ item.id }}/delete" method="post">
+        <input type="hidden" name="next" value="{{ return_list_url }}">
+        <button
+          class="danger"
+          type="submit"
+          data-confirm-message="{{ t('detail.confirm_delete') }}"
+        >{{ t("detail.delete_item") }}</button>
+      </form>
+    </div>
+  </section>
 </div>
+
+<script>
+  (() => {
+    document.querySelectorAll("[data-confirm-message]").forEach((button) => {
+      button.addEventListener("click", (event) => {
+        const message = button.dataset.confirmMessage;
+        if (message && !window.confirm(message)) {
+          event.preventDefault();
+        }
+      });
+    });
+  })();
+</script>
 {% endblock %}

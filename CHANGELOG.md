@@ -23,17 +23,31 @@
 - Added tests for bulk login protection, missing selection, invalid inputs,
   tag handling, rating updates, delete cleanup, preserved list URLs, and i18n
   labels.
+- Added Phase 2-A3 detail page sections for basic information, state
+  information, tags, creators, and actions.
+- Added detail page status, rating, and short review editing with safe invalid
+  value handling.
+- Added detail page management for adding / removing one existing tag and
+  attaching / detaching one existing creator.
+- Added safe detail-page `next` handling so returning to the item list can keep
+  search, filters, sorting, page, and page size.
+- Added Chinese / English UI text and tests for detail rendering, state edits,
+  tag / creator relation management, safe `next`, and i18n labels.
 
 ### Changed
 
 - Moved item list query normalization and SQLAlchemy query construction into a
   dedicated local service.
 - Moved bulk item mutation logic into a dedicated local service.
+- Moved detail page mutation logic into a dedicated local service.
 - Kept the Phase 2-A1 implementation local-only with no external content
   sources, crawlers, adapters, remote image fetching, recommendation system, AI
   assistant, cloud sync, or multi-user support.
 - Kept the Phase 2-A2 implementation local-only and limited to selected items on
   the current page.
+- Kept the Phase 2-A3 implementation local-only and limited to lightweight
+  detail page display, state edits, relation management, and safe list-return
+  context.
 
 ## v0.1.0 - 2026-07-08
 

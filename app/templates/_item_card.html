@@ -5,7 +5,7 @@
       <span>{{ t("items.select_item") }}</span>
     </label>
   {% endif %}
-  <a href="/items/{{ item.id }}">
+  <a href="/items/{{ item.id }}{% if preserve_list_context %}?next={{ current_path }}{% endif %}">
     <div class="cover">
       {% if item.cover_path %}
         <img src="{{ item.cover_path }}" alt="">

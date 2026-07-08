@@ -329,6 +329,76 @@
       gap: 18px;
       grid-template-columns: minmax(0, 1.5fr) minmax(260px, 0.8fr);
     }
+    .detail-layout {
+      display: grid;
+      gap: 16px;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    }
+    .detail-section {
+      align-content: start;
+      display: grid;
+      gap: 14px;
+    }
+    .detail-overview {
+      display: grid;
+      gap: 14px;
+      grid-template-columns: minmax(180px, 280px) minmax(0, 1fr);
+    }
+    .detail-field {
+      display: grid;
+      gap: 4px;
+    }
+    .detail-meta-grid {
+      display: grid;
+      gap: 10px;
+      grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    }
+    .detail-current {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .detail-current p {
+      flex-basis: 100%;
+      margin-bottom: 0;
+    }
+    .json-block {
+      background: #f8fafc;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      color: var(--text);
+      font-size: 13px;
+      margin: 0;
+      max-width: 100%;
+      overflow-x: auto;
+      padding: 12px;
+      white-space: pre-wrap;
+    }
+    .relation-list {
+      display: grid;
+      gap: 8px;
+    }
+    .relation-row {
+      align-items: center;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 0;
+    }
+    .relation-form {
+      align-items: end;
+      display: grid;
+      gap: 10px;
+      grid-template-columns: minmax(220px, 1fr) auto;
+    }
+    button.compact, .button.compact {
+      font-size: 13px;
+      min-height: 30px;
+      padding: 5px 9px;
+    }
+    .detail-actions-panel {
+      grid-column: 1 / -1;
+    }
     .flash-list {
       display: grid;
       gap: 10px;
@@ -359,6 +429,7 @@
     @media (max-width: 760px) {
       .nav { align-items: flex-start; flex-direction: column; padding: 14px 20px; }
       .split { grid-template-columns: 1fr; }
+      .detail-layout, .detail-overview, .relation-form { grid-template-columns: 1fr; }
       .toolbar { align-items: stretch; flex-direction: column; }
       .actions { width: 100%; }
       .actions > * { flex: 1 1 auto; }

@@ -169,6 +169,7 @@
     </section>
     <div class="item-grid">
       {% set bulk_select = true %}
+      {% set preserve_list_context = true %}
       {% for item in items %}
         {% include "_item_card.html" %}
       {% endfor %}
