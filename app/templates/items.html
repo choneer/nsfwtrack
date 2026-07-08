@@ -1,34 +1,34 @@
 {% extends "base.html" %}
-{% block title %}Items - NSFWTrack{% endblock %}
+{% block title %}{{ t("items.title") }} - NSFWTrack{% endblock %}
 {% block content %}
 <div class="toolbar">
-  <h1>Items</h1>
-  <a class="button" href="/items/new">New Item</a>
+  <h1>{{ t("items.title") }}</h1>
+  <a class="button" href="/items/new">{{ t("items.new") }}</a>
 </div>
 <form class="card form-grid" method="get" action="/items">
-  <label>Title
-    <input name="q" value="{{ q }}">
+  <label>{{ t("common.title") }}
+    <input name="q" value="{{ q }}" placeholder="{{ t('items.placeholder_title') }}">
   </label>
-  <label>Tag
-    <input name="tag" value="{{ tag }}">
+  <label>{{ t("common.tags") }}
+    <input name="tag" value="{{ tag }}" placeholder="{{ t('items.placeholder_tag') }}">
   </label>
-  <label>Status
+  <label>{{ t("common.status") }}
     <select name="state">
-      <option value="">Any</option>
+      <option value="">{{ t("common.any") }}</option>
       {% for option in status_options %}
-        <option value="{{ option }}" {% if selected_state == option %}selected{% endif %}>{{ option }}</option>
+        <option value="{{ option }}" {% if selected_state == option %}selected{% endif %}>{{ status_label(option) }}</option>
       {% endfor %}
     </select>
   </label>
   <label>&nbsp;
-    <button type="submit">Search</button>
+    <button type="submit">{{ t("common.search") }}</button>
   </label>
 </form>
 <div class="item-grid">
   {% for item in items %}
     {% include "_item_card.html" %}
   {% else %}
-    <p class="muted">No matching items.</p>
+    <p class="muted">{{ t("items.no_matching") }}</p>
   {% endfor %}
 </div>
 {% endblock %}

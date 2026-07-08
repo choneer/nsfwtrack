@@ -1,26 +1,26 @@
 {% extends "base.html" %}
-{% block title %}Creators - NSFWTrack{% endblock %}
+{% block title %}{{ t("creators.title") }} - NSFWTrack{% endblock %}
 {% block content %}
-<h1>Creators</h1>
+<h1>{{ t("creators.title") }}</h1>
 <form class="card form-grid" action="/creators" method="post">
-  <label>Name
+  <label>{{ t("common.name") }}
     <input name="name" required>
   </label>
-  <label>Type
+  <label>{{ t("common.type") }}
     <input name="type_value" value="other">
   </label>
-  <label>Avatar Path
+  <label>{{ t("common.avatar_path") }}
     <input name="avatar_path">
   </label>
   <label>&nbsp;
-    <button type="submit">Add Creator</button>
+    <button type="submit">{{ t("creators.add") }}</button>
   </label>
 </form>
 <table>
   <thead>
     <tr>
-      <th>Name</th>
-      <th>Type</th>
+      <th>{{ t("common.name") }}</th>
+      <th>{{ t("common.type") }}</th>
       <th></th>
     </tr>
   </thead>
@@ -31,12 +31,12 @@
         <td>{{ creator.type }}</td>
         <td>
           <form class="inline-form" action="/creators/{{ creator.id }}/delete" method="post">
-            <button class="danger" type="submit">Delete</button>
+            <button class="danger" type="submit">{{ t("common.delete") }}</button>
           </form>
         </td>
       </tr>
     {% else %}
-      <tr><td colspan="3" class="muted">No creators.</td></tr>
+      <tr><td colspan="3" class="muted">{{ t("creators.empty") }}</td></tr>
     {% endfor %}
   </tbody>
 </table>

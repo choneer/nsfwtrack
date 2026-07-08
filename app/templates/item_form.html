@@ -1,56 +1,56 @@
 {% extends "base.html" %}
-{% block title %}{{ mode }} Item - NSFWTrack{% endblock %}
+{% block title %}{{ t(mode_key) }} - NSFWTrack{% endblock %}
 {% block content %}
 <div class="toolbar">
-  <h1>{{ mode }} Item</h1>
-  <a class="button secondary" href="{% if item %}/items/{{ item.id }}{% else %}/items{% endif %}">Back</a>
+  <h1>{{ t(mode_key) }}</h1>
+  <a class="button secondary" href="{% if item %}/items/{{ item.id }}{% else %}/items{% endif %}">{{ t("common.back") }}</a>
 </div>
 <form class="card stack" action="{{ action }}" method="post">
   <div class="form-grid">
-    <label>Title
-      <input name="title" value="{{ item.title if item else '' }}" required>
+    <label>{{ t("common.title") }}
+      <input name="title" value="{{ item.title if item else '' }}" placeholder="{{ t('items.placeholder_title') }}" required>
     </label>
-    <label>Release Date
+    <label>{{ t("common.release_date") }}
       <input name="release_date" value="{{ item.release_date if item and item.release_date else '' }}">
     </label>
   </div>
-  <label>Cover Path
-    <input name="cover_path" value="{{ item.cover_path if item and item.cover_path else '' }}">
+  <label>{{ t("common.cover_path") }}
+    <input name="cover_path" value="{{ item.cover_path if item and item.cover_path else '' }}" placeholder="{{ t('items.placeholder_cover') }}">
   </label>
-  <label>Summary
-    <textarea name="summary">{{ item.summary if item and item.summary else '' }}</textarea>
+  <label>{{ t("common.summary") }}
+    <textarea name="summary" placeholder="{{ t('items.placeholder_summary') }}">{{ item.summary if item and item.summary else '' }}</textarea>
   </label>
   <div class="form-grid">
-    <label>Tags
-      <input name="tags" value="{{ item.tags|map(attribute='name')|join(', ') if item else '' }}">
+    <label>{{ t("common.tags") }}
+      <input name="tags" value="{{ item.tags|map(attribute='name')|join(', ') if item else '' }}" placeholder="{{ t('items.placeholder_tags') }}">
     </label>
-    <label>Creators
-      <input name="creators" value="{{ item.creators|map(attribute='name')|join(', ') if item else '' }}">
+    <label>{{ t("common.creators") }}
+      <input name="creators" value="{{ item.creators|map(attribute='name')|join(', ') if item else '' }}" placeholder="{{ t('items.placeholder_creators') }}">
     </label>
   </div>
-  <label>Extra JSON
-    <textarea name="extra_json">{% if extra %}{{ extra|tojson }}{% endif %}</textarea>
+  <label>{{ t("common.extra_json") }}
+    <textarea name="extra_json" placeholder="{{ t('items.placeholder_extra') }}">{% if extra %}{{ extra|tojson }}{% endif %}</textarea>
   </label>
   {% if not item %}
   <div class="form-grid">
-    <label>Status
+    <label>{{ t("common.status") }}
       <select name="status_value">
-        <option value="">None</option>
+        <option value="">{{ t("common.none") }}</option>
         {% for option in status_options %}
-          <option value="{{ option }}">{{ option }}</option>
+          <option value="{{ option }}">{{ status_label(option) }}</option>
         {% endfor %}
       </select>
     </label>
-    <label>Rating
+    <label>{{ t("common.rating") }}
       <input name="rating" type="number" min="1" max="5">
     </label>
   </div>
-  <label>Review
-    <textarea name="review"></textarea>
+  <label>{{ t("common.review") }}
+    <textarea name="review" placeholder="{{ t('items.placeholder_review') }}"></textarea>
   </label>
   {% endif %}
   <div class="actions">
-    <button type="submit">Save</button>
+    <button type="submit">{{ t("common.save") }}</button>
   </div>
 </form>
 {% endblock %}

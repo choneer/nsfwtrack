@@ -6,15 +6,15 @@
     <h1>{{ creator.name }}</h1>
     <p class="muted">{{ creator.type }}</p>
   </div>
-  <a class="button secondary" href="/creators">Back</a>
+  <a class="button secondary" href="/creators">{{ t("common.back") }}</a>
 </div>
 <section>
-  <h2>Items</h2>
+  <h2>{{ t("creators.items") }}</h2>
   <div class="item-grid">
     {% for item in creator.items %}
       {% include "_item_card.html" %}
     {% else %}
-      <p class="muted">No items.</p>
+      <p class="muted">{{ t("stats.no_items") }}</p>
     {% endfor %}
   </div>
 </section>

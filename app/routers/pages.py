@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.auth import is_authenticated, logout_user, require_page_auth
 from app.database import get_db
+from app.i18n import get_language, set_language, status_translator, translator
 from app.models import Creator, Item, Tag, UserItemState
 from app.schemas import CreatorCreate, ItemCreate, ItemUpdate, StateCreate, TagCreate
 from app.services.catalog import (
@@ -36,9 +37,13 @@ def _redirect(url: str) -> RedirectResponse:
 
 
 def _base_context(request: Request, **values: Any) -> dict[str, Any]:
+    language = get_language(request)
     context = {
         "request": request,
         "authenticated": is_authenticated(request),
+        "lang": language,
+        "t": translator(language),
+        "status_label": status_translator(language),
         "status_options": STATUS_OPTIONS,
     }
     context.update(values)
@@ -93,6 +98,17 @@ def logout_page(
     del authenticated
     logout_user(request)
     return _redirect("/login")
+
+
+@router.get("/set-language")
+def set_language_page(
+    request: Request,
+    lang: str = "zh",
+    next: str = "/",
+) -> RedirectResponse:
+    set_language(request, lang)
+    target = next if next.startswith("/") and not next.startswith("//") else "/"
+    return _redirect(target)
 
 
 @router.get("/", response_class=HTMLResponse, dependencies=[Depends(require_page_auth)])
@@ -165,7 +181,7 @@ def new_item_page(request: Request) -> HTMLResponse:
     return templates.TemplateResponse(
         request,
         "item_form.html",
-        _base_context(request, item=None, action="/items", mode="Create"),
+        _base_context(request, item=None, action="/items", mode_key="items.create_title"),
     )
 
 
@@ -234,7 +250,7 @@ def edit_item_page(
             request,
             item=item,
             action=f"/items/{item.id}/edit",
-            mode="Edit",
+            mode_key="items.edit_title",
             extra=parse_extra(item.extra),
         ),
     )

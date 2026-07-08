@@ -1,23 +1,23 @@
 {% extends "base.html" %}
-{% block title %}Home - NSFWTrack{% endblock %}
+{% block title %}{{ t("dashboard.title") }} - NSFWTrack{% endblock %}
 {% block content %}
 <div class="toolbar">
   <div>
-    <h1>Dashboard</h1>
-    <p class="muted">{{ totals.items }} items, {{ totals.tags }} tags, {{ totals.creators }} creators</p>
+    <h1>{{ t("dashboard.title") }}</h1>
+    <p class="muted">{{ t("dashboard.summary", items=totals["items"], tags=totals["tags"], creators=totals["creators"]) }}</p>
   </div>
   <div class="actions">
-    <a class="button" href="/items/new">New Item</a>
-    <a class="button secondary" href="/import">Import</a>
+    <a class="button" href="/items/new">{{ t("dashboard.new_item") }}</a>
+    <a class="button secondary" href="/import">{{ t("dashboard.import") }}</a>
   </div>
 </div>
 <section>
-  <h2>Recent Items</h2>
+  <h2>{{ t("dashboard.recent_items") }}</h2>
   <div class="item-grid">
     {% for item in recent_items %}
       {% include "_item_card.html" %}
     {% else %}
-      <p class="muted">No items yet.</p>
+      <p class="muted">{{ t("dashboard.empty") }}</p>
     {% endfor %}
   </div>
 </section>

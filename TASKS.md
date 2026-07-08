@@ -61,6 +61,11 @@
   - 新增/编辑表单
 - [x] **T4.4** 标签管理页 + 创作者管理页
 - [x] **T4.5** 统计页面
+- [x] **T4.6** 中文 / English 语言切换
+  - `app/i18n.py`：中英翻译字典，默认中文
+  - `/set-language?lang=zh|en`：切换语言
+  - Session 保存语言偏好，刷新后不丢失
+  - 所有 Jinja2 页面展示文本接入 `t("...")`
 
 ## Day 5: 导入 + 部署 + 测试
 
@@ -77,3 +82,10 @@
   - `tests/test_states.py`：标记
   - `tests/test_search.py`：搜索
 - [x] **T5.4** 整体验收 + 修复
+
+## 本轮清理
+
+- [x] 删除 `data/ehtag_version`
+- [x] 删除 `docs/legacy/`
+- [x] 确认当前代码不依赖 `docs/legacy/`
+- [x] 确认未引入外部 HTTP 请求、爬虫、adapter、远程图片拉取、第三方 cookie/token 管理、自动同步、多源搜索或随机探索接口

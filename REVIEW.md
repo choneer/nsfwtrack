@@ -4,7 +4,7 @@
 
 ## 超范围检测（一票否决）
 
-- [ ] **0. Phase 1 中是否出现下列超范围内容：外部 HTTP 请求、爬虫、adapter、cookie/token 管理（自身登录 session 除外）、远程图片拉取、自动同步、多源搜索、随机探索接口？**
+- [ ] **0. Phase 1 中是否出现下列超范围内容：外部 HTTP 请求、爬虫、adapter、第三方 cookie/token 管理（自身登录 session 与语言偏好 session 除外）、远程图片拉取、自动同步、多源搜索、随机探索接口？**
 
 > 出现任何上述内容 → 直接判定为**超范围**，退回 Codex 修复。这些属于 Phase 3。
 
@@ -17,6 +17,7 @@
 - [ ] **5. 是否有敏感信息泄露** — API Key、密码、路径泄露
 - [ ] **6. 是否有测试** — 对应功能的 `tests/` 文件
 - [ ] **7. 类型注解** — 所有函数有类型提示
+- [ ] **7.1. i18n 覆盖** — Web UI 中文 / English 文案是否完整，默认是否为中文
 
 ## 功能检查
 
@@ -33,6 +34,7 @@
 - [ ] **15. 是否使用 session cookie**
 - [ ] **16. `.env` 是否在 `.gitignore` 中**
 - [ ] **17. 所有页面和 API 是否默认需登录**
+- [ ] **17.1. 语言偏好是否刷新后保留** — `/set-language?lang=zh|en` 是否可用
 
 ## 部署检查
 
@@ -47,7 +49,7 @@
 ```
 ❌ 引入外部爬虫代码（Phase 1 不做）
 ❌ 引入 requests/httpx 对外 HTTP 请求
-❌ 写入 token/cookie 管理逻辑（自身登录除外）
+❌ 写入第三方 token/cookie 管理逻辑（自身登录 session 与语言偏好 session 除外）
 ❌ 引入推荐/ML 依赖
 ❌ 修改 database.py 加入不需要的表
 ❌ 引入 JS 前端框架（用 HTMX 不是 React/Vue）

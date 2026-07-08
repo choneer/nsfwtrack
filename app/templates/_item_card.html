@@ -4,13 +4,13 @@
       {% if item.cover_path %}
         <img src="{{ item.cover_path }}" alt="">
       {% else %}
-        No cover
+        {{ t("common.no_cover") }}
       {% endif %}
     </div>
     <h3>{{ item.title }}</h3>
   </a>
   {% if item.state %}
-    <span class="pill state">{{ item.state.status }}</span>
+    <span class="pill state">{{ status_label(item.state.status) }}</span>
   {% endif %}
   <div class="tag-row">
     {% for tag in item.tags[:5] %}

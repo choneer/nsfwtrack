@@ -1,9 +1,7 @@
 # NSFWTrack — MVP 开发计划
 
 > NSFWTrack 是项目名称。Phase 1 严格限定为：**本地单用户内容记录器 / 收藏管理器 MVP**。
-> Phase 1 禁止实现任何外部内容源、爬虫、远程图片拉取、站点 adapter、cookie/token 管理、自动同步、多源搜索或随机探索接口。
-
-> ROUTES.md 已移到 docs/legacy/ROUTES.old.md，Codex 在 Phase 1 和 Phase 2 都必须忽略该文件，除非用户明确要求。
+> Phase 1 禁止实现任何外部内容源、爬虫、远程图片拉取、站点 adapter、第三方 cookie/token 管理、自动同步、多源搜索或随机探索接口。
 
 ## 角色分工
 
@@ -29,6 +27,7 @@
 - ✅ 本地搜索（标题/标签/状态过滤）
 - ✅ 简单统计（数量/状态分布/时间线）
 - ✅ 单用户登录保护（环境变量密码 + Session）
+- ✅ 中文 / English 语言切换（默认中文，Session 保存偏好）
 - ✅ Docker Compose 部署
 - ✅ 基础测试
 
@@ -39,7 +38,7 @@
 ❌ 随机探索接口
 ❌ 爬虫
 ❌ 远程图片源
-❌ cookie / token 管理
+❌ 第三方 cookie / token 管理（登录 Session 与语言偏好 Session 除外）
 ❌ 自动同步
 ❌ 多源聚合搜索
 ❌ 推荐系统
@@ -72,6 +71,7 @@ nsfwtrack/
 │   ├── models.py            # SQLAlchemy 模型
 │   ├── schemas.py           # Pydantic 请求/响应
 │   ├── auth.py              # 登录保护
+│   ├── i18n.py              # 中文 / English 翻译字典
 │   ├── routers/
 │   │   ├── items.py         # 条目 CRUD + 标记
 │   │   ├── tags.py          # 标签管理
@@ -213,6 +213,7 @@ Day 2: 标签 + 创作者管理 + 关联
 Day 3: 登录保护 + 状态标记 + 搜索 + 统计
 Day 4: 前端页面（列表/详情/标签/创作者/统计/导入/登录）
 Day 5: CSV/JSON 导入 + Docker 部署 + 测试
+Day 6: 中文 / English 语言切换 + 文档清理
 ```
 
 ## 数据来源（Phase 1）

@@ -20,7 +20,10 @@ def login_user(request: Request) -> None:
 
 
 def logout_user(request: Request) -> None:
+    language = request.session.get("ui_language")
     request.session.clear()
+    if language:
+        request.session["ui_language"] = language
 
 
 def is_authenticated(request: Request) -> bool:

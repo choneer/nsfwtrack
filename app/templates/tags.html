@@ -1,23 +1,23 @@
 {% extends "base.html" %}
-{% block title %}Tags - NSFWTrack{% endblock %}
+{% block title %}{{ t("tags.title") }} - NSFWTrack{% endblock %}
 {% block content %}
-<h1>Tags</h1>
+<h1>{{ t("tags.title") }}</h1>
 <form class="card form-grid" action="/tags" method="post">
-  <label>Name
+  <label>{{ t("common.name") }}
     <input name="name" required>
   </label>
-  <label>Category
+  <label>{{ t("common.category") }}
     <input name="category">
   </label>
   <label>&nbsp;
-    <button type="submit">Add Tag</button>
+    <button type="submit">{{ t("tags.add") }}</button>
   </label>
 </form>
 <table>
   <thead>
     <tr>
-      <th>Name</th>
-      <th>Category</th>
+      <th>{{ t("common.name") }}</th>
+      <th>{{ t("common.category") }}</th>
       <th></th>
     </tr>
   </thead>
@@ -28,12 +28,12 @@
         <td>{{ tag.category or '' }}</td>
         <td>
           <form class="inline-form" action="/tags/{{ tag.id }}/delete" method="post">
-            <button class="danger" type="submit">Delete</button>
+            <button class="danger" type="submit">{{ t("common.delete") }}</button>
           </form>
         </td>
       </tr>
     {% else %}
-      <tr><td colspan="3" class="muted">No tags.</td></tr>
+      <tr><td colspan="3" class="muted">{{ t("tags.empty") }}</td></tr>
     {% endfor %}
   </tbody>
 </table>

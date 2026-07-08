@@ -1,21 +1,21 @@
 {% extends "base.html" %}
-{% block title %}Login - NSFWTrack{% endblock %}
+{% block title %}{{ t("login.title") }} - NSFWTrack{% endblock %}
 {% block content %}
 <div class="split">
   <section>
     <h1>NSFWTrack</h1>
-    <p class="muted">Local media records for one signed-in user.</p>
+    <p class="muted">{{ t("login.subtitle") }}</p>
   </section>
   <section class="card">
-    <h2>Login</h2>
+    <h2>{{ t("login.title") }}</h2>
     {% if error %}
-      <p class="notice">Invalid password.</p>
+      <p class="notice">{{ t("login.invalid_password") }}</p>
     {% endif %}
     <form class="stack" action="/api/auth/login" method="post">
-      <label>Password
+      <label>{{ t("login.password") }}
         <input name="password" type="password" autocomplete="current-password" required autofocus>
       </label>
-      <button type="submit">Login</button>
+      <button type="submit">{{ t("login.submit") }}</button>
     </form>
   </section>
 </div>
