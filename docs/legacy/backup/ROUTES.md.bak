@@ -1,0 +1,457 @@
+# NSFWTrack — 全类型 NSFW 内容追踪器
+
+## 项目定位
+
+统一的 NSFW 内容标记 + 个性化推荐平台，覆盖视频/漫画/插画/画师等类型。
+
+## 核心功能
+
+### 支持的内容类型
+
+| 类型 | 数据源 | 标记 | 推荐 |
+|:----:|--------|:----:|:----:|
+| 🎬 **AV / Jav** | JavSP 爬虫（javdb/javbus/fanza 等 20+ 源） | ✅ | ✅ |
+| 📖 **成人漫画** | 禁漫天堂（18comic）API/爬虫 | ✅ | ✅ |
+| 🎨 **插画/画师** | Pixiv API / 公共接口 | ✅ | ✅ |
+| 🐦 **推特画师** | Twitter/X API / 爬虫 | ✅ | ✅ |
+
+### Phase 1 — MVP（视频 + 漫画）
+
+- [ ] **统一搜索**：跨类型搜索（番号/标题/作者/画师）
+- [ ] **标记系统**：已看/喜欢/不喜欢/想看
+- [ ] **观看记录**：时间线展示
+- [ ] **演员/作者/画师管理**：关注/拉黑
+- [ ] **统计看板**：各类型统计
+
+### Phase 2 — 个性化推荐
+
+- [ ] 基于标签/演员/作者的相似推荐
+- [ ] 跨类型推荐（看了这个 AV 的人还喜欢这本漫画）
+- [ ] 「因为你喜欢 XXX」推荐
+
+### Phase 3 — 增强功能
+
+- [ ] WebDAV 同步
+- [ ] 115 网盘 / Pixiv 下载
+- [ ] AI 看片报告 / 漫画摘要
+
+- ✅ Docker Compose / Docker run 部署
+- ✅ 自行更新能力
+- ✅ 账号密码登录 + 通行密钥（Passkey / WebAuthn）
+- ✅ 单用户
+- ⭐ 有余量则部署到 Cloudflare Workers / Pages
+
+## 二、技术栈路线图
+
+### 路线 A：Python 全栈（推荐 MVP）
+
+```
+FastAPI + Jinja2/HTMX + SQLite → 可迁 PostgreSQL
+```
+
+| 组件 | 选型 | 理由 |
+|------|------|------|
+| 后端 | **FastAPI** | 自动 API 文档，异步支持，Python 生态成熟 |
+| 前端 | **Jinja2 + HTMX + Alpine.js** | 不写 SPA，服务端渲染，零构建步骤 |
+| 数据库 | **SQLite** | 单用户够用，文件级备份，零运维 |
+| 部署 | Docker / Cloudflare？（仅 API 可拆） | |
+| 更新 | Watchtower 自动拉取新镜像 | |
+| 通行密钥 | **webauthn.io** / py_webauthn 库 | |
+
+**适合：** 快速出 MVP，部署简单，后续可拆前后端
+**不适：** Cloudflare Workers 不支持 Python
+
+---
+
+### 路线 B：Node.js 全栈（CF Workers 友好）
+
+```
+Hono + Drizzle + SQLite/D1 + React/Vue SPA
+```
+
+| 组件 | 选型 |
+|------|------|
+| 后端 | **Hono**（超轻量，原生支持 CF Workers） |
+| 数据库 | **SQLite**（本地）→ **Cloudflare D1**（CF 部署时） |
+| ORM | **Drizzle** |
+| 前端 | **React / Vue / Svelte** + Vite |
+| 部署 | Docker + **Cloudflare Workers** 双轨部署 |
+| 更新 | Watchtower + CF 自动部署 |
+| 通行密钥 | **@simplewebauthn/server** |
+
+**适合：** 同时本地部署 + CF Workers，一套代码两种部署
+**不适：** 需要了解 Hono 和 Drizzle
+
+---
+
+### 路线 C：全栈框架（极速开发）
+
+```
+SvelteKit / Next.js + SQLite + Lucia Auth
+```
+
+| 组件 | 选型 |
+|------|------|
+| 后端 | **SvelteKit** 或 **Next.js**（全栈，API + 前端合一） |
+| 数据库 | SQLite（better-sqlite3 / Turso）→ CF D1（SvelteKit） |
+| 认证 | **Lucia Auth**（支持账号密码 + 通行密钥） |
+| 前端 | 框架自带（SSR） |
+| 部署 | Docker + CF Pages（SvelteKit）/ CF Workers（Next） |
+| 更新 | Watchtower + CF 自动部署 |
+
+**适合：** 开发最快，框架帮你搞定一切
+**不适：** 对框架依赖大，定制灵活性稍差
+
+---
+
+### 路线 D：Go 单二进制（极致性能）
+
+```
+Go + Gin/Chi + Templ + SQLite + Turbo
+```
+
+| 组件 | 选型 |
+|------|------|
+| 后端 | **Go** + Gin/Chi |
+| 前端 | **Templ**（Go 模板编译）或 **HTMX** |
+| 数据库 | SQLite（mattn/go-sqlite3） |
+| 认证 | **go-webauthn** |
+| 部署 | Docker（镜像极小 ~20MB）|
+| 更新 | Watchtower 或自建更新端点 |
+
+**适合：** 追求性能和镜像体积
+**不适：** 开发速度慢，Cloudflare 部署困难
+
+---
+
+### 路线 E：前后端分离（最大灵活性）
+
+```
+FastAPI + Vue/React SPA + SQLite/PG
+```
+
+| 组件 | 选型 |
+|------|------|
+| 后端 | **FastAPI** |
+| 前端 | **Vue 3 + Vite** 或 **React + Vite** |
+| 数据库 | SQLite → PostgreSQL |
+| 认证 | JWT + WebAuthn |
+| 部署 | Docker Compose（后端 + Nginx 静态文件）|
+| 更新 | Watchtower |
+
+**适合：** 前端交互复杂，团队协作
+**不适：** 多一个前端构建步骤，部署复杂一点
+
+## 三、数据库方案
+
+| 方案 | Docker | CF Workers | 备份 | 性能 |
+|------|:------:|:----------:|:----:|:----:|
+| **SQLite** | ✅ | ❌（可用 D1） | ✅ 直接拷文件 | ⭐⭐⭐ |
+| **Cloudflare D1** | ❌ | ✅ | ✅ | ⭐⭐ |
+| **PostgreSQL** | ✅ | ❌ | ✅ pg_dump | ⭐⭐⭐⭐⭐ |
+| **Turso（libsql）** | ✅ | ✅ | ✅ | ⭐⭐⭐⭐ |
+
+> SQLite 对单用户完全够用，且最简单。未来可迁 D1（CF）或 Turso（边缘）。
+
+## 四、认证方案
+
+| 方式 | 实现 | 难度 |
+|------|------|:----:|
+| 账号密码 + bcrypt | FastAPI: passlib / Node: bcryptjs | ⭐ |
+| 通行密钥 WebAuthn | py_webauthn / @simplewebauthn | ⭐⭐⭐ |
+| Session + Cookie | 最简单的状态维持 | ⭐ |
+| JWT Token | 无状态，适合前后端分离 | ⭐⭐ |
+
+> 建议：密码登录用 Session，通行密钥走 WebAuthn 标准。
+
+## 五、更新方案
+
+| 方式 | 原理 | 难度 |
+|------|------|:----:|
+| **Watchtower** | Docker 容器自动拉取新镜像 | ⭐ 一键 |
+| **Git pull + 重启** | 挂载源码，git pull 后重启进程 | ⭐⭐ |
+| **GitHub Actions + 自动构建** | 推送代码 → 自动构建 Docker 镜像 | ⭐⭐⭐ |
+
+## 六、认证与鉴权架构
+
+### 各数据源的鉴权方式
+
+| 数据源 | 鉴权方式 | 凭证存储 | 可拉取的用户数据 |
+|--------|---------|---------|----------------|
+| **Jav（JavSP）** | 无需登录（公开数据） | — | 无用户系统 |
+| **禁漫天堂** | 可选登录（账号密码） | 存 session/token | 收藏/订阅/历史 |
+| **哔咔漫画** | 需登录（账号密码） | 存 token | 收藏/订阅/历史/喜欢 |
+| **E-Hentai（ExHentai）** | 需 cookies | 配置文件中存 cookies | 收藏/已读/标签 |
+| **Pixiv** | OAuth（账号密码） | refresh token（长期有效） | 收藏/关注/收藏夹 |
+| **Twitter/X** | OAuth 2.0 | access token（短期+refresh） | 关注列表/时间线 |
+
+### 统一登录设计
+
+```
+用户配置（config.yaml / .env）
+  │
+  ├── pixiv:
+  │     username: xxx
+  │     password: xxx
+  │     └── PixivAPI().login() → 自动获取 refresh_token → 存数据库
+  │
+  ├── picacg (哔咔):
+  │     username: xxx
+  │     password: xxx
+  │     └── bikaAPI.login() → 获取 session token → 存数据库
+  │
+  └── exhentai:
+        cookies: "ipb_member_id=...; ipb_pass_hash=..."
+        └── 配置文件中读取，供爬虫使用
+```
+
+### 后台自动刷新流程
+
+```
+启动时/定时任务
+  ├── Pixiv: 检查 refresh_token 是否过期 → 过期则刷新 → 存回 DB
+  ├── 哔咔: 检查 session 是否有效 → 过期则重登 → 存回 DB
+  └── ExHentai: 检查 cookies 是否有效 → 过期则提示用户更新
+```
+
+### API 设计示例
+
+```python
+# 统一的数据源适配器接口
+class DataSourceAdapter:
+    def login(self, credentials) -> bool
+    def search(self, query) -> list[Item]
+    def get_favorites(self) -> list[Item]     # 用户收藏
+    def get_detail(self, id) -> Item
+    def is_logged_in(self) -> bool
+```
+
+### 标签体系与黑名单设计
+
+#### 参考 Venera 的设计
+
+Venera（https://github.com/venera-app/venera）的黑名单设计：
+
+- 每个漫画源是一个 **JavaScript 插件**，自身定义设置项
+- **黑名单/标签过滤是源插件侧的责任**，不在核心代码里
+- 用户在每个源的设置界面里单独配置屏蔽哪些标签
+- 核心只提供设置存储和传递，不硬编码过滤逻辑
+
+#### 跨平台标签问题
+
+| 问题 | 说明 |
+|------|------|
+| 同名异义 | 同一个词在不同平台可能指不同内容 |
+| 同义异名 | 同一类型内容在不同平台标签名不同 |
+| 平台独有 | 各平台有自己特有的标签体系 |
+| 语言差异 | 中文/日文/英文标签混用 |
+
+#### 黑名单方案
+
+**层级一：全局标签黑名单（最常用）**
+
+```
+blacklist:
+  tags:
+    - "欧美"
+    - "Europe"
+    - "bondage"    # 全局屏蔽所有含此标签的内容
+```
+
+不管哪个平台，内容标签命中即过滤。
+
+**层级二：按平台的黑名单**
+
+```
+blacklist:
+  per_source:
+    javdb: ["FC2", "无码"]
+    pixiv: ["AI生成", "R18G"]
+    ehentai: ["guro", "scat"]
+    jmcomic: ["NTR"]
+```
+
+不同平台的敏感词不同，分开管理。
+
+**层级三：标签映射（统一同义标签）**
+
+```
+tag_mapping:
+  "欧美": ["europe", "western", "洋馬", "euro"]
+  "巨乳": ["big breasts", "巨乳", "爆乳", "huge tits"]
+  "中出": ["creampie", "中出し", "nakadashi"]
+```
+
+搜索和推荐时按映射后的统一标签计算相似度，避免「欧美」和「europe」被当成两个标签。
+
+#### 存储方式
+
+```yaml
+# config.yaml
+blacklist:
+  tags: ["bondage", "guro"]
+  categories: ["Europe"]
+  per_source:
+    pixiv: ["AI生成"]
+  
+tag_mapping:
+  "巨乳": ["big_breasts", "爆乳"]
+  "中出": ["creampie", "中出し"]
+```
+
+存在 `config.yaml` 里，不存数据库（改配置比改数据库方便）。
+
+#### 匹配逻辑
+
+```
+内容获取标签 → 标准化（按 mapping 转统一标签）
+              → 命中 blacklist.tags？ → 过滤
+              → 命中 blacklist.per_source[平台]？ → 过滤
+              → 通过 → 入库
+```
+
+> **Phase 1 实现：** 全局标签黑名单（简单 list）+ 分类黑名单（已实现 Europe 跳过）
+> **Phase 2 实现：** 按平台黑名单 + 标签映射
+> **Phase 3 实现：** 用户可在 Web UI 上直接管理黑名单
+
+> **Phase 1 实现：** Jav 无登录 + 禁漫天堂公开数据搜索
+> **Phase 2 实现：** Pixiv 登录 + 拉取收藏
+> **Phase 3 实现：** 哔咔 + ExHentai + Twitter 登录
+
+## 七、推荐引擎方案
+
+| 方案 | 原理 | 适合 |
+|------|------|:----:|
+| **基于标签的相似度** | 余弦相似度算影片标签距离 | Phase 1 即可上 |
+| **协同过滤（User-based）** | 找相似口味用户（单用户不适用） | Phase 2 |
+| **协同过滤（Item-based）** | 看 A 的人还看了 B | 需多用户数据 |
+| **大模型推荐** | LLM 根据你的标记历史推荐 | 探索性 |
+
+> 单用户阶段只能用 **基于标签/演员的内容推荐**（冷启动推荐）。
+
+## 八、元数据来源
+
+### AV/Jav → JavSP（已确认）
+
+JavSP（https://github.com/Yuukiy/JavSP）20+ 爬虫模块：
+javdb、javbus、javlib、jav321、fanza、mgstage、avsox、FC2 等
+
+### 禁漫天堂（JMComic）→ ✅ 有成熟 API
+
+| 项目 | 说明 |
+|------|------|
+| **JMComic-Crawler-Python** | 🌟 5.1k stars，180 commits，Python 库 |
+| GitHub | https://github.com/hect0x7/JMComic-Crawler-Python |
+| 安装 | `pip install jmcomic` |
+| 功能 | 按 ID 下载漫画、搜索、支持网页端和移动端双 API、异步/同步都支持 |
+| 集成方式 | 作为 Python 包直接 import，调用 `get_album_detail(album_id)` 获取元数据 |
+
+### 哔咔漫画（PicACG/PicaComic）→ ✅ 有 API
+
+| 项目 | 说明 |
+|------|------|
+| **picacomic API** | 多个 Python 封装库可用 |
+| 推荐 | `pip install bikaAPI`（https://github.com/kitUIN/bikaAPI）|
+| 替代 | `tonquer/picacg-qt` 桌面客户端可参考其 API 调用 |
+| 注意 | 哔咔 API 需要登录 token，且有频率限制 |
+
+### E-Hentai / ExHentai → ✅ 有 API + 爬虫
+
+| 项目 | 说明 |
+|------|------|
+| **官方 API** | E-Hentai 提供有限制的 API（https://api.e-hentai.org/api.php）|
+| **社区工具** | GitHub topic `e-hentai` + `exhentai` 下有大量 Python 爬虫和 CLI 工具 |
+| **功能** | 搜索画廊、获取元数据（标签/标题/页数/封面）、下载 |
+| **注意** | ExHentai 需要 cookies 登录，E-Hentai 可以匿名访问部分内容 |
+
+### E-Hentai 标签汉化 → EhTagTranslation
+
+| 项目 | 说明 |
+|------|------|
+| **GitHub** | https://github.com/EhTagTranslation/Database |
+| **格式** | Markdown 文件（`database/*.md`），每行为 `英文标签 \| 中文译名` |
+| **命名空间** | 13 个分类文件：artist、character、female、male、group、parody、language、reclass、mixed、cosplayer、location、other、rows |
+| **版本** | 当前 v7.25672.1（repo 中 `version` 文件记录版本号） |
+| **更新频率** | 非常活跃（每天都有提交）|
+| **集成方式** | 启动时/手动下载解压 raw 文件 → 解析 MD 表格 → 存入本地 SQLite 翻译表 → 搜索 E 站时自动汉化标签显示 |
+
+#### 手动检查更新机制
+
+```
+[手动触发] → 请求 GitHub API 获取最新 release tag
+           → 与本地的 version 对比
+           → 有更新则下载 /database/*.md
+           → 重新解析翻译表
+           → 报告更新结果（旧版本 → 新版本，更新条目数）
+           → 更新本地 version 文件
+```
+
+#### 翻译数据模型
+
+```sql
+-- 存放 E 站标签翻译
+CREATE TABLE ehtag_translations (
+  id INTEGER PRIMARY KEY,
+  namespace TEXT NOT NULL,     -- female/male/artist/character/...
+  raw_tag TEXT NOT NULL,       -- 原始英文标签（如 "lolicon"）
+  name TEXT NOT NULL,          -- 中文名称（如 "萝莉"）
+  description TEXT,            -- 中文描述/简介
+  updated_at TIMESTAMP
+);
+```
+
+> **Phase 1 实现：** 下载翻译库 + 搜索时自动显示中文标签
+> **Phase 2 实现：** Web UI 上手动点击「检查更新」按钮
+> **Phase 3 实现：** 定时自动检查更新 + 差异报告
+
+### Pixiv → ✅ 有 API
+
+| 项目 | 说明 |
+|------|------|
+| **PixivPy** | https://github.com/upbit/pixivpy — 非官方 Python API |
+| 登录方式 | 账号密码 OAuth，自动获取 refresh token |
+| 可拉取数据 | 收藏/关注画师/推荐/排行榜/你的画作 |
+| 集成方式 | `pip install pixivpy`，`PixivAPI().login(username, password)` |
+
+### Twitter/X 画师 → ⚠️ 较复杂
+
+| 方式 | 说明 |
+|------|------|
+| **官方 API v2** | 需申请开发者账号，免费版有月度额度限制 |
+| **Nitter** | 开源 Twitter 前端代理，可解析画师时间线 |
+| **爬虫** | 直接爬取需处理反爬 |
+
+> **MVP 建议：** 先做 **Jav + 禁漫天堂**，这两种数据源最成熟、API 最稳定。哔咔和 E-Hentai 可以 Phase 2 再加。Pixiv 和 Twitter 放 Phase 3。
+
+## 九、Cloudflare 部署可行性
+
+| 路线 | CF Workers | CF Pages | 说明 |
+|:----:|:----------:|:--------:|------|
+| A ❌ | ❌ | ❌ | Python 不支持 |
+| B ✅ | ✅ | ✅ | Hono 原生支持 Workers |
+| C ✅ | ✅ Next.js | ✅ SvelteKit | SSR 支持 |
+| D ❌ | ❌ | ❌ | Go 不支持 |
+| E ❌ | ❌ | ✅ | 静态前端可部署 Pages |
+
+## 十、推荐组合
+
+### 方案 1️⃣：快速 MVP（推荐）
+
+```
+FastAPI + Jinja2/HTMX + SQLite + Docker
+```
+👉 开发 2-3 天，部署 1 小时，更新靠 Watchtower
+
+### 方案 2️⃣：CF 友好（有余量时）
+
+```
+Hono + Drizzle + SQLite/D1 + React/Vue + Docker/CF双部署
+```
+👉 一套代码跑 Docker 和 CF Workers，开发 4-5 天
+
+### 方案 3️⃣：全栈极速
+
+```
+SvelteKit + SQLite/Turso + Lucia Auth + Docker/CF双部署
+```
+👉 开发快，自带 SSR，双部署，但需要了解 Svelte

@@ -1,0 +1,85 @@
+# Codex 开发任务清单 — MVP
+
+按顺序执行，每完成一项打个 [x]。
+
+## Day 1: 骨架 + 数据库 + 基础 API
+
+- [ ] **T1.1** 初始化 FastAPI 项目结构（main.py、config.py、database.py）
+  - 创建 `app/` 目录结构
+  - `config.py` 读取环境变量（DATABASE_URL、SECRET_KEY 等）
+  - `database.py` 初始化 SQLite + SQLAlchemy
+- [ ] **T1.2** 设计 SQLAlchemy 模型（models.py）
+  - 6 张表：items、creators、tags、item_tags、item_creators、user_item_states
+  - 包含索引和关系定义
+- [ ] **T1.3** 实现 items CRUD API（routers/items.py）
+  - `GET /api/items` — 分页列表，按创建时间倒序
+  - `POST /api/items` — 新增（支持 extra JSON 字段）
+  - `GET /api/items/{id}` — 详情（含标签、创作者）
+  - `PUT /api/items/{id}` — 编辑
+  - `DELETE /api/items/{id}` — 删除（级联清理关联）
+
+## Day 2: 标签 + 创作者 + 状态标记
+
+- [ ] **T2.1** 实现标签管理 API（routers/tags.py）
+  - `GET /api/tags` — 标签列表
+  - `POST /api/tags` — 创建
+  - `PUT /api/tags/{id}` — 重命名
+  - `DELETE /api/tags/{id}` — 删除
+- [ ] **T2.2** 实现创作者管理 API（routers/creators.py）
+  - `GET /api/creators` — 列表
+  - `POST /api/creators` — 创建
+  - `GET /api/creators/{id}` — 详情 + 作品列表
+  - `DELETE /api/creators/{id}`
+- [ ] **T2.3** 实现状态标记 API（routers/items.py 追加）
+  - `POST /api/items/{id}/state` — 设置标记
+  - `GET /api/items/{id}/state` — 查状态
+  - `DELETE /api/items/{id}/state` — 取消
+
+## Day 3: 搜索 + 统计
+
+- [ ] **T3.1** 搜索 API（routers/search.py）
+  - `GET /api/search?q=xxx` — 标题模糊搜索
+  - 支持 `&tag=xxx` 按标签过滤
+  - 支持 `&status=watched` 按标记状态过滤
+  - 支持 `&page=1` 分页
+- [ ] **T3.2** 统计 API（routers/stats.py）
+  - `GET /api/stats/summary` — 总数、各状态统计、标签词云
+  - `GET /api/stats/timeline` — 近 30 天标记趋势
+
+## Day 4: 前端页面
+
+- [ ] **T4.1** 基础模板 + 首页（templates/base.html、index.html）
+  - 导航栏：条目 / 标签 / 创作者 / 统计 / 导入
+  - 首页：最近添加 + 快捷操作
+- [ ] **T4.2** 条目列表页 + 详情页
+  - 列表：卡片布局（封面、标题、标签、状态标记）
+  - 详情：大图 + 信息 + 标记按钮 + 标签列表 + 创作者
+  - 新增/编辑表单
+- [ ] **T4.3** 标签管理页 + 创作者管理页
+- [ ] **T4.4** 统计页面（简单图表）
+- [ ] **T4.5** 导入页面（CSV/JSON 上传 + 预览 + 确认）
+
+## Day 5: 导入 + 部署 + 测试
+
+- [ ] **T5.1** CSV/JSON 导入服务（services/importer.py）
+  - 解析 CSV：title,tags,creators,status,rating,review
+  - 自动创建不存在的标签和创作者
+  - 导入结果报告
+- [ ] **T5.2** Dockerfile + docker-compose.yml
+  - 多阶段构建（或 pip 直装）
+  - `data/` 目录持久化
+  - 环境变量配置
+- [ ] **T5.3** 基础测试（tests/）
+  - 测试数据库创建
+  - 测试 items CRUD
+  - 测试状态标记
+  - 测试搜索
+- [ ] **T5.4** 可选：NSFW 探索功能（/api/explore/random）
+  - 调 veil API → 入库 → 返回
+
+## 前置准备
+
+- WSL Ubuntu 22.04
+- `python3.12 -m venv .venv && source .venv/bin/activate`
+- `pip install fastapi uvicorn sqlalchemy jinja2 httpx python-multipart pytest`
+- VS Code + Codex 插件
