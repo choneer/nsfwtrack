@@ -42,6 +42,7 @@
 - The app is intended for LAN / local deployment.
 - Direct public internet exposure is not recommended.
 - Backup restore is append / merge based, not an overwrite restore.
-- There are no external content sources, crawlers, recommendation systems, or AI assistants.
+- There are no external content sources, crawlers, recommendation systems, or
+  AI assistants.
 - The current FastAPI / Starlette TestClient warning does not affect
   functionality; revisit it after the dependency path stabilizes.

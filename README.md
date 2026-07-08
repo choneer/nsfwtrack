@@ -7,7 +7,7 @@ Current status: `v0.1.0 / Phase 1 MVP`.
 Phase 1 is intentionally local-only. It is designed for manual records, local
 SQLite persistence, LAN deployment, and simple personal collection management.
 
-## Features In v0.1.0
+## Features in v0.1.0
 
 - Single-user login protection with session cookies
 - Chinese / English UI switching
@@ -60,8 +60,10 @@ TestClient dependency are installed.
 Create a local `.env` from `.env.example` for Docker Compose, or export the same
 variables before running `uvicorn` locally.
 
-- `APP_PASSWORD`: the single local login password. Use a strong value on any LAN.
-- `SECRET_KEY`: signs the session cookie. Use a long random value and rotate it if it leaks.
+- `APP_PASSWORD`: the single local login password. Use a strong value on any
+  LAN.
+- `SECRET_KEY`: signs the session cookie. Use a long random value and rotate it
+  if it leaks.
 - `DATABASE_URL`: defaults to the SQLite database under `data/nsfwtrack.db`.
 - `MAX_BACKUP_UPLOAD_MB`: maximum uploaded JSON backup size. The default is `5`.
 
@@ -191,6 +193,7 @@ Starlette TestClient dependency path stabilizes.
 - The app is intended for local network / LAN deployment.
 - Direct public internet exposure is not recommended.
 - Backup restore is append / merge based, not an overwrite restore.
-- There are no external content sources, crawlers, recommendation systems, or AI assistants.
+- There are no external content sources, crawlers, recommendation systems, or
+  AI assistants.
 - The current TestClient warning does not affect functionality and can be
   revisited after dependencies stabilize.

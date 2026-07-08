@@ -130,3 +130,9 @@
 - [x] 确认 FastAPI 应用版本号为 `0.1.0`
 - [x] 确认 GitHub Actions CI 使用 `requirements-dev.txt` 并运行 `python -m pytest`
 - [x] 保持 tag / GitHub Release 仅为发布准备，本轮不自动创建
+
+## 发布前文档与 CI 格式修复
+
+- [x] README / CHANGELOG / TASKS / REVIEW 保持正常 Markdown 标题、列表、段落和代码块
+- [x] `.github/workflows/ci.yml` 保持正常多行 YAML 缩进
+- [x] 未修改 `app/` 业务代码，未新增业务功能，未创建 tag 或 GitHub Release
