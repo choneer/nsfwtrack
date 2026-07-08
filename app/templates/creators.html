@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Creators - NSFWTrack{% endblock %}
+{% block content %}
+<h1>Creators</h1>
+<form class="card form-grid" action="/creators" method="post">
+  <label>Name
+    <input name="name" required>
+  </label>
+  <label>Type
+    <input name="type_value" value="other">
+  </label>
+  <label>Avatar Path
+    <input name="avatar_path">
+  </label>
+  <label>&nbsp;
+    <button type="submit">Add Creator</button>
+  </label>
+</form>
+<table>
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th>Type</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for creator in creators %}
+      <tr>
+        <td><a href="/creators/{{ creator.id }}">{{ creator.name }}</a></td>
+        <td>{{ creator.type }}</td>
+        <td>
+          <form class="inline-form" action="/creators/{{ creator.id }}/delete" method="post">
+            <button class="danger" type="submit">Delete</button>
+          </form>
+        </td>
+      </tr>
+    {% else %}
+      <tr><td colspan="3" class="muted">No creators.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

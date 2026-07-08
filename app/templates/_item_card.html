@@ -1,0 +1,23 @@
+<article class="card">
+  <a href="/items/{{ item.id }}">
+    <div class="cover">
+      {% if item.cover_path %}
+        <img src="{{ item.cover_path }}" alt="">
+      {% else %}
+        No cover
+      {% endif %}
+    </div>
+    <h3>{{ item.title }}</h3>
+  </a>
+  {% if item.state %}
+    <span class="pill state">{{ item.state.status }}</span>
+  {% endif %}
+  <div class="tag-row">
+    {% for tag in item.tags[:5] %}
+      <span class="pill">{{ tag.name }}</span>
+    {% endfor %}
+  </div>
+  {% if item.creators %}
+    <p class="muted">{{ item.creators|map(attribute="name")|join(", ") }}</p>
+  {% endif %}
+</article>

@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Items - NSFWTrack{% endblock %}
+{% block content %}
+<div class="toolbar">
+  <h1>Items</h1>
+  <a class="button" href="/items/new">New Item</a>
+</div>
+<form class="card form-grid" method="get" action="/items">
+  <label>Title
+    <input name="q" value="{{ q }}">
+  </label>
+  <label>Tag
+    <input name="tag" value="{{ tag }}">
+  </label>
+  <label>Status
+    <select name="state">
+      <option value="">Any</option>
+      {% for option in status_options %}
+        <option value="{{ option }}" {% if selected_state == option %}selected{% endif %}>{{ option }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label>&nbsp;
+    <button type="submit">Search</button>
+  </label>
+</form>
+<div class="item-grid">
+  {% for item in items %}
+    {% include "_item_card.html" %}
+  {% else %}
+    <p class="muted">No matching items.</p>
+  {% endfor %}
+</div>
+{% endblock %}

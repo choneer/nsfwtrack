@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}Import - NSFWTrack{% endblock %}
+{% block content %}
+<h1>Import</h1>
+{% if result %}
+  <section class="notice">
+    Imported {{ result.imported }}, skipped {{ result.skipped }}.
+  </section>
+  {% if result.errors %}
+    <table>
+      <thead><tr><th>Row</th><th>Error</th></tr></thead>
+      <tbody>
+        {% for error in result.errors %}
+          <tr><td>{{ error.row }}</td><td>{{ error.error }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% endif %}
+{% endif %}
+{% if preview_rows %}
+  <section class="card stack">
+    <div>
+      <h2>Preview</h2>
+      <p class="muted">{{ preview_count }} rows ready. Showing up to 20 rows.</p>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          {% for header in preview_headers %}
+            <th>{{ header }}</th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in preview_rows %}
+          <tr>
+            {% for header in preview_headers %}
+              <td>{{ row.get(header, "") }}</td>
+            {% endfor %}
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <form action="/import/confirm" method="post">
+      <textarea name="payload_json" hidden>{{ payload_json }}</textarea>
+      <button type="submit">Confirm Import</button>
+    </form>
+  </section>
+{% endif %}
+<div class="grid">
+  <section class="card">
+    <h2>CSV</h2>
+    <form class="stack" action="/import/csv" method="post" enctype="multipart/form-data">
+      <label>File
+        <input name="file" type="file" accept=".csv" required>
+      </label>
+      <button type="submit">Preview CSV</button>
+    </form>
+  </section>
+  <section class="card">
+    <h2>JSON</h2>
+    <form class="stack" action="/import/json" method="post" enctype="multipart/form-data">
+      <label>File
+        <input name="file" type="file" accept=".json,application/json" required>
+      </label>
+      <button type="submit">Preview JSON</button>
+    </form>
+  </section>
+</div>
+{% endblock %}

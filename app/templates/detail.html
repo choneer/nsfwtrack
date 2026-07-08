@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block title %}{{ item.title }} - NSFWTrack{% endblock %}
+{% block content %}
+<div class="toolbar">
+  <div>
+    <h1>{{ item.title }}</h1>
+    {% if item.release_date %}<p class="muted">{{ item.release_date }}</p>{% endif %}
+  </div>
+  <div class="actions">
+    <a class="button secondary" href="/items/{{ item.id }}/edit">Edit</a>
+    <form class="inline-form" action="/items/{{ item.id }}/delete" method="post">
+      <button class="danger" type="submit">Delete</button>
+    </form>
+  </div>
+</div>
+<div class="split">
+  <section class="stack">
+    <div class="cover">
+      {% if item.cover_path %}
+        <img src="{{ item.cover_path }}" alt="">
+      {% else %}
+        No cover
+      {% endif %}
+    </div>
+    {% if item.summary %}
+      <p>{{ item.summary }}</p>
+    {% endif %}
+    <div>
+      <h2>Tags</h2>
+      <div class="tag-row">
+        {% for tag in item.tags %}
+          <span class="pill">{{ tag.name }}</span>
+        {% else %}
+          <span class="muted">None</span>
+        {% endfor %}
+      </div>
+    </div>
+    <div>
+      <h2>Creators</h2>
+      <div class="tag-row">
+        {% for creator in item.creators %}
+          <a class="pill" href="/creators/{{ creator.id }}">{{ creator.name }}</a>
+        {% else %}
+          <span class="muted">None</span>
+        {% endfor %}
+      </div>
+    </div>
+    {% if extra %}
+      <div>
+        <h2>Extra</h2>
+        <pre class="card">{{ extra|tojson(indent=2) }}</pre>
+      </div>
+    {% endif %}
+  </section>
+  <aside class="card">
+    <h2>State</h2>
+    <form class="stack" action="/items/{{ item.id }}/state" method="post">
+      <label>Status
+        <select name="status_value" required>
+          {% for option in status_options %}
+            <option value="{{ option }}" {% if item.state and item.state.status == option %}selected{% endif %}>{{ option }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>Rating
+        <input name="rating" type="number" min="1" max="5" value="{{ item.state.rating if item.state and item.state.rating else '' }}">
+      </label>
+      <label>Review
+        <textarea name="review">{{ item.state.review if item.state and item.state.review else '' }}</textarea>
+      </label>
+      <div class="actions">
+        <button type="submit">Save</button>
+      </div>
+    </form>
+    {% if item.state %}
+      <form class="inline-form" action="/items/{{ item.id }}/state/delete" method="post">
+        <button class="danger" type="submit">Clear State</button>
+      </form>
+    {% endif %}
+  </aside>
+</div>
+{% endblock %}

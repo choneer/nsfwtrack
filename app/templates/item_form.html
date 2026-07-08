@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}{{ mode }} Item - NSFWTrack{% endblock %}
+{% block content %}
+<div class="toolbar">
+  <h1>{{ mode }} Item</h1>
+  <a class="button secondary" href="{% if item %}/items/{{ item.id }}{% else %}/items{% endif %}">Back</a>
+</div>
+<form class="card stack" action="{{ action }}" method="post">
+  <div class="form-grid">
+    <label>Title
+      <input name="title" value="{{ item.title if item else '' }}" required>
+    </label>
+    <label>Release Date
+      <input name="release_date" value="{{ item.release_date if item and item.release_date else '' }}">
+    </label>
+  </div>
+  <label>Cover Path
+    <input name="cover_path" value="{{ item.cover_path if item and item.cover_path else '' }}">
+  </label>
+  <label>Summary
+    <textarea name="summary">{{ item.summary if item and item.summary else '' }}</textarea>
+  </label>
+  <div class="form-grid">
+    <label>Tags
+      <input name="tags" value="{{ item.tags|map(attribute='name')|join(', ') if item else '' }}">
+    </label>
+    <label>Creators
+      <input name="creators" value="{{ item.creators|map(attribute='name')|join(', ') if item else '' }}">
+    </label>
+  </div>
+  <label>Extra JSON
+    <textarea name="extra_json">{% if extra %}{{ extra|tojson }}{% endif %}</textarea>
+  </label>
+  {% if not item %}
+  <div class="form-grid">
+    <label>Status
+      <select name="status_value">
+        <option value="">None</option>
+        {% for option in status_options %}
+          <option value="{{ option }}">{{ option }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>Rating
+      <input name="rating" type="number" min="1" max="5">
+    </label>
+  </div>
+  <label>Review
+    <textarea name="review"></textarea>
+  </label>
+  {% endif %}
+  <div class="actions">
+    <button type="submit">Save</button>
+  </div>
+</form>
+{% endblock %}

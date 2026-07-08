@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Tags - NSFWTrack{% endblock %}
+{% block content %}
+<h1>Tags</h1>
+<form class="card form-grid" action="/tags" method="post">
+  <label>Name
+    <input name="name" required>
+  </label>
+  <label>Category
+    <input name="category">
+  </label>
+  <label>&nbsp;
+    <button type="submit">Add Tag</button>
+  </label>
+</form>
+<table>
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th>Category</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for tag in tags %}
+      <tr>
+        <td>{{ tag.name }}</td>
+        <td>{{ tag.category or '' }}</td>
+        <td>
+          <form class="inline-form" action="/tags/{{ tag.id }}/delete" method="post">
+            <button class="danger" type="submit">Delete</button>
+          </form>
+        </td>
+      </tr>
+    {% else %}
+      <tr><td colspan="3" class="muted">No tags.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}{{ creator.name }} - NSFWTrack{% endblock %}
+{% block content %}
+<div class="toolbar">
+  <div>
+    <h1>{{ creator.name }}</h1>
+    <p class="muted">{{ creator.type }}</p>
+  </div>
+  <a class="button secondary" href="/creators">Back</a>
+</div>
+<section>
+  <h2>Items</h2>
+  <div class="item-grid">
+    {% for item in creator.items %}
+      {% include "_item_card.html" %}
+    {% else %}
+      <p class="muted">No items.</p>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}

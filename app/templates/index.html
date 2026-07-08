@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Home - NSFWTrack{% endblock %}
+{% block content %}
+<div class="toolbar">
+  <div>
+    <h1>Dashboard</h1>
+    <p class="muted">{{ totals.items }} items, {{ totals.tags }} tags, {{ totals.creators }} creators</p>
+  </div>
+  <div class="actions">
+    <a class="button" href="/items/new">New Item</a>
+    <a class="button secondary" href="/import">Import</a>
+  </div>
+</div>
+<section>
+  <h2>Recent Items</h2>
+  <div class="item-grid">
+    {% for item in recent_items %}
+      {% include "_item_card.html" %}
+    {% else %}
+      <p class="muted">No items yet.</p>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}

@@ -4,6 +4,8 @@
 
 ### Added / 新增
 
+- Completed Phase 1 MVP: FastAPI app, SQLite models, protected APIs, pages, import, Docker, and tests.
+- 完成 Phase 1 MVP：FastAPI 应用、SQLite 模型、登录保护 API、页面、导入、Docker 与测试。
 - Initialized `/home/nsfwtrack` as an independent Git repository.
 - Added a minimal dependency list in `requirements.txt`.
 - Installed and verified Docker Engine and Docker Compose in WSL.
