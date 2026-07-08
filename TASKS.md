@@ -83,6 +83,23 @@
   - `tests/test_search.py`：搜索
 - [x] **T5.4** 整体验收 + 修复
 
+## 本地备份与恢复
+
+- [x] **B1** 本地 JSON 导出
+  - `GET /api/backup/export/json`
+  - 导出 items、tags、creators、item_tags、item_creators、user_item_states
+- [x] **B2** 本地 CSV 导出
+  - `GET /api/backup/export/csv`
+  - 导出 items 可读字段、标签、创作者和状态
+- [x] **B3** 本地 JSON 备份恢复
+  - `POST /api/backup/restore/json`
+  - 只接受本项目导出的 JSON 文件，事务性追加 / 合并
+- [x] **B4** 备份页面与 i18n
+  - `/backup`
+  - 导航入口、JSON/CSV 导出按钮、JSON 备份上传入口
+- [x] **B5** 备份恢复测试
+  - 未登录保护、JSON/CSV 导出、结构校验、合法恢复、非法恢复不破坏数据、中英文页面
+
 ## 本轮清理
 
 - [x] 删除 `data/ehtag_version`

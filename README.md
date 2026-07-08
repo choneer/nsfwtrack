@@ -4,7 +4,8 @@ Phase 1 local single-user media record manager.
 
 NSFWTrack is intentionally local-only in Phase 1. It supports manual records,
 tags, creators, states, local search, simple stats, CSV/JSON import, login
-protection, Docker Compose deployment, and Chinese / English UI switching.
+protection, local JSON/CSV export, JSON backup restore, Docker Compose
+deployment, and Chinese / English UI switching.
 
 Phase 1 still forbids external content sources, crawlers, adapters, remote image
 fetching, third-party cookie/token management, automatic sync, multi-source
@@ -23,6 +24,20 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
 Open `http://localhost:8000` and log in with `APP_PASSWORD`.
+
+## Backup And Export
+
+Open `/backup` after logging in.
+
+Available local-only actions:
+
+- Export a complete JSON backup: `GET /api/backup/export/json`
+- Export a readable items CSV: `GET /api/backup/export/csv`
+- Restore a JSON backup exported by NSFWTrack: upload the file on `/backup`, or use `POST /api/backup/restore/json`
+
+JSON backups include `items`, `tags`, `creators`, `item_tags`,
+`item_creators`, and `user_item_states`. Restore uses an append / merge strategy
+and only accepts uploaded local JSON files. It never restores from a URL.
 
 ## Language
 

@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.auth import is_authenticated, logout_user, require_page_auth
 from app.database import get_db
-from app.i18n import get_language, set_language, status_translator, translator
+from app.i18n import get_language, set_language, status_translator, translate, translator
 from app.models import Creator, Item, Tag, UserItemState
 from app.schemas import CreatorCreate, ItemCreate, ItemUpdate, StateCreate, TagCreate
 from app.services.catalog import (
@@ -24,6 +24,7 @@ from app.services.catalog import (
     split_names,
     update_item,
 )
+from app.services.backup import restore_backup_data
 from app.services.importer import import_rows, parse_csv_rows, parse_json_rows
 
 router = APIRouter(tags=["pages"])
@@ -538,3 +539,54 @@ def import_confirm_page(
     clean_rows = [row for row in rows if isinstance(row, dict)]
     result = import_rows(db, clean_rows)
     return _import_template(request, result=result)
+
+
+@router.get(
+    "/backup",
+    response_class=HTMLResponse,
+    dependencies=[Depends(require_page_auth)],
+)
+def backup_page(request: Request) -> HTMLResponse:
+    return templates.TemplateResponse(
+        request,
+        "backup.html",
+        _base_context(request, restore_result=None, restore_error=None),
+    )
+
+
+@router.post(
+    "/backup/restore",
+    response_class=HTMLResponse,
+    dependencies=[Depends(require_page_auth)],
+)
+async def backup_restore_page(
+    request: Request,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+) -> HTMLResponse:
+    restore_result: dict[str, int] | None = None
+    restore_error: str | None = None
+    language = get_language(request)
+    try:
+        if not file.filename.lower().endswith(".json"):
+            raise ValueError("backup.error_json_required")
+        payload = json.loads((await file.read()).decode("utf-8"))
+        if not isinstance(payload, dict):
+            raise ValueError("backup.error_invalid")
+        restore_result = restore_backup_data(db, payload)
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        restore_error = translate(language, "backup.error_invalid")
+    except ValueError as exc:
+        error_key = str(exc)
+        if not error_key.startswith("backup."):
+            error_key = "backup.error_invalid"
+        restore_error = translate(language, error_key)
+    return templates.TemplateResponse(
+        request,
+        "backup.html",
+        _base_context(
+            request,
+            restore_result=restore_result,
+            restore_error=restore_error,
+        ),
+    )
