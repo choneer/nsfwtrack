@@ -137,7 +137,8 @@ Available local-only actions:
 - Export a complete JSON backup: `GET /api/backup/export/json`
 - Export a readable items CSV: `GET /api/backup/export/csv`
 - Preview a JSON backup without writing data: `POST /api/backup/preview/json`
-- Restore a JSON backup exported by NSFWTrack: upload the file on `/backup`, or use `POST /api/backup/restore/json`
+- Restore a JSON backup exported by NSFWTrack: upload the file on `/backup`, or
+  use `POST /api/backup/restore/json`
 
 JSON backups include `items`, `tags`, `creators`, `item_tags`,
 `item_creators`, and `user_item_states`. Restore uses an append / merge strategy;
@@ -191,4 +192,5 @@ Starlette TestClient dependency path stabilizes.
 - Direct public internet exposure is not recommended.
 - Backup restore is append / merge based, not an overwrite restore.
 - There are no external content sources, crawlers, recommendation systems, or AI assistants.
-- The current TestClient warning does not affect functionality and can be revisited after dependencies stabilize.
+- The current TestClient warning does not affect functionality and can be
+  revisited after dependencies stabilize.

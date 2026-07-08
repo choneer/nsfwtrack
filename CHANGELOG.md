@@ -7,11 +7,14 @@
 - Completed the Phase 1 local single-user MVP.
 - Added session-based login protection with `APP_PASSWORD` and `SECRET_KEY`.
 - Added Chinese / English UI switching with session persistence.
-- Added local item CRUD, tag management, creator management, item state tracking, search, and simple stats.
+- Added local item CRUD, tag management, creator management, item state
+  tracking, search, and simple stats.
 - Added CSV / JSON import with preview and confirmation flow.
-- Added JSON backup export, readable CSV export, JSON backup preview, and append / merge JSON restore.
+- Added JSON backup export, readable CSV export, JSON backup preview, and
+  append / merge JSON restore.
 - Added configurable backup upload size limit through `MAX_BACKUP_UPLOAD_MB`.
-- Added Dockerfile, Docker Compose deployment, SQLite persistence under `./data`, and N100 / LAN deployment documentation.
+- Added Dockerfile, Docker Compose deployment, SQLite persistence under
+  `./data`, and N100 / LAN deployment documentation.
 - Added GitHub Actions CI and basic automated test coverage.
 
 ### Changed
@@ -22,7 +25,8 @@
 
 ### Fixed
 
-- Added clear page-level feedback for login failure, import preview failure, and backup preview failure.
+- Added clear page-level feedback for login failure, import preview failure,
+  and backup preview failure.
 - Confirmed invalid backup restore paths do not damage existing database contents.
 
 ### Security
@@ -39,4 +43,5 @@
 - Direct public internet exposure is not recommended.
 - Backup restore is append / merge based, not an overwrite restore.
 - There are no external content sources, crawlers, recommendation systems, or AI assistants.
-- The current FastAPI / Starlette TestClient warning does not affect functionality; revisit it after the dependency path stabilizes.
+- The current FastAPI / Starlette TestClient warning does not affect
+  functionality; revisit it after the dependency path stabilizes.
