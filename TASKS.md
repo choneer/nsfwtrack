@@ -6,7 +6,7 @@
 
 - WSL Ubuntu 22.04
 - `python3.12 -m venv .venv && source .venv/bin/activate`
-- `pip install fastapi uvicorn sqlalchemy jinja2 httpx python-multipart pytest`
+- `pip install -r requirements-dev.txt`
 - VS Code + Codex 插件
 
 ## Day 1: 骨架 + 数据库 + 基础 API

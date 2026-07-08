@@ -52,5 +52,6 @@ The SQLite database is stored under `data/`.
 ## Tests
 
 ```bash
+pip install -r requirements-dev.txt
 .venv/bin/python -m pytest
 ```

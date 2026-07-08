@@ -2,7 +2,5 @@ fastapi
 uvicorn
 sqlalchemy
 jinja2
-httpx
 python-multipart
-pytest
 itsdangerous
