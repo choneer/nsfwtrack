@@ -99,6 +99,12 @@
   - 导航入口、JSON/CSV 导出按钮、JSON 备份上传入口
 - [x] **B5** 备份恢复测试
   - 未登录保护、JSON/CSV 导出、结构校验、合法恢复、非法恢复不破坏数据、中英文页面
+- [x] **B6** 备份恢复体验增强
+  - `MAX_BACKUP_UPLOAD_MB` 默认 5MB，可配置
+  - `POST /api/backup/preview/json`：只预览校验，不写入数据库
+  - `/backup` 页面明确合并恢复、非覆盖恢复、本地文件限制
+  - 备份错误提示支持中文 / English
+  - 覆盖缺文件、非 JSON、超限、非法 JSON、schema 不匹配、缺字段、恢复异常测试
 
 ## 本轮清理
 

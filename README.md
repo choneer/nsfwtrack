@@ -33,11 +33,22 @@ Available local-only actions:
 
 - Export a complete JSON backup: `GET /api/backup/export/json`
 - Export a readable items CSV: `GET /api/backup/export/csv`
+- Preview a JSON backup without writing data: `POST /api/backup/preview/json`
 - Restore a JSON backup exported by NSFWTrack: upload the file on `/backup`, or use `POST /api/backup/restore/json`
 
 JSON backups include `items`, `tags`, `creators`, `item_tags`,
-`item_creators`, and `user_item_states`. Restore uses an append / merge strategy
-and only accepts uploaded local JSON files. It never restores from a URL.
+`item_creators`, and `user_item_states`. Restore uses an append / merge strategy;
+it is not an overwrite restore and does not clear the current database.
+
+Backup restore only accepts uploaded local JSON files exported by NSFWTrack. It
+never restores from a URL, cloud sync, or an external data source. Uploaded JSON
+backup files are limited to 5 MB by default.
+
+Configure the upload limit with:
+
+```bash
+export MAX_BACKUP_UPLOAD_MB=5
+```
 
 ## Language
 

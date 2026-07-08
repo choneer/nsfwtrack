@@ -11,6 +11,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
 from app.auth import is_authenticated, logout_user, require_page_auth
+from app.config import get_settings
 from app.database import get_db
 from app.i18n import get_language, set_language, status_translator, translate, translator
 from app.models import Creator, Item, Tag, UserItemState
@@ -24,7 +25,7 @@ from app.services.catalog import (
     split_names,
     update_item,
 )
-from app.services.backup import restore_backup_data
+from app.services.backup import BackupError, preview_backup_data, restore_backup_data
 from app.services.importer import import_rows, parse_csv_rows, parse_json_rows
 
 router = APIRouter(tags=["pages"])
@@ -46,6 +47,7 @@ def _base_context(request: Request, **values: Any) -> dict[str, Any]:
         "t": translator(language),
         "status_label": status_translator(language),
         "status_options": STATUS_OPTIONS,
+        "max_backup_upload_mb": get_settings().max_backup_upload_mb,
     }
     context.update(values)
     return context
@@ -541,17 +543,77 @@ def import_confirm_page(
     return _import_template(request, result=result)
 
 
+def _backup_error_message(request: Request, code: str) -> str:
+    return translate(get_language(request), f"backup.error_{code}")
+
+
+async def _read_backup_upload_for_page(
+    request: Request,
+    file: UploadFile | None,
+) -> dict[str, Any]:
+    if file is None:
+        raise BackupError("missing_file")
+    if not (file.filename or "").lower().endswith(".json"):
+        raise BackupError("json_required")
+    max_bytes = get_settings().max_backup_upload_mb * 1024 * 1024
+    content = await file.read(max_bytes + 1)
+    if len(content) > max_bytes:
+        raise BackupError("too_large")
+    try:
+        payload = json.loads(content.decode("utf-8"))
+    except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+        raise BackupError("invalid_json") from exc
+    if not isinstance(payload, dict):
+        raise BackupError("invalid_backup")
+    return payload
+
+
+def _backup_template(
+    request: Request,
+    preview_result: dict[str, int | str] | None = None,
+    preview_error: str | None = None,
+    restore_result: dict[str, int] | None = None,
+    restore_error: str | None = None,
+) -> HTMLResponse:
+    return templates.TemplateResponse(
+        request,
+        "backup.html",
+        _base_context(
+            request,
+            preview_result=preview_result,
+            preview_error=preview_error,
+            restore_result=restore_result,
+            restore_error=restore_error,
+        ),
+    )
+
+
 @router.get(
     "/backup",
     response_class=HTMLResponse,
     dependencies=[Depends(require_page_auth)],
 )
 def backup_page(request: Request) -> HTMLResponse:
-    return templates.TemplateResponse(
-        request,
-        "backup.html",
-        _base_context(request, restore_result=None, restore_error=None),
-    )
+    return _backup_template(request)
+
+
+@router.post(
+    "/backup/preview",
+    response_class=HTMLResponse,
+    dependencies=[Depends(require_page_auth)],
+)
+async def backup_preview_page(
+    request: Request,
+    file: UploadFile | None = File(default=None),
+) -> HTMLResponse:
+    try:
+        payload = await _read_backup_upload_for_page(request, file)
+        return _backup_template(request, preview_result=preview_backup_data(payload))
+    except BackupError as exc:
+        return _backup_template(
+            request,
+            preview_error=_backup_error_message(request, exc.code),
+        )
 
 
 @router.post(
@@ -561,32 +623,21 @@ def backup_page(request: Request) -> HTMLResponse:
 )
 async def backup_restore_page(
     request: Request,
-    file: UploadFile = File(...),
+    file: UploadFile | None = File(default=None),
     db: Session = Depends(get_db),
 ) -> HTMLResponse:
     restore_result: dict[str, int] | None = None
     restore_error: str | None = None
-    language = get_language(request)
     try:
-        if not file.filename.lower().endswith(".json"):
-            raise ValueError("backup.error_json_required")
-        payload = json.loads((await file.read()).decode("utf-8"))
-        if not isinstance(payload, dict):
-            raise ValueError("backup.error_invalid")
+        payload = await _read_backup_upload_for_page(request, file)
+        preview_backup_data(payload)
         restore_result = restore_backup_data(db, payload)
-    except (json.JSONDecodeError, UnicodeDecodeError):
-        restore_error = translate(language, "backup.error_invalid")
-    except ValueError as exc:
-        error_key = str(exc)
-        if not error_key.startswith("backup."):
-            error_key = "backup.error_invalid"
-        restore_error = translate(language, error_key)
-    return templates.TemplateResponse(
+    except BackupError as exc:
+        restore_error = _backup_error_message(request, exc.code)
+    except ValueError:
+        restore_error = _backup_error_message(request, "restore_failed")
+    return _backup_template(
         request,
-        "backup.html",
-        _base_context(
-            request,
-            restore_result=restore_result,
-            restore_error=restore_error,
-        ),
+        restore_result=restore_result,
+        restore_error=restore_error,
     )

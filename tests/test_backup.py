@@ -2,7 +2,10 @@ from __future__ import annotations
 
 import json
 
+import pytest
 from fastapi.testclient import TestClient
+
+from app.config import get_settings
 
 
 def _create_backup_item(client: TestClient) -> int:
@@ -28,6 +31,15 @@ def _create_backup_item(client: TestClient) -> int:
 def test_backup_exports_require_login(client: TestClient) -> None:
     assert client.get("/api/backup/export/json").status_code == 401
     assert client.get("/api/backup/export/csv").status_code == 401
+
+
+def test_backup_preview_requires_login(client: TestClient) -> None:
+    response = client.post(
+        "/api/backup/preview/json",
+        files={"file": ("backup.json", b"{}", "application/json")},
+    )
+
+    assert response.status_code == 401
 
 
 def test_json_export_contains_core_tables(auth_client: TestClient) -> None:
@@ -66,6 +78,150 @@ def test_csv_export_contains_readable_item_data(auth_client: TestClient) -> None
     assert "backup-tag" in response.text
     assert "Backup Creator" in response.text
     assert "watched" in response.text
+
+
+def test_json_backup_preview_succeeds_without_modifying_database(
+    auth_client: TestClient,
+) -> None:
+    _create_backup_item(auth_client)
+    backup_payload = auth_client.get("/api/backup/export/json").json()
+    assert auth_client.delete(
+        f"/api/items/{backup_payload['tables']['items'][0]['id']}"
+    ).status_code == 200
+    assert auth_client.get("/api/items").json()["total"] == 0
+
+    response = auth_client.post(
+        "/api/backup/preview/json",
+        files={
+            "file": (
+                "backup.json",
+                json.dumps(backup_payload).encode("utf-8"),
+                "application/json",
+            )
+        },
+    )
+
+    assert response.status_code == 200
+    preview = response.json()["preview"]
+    assert preview["schema"] == "nsfwtrack.backup.v1"
+    assert preview["items"] == 1
+    assert preview["tags"] == 1
+    assert preview["creators"] == 1
+    assert preview["item_tags"] == 1
+    assert preview["item_creators"] == 1
+    assert preview["user_item_states"] == 1
+    assert auth_client.get("/api/items").json()["total"] == 0
+
+
+def test_backup_preview_rejects_missing_invalid_and_wrong_schema_files(
+    auth_client: TestClient,
+) -> None:
+    missing_response = auth_client.post("/api/backup/preview/json")
+    assert missing_response.status_code == 400
+    assert "JSON" in missing_response.json()["detail"]
+
+    txt_response = auth_client.post(
+        "/api/backup/preview/json",
+        files={"file": ("backup.txt", b"{}", "text/plain")},
+    )
+    assert txt_response.status_code == 400
+    assert "JSON" in txt_response.json()["detail"]
+
+    invalid_response = auth_client.post(
+        "/api/backup/preview/json",
+        files={"file": ("backup.json", b"{", "application/json")},
+    )
+    assert invalid_response.status_code == 400
+    assert "JSON" in invalid_response.json()["detail"]
+
+    schema_response = auth_client.post(
+        "/api/backup/preview/json",
+        files={
+            "file": (
+                "backup.json",
+                b'{"schema":"wrong","tables":{}}',
+                "application/json",
+            )
+        },
+    )
+    assert schema_response.status_code == 400
+    assert "schema" in schema_response.json()["detail"]
+
+    missing_field_response = auth_client.post(
+        "/api/backup/preview/json",
+        files={
+            "file": (
+                "backup.json",
+                json.dumps(
+                    {
+                        "schema": "nsfwtrack.backup.v1",
+                        "tables": {
+                            "items": [{"id": 1}],
+                            "tags": [],
+                            "creators": [],
+                            "item_tags": [],
+                            "item_creators": [],
+                            "user_item_states": [],
+                        },
+                    }
+                ).encode("utf-8"),
+                "application/json",
+            )
+        },
+    )
+    assert missing_field_response.status_code == 400
+    assert "字段" in missing_field_response.json()["detail"]
+
+
+def test_backup_preview_rejects_oversized_file(
+    auth_client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("MAX_BACKUP_UPLOAD_MB", "1")
+    get_settings.cache_clear()
+    try:
+        response = auth_client.post(
+            "/api/backup/preview/json",
+            files={
+                "file": (
+                    "backup.json",
+                    b"{" + (b" " * (1024 * 1024 + 1)) + b"}",
+                    "application/json",
+                )
+            },
+        )
+    finally:
+        monkeypatch.delenv("MAX_BACKUP_UPLOAD_MB", raising=False)
+        get_settings.cache_clear()
+
+    assert response.status_code == 413
+    assert "大小限制" in response.json()["detail"]
+
+
+def test_backup_restore_rejects_oversized_file_before_modifying_database(
+    auth_client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _create_backup_item(auth_client)
+    monkeypatch.setenv("MAX_BACKUP_UPLOAD_MB", "1")
+    get_settings.cache_clear()
+    try:
+        response = auth_client.post(
+            "/api/backup/restore/json",
+            files={
+                "file": (
+                    "backup.json",
+                    b"{" + (b" " * (1024 * 1024 + 1)) + b"}",
+                    "application/json",
+                )
+            },
+        )
+    finally:
+        monkeypatch.delenv("MAX_BACKUP_UPLOAD_MB", raising=False)
+        get_settings.cache_clear()
+
+    assert response.status_code == 413
+    assert auth_client.get("/api/items").json()["total"] == 1
 
 
 def test_json_backup_restore_merges_data(auth_client: TestClient) -> None:
@@ -152,6 +308,9 @@ def test_backup_page_renders_chinese_and_english(auth_client: TestClient) -> Non
     assert zh_response.status_code == 200
     assert "备份与恢复" in zh_response.text
     assert "导出 JSON 备份" in zh_response.text
+    assert "合并恢复" in zh_response.text
+    assert "不支持 URL 导入" in zh_response.text
+    assert "预览备份" in zh_response.text
 
     en_response = auth_client.get(
         "/set-language",
@@ -160,3 +319,6 @@ def test_backup_page_renders_chinese_and_english(auth_client: TestClient) -> Non
     assert en_response.status_code == 200
     assert "Backup and Restore" in en_response.text
     assert "Export JSON Backup" in en_response.text
+    assert "merge strategy" in en_response.text
+    assert "URL import" in en_response.text
+    assert "Preview Backup" in en_response.text

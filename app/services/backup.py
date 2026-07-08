@@ -20,21 +20,69 @@ TABLE_NAMES = {
 VALID_STATUSES = {"wish", "watching", "watched", "like", "dislike", "ignore"}
 
 
+class BackupError(ValueError):
+    def __init__(self, code: str, detail: str | None = None) -> None:
+        self.code = code
+        self.detail = detail
+        super().__init__(code)
+
+
+def _raise(code: str, detail: str | None = None) -> None:
+    raise BackupError(code, detail)
+
+
 def _rows_from_payload(payload: dict[str, Any]) -> dict[str, list[dict[str, Any]]]:
     if payload.get("schema") != BACKUP_SCHEMA:
-        raise ValueError("Unsupported backup format")
+        _raise("schema_mismatch")
     tables = payload.get("tables")
     if not isinstance(tables, dict):
-        raise ValueError("Backup tables are missing")
+        _raise("missing_tables")
     rows: dict[str, list[dict[str, Any]]] = {}
     for table_name in TABLE_NAMES:
         table_rows = tables.get(table_name)
         if not isinstance(table_rows, list):
-            raise ValueError(f"Backup table is invalid: {table_name}")
+            _raise("invalid_table", table_name)
         if not all(isinstance(row, dict) for row in table_rows):
-            raise ValueError(f"Backup rows are invalid: {table_name}")
+            _raise("invalid_rows", table_name)
         rows[table_name] = table_rows
     return rows
+
+
+def _require_keys(rows: list[dict[str, Any]], table_name: str, keys: set[str]) -> None:
+    for row in rows:
+        for key in keys:
+            if key not in row or row.get(key) in {None, ""}:
+                _raise("missing_field", f"{table_name}.{key}")
+
+
+def _validate_preview_rows(rows: dict[str, list[dict[str, Any]]]) -> None:
+    _require_keys(rows["items"], "items", {"id", "title"})
+    _require_keys(rows["tags"], "tags", {"id", "name"})
+    _require_keys(rows["creators"], "creators", {"id", "name"})
+    _require_keys(rows["item_tags"], "item_tags", {"item_id", "tag_id"})
+    _require_keys(
+        rows["item_creators"],
+        "item_creators",
+        {"item_id", "creator_id"},
+    )
+    _require_keys(rows["user_item_states"], "user_item_states", {"item_id", "status"})
+    for row in rows["user_item_states"]:
+        if str(row.get("status", "")).strip() not in VALID_STATUSES:
+            _raise("invalid_rows", "user_item_states.status")
+
+
+def preview_backup_data(payload: dict[str, Any]) -> dict[str, int | str]:
+    rows = _rows_from_payload(payload)
+    _validate_preview_rows(rows)
+    return {
+        "schema": BACKUP_SCHEMA,
+        "items": len(rows["items"]),
+        "tags": len(rows["tags"]),
+        "creators": len(rows["creators"]),
+        "item_tags": len(rows["item_tags"]),
+        "item_creators": len(rows["item_creators"]),
+        "user_item_states": len(rows["user_item_states"]),
+    }
 
 
 def _int_or_none(value: Any) -> int | None:
@@ -54,7 +102,7 @@ def _datetime_or_none(value: Any) -> datetime | None:
 def _required_text(row: dict[str, Any], key: str) -> str:
     value = str(row.get(key, "")).strip()
     if not value:
-        raise ValueError(f"Missing required field: {key}")
+        _raise("missing_field", key)
     return value
 
 

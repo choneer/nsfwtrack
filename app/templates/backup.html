@@ -8,6 +8,23 @@
   </div>
 </div>
 
+<section class="card stack">
+  <p>{{ t("backup.merge_notice") }}</p>
+  <p>{{ t("backup.support_notice") }}</p>
+  <p>{{ t("backup.local_only_notice") }}</p>
+  <p class="muted">{{ t("backup.size_limit", size=max_backup_upload_mb) }}</p>
+</section>
+
+{% if preview_result %}
+  <section class="notice">
+    {{ t("backup.preview_success", schema=preview_result.schema, items=preview_result["items"], tags=preview_result.tags, creators=preview_result.creators, item_tags=preview_result.item_tags, item_creators=preview_result.item_creators, user_item_states=preview_result.user_item_states) }}
+  </section>
+{% endif %}
+{% if preview_error %}
+  <section class="notice">
+    {{ t("backup.preview_error", error=preview_error) }}
+  </section>
+{% endif %}
 {% if restore_result %}
   <section class="notice">
     {{ t("backup.restore_success", created=restore_result.created, updated=restore_result.updated, skipped=restore_result.skipped) }}
@@ -30,6 +47,17 @@
     <h2>{{ t("backup.export_csv") }}</h2>
     <p class="muted">{{ t("backup.description") }}</p>
     <a class="button" href="/api/backup/export/csv">{{ t("backup.export_csv") }}</a>
+  </section>
+
+  <section class="card stack">
+    <h2>{{ t("backup.preview_title") }}</h2>
+    <p class="muted">{{ t("backup.restore_hint") }}</p>
+    <form class="stack" action="/backup/preview" method="post" enctype="multipart/form-data">
+      <label>{{ t("common.file") }}
+        <input name="file" type="file" accept=".json,application/json" required>
+      </label>
+      <button type="submit">{{ t("backup.preview") }}</button>
+    </form>
   </section>
 
   <section class="card stack">
