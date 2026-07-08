@@ -241,3 +241,12 @@
 - [x] 补充统计页登录保护、空数据、总览数量、分布、排行、近期活动、完整性和中英文页面测试
 - [x] 更新 README / TASKS / REVIEW / CHANGELOG，记录 Phase 2-B2 未发布改动
 - [x] 确认本轮未接入外部内容源、URL 导入、爬虫、adapter、推荐系统、AI 分析、图表库、新依赖、数据库结构变更、云同步或多用户系统
+
+## v0.3.0 发布准备
+
+- [x] 确认 `main` 已包含 Phase 2-B1 移动端 / 响应式 UI 打磨
+- [x] 确认 `main` 已包含 Phase 2-B2 统计面板增强
+- [x] 将 CHANGELOG 的 `Unreleased` 内容整理为 `v0.3.0` 发布段
+- [x] 更新 README 当前版本状态与 Phase 2-B 发布说明
+- [x] 保持 `v0.1.0` 和 `v0.2.0` tag 不变
+- [x] 本轮仅做 release 文档准备，不新增业务功能、不进入 Phase 3

@@ -2,16 +2,27 @@
 
 NSFWTrack is a local single-user content record manager / collection tracker.
 
-Current status: `main after v0.2.0 / Phase 2-B2 stats dashboard enhancements`.
+Current status: `v0.3.0 / Phase 2-B local UI and stats enhancements`.
 
 NSFWTrack remains intentionally local-only. It is designed for manual records,
 local SQLite persistence, LAN deployment, and simple personal collection
 management.
 
-## Unreleased: Phase 2-B2 Stats Dashboard Enhancements
+## Features in v0.3.0
 
-Current `main` includes local SQLite statistics dashboard enhancements on top
-of `v0.2.0` and Phase 2-B1:
+`v0.3.0` adds local Phase 2-B UI and stats enhancements on top of `v0.2.0`:
+
+- Phase 2-B1 mobile / responsive UI polish.
+- Phase 2-B2 local SQLite stats dashboard enhancements.
+
+These features do not add external content sources, URL import, crawlers,
+adapters, recommendation systems, AI analysis, prediction models, chart
+libraries, new dependencies, database schema changes, cloud sync, or multi-user
+support.
+
+### Phase 2-B2 Stats Dashboard Enhancements
+
+`v0.3.0` includes local SQLite statistics dashboard enhancements:
 
 - The stats page now has overview cards for total items, tags, creators, items
   with state, items with rating, average rating, and recent 7 / 30 day created
@@ -30,9 +41,9 @@ content sources, URL import, crawlers, adapters, recommendation systems, AI
 analysis, prediction models, chart libraries, new dependencies, database schema
 changes, cloud sync, or multi-user support.
 
-## Unreleased: Phase 2-B1 Responsive UI Polish
+### Phase 2-B1 Responsive UI Polish
 
-Current `main` includes responsive UI polish on top of `v0.2.0`:
+`v0.3.0` also includes responsive UI polish on top of `v0.2.0`:
 
 - The shared layout, cards, grids, forms, buttons, pills, and flash messages are
   tuned for narrow screens without changing backend behavior.

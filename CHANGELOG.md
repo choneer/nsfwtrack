@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+No unreleased changes.
+
+## v0.3.0 - 2026-07-08
+
 ### Added
 
 - Added a local SQLite stats service for overview metrics, status
