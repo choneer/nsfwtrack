@@ -20,7 +20,7 @@
 {% if preview_result %}
   <section class="card stack">
     <div class="flash success">
-      {{ t("backup.preview_success", schema=preview_result.schema, items=preview_result["items"], tags=preview_result.tags, creators=preview_result.creators, item_tags=preview_result.item_tags, item_creators=preview_result.item_creators, user_item_states=preview_result.user_item_states, collections=preview_result.collections, item_collections=preview_result.item_collections, saved_views=preview_result.saved_views) }}
+      {{ t("backup.preview_success", schema=preview_result.schema, items=preview_result["items"], tags=preview_result.tags, creators=preview_result.creators, item_tags=preview_result.item_tags, item_creators=preview_result.item_creators, user_item_states=preview_result.user_item_states, collections=preview_result.collections, item_collections=preview_result.item_collections, saved_views=preview_result.saved_views, item_activity=preview_result.item_activity) }}
     </div>
     <div class="metric-grid">
       <div class="metric"><strong>{{ preview_result.collections }}</strong><span>{{ t("backup.collections_count") }}</span></div>
@@ -34,6 +34,10 @@
       <div class="metric"><strong>{{ preview_result.saved_views_to_create }}</strong><span>{{ t("backup.saved_views_to_create") }}</span></div>
       <div class="metric"><strong>{{ preview_result.saved_views_to_update }}</strong><span>{{ t("backup.saved_views_to_update") }}</span></div>
       <div class="metric"><strong>{{ preview_result.saved_view_errors }}</strong><span>{{ t("backup.saved_view_errors") }}</span></div>
+      <div class="metric"><strong>{{ preview_result.item_activity }}</strong><span>{{ t("backup.item_activity_count") }}</span></div>
+      <div class="metric"><strong>{{ preview_result.item_activity_restorable }}</strong><span>{{ t("backup.item_activity_restorable") }}</span></div>
+      <div class="metric"><strong>{{ preview_result.item_activity_skipped }}</strong><span>{{ t("backup.item_activity_skipped") }}</span></div>
+      <div class="metric"><strong>{{ preview_result.item_activity_errors }}</strong><span>{{ t("backup.item_activity_errors") }}</span></div>
     </div>
   </section>
 {% endif %}
@@ -45,7 +49,7 @@
 {% if restore_result %}
   <section class="card stack">
     <div class="flash success">
-      {{ t("backup.restore_success", created=restore_result.created, updated=restore_result.updated, skipped=restore_result.skipped, collections_created=restore_result.collections_created, collections_skipped=restore_result.collections_skipped, item_collections_created=restore_result.item_collections_created, item_collections_skipped=restore_result.item_collections_skipped, collection_errors=restore_result.collection_errors, saved_views_created=restore_result.saved_views_created, saved_views_updated=restore_result.saved_views_updated, saved_views_skipped=restore_result.saved_views_skipped, saved_view_errors=restore_result.saved_view_errors) }}
+      {{ t("backup.restore_success", created=restore_result.created, updated=restore_result.updated, skipped=restore_result.skipped, collections_created=restore_result.collections_created, collections_skipped=restore_result.collections_skipped, item_collections_created=restore_result.item_collections_created, item_collections_skipped=restore_result.item_collections_skipped, collection_errors=restore_result.collection_errors, saved_views_created=restore_result.saved_views_created, saved_views_updated=restore_result.saved_views_updated, saved_views_skipped=restore_result.saved_views_skipped, saved_view_errors=restore_result.saved_view_errors, item_activity_created=restore_result.item_activity_created, item_activity_updated=restore_result.item_activity_updated, item_activity_skipped=restore_result.item_activity_skipped, item_activity_errors=restore_result.item_activity_errors) }}
     </div>
     <div class="metric-grid">
       <div class="metric"><strong>{{ restore_result.collections_created }}</strong><span>{{ t("backup.collections_restored") }}</span></div>
@@ -57,6 +61,10 @@
       <div class="metric"><strong>{{ restore_result.saved_views_updated }}</strong><span>{{ t("backup.saved_views_updated") }}</span></div>
       <div class="metric"><strong>{{ restore_result.saved_views_skipped }}</strong><span>{{ t("backup.saved_views_skipped") }}</span></div>
       <div class="metric"><strong>{{ restore_result.saved_view_errors }}</strong><span>{{ t("backup.saved_view_errors") }}</span></div>
+      <div class="metric"><strong>{{ restore_result.item_activity_created }}</strong><span>{{ t("backup.item_activity_created") }}</span></div>
+      <div class="metric"><strong>{{ restore_result.item_activity_updated }}</strong><span>{{ t("backup.item_activity_updated") }}</span></div>
+      <div class="metric"><strong>{{ restore_result.item_activity_skipped }}</strong><span>{{ t("backup.item_activity_skipped") }}</span></div>
+      <div class="metric"><strong>{{ restore_result.item_activity_errors }}</strong><span>{{ t("backup.item_activity_errors") }}</span></div>
     </div>
   </section>
 {% endif %}

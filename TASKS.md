@@ -389,3 +389,31 @@
 - [x] 更新 README / TASKS / REVIEW / CHANGELOG，记录 Phase 2-E1 未发布改动
 - [x] 确认本轮未接入 AI 推荐、智能分类、外部内容源、URL 导入、爬虫、adapter、云同步、多用户共享视图或复杂权限
 - [x] 确认本轮未修改已发布 tag，未创建 GitHub Release，未新增依赖，未修改已有数据库字段
+
+## Phase 2-E2 最近访问 / 最近编辑
+
+- [x] 新增本地 SQLite `item_activity` 表，包含 `id`、`item_id`、`last_viewed_at`、`view_count`、`last_edited_at`、`edit_count`、`created_at` 和 `updated_at`
+- [x] `item_activity.item_id` 指向本地条目，并通过唯一约束保证每个 item 最多一条 activity 记录
+- [x] 通过现有 `create_all` 机制兼容旧数据库启动，不修改已有表字段，不删除已有表
+- [x] 登录用户访问条目详情页时记录 `last_viewed_at` 和累加 `view_count`
+- [x] 未登录访问、列表页曝光和不存在条目不会写入 activity
+- [x] 访问记录失败时使用安全记录逻辑，不应导致详情页 500
+- [x] 条目基础信息编辑成功后记录 `last_edited_at` 和累加 `edit_count`
+- [x] 状态、评分和短评更新成功后记录最近编辑
+- [x] 标签添加 / 移除成功后记录最近编辑
+- [x] 创作者添加 / 移除成功后记录最近编辑
+- [x] 合集加入 / 移出成功后记录最近编辑，覆盖条目详情页和合集详情页入口
+- [x] 当前页批量编辑成功后仅为实际处理到的条目记录最近编辑，不做跨页扩展
+- [x] 新增 `/activity` 最近活动页面，要求登录，只读展示最近访问和最近编辑
+- [x] 首页显示最近访问和最近编辑入口，条目列表页提供最近访问 / 最近编辑快捷入口
+- [x] 条目详情页显示该条目的访问次数、编辑次数、最后访问时间和最后编辑时间
+- [x] 新增 `POST /activity/clear`，要求登录、POST 和浏览器确认
+- [x] 清空最近活动只删除 `item_activity` 记录，不删除条目、标签、创作者、合集或 saved views
+- [x] JSON 备份导出 / 预览 / 恢复支持 `item_activity`，旧备份缺少该表时仍兼容
+- [x] JSON 恢复跳过缺失条目的 activity 行并记录错误，不因为坏 activity 数据触发 500
+- [x] 不记录 IP、User-Agent、设备指纹、外部来源或站外 URL
+- [x] 新增最近活动中文 / English 文案，并保持 i18n key 覆盖一致
+- [x] 补充最近活动登录保护、空状态、访问记录、重复访问、未登录不写入、不存在条目不写入、编辑记录、重复编辑、状态 / 评分 / 标签 / 创作者 / 合集 / 批量编辑记录、排序、清空安全、i18n 和备份兼容测试
+- [x] 更新 README / TASKS / REVIEW / CHANGELOG，记录 Phase 2-E2 未发布改动
+- [x] 确认本轮未接入 AI 推荐、智能分析、自动分类、外部内容源、URL 导入、爬虫、adapter、云同步、多用户活动流、第三方统计或用户画像
+- [x] 确认本轮未修改已发布 tag，未创建 GitHub Release，未新增依赖，未修改已有数据库字段

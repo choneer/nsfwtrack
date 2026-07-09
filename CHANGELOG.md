@@ -4,6 +4,29 @@
 
 ### Added
 
+- Added Phase 2-E2 local item activity tracking backed by a new local SQLite
+  `item_activity` table with one activity row per item.
+- Added recent view recording for login-protected item detail visits, tracking
+  `last_viewed_at` and `view_count` without recording list exposure,
+  non-existent items, or unauthenticated requests.
+- Added recent edit recording for user-driven item changes, including item
+  basics, state / rating / review updates, tag changes, creator changes,
+  collection changes, and current-page bulk edits.
+- Added a login-protected `/activity` page with recent views, recent edits,
+  empty states, item links, local activity counts, and a clear activity action.
+- Added `POST /activity/clear` to clear only `item_activity` rows with browser
+  confirmation, preserving items, tags, creators, collections, and saved views.
+- Added dashboard and item-list entry points for recent views and recent edits,
+  plus item detail activity metadata.
+- Added Chinese / English recent activity UI and flash text.
+- Added JSON backup export / preview / restore support for `item_activity`
+  while keeping old backups without `item_activity` compatible and skipping
+  activity rows that reference missing items.
+- Added tests for activity login protection, empty states, recent view counts,
+  unauthenticated and missing item no-write behavior, recent edit counts,
+  relation changes, collection-side changes, current-page bulk edit activity,
+  ordering, POST-only clear, clear safety, i18n coverage, table creation, and
+  JSON backup compatibility.
 - Added Phase 2-E1 local saved views for the item list page, backed by a new
   local SQLite `saved_views` table.
 - Added login-protected saved view create, update, delete, and apply flows:
@@ -25,6 +48,11 @@
 
 ### Changed
 
+- Kept Phase 2-E2 limited to local item activity, with no AI recommendation,
+  smart analysis, automatic classification, external content source, URL
+  import, crawler, adapter, cloud sync, multi-user activity feed, third-party
+  analytics, IP logging, User-Agent logging, device fingerprinting, external
+  referrer logging, database field changes, or new dependency.
 - Kept Phase 2-E1 limited to local saved item-list views, with no AI
   recommendation, smart classification, external content source, URL import,
   crawler, adapter, cloud sync, multi-user shared views, database field

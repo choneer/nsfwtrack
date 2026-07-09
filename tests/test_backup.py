@@ -7,7 +7,7 @@ from fastapi.testclient import TestClient
 
 from app.config import get_settings
 from app.database import SessionLocal
-from app.models import Collection, ItemCollection, SavedView
+from app.models import Collection, ItemActivity, ItemCollection, SavedView
 
 
 def _create_backup_item(client: TestClient) -> int:
@@ -66,6 +66,16 @@ def _saved_view_count() -> int:
         return db.query(SavedView).count()
 
 
+def _item_activity_count() -> int:
+    with SessionLocal() as db:
+        return db.query(ItemActivity).count()
+
+
+def _item_activity_for_item(item_id: int) -> ItemActivity | None:
+    with SessionLocal() as db:
+        return db.query(ItemActivity).filter(ItemActivity.item_id == item_id).one_or_none()
+
+
 def _saved_view_query(name: str) -> str | None:
     with SessionLocal() as db:
         saved_view = db.query(SavedView).filter(SavedView.name == name).one_or_none()
@@ -107,10 +117,12 @@ def test_json_export_contains_core_tables(auth_client: TestClient) -> None:
         "item_collections",
         "user_item_states",
         "saved_views",
+        "item_activity",
     }
     assert payload["tables"]["items"][0]["title"] == "Backup Item"
     assert payload["tables"]["user_item_states"][0]["status"] == "watched"
     assert payload["tables"]["saved_views"] == []
+    assert payload["tables"]["item_activity"] == []
 
 
 def test_json_backup_exports_and_previews_collection_tables(
@@ -211,6 +223,7 @@ def test_json_backup_preview_succeeds_without_modifying_database(
     assert preview["collections"] == 0
     assert preview["item_collections"] == 0
     assert preview["saved_views"] == 0
+    assert preview["item_activity"] == 0
     assert auth_client.get("/api/items").json()["total"] == 0
 
 
@@ -222,6 +235,7 @@ def test_old_json_backup_without_optional_tables_still_previews_and_restores(
     backup_payload["tables"].pop("collections")
     backup_payload["tables"].pop("item_collections")
     backup_payload["tables"].pop("saved_views")
+    backup_payload["tables"].pop("item_activity")
     item_id = backup_payload["tables"]["items"][0]["id"]
     assert auth_client.delete(f"/api/items/{item_id}").status_code == 200
 
@@ -249,6 +263,7 @@ def test_old_json_backup_without_optional_tables_still_previews_and_restores(
     assert preview_response.status_code == 200
     assert preview_response.json()["preview"]["collections"] == 0
     assert preview_response.json()["preview"]["saved_views"] == 0
+    assert preview_response.json()["preview"]["item_activity"] == 0
     assert restore_response.status_code == 200
     assert auth_client.get("/api/items").json()["total"] == 1
 
@@ -314,6 +329,75 @@ def test_json_backup_exports_previews_and_restores_saved_views(
     assert result["saved_views_created"] == 1
     assert result["saved_views_updated"] == 0
     assert _saved_view_query("Backup View") == "state=wish&sort=title_asc"
+
+
+def test_json_backup_exports_previews_and_restores_item_activity(
+    auth_client: TestClient,
+) -> None:
+    item_id = _create_backup_item(auth_client)
+    view_response = auth_client.get(f"/items/{item_id}")
+    assert view_response.status_code == 200
+    edit_response = auth_client.post(
+        f"/items/{item_id}/state",
+        data={"status_value": "like", "rating": "4", "review": "activity"},
+        follow_redirects=False,
+    )
+    assert edit_response.status_code == 303
+
+    payload = auth_client.get("/api/backup/export/json").json()
+    activity_row = payload["tables"]["item_activity"][0]
+    assert activity_row["item_id"] == item_id
+    assert activity_row["view_count"] == 1
+    assert activity_row["edit_count"] == 1
+    assert "ip" not in activity_row
+    assert "user_agent" not in activity_row
+    payload["tables"]["item_activity"].append(
+        {
+            "item_id": 999999,
+            "last_viewed_at": "2026-07-09T00:00:00",
+            "view_count": 2,
+        }
+    )
+
+    preview_response = auth_client.post(
+        "/api/backup/preview/json",
+        files={
+            "file": (
+                "backup.json",
+                json.dumps(payload).encode("utf-8"),
+                "application/json",
+            )
+        },
+    )
+    assert preview_response.status_code == 200
+    preview = preview_response.json()["preview"]
+    assert preview["item_activity"] == 2
+    assert preview["item_activity_restorable"] == 1
+    assert preview["item_activity_skipped"] == 1
+    assert preview["item_activity_errors"] == 1
+
+    assert auth_client.delete(f"/api/items/{item_id}").status_code == 200
+    assert _item_activity_count() == 0
+    restore_response = auth_client.post(
+        "/api/backup/restore/json",
+        files={
+            "file": (
+                "backup.json",
+                json.dumps(payload).encode("utf-8"),
+                "application/json",
+            )
+        },
+    )
+
+    assert restore_response.status_code == 200
+    result = restore_response.json()["result"]
+    assert result["item_activity_created"] == 1
+    assert result["item_activity_skipped"] == 1
+    assert result["item_activity_errors"] == 1
+    restored_activity = _item_activity_for_item(item_id)
+    assert restored_activity is not None
+    assert restored_activity.view_count == 1
+    assert restored_activity.edit_count == 1
 
 
 def test_backup_preview_rejects_missing_invalid_and_wrong_schema_files(

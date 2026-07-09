@@ -4,13 +4,42 @@ NSFWTrack is a local single-user content record manager / collection tracker.
 
 Current release: `v0.5.0 / Phase 2-D data cleanup and manual merge`.
 
-Current development: `Phase 2-E1 saved item-list views`.
+Current development: `Phase 2-E2 recent views and recent edits`.
 
 NSFWTrack remains intentionally local-only. It is designed for manual records,
 local SQLite persistence, LAN deployment, and simple personal collection
 management.
 
-## Current Development: Phase 2-E1 Saved Views
+## Current Development: Phase 2-E2 Recent Activity
+
+Phase 2-E2 adds local recent activity for item records:
+
+- Item detail visits are recorded as recent views with `last_viewed_at` and
+  `view_count`.
+- User-driven item edits are recorded as recent edits with `last_edited_at` and
+  `edit_count`.
+- Recent edit tracking covers basic item edits, state / rating / review
+  updates, tag changes, creator changes, collection changes, and current-page
+  bulk edits.
+- `/activity` shows recent views and recent edits, requires login, and is
+  read-only.
+- `POST /activity/clear` clears only `item_activity` records after browser
+  confirmation. It does not delete items, tags, creators, collections, or saved
+  views.
+- The dashboard shows recent views and recent edits, the item list links to the
+  activity page, and item detail pages show local activity counts and
+  timestamps.
+- JSON backup export / preview / restore includes `item_activity` while
+  remaining compatible with older backups that do not contain this table.
+
+Activity is stored only in the local SQLite `item_activity` table. NSFWTrack
+does not record IP addresses, User-Agent values, device fingerprints, external
+referrers, or off-site URLs. This feature does not add recommendations, AI
+analysis, automatic classification, external content sources, URL import,
+crawlers, adapters, cloud sync, third-party analytics, multi-user activity
+feeds, new dependencies, or changes to existing database fields.
+
+## Completed Development: Phase 2-E1 Saved Views
 
 Phase 2-E1 adds local saved views for the item list page:
 

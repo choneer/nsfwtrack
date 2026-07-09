@@ -110,6 +110,17 @@ from app.services.saved_views import (
     saved_view_items_url,
     update_saved_view,
 )
+from app.services.activity import (
+    ACTIVITY_PAGE_LIMIT,
+    clear_item_activity,
+    count_item_activity,
+    get_item_activity,
+    list_recently_edited,
+    list_recently_viewed,
+    safe_record_item_edit,
+    safe_record_item_edits,
+    safe_record_item_view,
+)
 from app.services.stats import build_stats_dashboard
 
 router = APIRouter(tags=["pages"])
@@ -243,7 +254,13 @@ def index_page(request: Request, db: Session = Depends(get_db)) -> HTMLResponse:
     return templates.TemplateResponse(
         request,
         "index.html",
-        _base_context(request, recent_items=recent_items, totals=totals),
+        _base_context(
+            request,
+            recent_items=recent_items,
+            recent_viewed=list_recently_viewed(db, limit=4),
+            recent_edited=list_recently_edited(db, limit=4),
+            totals=totals,
+        ),
     )
 
 
@@ -410,6 +427,39 @@ def apply_saved_view_page(
         _saved_view_error_flash(request, exc)
         return _redirect("/items")
     return _redirect(saved_view_items_url(saved_view.query_string))
+
+
+@router.get(
+    "/activity",
+    response_class=HTMLResponse,
+    dependencies=[Depends(require_page_auth)],
+)
+def activity_page(request: Request, db: Session = Depends(get_db)) -> HTMLResponse:
+    return templates.TemplateResponse(
+        request,
+        "activity.html",
+        _base_context(
+            request,
+            recent_viewed=list_recently_viewed(db, limit=ACTIVITY_PAGE_LIMIT),
+            recent_edited=list_recently_edited(db, limit=ACTIVITY_PAGE_LIMIT),
+            activity_total=count_item_activity(db),
+        ),
+    )
+
+
+@router.post("/activity/clear", dependencies=[Depends(require_page_auth)])
+def clear_activity_page(
+    request: Request,
+    db: Session = Depends(get_db),
+) -> RedirectResponse:
+    deleted_count = clear_item_activity(db)
+    add_flash(
+        request,
+        "success",
+        "flash.activity_cleared",
+        count=deleted_count,
+    )
+    return _redirect("/activity")
 
 
 @router.get(
@@ -632,6 +682,8 @@ def bulk_items_page(
         processed=result.processed,
         skipped=result.skipped,
     )
+    if bulk_action != "delete":
+        safe_record_item_edits(db, result.item_ids)
     return _redirect(target)
 
 
@@ -694,6 +746,8 @@ def item_detail_page(
     db: Session = Depends(get_db),
 ) -> HTMLResponse:
     item = get_item_or_404(db, item_id)
+    safe_record_item_view(db, item.id)
+    item = get_item_or_404(db, item_id)
     return_list_url = _safe_next_url(request.query_params.get("next"))
     return templates.TemplateResponse(
         request,
@@ -701,6 +755,7 @@ def item_detail_page(
         _base_context(
             request,
             item=item,
+            item_activity=get_item_activity(db, item.id),
             extra=parse_extra(item.extra),
             available_tags=list_available_tags(db, item.id),
             available_creators=list_available_creators(db, item.id),
@@ -772,6 +827,7 @@ def update_item_page(
     except ValueError:
         add_flash(request, "error", "flash.item_save_failed")
         return _redirect(_item_edit_url(item_id, return_list_url))
+    safe_record_item_edit(db, item_id)
     add_flash(request, "success", "flash.item_updated")
     return _redirect(_item_detail_url(item_id, return_list_url))
 
@@ -810,6 +866,7 @@ def set_item_state_page(
     except ItemDetailError as exc:
         add_flash(request, "error", f"flash.detail_{exc.code}")
         return _redirect(target)
+    safe_record_item_edit(db, item_id)
     add_flash(request, "success", "flash.detail_state_updated")
     return _redirect(target)
 
@@ -823,6 +880,7 @@ def delete_item_state_page(
 ) -> RedirectResponse:
     item = get_item_or_404(db, item_id)
     delete_state(db, item)
+    safe_record_item_edit(db, item_id)
     add_flash(request, "info", "flash.state_cleared")
     return _redirect(_item_detail_url(item_id, next_url))
 
@@ -841,6 +899,7 @@ def add_item_tag_page(
     except ItemDetailError as exc:
         add_flash(request, "error", f"flash.detail_{exc.code}")
         return _redirect(target)
+    safe_record_item_edit(db, item_id)
     add_flash(request, "success", "flash.detail_tag_added")
     return _redirect(target)
 
@@ -859,6 +918,7 @@ def remove_item_tag_page(
     except ItemDetailError as exc:
         add_flash(request, "error", f"flash.detail_{exc.code}")
         return _redirect(target)
+    safe_record_item_edit(db, item_id)
     add_flash(request, "success", "flash.detail_tag_removed")
     return _redirect(target)
 
@@ -877,6 +937,7 @@ def add_item_creator_page(
     except ItemDetailError as exc:
         add_flash(request, "error", f"flash.detail_{exc.code}")
         return _redirect(target)
+    safe_record_item_edit(db, item_id)
     add_flash(request, "success", "flash.detail_creator_added")
     return _redirect(target)
 
@@ -898,6 +959,7 @@ def remove_item_creator_page(
     except ItemDetailError as exc:
         add_flash(request, "error", f"flash.detail_{exc.code}")
         return _redirect(target)
+    safe_record_item_edit(db, item_id)
     add_flash(request, "success", "flash.detail_creator_removed")
     return _redirect(target)
 
@@ -1175,6 +1237,7 @@ def add_collection_item_page(
     except CollectionError as exc:
         add_flash(request, "error", f"flash.collection_{exc.code}")
     else:
+        safe_record_item_edit(db, item_id)
         add_flash(request, "success", "flash.collection_item_added")
     return _redirect(f"/collections/{collection_id}")
 
@@ -1194,6 +1257,7 @@ def remove_collection_item_page(
     except CollectionError as exc:
         add_flash(request, "error", f"flash.collection_{exc.code}")
     else:
+        safe_record_item_edit(db, item_id)
         add_flash(request, "success", "flash.collection_item_removed")
     return _redirect(f"/collections/{collection_id}")
 
@@ -1212,6 +1276,7 @@ def add_item_collection_page(
     except CollectionError as exc:
         add_flash(request, "error", f"flash.collection_{exc.code}")
         return _redirect(target)
+    safe_record_item_edit(db, item_id)
     add_flash(request, "success", "flash.collection_item_added")
     return _redirect(target)
 
@@ -1233,6 +1298,7 @@ def remove_item_collection_page(
     except CollectionError as exc:
         add_flash(request, "error", f"flash.collection_{exc.code}")
         return _redirect(target)
+    safe_record_item_edit(db, item_id)
     add_flash(request, "success", "flash.collection_item_removed")
     return _redirect(target)
 

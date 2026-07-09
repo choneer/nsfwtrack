@@ -21,4 +21,42 @@
     {% endfor %}
   </div>
 </section>
+<section class="stats-section" id="recent-views">
+  <div class="toolbar">
+    <h2>{{ t("activity.recent_views") }}</h2>
+    <a class="button secondary" href="/activity#recent-views">{{ t("activity.view_all") }}</a>
+  </div>
+  <div class="grid">
+    {% for row in recent_viewed %}
+      <div class="card stack">
+        <a href="/items/{{ row.item.id }}"><strong>{{ row.item.title }}</strong></a>
+        <div class="tag-row">
+          <span class="pill">{{ t("activity.view_count") }} {{ row.view_count }}</span>
+          <span class="pill">{{ t("activity.last_viewed_at") }} {{ row.last_viewed_at }}</span>
+        </div>
+      </div>
+    {% else %}
+      <p class="muted">{{ t("activity.empty_views") }}</p>
+    {% endfor %}
+  </div>
+</section>
+<section class="stats-section" id="recent-edits">
+  <div class="toolbar">
+    <h2>{{ t("activity.recent_edits") }}</h2>
+    <a class="button secondary" href="/activity#recent-edits">{{ t("activity.view_all") }}</a>
+  </div>
+  <div class="grid">
+    {% for row in recent_edited %}
+      <div class="card stack">
+        <a href="/items/{{ row.item.id }}"><strong>{{ row.item.title }}</strong></a>
+        <div class="tag-row">
+          <span class="pill">{{ t("activity.edit_count") }} {{ row.edit_count }}</span>
+          <span class="pill">{{ t("activity.last_edited_at") }} {{ row.last_edited_at }}</span>
+        </div>
+      </div>
+    {% else %}
+      <p class="muted">{{ t("activity.empty_edits") }}</p>
+    {% endfor %}
+  </div>
+</section>
 {% endblock %}

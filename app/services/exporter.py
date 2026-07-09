@@ -88,6 +88,19 @@ def _saved_view_row(saved_view: models.SavedView) -> dict[str, Any]:
     }
 
 
+def _item_activity_row(activity: models.ItemActivity) -> dict[str, Any]:
+    return {
+        "id": activity.id,
+        "item_id": activity.item_id,
+        "last_viewed_at": _format_datetime(activity.last_viewed_at),
+        "view_count": activity.view_count,
+        "last_edited_at": _format_datetime(activity.last_edited_at),
+        "edit_count": activity.edit_count,
+        "created_at": _format_datetime(activity.created_at),
+        "updated_at": _format_datetime(activity.updated_at),
+    }
+
+
 def export_backup_data(db: Session) -> dict[str, Any]:
     items = db.scalars(select(models.Item).order_by(models.Item.id.asc())).all()
     tags = db.scalars(select(models.Tag).order_by(models.Tag.id.asc())).all()
@@ -116,6 +129,9 @@ def export_backup_data(db: Session) -> dict[str, Any]:
     saved_views = db.scalars(
         select(models.SavedView).order_by(models.SavedView.id.asc())
     ).all()
+    item_activity = db.scalars(
+        select(models.ItemActivity).order_by(models.ItemActivity.id.asc())
+    ).all()
     return {
         "schema": BACKUP_SCHEMA,
         "exported_at": datetime.now(timezone.utc).isoformat(),
@@ -137,6 +153,9 @@ def export_backup_data(db: Session) -> dict[str, Any]:
             ],
             "user_item_states": [_state_row(state) for state in states],
             "saved_views": [_saved_view_row(saved_view) for saved_view in saved_views],
+            "item_activity": [
+                _item_activity_row(activity) for activity in item_activity
+            ],
         },
     }
 

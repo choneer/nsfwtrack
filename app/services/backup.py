@@ -21,7 +21,12 @@ CORE_TABLE_NAMES = {
     "item_creators",
     "user_item_states",
 }
-OPTIONAL_TABLE_NAMES = {"collections", "item_collections", "saved_views"}
+OPTIONAL_TABLE_NAMES = {
+    "collections",
+    "item_collections",
+    "saved_views",
+    "item_activity",
+}
 TABLE_NAMES = CORE_TABLE_NAMES | OPTIONAL_TABLE_NAMES
 VALID_STATUSES = {"wish", "watching", "watched", "like", "dislike", "ignore"}
 
@@ -207,6 +212,42 @@ def _preview_saved_view_counts(
     }
 
 
+def _valid_item_activity_rows(
+    rows: dict[str, list[dict[str, Any]]],
+) -> tuple[int, int, int]:
+    backup_item_ids = {
+        item_id
+        for item_id in (_safe_int_or_none(row.get("id")) for row in rows["items"])
+        if item_id is not None
+    }
+    seen_item_ids: set[int] = set()
+    restorable = 0
+    skipped = 0
+    errors = 0
+    for row in rows["item_activity"]:
+        item_id = _safe_int_or_none(row.get("item_id"))
+        if item_id is None or item_id not in backup_item_ids:
+            skipped += 1
+            errors += 1
+            continue
+        if item_id in seen_item_ids:
+            skipped += 1
+            continue
+        seen_item_ids.add(item_id)
+        restorable += 1
+    return restorable, skipped, errors
+
+
+def _preview_item_activity_counts(rows: dict[str, list[dict[str, Any]]]) -> dict[str, int]:
+    restorable, skipped, errors = _valid_item_activity_rows(rows)
+    return {
+        "item_activity": len(rows["item_activity"]),
+        "item_activity_restorable": restorable,
+        "item_activity_skipped": skipped,
+        "item_activity_errors": errors,
+    }
+
+
 def preview_backup_data(
     payload: dict[str, Any],
     db: Session | None = None,
@@ -223,6 +264,7 @@ def preview_backup_data(
         "user_item_states": len(rows["user_item_states"]),
         **_preview_collection_counts(rows, db),
         **_preview_saved_view_counts(rows, db),
+        **_preview_item_activity_counts(rows),
     }
 
 
@@ -290,6 +332,57 @@ def _set_saved_view_fields(saved_view: models.SavedView, row: dict[str, Any]) ->
     )
     _set_optional_datetime(saved_view, "created_at", row.get("created_at"))
     _set_optional_datetime(saved_view, "updated_at", row.get("updated_at"))
+
+
+def _safe_count(value: Any) -> int:
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError):
+        return 0
+    return max(parsed, 0)
+
+
+def _safe_datetime(value: Any) -> datetime | None:
+    try:
+        return _datetime_or_none(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _newer_datetime(
+    current_value: datetime | None,
+    backup_value: datetime | None,
+) -> datetime | None:
+    if backup_value is None:
+        return current_value
+    if current_value is None or backup_value > current_value:
+        return backup_value
+    return current_value
+
+
+def _set_activity_fields(
+    activity: models.ItemActivity,
+    row: dict[str, Any],
+) -> None:
+    activity.last_viewed_at = _newer_datetime(
+        activity.last_viewed_at,
+        _safe_datetime(row.get("last_viewed_at")),
+    )
+    activity.view_count = max(activity.view_count or 0, _safe_count(row.get("view_count")))
+    activity.last_edited_at = _newer_datetime(
+        activity.last_edited_at,
+        _safe_datetime(row.get("last_edited_at")),
+    )
+    activity.edit_count = max(activity.edit_count or 0, _safe_count(row.get("edit_count")))
+    created_at = _safe_datetime(row.get("created_at"))
+    if created_at is not None and (
+        activity.created_at is None or created_at < activity.created_at
+    ):
+        activity.created_at = created_at
+    activity.updated_at = _newer_datetime(
+        activity.updated_at,
+        _safe_datetime(row.get("updated_at")),
+    )
 
 
 def _merge_tags(
@@ -564,6 +657,42 @@ def _merge_states(
         _set_optional_datetime(state, "updated_at", row.get("updated_at"))
 
 
+def _merge_item_activity(
+    db: Session,
+    rows: list[dict[str, Any]],
+    item_ids: dict[int, int],
+    result: dict[str, int],
+) -> None:
+    seen_item_ids: set[int] = set()
+    for row in rows:
+        backup_item_id = _safe_int_or_none(row.get("item_id"))
+        item_id = item_ids.get(backup_item_id or -1)
+        if item_id is None:
+            result["skipped"] += 1
+            result["item_activity_skipped"] += 1
+            result["item_activity_errors"] += 1
+            continue
+        if item_id in seen_item_ids:
+            result["skipped"] += 1
+            result["item_activity_skipped"] += 1
+            continue
+        seen_item_ids.add(item_id)
+
+        activity = db.scalar(
+            select(models.ItemActivity).where(models.ItemActivity.item_id == item_id)
+        )
+        if activity is None:
+            activity = models.ItemActivity(item_id=item_id)
+            db.add(activity)
+            result["created"] += 1
+            result["item_activity_created"] += 1
+        else:
+            result["updated"] += 1
+            result["item_activity_updated"] += 1
+        _set_activity_fields(activity, row)
+        db.flush()
+
+
 def restore_backup_data(db: Session, payload: dict[str, Any]) -> dict[str, int]:
     rows = _rows_from_payload(payload)
     result = {
@@ -579,6 +708,10 @@ def restore_backup_data(db: Session, payload: dict[str, Any]) -> dict[str, int]:
         "saved_views_updated": 0,
         "saved_views_skipped": 0,
         "saved_view_errors": 0,
+        "item_activity_created": 0,
+        "item_activity_updated": 0,
+        "item_activity_skipped": 0,
+        "item_activity_errors": 0,
     }
     with db.begin():
         tag_ids = _merge_tags(db, rows["tags"], result)
@@ -602,4 +735,5 @@ def restore_backup_data(db: Session, payload: dict[str, Any]) -> dict[str, int]:
         )
         _merge_states(db, rows["user_item_states"], item_ids, result)
         _merge_saved_views(db, rows["saved_views"], result)
+        _merge_item_activity(db, rows["item_activity"], item_ids, result)
     return result

@@ -20,6 +20,7 @@ class BulkActionError(ValueError):
 class BulkActionResult:
     processed: int
     skipped: int
+    item_ids: tuple[int, ...] = ()
 
     @property
     def ok(self) -> bool:
@@ -61,8 +62,12 @@ def _load_items(db: Session, item_ids: list[int]) -> list[Item]:
     )
 
 
-def _result(item_ids: list[int], processed: int) -> BulkActionResult:
-    return BulkActionResult(processed=processed, skipped=max(len(item_ids) - processed, 0))
+def _result(item_ids: list[int], items: list[Item]) -> BulkActionResult:
+    return BulkActionResult(
+        processed=len(items),
+        skipped=max(len(item_ids) - len(items), 0),
+        item_ids=tuple(item.id for item in items),
+    )
 
 
 def set_items_status(
@@ -81,7 +86,7 @@ def set_items_status(
         else:
             item.state.status = status_value
     db.commit()
-    return _result(item_ids, len(items))
+    return _result(item_ids, items)
 
 
 def _get_existing_tag(db: Session, raw_tag_id: str | int | None) -> Tag:
@@ -128,7 +133,7 @@ def add_items_tag(
         if all(existing_tag.id != tag.id for existing_tag in item.tags):
             item.tags.append(tag)
     db.commit()
-    return _result(item_ids, len(items))
+    return _result(item_ids, items)
 
 
 def remove_items_tag(
@@ -143,7 +148,7 @@ def remove_items_tag(
     for item in items:
         item.tags = [existing_tag for existing_tag in item.tags if existing_tag.id != tag.id]
     db.commit()
-    return _result(item_ids, len(items))
+    return _result(item_ids, items)
 
 
 def add_items_collection(
@@ -159,7 +164,7 @@ def add_items_collection(
         if all(existing.id != collection.id for existing in item.collections):
             item.collections.append(collection)
     db.commit()
-    return _result(item_ids, len(items))
+    return _result(item_ids, items)
 
 
 def remove_items_collection(
@@ -176,7 +181,7 @@ def remove_items_collection(
             existing for existing in item.collections if existing.id != collection.id
         ]
     db.commit()
-    return _result(item_ids, len(items))
+    return _result(item_ids, items)
 
 
 def set_items_rating(
@@ -199,7 +204,7 @@ def set_items_rating(
         else:
             item.state.rating = rating
     db.commit()
-    return _result(item_ids, len(items))
+    return _result(item_ids, items)
 
 
 def delete_items(
@@ -212,4 +217,4 @@ def delete_items(
     for item in items:
         db.delete(item)
     db.commit()
-    return _result(item_ids, len(items))
+    return _result(item_ids, items)

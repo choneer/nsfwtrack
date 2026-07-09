@@ -67,6 +67,37 @@ class SavedView(Base):
     )
 
 
+class ItemActivity(Base):
+    __tablename__ = "item_activity"
+    __table_args__ = (
+        CheckConstraint("view_count >= 0", name="ck_item_activity_view_count"),
+        CheckConstraint("edit_count >= 0", name="ck_item_activity_edit_count"),
+        UniqueConstraint("item_id", name="uq_item_activity_item_id"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    item_id: Mapped[int] = mapped_column(
+        ForeignKey("items.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
+        index=True,
+    )
+    last_viewed_at: Mapped[datetime | None] = mapped_column(nullable=True)
+    view_count: Mapped[int] = mapped_column(nullable=False, default=0, server_default="0")
+    last_edited_at: Mapped[datetime | None] = mapped_column(nullable=True)
+    edit_count: Mapped[int] = mapped_column(nullable=False, default=0, server_default="0")
+    created_at: Mapped[datetime] = mapped_column(
+        nullable=False, server_default=func.current_timestamp()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        nullable=False,
+        server_default=func.current_timestamp(),
+        onupdate=func.current_timestamp(),
+    )
+
+    item: Mapped[Item] = relationship(back_populates="activity")
+
+
 class Item(Base):
     __tablename__ = "items"
 
@@ -101,6 +132,13 @@ class Item(Base):
         lazy="selectin",
     )
     state: Mapped[UserItemState | None] = relationship(
+        back_populates="item",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+        uselist=False,
+        lazy="selectin",
+    )
+    activity: Mapped[ItemActivity | None] = relationship(
         back_populates="item",
         cascade="all, delete-orphan",
         passive_deletes=True,

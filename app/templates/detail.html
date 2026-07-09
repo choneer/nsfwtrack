@@ -206,6 +206,28 @@
     {% endif %}
   </section>
 
+  <section class="card detail-section">
+    <h2>{{ t("activity.title") }}</h2>
+    {% if item_activity %}
+      <div class="metric-grid compact-metrics">
+        <div class="metric"><strong>{{ item_activity.view_count }}</strong><span>{{ t("activity.view_count") }}</span></div>
+        <div class="metric"><strong>{{ item_activity.edit_count }}</strong><span>{{ t("activity.edit_count") }}</span></div>
+      </div>
+      <div class="detail-meta-grid">
+        <div class="detail-field">
+          <span class="muted">{{ t("activity.last_viewed_at") }}</span>
+          <span>{{ item_activity.last_viewed_at or t("common.none") }}</span>
+        </div>
+        <div class="detail-field">
+          <span class="muted">{{ t("activity.last_edited_at") }}</span>
+          <span>{{ item_activity.last_edited_at or t("common.none") }}</span>
+        </div>
+      </div>
+    {% else %}
+      <p class="muted">{{ t("activity.empty_item") }}</p>
+    {% endif %}
+  </section>
+
   <section class="card detail-section detail-actions-panel">
     <h2>{{ t("detail.actions") }}</h2>
     <div class="actions">
