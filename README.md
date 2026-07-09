@@ -2,15 +2,23 @@
 
 NSFWTrack is a local single-user content record manager / collection tracker.
 
-Current release: `v0.6.0 / Phase 2-E workbench and saved views`.
+Current release: `v0.7.0 / Phase 2-F data health and validation`.
 
-Current development: `Phase 2-F data health checks in progress; Phase 2-F1, Phase 2-F2, and Phase 2-F3 are complete`.
+Current development: `Phase 2-F4 data maintenance safety prompts are next`.
 
 NSFWTrack remains intentionally local-only. It is designed for manual records,
 local SQLite persistence, LAN deployment, and simple personal collection
 management.
 
-## Current Unreleased Work
+## Features in v0.7.0
+
+`v0.7.0` adds local Phase 2-F data health and validation capabilities on top of
+`v0.6.0`:
+
+- Phase 2-F1 data health check / local data self-check.
+- Phase 2-F2 backup file validation, restore dry-run, and import dry-run
+  reporting.
+- Phase 2-F3 low-risk manual data health fixes.
 
 Phase 2-F3 adds low-risk manual data health fixes on `/data-health`.
 

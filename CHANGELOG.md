@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## v0.7.0 - 2026-07-09
+
 ### Added
 
 - Added Phase 2-F3 low-risk manual data health fixes on `/data-health`,
