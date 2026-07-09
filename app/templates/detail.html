@@ -9,6 +9,7 @@
   </div>
   <div class="actions">
     <a class="button secondary" href="{{ return_list_url }}">{{ t("detail.back_to_list") }}</a>
+    <a class="button secondary" href="/duplicates">{{ t("duplicates.find_duplicates") }}</a>
     <a class="button secondary" href="{{ edit_url }}">{{ t("detail.edit_item") }}</a>
   </div>
 </div>
@@ -209,6 +210,7 @@
     <h2>{{ t("detail.actions") }}</h2>
     <div class="actions">
       <a class="button secondary" href="{{ return_list_url }}">{{ t("detail.back_to_list") }}</a>
+      <a class="button secondary" href="/duplicates">{{ t("duplicates.find_duplicates") }}</a>
       <a class="button secondary" href="{{ edit_url }}">{{ t("detail.edit_item") }}</a>
       <form class="inline-form" action="/items/{{ item.id }}/delete" method="post">
         <input type="hidden" name="next" value="{{ return_list_url }}">

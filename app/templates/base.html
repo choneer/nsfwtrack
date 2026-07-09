@@ -542,6 +542,55 @@
     .detail-actions-panel {
       grid-column: 1 / -1;
     }
+    .candidate-list {
+      display: grid;
+      gap: 16px;
+    }
+    .candidate-items {
+      display: grid;
+      gap: 10px;
+    }
+    .candidate-row {
+      align-items: center;
+      background: #f8fafc;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      display: grid;
+      gap: 10px;
+      grid-template-columns: minmax(0, 1fr) auto;
+      padding: 12px;
+    }
+    .comparison-grid {
+      display: grid;
+      gap: 14px;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .comparison-field {
+      border-top: 1px solid var(--line);
+      display: grid;
+      gap: 6px;
+      padding-top: 10px;
+    }
+    .conflict-panel {
+      background: #fff7ed;
+      border: 1px solid #fed7aa;
+      border-radius: 8px;
+      display: grid;
+      gap: 10px;
+      padding: 12px;
+    }
+    .checkbox-row {
+      align-items: start;
+      display: grid;
+      gap: 8px;
+      grid-template-columns: auto minmax(0, 1fr);
+    }
+    .checkbox-row input {
+      height: 18px;
+      margin-top: 2px;
+      min-height: 0;
+      width: 18px;
+    }
     .flash-list {
       display: grid;
       gap: 10px;
@@ -599,7 +648,13 @@
         grid-template-columns: 1fr;
       }
       .split { grid-template-columns: 1fr; }
-      .detail-layout, .detail-overview, .relation-form { grid-template-columns: 1fr; }
+      .detail-layout,
+      .detail-overview,
+      .relation-form,
+      .candidate-row,
+      .comparison-grid {
+        grid-template-columns: 1fr;
+      }
       .toolbar { align-items: stretch; flex-direction: column; }
       .actions, .filter-actions, .page-links { align-items: stretch; width: 100%; }
       .actions > * { flex: 1 1 auto; }
@@ -650,6 +705,7 @@
         <a href="/tags">{{ t("nav.tags") }}</a>
         <a href="/creators">{{ t("nav.creators") }}</a>
         <a href="/collections">{{ t("nav.collections") }}</a>
+        <a href="/duplicates">{{ t("nav.duplicates") }}</a>
         <a href="/stats">{{ t("nav.stats") }}</a>
         <a href="/import">{{ t("nav.import") }}</a>
         <a href="/backup">{{ t("nav.backup") }}</a>

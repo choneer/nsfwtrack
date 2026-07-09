@@ -50,6 +50,12 @@ from app.services.collections import (
     remove_item_from_collection,
     update_collection,
 )
+from app.services.duplicates import (
+    DuplicateError,
+    find_duplicate_candidates,
+    get_duplicate_comparison,
+    merge_duplicate_items,
+)
 from app.services.importer import (
     IMPORT_FIELDS,
     TARGET_FIELDS,
@@ -237,6 +243,10 @@ def _pagination_context(result: Any) -> dict[str, Any]:
     }
 
 
+def _duplicate_action_label(request: Request, action: str) -> str:
+    return translate(get_language(request), f"duplicates.action_{action}")
+
+
 @router.get("/items", response_class=HTMLResponse, dependencies=[Depends(require_page_auth)])
 def items_page(
     request: Request,
@@ -278,6 +288,92 @@ def items_page(
             pagination=_pagination_context(result),
         ),
     )
+
+
+@router.get(
+    "/duplicates",
+    response_class=HTMLResponse,
+    dependencies=[Depends(require_page_auth)],
+)
+def duplicates_page(request: Request, db: Session = Depends(get_db)) -> HTMLResponse:
+    return templates.TemplateResponse(
+        request,
+        "duplicates.html",
+        _base_context(request, candidate_groups=find_duplicate_candidates(db)),
+    )
+
+
+@router.get(
+    "/duplicates/compare",
+    response_class=HTMLResponse,
+    dependencies=[Depends(require_page_auth)],
+)
+def duplicate_compare_page(
+    request: Request,
+    primary_id: str | None = None,
+    duplicate_id: str | None = None,
+    db: Session = Depends(get_db),
+) -> Response:
+    try:
+        comparison = get_duplicate_comparison(db, primary_id, duplicate_id)
+    except DuplicateError as exc:
+        add_flash(request, "error", f"flash.duplicate_{exc.code}")
+        return _redirect("/duplicates")
+    return templates.TemplateResponse(
+        request,
+        "duplicate_compare.html",
+        _base_context(request, comparison=comparison),
+    )
+
+
+@router.post("/duplicates/merge", dependencies=[Depends(require_page_auth)])
+def duplicate_merge_page(
+    request: Request,
+    primary_id: str = Form(...),
+    duplicate_id: str = Form(...),
+    use_duplicate_summary: str | None = Form(default=None),
+    use_duplicate_status: str | None = Form(default=None),
+    use_duplicate_rating: str | None = Form(default=None),
+    use_duplicate_review: str | None = Form(default=None),
+    db: Session = Depends(get_db),
+) -> RedirectResponse:
+    try:
+        result = merge_duplicate_items(
+            db,
+            primary_id=primary_id,
+            duplicate_id=duplicate_id,
+            use_duplicate_summary=bool(use_duplicate_summary),
+            use_duplicate_status=bool(use_duplicate_status),
+            use_duplicate_rating=bool(use_duplicate_rating),
+            use_duplicate_review=bool(use_duplicate_review),
+        )
+    except DuplicateError as exc:
+        add_flash(request, "error", f"flash.duplicate_{exc.code}")
+        return _redirect("/duplicates")
+
+    add_flash(
+        request,
+        "success",
+        "flash.duplicate_merge_success",
+        primary_title=result.primary_title,
+        duplicate_title=result.duplicate_title,
+    )
+    add_flash(
+        request,
+        "info",
+        "flash.duplicate_merge_result",
+        tags=result.tags_transferred,
+        creators=result.creators_transferred,
+        collections=result.collections_transferred,
+        summary=_duplicate_action_label(request, result.summary_action),
+        status=_duplicate_action_label(request, result.status_action),
+        rating=_duplicate_action_label(request, result.rating_action),
+        review=_duplicate_action_label(request, result.review_action),
+        extra_keys=result.extra_keys_merged,
+        extra_conflicts=result.extra_conflicts_kept,
+        duplicate_deleted=translate(get_language(request), "duplicates.deleted_yes"),
+    )
+    return _redirect(f"/items/{result.primary_id}")
 
 
 @router.post("/items/bulk", dependencies=[Depends(require_page_auth)])

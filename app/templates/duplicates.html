@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block title %}{{ t("duplicates.title") }} - NSFWTrack{% endblock %}
+{% block content %}
+<div class="toolbar">
+  <div>
+    <p class="muted">{{ t("duplicates.local_only") }}</p>
+    <h1>{{ t("duplicates.title") }}</h1>
+  </div>
+  <div class="actions">
+    <a class="button secondary" href="/items">{{ t("nav.items") }}</a>
+  </div>
+</div>
+
+<section class="notice">
+  <strong>{{ t("duplicates.readonly_notice") }}</strong>
+  <p>{{ t("duplicates.no_auto_merge") }}</p>
+</section>
+
+{% if candidate_groups %}
+  <div class="candidate-list">
+    {% for group in candidate_groups %}
+      {% set primary = group.items[0] %}
+      <section class="card stack">
+        <div class="toolbar">
+          <div>
+            <p class="muted">{{ t("duplicates.match_type") }}</p>
+            <h2>{{ t("duplicates." ~ group.match_type) }}</h2>
+          </div>
+          <span class="pill">{{ t("duplicates.item_count", count=group.items|length) }}</span>
+        </div>
+        <div class="metric-grid compact-metrics">
+          <div class="metric">
+            <strong>{{ t("duplicates." ~ group.match_type) }}</strong>
+            <span>{{ t("duplicates.match_type") }}</span>
+          </div>
+          <div class="metric">
+            <strong>{{ group.items|length }}</strong>
+            <span>{{ t("common.count") }}</span>
+          </div>
+        </div>
+        <div class="detail-field">
+          <span class="muted">{{ t("duplicates.match_key") }}</span>
+          <code>{{ group.match_key }}</code>
+        </div>
+        <div class="candidate-items">
+          {% for item in group.items %}
+            <div class="candidate-row">
+              <div class="stack">
+                <a href="/items/{{ item.id }}"><strong>{{ item.title }}</strong></a>
+                <div class="tag-row">
+                  {% if item.state %}
+                    <span class="pill state">{{ status_label(item.state.status) }}</span>
+                    {% if item.state.rating %}
+                      <span class="pill">{{ t("common.rating") }} {{ item.state.rating }}</span>
+                    {% else %}
+                      <span class="pill">{{ t("detail.no_rating") }}</span>
+                    {% endif %}
+                  {% else %}
+                    <span class="pill">{{ t("detail.no_state") }}</span>
+                  {% endif %}
+                  <span class="pill">{{ t("common.tags") }} {{ item.tags|length }}</span>
+                  <span class="pill">{{ t("common.creators") }} {{ item.creators|length }}</span>
+                  <span class="pill">{{ t("nav.collections") }} {{ item.collections|length }}</span>
+                </div>
+              </div>
+              {% if item.id != primary.id %}
+                <a
+                  class="button secondary"
+                  href="/duplicates/compare?primary_id={{ primary.id }}&duplicate_id={{ item.id }}"
+                >{{ t("duplicates.compare") }}</a>
+              {% else %}
+                <span class="pill">{{ t("duplicates.default_primary") }}</span>
+              {% endif %}
+            </div>
+          {% endfor %}
+        </div>
+      </section>
+    {% endfor %}
+  </div>
+{% else %}
+  <section class="card empty-state">
+    <h2>{{ t("duplicates.empty_title") }}</h2>
+    <p class="muted">{{ t("duplicates.empty_body") }}</p>
+  </section>
+{% endif %}
+{% endblock %}

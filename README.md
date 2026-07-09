@@ -2,11 +2,44 @@
 
 NSFWTrack is a local single-user content record manager / collection tracker.
 
-Current status: `v0.4.0 / Phase 2-C local collections and backup / import support`.
+Current release: `v0.4.0 / Phase 2-C local collections and backup / import support`.
+
+Unreleased work: `Phase 2-D1 / local duplicate detection and manual merge`.
 
 NSFWTrack remains intentionally local-only. It is designed for manual records,
 local SQLite persistence, LAN deployment, and simple personal collection
 management.
+
+## Unreleased: Phase 2-D1 Duplicate Detection
+
+Phase 2-D1 adds local duplicate candidate detection and manual merge support on
+top of `v0.4.0`:
+
+- `/duplicates` lists read-only duplicate candidate groups.
+- Exact title matching trims leading and trailing whitespace for detection only.
+- Normalized title matching uses Unicode NFKC, trimming, casefolding, and
+  whitespace collapsing for detection only.
+- Candidate groups show the match type, match key, item count, title, state,
+  rating, and tag / creator / collection counts.
+- `/duplicates/compare` shows a side-by-side comparison of the primary item and
+  duplicate item before merge.
+- Manual merge keeps the primary item and deletes the duplicate item only after
+  a POST submission and browser confirmation.
+- Tags, creators, and collections are transferred to the primary item without
+  creating duplicate relations and without deleting tag, creator, or collection
+  records.
+- Missing primary summary / state / rating / review values can be copied from
+  the duplicate; conflicting values keep primary by default unless the user
+  explicitly chooses the duplicate value.
+- `extra` JSON merges non-conflicting duplicate keys into the primary item and
+  keeps primary values for conflicting keys.
+- Merge results summarize relation transfers, field handling, `extra` merge
+  counts, conflict counts, and duplicate deletion.
+
+Phase 2-D1 is still local-only. It does not add external content sources, URL
+import, crawlers, adapters, AI dedupe, image similarity, automatic bulk merge,
+recommendation systems, cloud sync, multi-user support, database schema changes,
+or new dependencies.
 
 ## Features in v0.4.0
 

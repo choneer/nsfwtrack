@@ -2,7 +2,38 @@
 
 ## Unreleased
 
-No unreleased changes.
+### Added
+
+- Added Phase 2-D1 local duplicate candidate detection using exact trimmed title
+  matches and normalized title matches with Unicode NFKC, trimming, casefolding,
+  and whitespace collapsing.
+- Added a login-protected `/duplicates` page showing read-only duplicate
+  candidate groups, match type, match key, item counts, state, rating, and
+  tag / creator / collection counts.
+- Added a login-protected duplicate comparison page for manually choosing a
+  primary item and a duplicate item before merge.
+- Added manual duplicate merge handling that keeps the primary item, transfers
+  tag / creator / collection relations without duplicating relations, merges
+  safe fields, merges non-conflicting `extra` JSON keys, keeps primary values
+  for conflicts by default, and deletes the duplicate item after confirmation.
+- Added merge result flash summaries covering transferred relation counts,
+  summary / status / rating / review handling, `extra` merge counts, `extra`
+  conflict counts, and duplicate deletion.
+- Added navigation, item list, and item detail entry points for duplicate
+  detection.
+- Added Chinese / English duplicate detection and merge UI text.
+- Added tests for duplicate login protection, empty states, exact and
+  normalized candidate detection, comparison validation, POST-only merge,
+  relation transfer, conflict defaults, explicit overwrite choices, bad
+  `extra` JSON handling, state copying, duplicate deletion, and i18n labels.
+
+### Changed
+
+- Kept Phase 2-D1 limited to local SQLite duplicate detection and manual merge,
+  with no AI dedupe, image similarity, fuzzy matching dependency, automatic
+  bulk merge, external content source, URL import, crawler, adapter,
+  recommendation system, cloud sync, multi-user system, database schema change,
+  or new dependency.
 
 ## v0.4.0 - 2026-07-09
 
