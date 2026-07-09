@@ -2,18 +2,29 @@
 
 NSFWTrack is a local single-user content record manager / collection tracker.
 
-Current status: `v0.3.0 release baseline + Unreleased Phase 2-C local collections and backup / import support`.
+Current status: `v0.4.0 / Phase 2-C local collections and backup / import support`.
 
 NSFWTrack remains intentionally local-only. It is designed for manual records,
 local SQLite persistence, LAN deployment, and simple personal collection
 management.
 
-## Unreleased Phase 2-C1 Local Collections
+## Features in v0.4.0
 
-Unreleased Phase 2-C1 adds local collections / list management on top of
-`v0.3.0`. Collections are manual local lists for grouping existing items into
-long-term watch lists, topic lists, review queues, or any other personal
-organization scheme.
+`v0.4.0` adds local Phase 2-C collection management and completes collection
+data coverage in backup / import flows on top of `v0.3.0`:
+
+- Phase 2-C1 collections / list management.
+- Phase 2-C2 backup / import support for collection data.
+
+These features stay local-only. They do not add external content sources, URL
+import, crawlers, adapters, recommendation systems, AI assistants, cloud sync,
+multi-user support, new dependencies, or front-end build tooling.
+
+### Phase 2-C1 Local Collections
+
+`v0.4.0` includes local collections / list management. Collections are manual
+local lists for grouping existing items into long-term watch lists, topic
+lists, review queues, or any other personal organization scheme.
 
 - Collections are stored in local SQLite tables `collections` and
   `item_collections`.
@@ -32,13 +43,9 @@ organization scheme.
 - Deleting a collection deletes only the collection and its item links. It does
   not delete any items.
 
-Phase 2-C1 remains local-only. It does not add external content sources, URL
-import, crawlers, adapters, recommendation systems, AI assistants, cloud sync,
-multi-user support, new dependencies, or a front-end build flow.
+### Phase 2-C2 Collection Backup And Import
 
-## Unreleased Phase 2-C2 Collection Backup And Import
-
-Unreleased Phase 2-C2 closes the local data loop for collections:
+`v0.4.0` also closes the local data loop for collections:
 
 - JSON backups include `collections` and `item_collections` alongside the
   existing items, tags, creators, relations, and state records.

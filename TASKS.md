@@ -292,3 +292,12 @@
 - [x] 更新 README / TASKS / REVIEW / CHANGELOG，记录 Phase 2-C2 未发布改动
 - [x] 确认本轮未新增数据库表、未修改已有数据库字段、未新增依赖、未引入外部内容源 / URL 导入 / 爬虫 / adapter / 推荐系统 / AI 助手 / 云同步 / 多用户系统
 - [x] 确认本轮未修改 `v0.1.0`、`v0.2.0` 或 `v0.3.0` tag，未创建 GitHub Release
+
+## v0.4.0 发布准备
+
+- [x] 确认 `main` 已包含 Phase 2-C1 合集 / 清单管理
+- [x] 确认 `main` 已包含 Phase 2-C2 备份 / 导入支持合集数据
+- [x] 将 CHANGELOG 的 `Unreleased` 内容整理为 `v0.4.0` 发布段
+- [x] 更新 README 当前版本状态与 Phase 2-C 发布说明
+- [x] 保持 `v0.1.0`、`v0.2.0` 和 `v0.3.0` tag 不变
+- [x] 本轮仅做 release 文档准备，不新增业务功能、不改数据库结构、不新增依赖、不进入 Phase 3

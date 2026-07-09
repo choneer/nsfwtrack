@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+No unreleased changes.
+
+## v0.4.0 - 2026-07-09
+
 ### Added
 
 - Added Phase 2-C2 collection data support for JSON backup export, JSON backup
@@ -43,6 +47,10 @@
 - Backup and import pages now document that JSON backups include collection
   data, CSV exports include `collections`, JSON restore merges local collection
   data, and old backup / import files remain compatible.
+- Kept Phase 2-C2 limited to local backup / import support for collection data,
+  with no external content sources, URL import, crawlers, adapters,
+  recommendation system, AI assistant, cloud sync, multi-user system, new
+  dependency, or database schema change.
 - Item detail pages now show linked collections and allow adding or removing one
   existing collection.
 - Item API responses now include linked collection metadata for local clients.
