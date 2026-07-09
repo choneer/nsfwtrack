@@ -38,6 +38,7 @@ from app.services.catalog import (
     update_item,
 )
 from app.services.backup import BackupError, preview_backup_data, restore_backup_data
+from app.services.backup_validator import validate_backup_payload
 from app.services.bulk_actions import (
     BulkActionError,
     add_items_collection,
@@ -1507,6 +1508,7 @@ async def _read_backup_upload_for_page(
 def _backup_template(
     request: Request,
     preview_result: dict[str, int | str] | None = None,
+    validation_report: dict[str, Any] | None = None,
     preview_error: str | None = None,
     restore_result: dict[str, int] | None = None,
     restore_error: str | None = None,
@@ -1517,6 +1519,7 @@ def _backup_template(
         _base_context(
             request,
             preview_result=preview_result,
+            validation_report=validation_report,
             preview_error=preview_error,
             restore_result=restore_result,
             restore_error=restore_error,
@@ -1545,7 +1548,22 @@ async def backup_preview_page(
 ) -> HTMLResponse:
     try:
         payload = await _read_backup_upload_for_page(request, file)
-        return _backup_template(request, preview_result=preview_backup_data(payload, db))
+        report = validate_backup_payload(payload, db).to_dict()
+        preview_result = None
+        if report["error_count"] == 0:
+            try:
+                preview_result = preview_backup_data(payload, db)
+            except BackupError as exc:
+                return _backup_template(
+                    request,
+                    validation_report=report,
+                    preview_error=_backup_error_message(request, exc.code),
+                )
+        return _backup_template(
+            request,
+            preview_result=preview_result,
+            validation_report=report,
+        )
     except BackupError as exc:
         return _backup_template(
             request,

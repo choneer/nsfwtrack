@@ -201,6 +201,36 @@ def test_csv_preview_does_not_write_database(auth_client: TestClient) -> None:
     assert _collection_names() == []
 
 
+def test_csv_import_dry_run_reports_errors_warnings_and_infos(
+    auth_client: TestClient,
+) -> None:
+    create_response = auth_client.post(
+        "/api/items",
+        json={"title": "Existing Title", "tags": [], "creators": []},
+    )
+    assert create_response.status_code == 201
+
+    csv_content = (
+        "title,unknown,status,rating\n"
+        "Existing Title,extra,wish,4\n"
+        ",ignored,wish,3\n"
+    ).encode("utf-8")
+
+    response = auth_client.post(
+        "/import/csv",
+        files={"file": ("dry-run.csv", csv_content, "text/csv")},
+    )
+
+    assert response.status_code == 200
+    assert "导入 dry-run 报告" in response.text
+    assert "dry-run 不会写入数据库" in response.text
+    assert "未知字段" in response.text
+    assert "该行缺少标题" in response.text
+    assert "导入标题与当前数据库已有条目相同" in response.text
+    assert "信息" in response.text
+    assert auth_client.get("/api/items").json()["total"] == 1
+
+
 def test_csv_manual_field_mapping_imports_data(auth_client: TestClient) -> None:
     response = auth_client.post(
         "/import/confirm",
@@ -396,6 +426,36 @@ def test_json_item_missing_title_enters_error_rows(auth_client: TestClient) -> N
     assert auth_client.get("/api/items").json()["total"] == 0
 
 
+def test_json_import_dry_run_reports_tag_and_creator_shape_errors(
+    auth_client: TestClient,
+) -> None:
+    response = auth_client.post(
+        "/import/json",
+        files={
+            "file": (
+                "items.json",
+                json.dumps(
+                    {
+                        "items": [
+                            {"title": "Bad Tags", "tags": 123, "creators": []},
+                            {"title": "Bad Creators", "tags": [], "creators": [3]},
+                        ]
+                    }
+                ).encode("utf-8"),
+                "application/json",
+            )
+        },
+    )
+
+    assert response.status_code == 200
+    assert "导入 dry-run 报告" in response.text
+    assert "tags 字段异常" in response.text
+    assert "creators 字段异常" in response.text
+    assert "不建议继续" in response.text
+    assert "disabled" in response.text
+    assert auth_client.get("/api/items").json()["total"] == 0
+
+
 def test_json_import_collection_errors_render_on_preview_page(
     auth_client: TestClient,
 ) -> None:
@@ -443,6 +503,7 @@ def test_import_page_chinese_and_english_copy(auth_client: TestClient) -> None:
         files={"file": ("items.csv", b"title\nCopy Item\n", "text/csv")},
     )
     assert "CSV 字段映射" in zh_preview.text
+    assert "导入 dry-run 报告" in zh_preview.text
 
     en_response = auth_client.get("/set-language", params={"lang": "en", "next": "/import"})
     assert en_response.status_code == 200
@@ -454,3 +515,4 @@ def test_import_page_chinese_and_english_copy(auth_client: TestClient) -> None:
         files={"file": ("items.csv", b"title\nCopy Item\n", "text/csv")},
     )
     assert "CSV Field Mapping" in en_preview.text
+    assert "Import Dry-Run Report" in en_preview.text

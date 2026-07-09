@@ -464,3 +464,25 @@
 - [x] 确认本轮未新增数据库表、未修改已有数据库字段、未新增依赖
 - [x] 确认本轮未接入外部内容源、URL 导入、爬虫、adapter、AI 判断、自动修复、自动删除、自动合并、云同步或多用户系统
 - [x] 确认本轮未修改已发布 tag，未创建 GitHub Release
+
+## Phase 2-F2 备份文件校验 / 导入 dry-run 增强
+
+- [x] 新增 `app/services/backup_validator.py`，生成备份校验和恢复 dry-run 结构化报告
+- [x] 备份校验报告区分 `error` / `warning` / `info`，展示总体状态、数量、影响数据类型、行号 / 对象 id、说明和细节
+- [x] JSON 备份校验覆盖 schema、tables、未知顶层字段、未知表、必填字段、未知行字段、重复 id、空标题、空名称、无效 `extra` JSON、无效 `status` 和无效 `rating`
+- [x] 关系校验覆盖 `item_tags`、`item_creators`、`item_collections` 的缺失条目 / 缺失目标和重复关系
+- [x] saved views 校验覆盖空 `query_string`、异常 percent 编码、外部 URL、`page` / `next` / `redirect` 和未知参数
+- [x] item activity 校验覆盖缺失条目、重复 activity、负数或无效 `view_count` / `edit_count`
+- [x] 旧 JSON 备份缺少 `collections`、`item_collections`、`saved_views` 或 `item_activity` 等可选表时兼容为 info，不作为致命错误
+- [x] `/backup` 页面复用本地 JSON 上传入口，显示备份校验 / 恢复 dry-run 报告，不执行恢复
+- [x] `/api/backup/preview/json` 成功响应增加 `report` 字段，同时保留非法文件的 400 行为
+- [x] 导入预览页面增加 CSV / JSON dry-run 报告，展示可导入行、跳过行、错误、警告、信息和写入前备份提示
+- [x] 导入 dry-run 覆盖未知字段、缺失标题、无效 `rating` / `status`、异常 `tags` / `creators`、重复标题候选和当前数据库已有标题
+- [x] JSON `tags` / `creators` 字段异常会进入错误行；字符串形式保持兼容解析并给出 warning
+- [x] dry-run 和校验均只读，不写 SQLite、不删除业务数据、不自动修复、不自动导入、不自动恢复、不自动合并
+- [x] 新增备份校验 / 导入 dry-run 中文 / English 文案，并保持 i18n key 覆盖一致
+- [x] 补充备份校验登录保护、异常文件、旧备份兼容、未知字段、缺失字段、非法值、孤立关系、重复关系、saved views、item activity、只读不写库、不删除数据、导入 dry-run 和中英文页面测试
+- [x] 更新 README / TASKS / REVIEW / CHANGELOG / PLAN，记录 Phase 2-F2 未发布改动
+- [x] 确认本轮未新增数据库表、未修改已有数据库字段、未新增依赖
+- [x] 确认本轮未接入外部内容源、URL 导入、爬虫、adapter、AI 判断、自动修复、一键修复、自动删除、自动导入、自动恢复、自动合并、云同步或多用户系统
+- [x] 确认本轮未修改已发布 tag，未创建 GitHub Release

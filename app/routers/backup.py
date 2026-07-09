@@ -11,6 +11,7 @@ from app.config import get_settings
 from app.database import get_db
 from app.i18n import get_language, translate
 from app.services.backup import BackupError, preview_backup_data, restore_backup_data
+from app.services.backup_validator import validate_backup_payload
 from app.services.exporter import (
     export_backup_json,
     export_items_csv,
@@ -106,7 +107,11 @@ async def preview_json_endpoint(
         preview = preview_backup_data(payload, db)
     except BackupError as exc:
         raise _handle_backup_error(request, exc) from exc
-    return {"ok": True, "preview": preview}
+    return {
+        "ok": True,
+        "preview": preview,
+        "report": validate_backup_payload(payload, db).to_dict(),
+    }
 
 
 @router.post("/restore/json")

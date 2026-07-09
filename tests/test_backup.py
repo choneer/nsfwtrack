@@ -667,7 +667,7 @@ def test_backup_page_renders_chinese_and_english(auth_client: TestClient) -> Non
     assert "合集" in zh_response.text
     assert "collections 字段" in zh_response.text
     assert "不支持 URL 导入" in zh_response.text
-    assert "预览备份" in zh_response.text
+    assert "校验备份文件" in zh_response.text
 
     en_response = auth_client.get(
         "/set-language",
@@ -679,7 +679,7 @@ def test_backup_page_renders_chinese_and_english(auth_client: TestClient) -> Non
     assert "merge strategy" in en_response.text
     assert "collections field" in en_response.text
     assert "URL import" in en_response.text
-    assert "Preview Backup" in en_response.text
+    assert "Validate Backup File" in en_response.text
 
 
 def test_backup_page_preview_failure_shows_clear_error(

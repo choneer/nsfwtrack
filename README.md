@@ -4,13 +4,37 @@ NSFWTrack is a local single-user content record manager / collection tracker.
 
 Current release: `v0.6.0 / Phase 2-E workbench and saved views`.
 
-Current development: `Phase 2-F data health checks in progress; Phase 2-F1 is complete`.
+Current development: `Phase 2-F data health checks in progress; Phase 2-F1 and Phase 2-F2 are complete`.
 
 NSFWTrack remains intentionally local-only. It is designed for manual records,
 local SQLite persistence, LAN deployment, and simple personal collection
 management.
 
 ## Current Unreleased Work
+
+Phase 2-F2 adds backup validation, restore dry-run reporting, and import
+dry-run reporting.
+
+- The `/backup` page can validate a local JSON backup before restore and show a
+  structured report with `error`, `warning`, and `info` levels.
+- Backup validation checks schema, supported tables, unknown top-level fields,
+  required fields, unknown row fields, duplicate ids, invalid `status` /
+  `rating`, invalid `extra` JSON, orphaned relations, duplicate relations,
+  saved views parameters, and item activity references.
+- Older JSON backups that do not contain newer optional tables such as
+  `saved_views` or `item_activity` remain compatible and are treated as empty
+  optional tables during validation / preview.
+- Restore dry-run reports table counts, relation counts, expected skipped rows,
+  and whether the current database already has data that a real restore would
+  append / merge with.
+- CSV / JSON import previews now include a dry-run report with importable rows,
+  skipped rows, row errors, unknown fields, invalid `rating` / `status`,
+  abnormal `tags` / `creators` fields, duplicate title candidates, and
+  existing-title warnings.
+- Dry-run reports do not write to the database, delete business data, restore
+  backups, import rows, auto-create tags / creators / collections, modify saved
+  views / activity, auto-fix files, auto-merge data, or call external services.
+- Before a real restore or import, export a fresh JSON backup from `/backup`.
 
 Phase 2-F1 adds a local data health check page at `/data-health`.
 

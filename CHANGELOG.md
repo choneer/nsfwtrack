@@ -4,6 +4,26 @@
 
 ### Added
 
+- Added Phase 2-F2 JSON backup file validation with a structured
+  `error` / `warning` / `info` report for schema, tables, rows, required
+  fields, unknown fields, duplicate ids, relation integrity, duplicate
+  relations, saved views, and item activity.
+- Added backup restore dry-run reporting on the `/backup` page, including
+  table counts, relation counts, expected skipped rows, compatibility notices
+  for older backups without newer optional tables, and a pre-write JSON backup
+  recommendation.
+- Added successful backup preview API reports at `/api/backup/preview/json`
+  while preserving existing 400 responses for invalid backup files.
+- Added import dry-run report details to CSV / JSON preview pages, covering
+  importable rows, skipped rows, row errors, unknown fields, invalid
+  `rating` / `status`, abnormal `tags` / `creators` fields, duplicate title
+  candidates, existing-title warnings, and read-only backup prompts.
+- Added tests for backup validation login protection, invalid / empty JSON,
+  old backup compatibility, unknown fields, missing required fields, invalid
+  values, orphaned relations, duplicate relations, saved views issues,
+  item activity issues, dry-run no-write behavior, dry-run no-delete behavior,
+  import dry-run reports, i18n coverage, and existing backup / import
+  regressions.
 - Added Phase 2-F1 local data health checking with a login-protected
   `/data-health` page.
 - Added a read-only data health service that reports item data issues,
@@ -32,6 +52,11 @@
 
 ### Changed
 
+- Kept Phase 2-F2 strictly read-only: validation and dry-run reports do not
+  restore backups, import data, create tags / creators / collections, modify
+  saved views / activity, write SQLite data, delete business data, auto-fix,
+  auto-import, auto-restore, auto-merge, request external network resources,
+  add dependencies, or change database schema.
 - Kept Phase 2-F1 strictly read-only: no auto-fix, one-click fix, automatic
   deletion, automatic merge, AI judgment, external information lookup, external
   content source, URL import, crawler, adapter, cloud sync, multi-user system,

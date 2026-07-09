@@ -1,6 +1,6 @@
 # GOAL.md
 
-# 当前目标：Phase 2-F1 数据健康检查 / 本地数据自检
+# 当前目标：Phase 2-F2 备份文件校验 / 导入 dry-run 增强
 
 请先读取 `RULE.md`、`PLAN.md`，再执行本文件。
 `RULE.md` 是长期通用规则，本文档只描述本轮开发目标。
@@ -10,20 +10,19 @@
 
 ## 一、目标
 
-新增本地数据健康检查能力，帮助用户发现数据库中的潜在问题。
-
-本轮只做只读检查和报告展示。
+增强本地数据写入前的安全检查能力。
 
 本轮实现：
 
-- 数据健康检查页
-- 条目数据基础检查
-- 标签 / 创作者 / 合集关系检查
-- saved views 检查
-- item activity 检查
-- 备份前安全提示
-- 健康报告摘要
-- 问题明细列表
+- JSON 备份文件校验
+- 备份恢复 dry-run
+- 导入 dry-run 增强
+- 校验报告摘要
+- 校验问题明细
+- 写入前备份提示
+
+本轮只做校验和 dry-run 报告。
+本轮不真正恢复备份，不真正导入数据，不修改数据库。
 
 本轮不做：
 
@@ -48,191 +47,152 @@
 不允许修改已有数据库字段。
 不允许新增依赖。
 
-本轮只读取现有数据：
+本轮只允许：
 
-- items
-- tags
-- creators
-- collections
-- item_tags
-- item_creators
-- item_collections
-- saved_views
-- item_activity
+- 读取上传的本地 JSON / CSV 文件
+- 解析文件内容
+- 校验结构
+- 生成 dry-run 报告
+- 不写入数据库
 
 ---
 
-## 三、检查范围
+## 三、备份文件校验
 
-新增数据健康检查服务。
+增强 JSON 备份文件校验能力。
 
-建议新增：
+建议新增或增强：
 
-- `app/services/data_health.py`
-- `app/templates/data_health.html`
-- `tests/test_data_health.py`
+- `app/services/backup_validator.py`
+- `tests/test_backup_validator.py`
 
-建议新增页面：
+建议页面入口：
 
-- `GET /data-health`
+- 复用 `/backup`
+- 或新增只读校验入口，例如 `POST /backup/validate`
 
-`/data-health` 要求：
+校验内容至少包括：
 
-- 需要登录
-- 页面只读
-- 不修改数据库
-- 不删除任何数据
-- 不自动修复
+- JSON 是否可解析
+- 是否为对象结构
+- 是否包含受支持的表数据
+- 是否包含未知顶层字段
+- `items` 结构是否合理
+- `tags` 结构是否合理
+- `creators` 结构是否合理
+- `collections` 结构是否合理
+- `saved_views` 结构是否合理
+- `item_activity` 结构是否合理
+- 关系表数据是否能映射到条目 / 标签 / 创作者 / 合集
+- 是否存在重复关系
+- 是否存在缺失必填字段
+- 是否存在明显非法字段值
+
+要求：
+
+- 校验不写数据库
+- 校验不删除任何数据
+- 校验失败不展示完整异常堆栈
+- 旧版本备份缺少新表时不应被视为致命错误
+- 未知字段应作为 warning，而不是直接崩溃
+- 文件过大时要有清楚错误或限制提示
+
+---
+
+## 四、备份恢复 dry-run
+
+新增或增强恢复前 dry-run 报告。
+
+dry-run 应展示：
+
+- 预计读取多少条 items
+- 预计读取多少 tags
+- 预计读取多少 creators
+- 预计读取多少 collections
+- 预计读取多少 saved views
+- 预计读取多少 item_activity
+- 预计读取多少关系
+- 预计跳过多少无效数据
+- 预计有哪些 warning
+- 是否建议先做当前数据库 JSON 备份
+
+要求：
+
+- dry-run 不执行恢复
+- dry-run 不写入数据库
+- dry-run 不修改当前数据
+- dry-run 不删除当前数据
+- dry-run 不自动创建标签 / 创作者 / 合集
+- dry-run 不改变 saved views / activity
+- dry-run 只是报告
+
+---
+
+## 五、导入 dry-run 增强
+
+项目已有导入预览能力，本轮只增强安全检查和报告。
+
+增强内容：
+
+- 更清楚地区分 error / warning / info
+- 报告将要导入的条目数量
+- 报告将要跳过的行数
+- 报告缺失字段
+- 报告未知字段
+- 报告无效 rating / status
+- 报告标签 / 创作者字段异常
+- 报告重复标题候选，可选
+- 明确提示 dry-run 不会写入数据库
+
+要求：
+
+- 不破坏现有 CSV / JSON 导入流程
+- 不改变已有导入字段语义
 - 不请求外部网络
-- 没有问题时显示健康状态
-- 有问题时显示摘要和明细
+- 不读取站外 URL
+- 不自动修复导入文件
+- 不自动创建额外数据，除非用户走现有正式导入流程
 
 ---
 
-## 四、检查项目
+## 六、报告展示
 
-至少检查以下问题：
+校验 / dry-run 报告至少包含：
 
-### 1. 条目基础检查
-
-检查：
-
-- 空标题条目
-- rating 超出允许范围
-- status 不在允许状态中
-- 创建时间 / 更新时间缺失或异常
-- extra JSON 异常，若项目中存在该字段
-
-要求：
-
-- 只报告问题
-- 不修改条目
-- 不删除条目
-
----
-
-### 2. 关系完整性检查
-
-检查：
-
-- item_tags 中 item 不存在
-- item_tags 中 tag 不存在
-- item_creators 中 item 不存在
-- item_creators 中 creator 不存在
-- item_collections 中 item 不存在
-- item_collections 中 collection 不存在
-
-要求：
-
-- 只报告孤立关系
-- 不删除关系
-- 不删除条目
-- 不删除标签 / 创作者 / 合集
-
----
-
-### 3. 重复关系检查
-
-检查：
-
-- 同一个 item 重复关联同一个 tag
-- 同一个 item 重复关联同一个 creator
-- 同一个 item 重复关联同一个 collection
-
-要求：
-
-- 只报告重复关系
-- 不自动去重
-- 不自动删除
-
----
-
-### 4. saved views 检查
-
-检查：
-
-- saved view 名称为空
-- saved view query_string 为空或异常
-- query_string 包含未知参数
-- query_string 包含 page / next / redirect / 外部 URL 等不应保存的参数
-
-要求：
-
-- 只报告问题
-- 不自动修改 saved view
-- 不删除 saved view
-
----
-
-### 5. item activity 检查
-
-检查：
-
-- item_activity 指向不存在的 item
-- view_count / edit_count 为负数
-- last_viewed_at / last_edited_at 异常
-
-要求：
-
-- 只报告问题
-- 不自动清理 activity
-
----
-
-## 五、健康报告展示
-
-`/data-health` 页面展示：
-
-- 总体状态：健康 / 有警告 / 有问题
-- 问题总数
-- 按类型分组的问题数量
-- 问题明细
-- 影响对象类型
-- 影响对象 id
+- 总体状态：可继续 / 有警告 / 不建议继续
+- error 数量
+- warning 数量
+- info 数量
+- 影响的数据类型
+- 影响行号或对象 id
 - 简短说明
-- 建议用户先做 JSON 备份
-- 后续修复入口占位说明，可选
+- 建议操作
+- 写入前备份提示
 
 要求：
 
-- 不展示完整异常堆栈
 - 长文本不能撑破布局
 - 移动端可用
+- 不展示完整异常堆栈
 - 中文 / English 文案覆盖
 
 ---
 
-## 六、安全边界
+## 七、安全边界
 
 必须遵守：
 
-- 本轮所有检查只读
-- GET /data-health 不能写数据库
+- 本轮所有校验和 dry-run 都只读
+- 不允许写数据库
+- 不允许删除任何数据
 - 不允许自动修复
-- 不允许自动删除
-- 不允许自动合并
 - 不允许自动导入
-- 不允许执行任意 SQL
+- 不允许自动恢复备份
+- 不允许自动合并
 - 不允许请求外部网络
 - 不允许读取站外 URL
-- 不允许引入第三方统计或分析
-
----
-
-## 七、入口与导航
-
-新增数据健康检查入口：
-
-- 登录后导航中增加数据健康入口，或放入工作台快捷入口
-- README 中说明入口位置
-- REVIEW 中增加审查项
-
-要求：
-
-- 不破坏现有导航
-- 不破坏语言切换
-- 不破坏登录 / 登出
-- 不影响 saved views / activity / cleanup / duplicates
+- 不允许执行任意 SQL
+- 不允许引入第三方分析
 
 ---
 
@@ -240,27 +200,26 @@
 
 新增中文 / English 文案，至少覆盖：
 
-- 数据健康
-- 数据健康检查
-- 健康
+- 备份校验
+- 校验备份文件
+- 恢复 dry-run
+- 导入 dry-run
+- 校验报告
+- 可继续
 - 有警告
-- 有问题
-- 问题总数
-- 问题明细
-- 条目问题
-- 关系问题
-- 重复关系
-- saved views 问题
-- activity 问题
-- 孤立关系
-- 空标题
-- 无效评分
-- 无效状态
-- 未知参数
-- 建议先备份
-- 本页只读
-- 暂无数据问题
-- 返回工作台
+- 不建议继续
+- 错误
+- 警告
+- 信息
+- 未知字段
+- 缺失字段
+- 无效数据
+- 文件过大
+- JSON 解析失败
+- dry-run 不会写入数据库
+- 建议先备份当前数据库
+- 返回备份页
+- 返回导入页
 
 要求：
 
@@ -275,35 +234,33 @@
 
 请新增或更新测试，至少覆盖：
 
-1. 未登录访问 `/data-health` 跳转登录
-2. 登录后 `/data-health` 可以正常渲染
-3. 健康数据时显示无问题状态
-4. 空标题条目能被报告
-5. 无效 rating 能被报告
-6. 无效 status 能被报告
-7. 孤立 item_tags 能被报告
-8. 孤立 item_creators 能被报告
-9. 孤立 item_collections 能被报告
-10. 重复 item_tags 能被报告
-11. 重复 item_creators 能被报告
-12. 重复 item_collections 能被报告
-13. saved view 未知参数能被报告
-14. saved view 中 page / next / redirect 能被报告
-15. item_activity 指向不存在 item 能被报告
-16. view_count / edit_count 为负数能被报告
-17. `/data-health` 不修改数据库
-18. `/data-health` 不删除任何业务数据
-19. 中文文案正常
-20. English 文案正常
-21. i18n key 覆盖测试仍通过
-22. 现有 saved views / activity / cleanup / duplicates / backup / import / filters / bulk edit / login 测试仍通过
+1. 未登录访问备份校验入口跳转登录
+2. 登录后可以提交 JSON 备份校验
+3. 非 JSON 文件或非法 JSON 能显示错误
+4. 空 JSON / 非对象 JSON 能显示错误
+5. 旧版本备份缺少 saved_views / item_activity 不失败
+6. 未知顶层字段显示 warning
+7. 缺失必填字段能报告
+8. 无效 rating / status 能报告
+9. 孤立关系能报告
+10. 重复关系能报告
+11. saved_views 异常参数能报告
+12. item_activity 缺失 item 能报告
+13. dry-run 不写入数据库
+14. dry-run 不删除任何业务数据
+15. 导入 dry-run 能报告行数 / 错误 / 警告
+16. 导入 dry-run 不破坏现有正式导入流程
+17. 中文文案正常
+18. English 文案正常
+19. i18n key 覆盖测试仍通过
+20. 现有 data-health / saved views / activity / cleanup / backup / import / filters / login 测试仍通过
 
 测试注意：
 
-- 不写依赖 CSS 像素的脆弱测试
 - 必须测试只读
+- 必须测试旧备份兼容
 - 必须测试不会删除业务数据
-- 必须测试旧功能回归
+- 不写依赖 CSS 像素的脆弱测试
 
 ---
 
@@ -319,11 +276,11 @@
 
 要求：
 
-- README 增加数据健康检查说明
-- README 说明本轮只读，不会自动修复
-- README 说明发现问题后建议先做 JSON 备份
-- TASKS.md 增加并标记 Phase 2-F1 完成项
-- REVIEW.md 增加数据健康检查审查项
+- README 增加备份校验 / dry-run 说明
+- README 说明 dry-run 不会写入数据库
+- README 说明正式恢复 / 导入前建议先备份
+- TASKS.md 增加并标记 Phase 2-F2 完成项
+- REVIEW.md 增加备份校验 / dry-run 审查项
 - CHANGELOG.md 写入 Unreleased
 - 不写入 v0.1.0 到 v0.6.0 已发布版本段
 - 不修改已发布 tag
@@ -364,16 +321,14 @@
 12. `/login` GET 状态码
 13. 当前 git diff 概要
 14. 是否触碰 REVIEW.md 的超范围项
-15. 数据健康检查服务如何实现
-16. 条目基础检查如何实现
-17. 关系完整性检查如何实现
-18. 重复关系检查如何实现
-19. saved views 检查如何实现
-20. item activity 检查如何实现
-21. `/data-health` 页面如何实现
-22. 如何保证只读不修改数据库
-23. 如何保证不删除业务数据
-24. i18n 是否仍通过
-25. README / TASKS / REVIEW / CHANGELOG / PLAN 更新了什么
-26. 是否已提交并推送
-27. 下一步建议
+15. 备份文件校验如何实现
+16. 备份恢复 dry-run 如何实现
+17. 导入 dry-run 增强如何实现
+18. 校验报告如何展示
+19. 如何保证只读不写数据库
+20. 如何保证不删除业务数据
+21. 旧备份兼容如何处理
+22. i18n 是否仍通过
+23. README / TASKS / REVIEW / CHANGELOG / PLAN 更新了什么
+24. 是否已提交并推送
+25. 下一步建议

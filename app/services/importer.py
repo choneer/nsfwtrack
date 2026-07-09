@@ -30,6 +30,7 @@ TARGET_FIELDS = [*IMPORT_FIELDS, IGNORE_FIELD]
 PREVIEW_LIMIT = 5
 
 _STATUS_VALUES = set(STATUS_OPTIONS)
+_SOURCE_FIELDS = set(IMPORT_FIELDS) | {"review"}
 
 
 class ImportDataError(Exception):
@@ -134,6 +135,10 @@ def _row_source(row: dict[str, Any]) -> str:
         if value is not None and str(value).strip():
             return str(value).strip()
     return ""
+
+
+def _is_blank(value: Any) -> bool:
+    return value is None or str(value).strip() == ""
 
 
 def _decode_text(content: bytes) -> str:
@@ -283,6 +288,21 @@ def _normalize_collections(value: Any, source_type: str) -> list[str]:
     return split_names(value)
 
 
+def _normalize_name_list(value: Any, field_name: str, source_type: str) -> list[str]:
+    if source_type == "json":
+        if value is None:
+            return []
+        if isinstance(value, str):
+            return split_names(value)
+        if not isinstance(value, list):
+            raise ImportDataError(f"invalid_{field_name}")
+        for entry in value:
+            if not isinstance(entry, str):
+                raise ImportDataError(f"invalid_{field_name}")
+        return split_names(value)
+    return split_names(value)
+
+
 def _normalize_row(row: dict[str, Any], row_number: int, source_type: str) -> dict[str, Any]:
     title = str(row.get("title") or "").strip()
     if not title:
@@ -300,8 +320,8 @@ def _normalize_row(row: dict[str, Any], row_number: int, source_type: str) -> di
         "status": status or None,
         "rating": _normalize_rating(row.get("rating")),
         "note": (str(row.get("note", row.get("review", "")) or "").strip() or None),
-        "tags": split_names(row.get("tags")),
-        "creators": split_names(row.get("creators")),
+        "tags": _normalize_name_list(row.get("tags"), "tags", source_type),
+        "creators": _normalize_name_list(row.get("creators"), "creators", source_type),
         "collections": _normalize_collections(row.get("collections"), source_type),
         "extra": _normalize_extra(row.get("extra")),
     }
@@ -357,11 +377,205 @@ def _summary_for_rows(
     }
 
 
+def build_import_dry_run_report(
+    db: Session,
+    source_type: str,
+    raw_rows: list[dict[str, Any]],
+    valid_rows: list[dict[str, Any]],
+    errors: list[dict[str, Any]],
+    source_headers: list[str] | None = None,
+    mapping: dict[str, str] | None = None,
+    mapping_errors: bool = False,
+) -> dict[str, Any]:
+    issues: list[dict[str, Any]] = [
+        _dry_run_issue(
+            "error",
+            str(error.get("code") or "invalid_row"),
+            source_type,
+            row=error.get("row"),
+            detail=error.get("source") or "",
+        )
+        for error in errors
+    ]
+    if source_type == "csv":
+        issues.extend(
+            _csv_unknown_field_issues(
+                raw_rows,
+                source_headers or [],
+                mapping or {},
+            )
+        )
+    else:
+        issues.extend(_json_unknown_field_issues(raw_rows))
+        issues.extend(_json_name_shape_warnings(raw_rows))
+    issues.extend(_duplicate_title_issues(db, valid_rows))
+    issues.extend(
+        [
+            _dry_run_issue("info", "dry_run_no_write", source_type),
+            _dry_run_issue("info", "backup_recommended", source_type),
+            _dry_run_issue("info", "import_read_rows", source_type, detail=str(len(raw_rows))),
+            _dry_run_issue(
+                "info",
+                "import_valid_rows",
+                source_type,
+                detail=str(len(valid_rows)),
+            ),
+            _dry_run_issue(
+                "info",
+                "import_skipped_rows",
+                source_type,
+                detail=str(len(errors)),
+            ),
+        ]
+    )
+    error_count = sum(1 for issue in issues if issue["severity"] == "error")
+    warning_count = sum(1 for issue in issues if issue["severity"] == "warning")
+    info_count = sum(1 for issue in issues if issue["severity"] == "info")
+    status_value = "ready"
+    if mapping_errors or not valid_rows:
+        status_value = "blocked"
+    elif error_count or warning_count:
+        status_value = "warning"
+    return {
+        "status": status_value,
+        "error_count": error_count,
+        "warning_count": warning_count,
+        "info_count": info_count,
+        "issues": issues,
+    }
+
+
+def _csv_unknown_field_issues(
+    raw_rows: list[dict[str, Any]],
+    source_headers: list[str],
+    mapping: dict[str, str],
+) -> list[dict[str, Any]]:
+    issues: list[dict[str, Any]] = []
+    for header in source_headers:
+        normalized = header.strip().casefold()
+        if normalized in _SOURCE_FIELDS:
+            continue
+        if mapping.get(header) != IGNORE_FIELD:
+            continue
+        if not any(not _is_blank(row.get(header)) for row in raw_rows):
+            continue
+        issues.append(_dry_run_issue("warning", "unknown_field", "csv", detail=header))
+    return issues
+
+
+def _json_unknown_field_issues(
+    raw_rows: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    issues: list[dict[str, Any]] = []
+    for index, row in enumerate(raw_rows, start=1):
+        for field in sorted(set(row) - _SOURCE_FIELDS):
+            issues.append(
+                _dry_run_issue("warning", "unknown_field", "json", row=index, detail=field)
+            )
+    return issues
+
+
+def _json_name_shape_warnings(
+    raw_rows: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    issues: list[dict[str, Any]] = []
+    for index, row in enumerate(raw_rows, start=1):
+        for field_name in ("tags", "creators"):
+            value = row.get(field_name)
+            if isinstance(value, str) and value.strip():
+                issues.append(
+                    _dry_run_issue(
+                        "warning",
+                        "json_names_string",
+                        "json",
+                        row=index,
+                        detail=field_name,
+                    )
+                )
+    return issues
+
+
+def _duplicate_title_issues(
+    db: Session,
+    valid_rows: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    issues: list[dict[str, Any]] = []
+    seen_titles: set[str] = set()
+    duplicate_titles: set[str] = set()
+    for row in valid_rows:
+        title = str(row.get("title") or "").strip()
+        key = title.casefold()
+        if not key:
+            continue
+        if key in seen_titles:
+            duplicate_titles.add(key)
+            issues.append(
+                _dry_run_issue(
+                    "warning",
+                    "duplicate_title",
+                    "items",
+                    row=row.get("row"),
+                    detail=title,
+                )
+            )
+        seen_titles.add(key)
+
+    if not seen_titles:
+        return issues
+    existing_titles = {
+        title.casefold()
+        for title in db.scalars(select(models.Item.title)).all()
+        if title and title.casefold() in seen_titles
+    }
+    for row in valid_rows:
+        title = str(row.get("title") or "").strip()
+        key = title.casefold()
+        if key in existing_titles and key not in duplicate_titles:
+            issues.append(
+                _dry_run_issue(
+                    "warning",
+                    "existing_title",
+                    "items",
+                    row=row.get("row"),
+                    detail=title,
+                )
+            )
+    return issues
+
+
+def _dry_run_issue(
+    severity: str,
+    code: str,
+    data_type: str,
+    row: Any = None,
+    object_id: str = "",
+    detail: Any = "",
+) -> dict[str, Any]:
+    return {
+        "severity": severity,
+        "code": code,
+        "data_type": data_type,
+        "row": row,
+        "object_id": object_id,
+        "detail": _short_import_value(detail),
+    }
+
+
+def _short_import_value(value: Any, limit: int = 160) -> str:
+    text = "" if value is None else str(value)
+    if len(text) <= limit:
+        return text
+    return f"{text[:limit]}..."
+
+
 def _preview_from_rows(
     db: Session,
     raw_rows: list[dict[str, Any]],
     source_type: str,
     mapping_errors: list[dict[str, Any]] | None = None,
+    source_rows: list[dict[str, Any]] | None = None,
+    source_headers: list[str] | None = None,
+    mapping: dict[str, str] | None = None,
 ) -> dict[str, Any]:
     valid_rows: list[dict[str, Any]] = []
     row_errors = list(mapping_errors or [])
@@ -383,11 +597,23 @@ def _preview_from_rows(
         summary["collection_links"] = 0
         summary["collections_errors"] = 0
 
+    dry_run_report = build_import_dry_run_report(
+        db=db,
+        source_type=source_type,
+        raw_rows=source_rows or raw_rows,
+        valid_rows=valid_rows,
+        errors=row_errors,
+        source_headers=source_headers or [],
+        mapping=mapping or {},
+        mapping_errors=bool(mapping_errors),
+    )
+
     return {
         "source_type": source_type,
         "summary": summary,
         "preview_rows": valid_rows[:PREVIEW_LIMIT],
         "errors": row_errors,
+        "dry_run_report": dry_run_report,
         "valid_rows": valid_rows,
         "can_import": bool(valid_rows) and not mapping_errors,
         "mapping_errors": bool(mapping_errors),
@@ -406,7 +632,15 @@ def preview_csv_import(
     active_mapping = mapping or default_csv_mapping(headers)
     mapping_errors = validate_csv_mapping(active_mapping)
     mapped_rows = [apply_csv_mapping(row, active_mapping) for row in rows]
-    preview = _preview_from_rows(db, mapped_rows, "csv", mapping_errors)
+    preview = _preview_from_rows(
+        db,
+        mapped_rows,
+        "csv",
+        mapping_errors,
+        source_rows=rows,
+        source_headers=headers,
+        mapping=active_mapping,
+    )
     preview.update(
         {
             "source_headers": headers,
@@ -425,7 +659,15 @@ def preview_csv_rows(
 ) -> dict[str, Any]:
     mapping_errors = validate_csv_mapping(mapping)
     mapped_rows = [apply_csv_mapping(row, mapping) for row in rows]
-    preview = _preview_from_rows(db, mapped_rows, "csv", mapping_errors)
+    preview = _preview_from_rows(
+        db,
+        mapped_rows,
+        "csv",
+        mapping_errors,
+        source_rows=rows,
+        source_headers=headers,
+        mapping=mapping,
+    )
     preview.update(
         {
             "source_headers": headers,
@@ -438,7 +680,7 @@ def preview_csv_rows(
 
 def preview_json_import(db: Session, content: bytes) -> dict[str, Any]:
     rows = parse_json_upload(content)
-    preview = _preview_from_rows(db, rows, "json")
+    preview = _preview_from_rows(db, rows, "json", source_rows=rows)
     preview.update(
         {
             "source_headers": [],
@@ -450,7 +692,7 @@ def preview_json_import(db: Session, content: bytes) -> dict[str, Any]:
 
 
 def preview_json_rows(db: Session, rows: list[dict[str, Any]]) -> dict[str, Any]:
-    preview = _preview_from_rows(db, rows, "json")
+    preview = _preview_from_rows(db, rows, "json", source_rows=rows)
     preview.update(
         {
             "source_headers": [],
