@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+No unreleased changes.
+
+## v0.6.0 - 2026-07-09
+
 ### Added
 
 - Added Phase 2-E3 dashboard / workbench quick action entry points for new

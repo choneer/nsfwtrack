@@ -2,15 +2,29 @@
 
 NSFWTrack is a local single-user content record manager / collection tracker.
 
-Current release: `v0.5.0 / Phase 2-D data cleanup and manual merge`.
+Current release: `v0.6.0 / Phase 2-E workbench and saved views`.
 
-Current development: `Phase 2-E3 quick actions and workbench`.
+Current development: `Phase 2-F data health checks planning`.
 
 NSFWTrack remains intentionally local-only. It is designed for manual records,
 local SQLite persistence, LAN deployment, and simple personal collection
 management.
 
-## Current Development: Phase 2-E3 Quick Actions And Workbench
+## Features in v0.6.0
+
+`v0.6.0` adds local Phase 2-E usage efficiency enhancements on top of
+`v0.5.0`:
+
+- Phase 2-E1 saved item-list views / common views.
+- Phase 2-E2 recent views and recent edits.
+- Phase 2-E3 quick action entry points and workbench improvements.
+
+These features stay local-only. They do not add AI recommendations, smart
+analysis, automatic classification, external content sources, URL import,
+crawlers, adapters, cloud sync, multi-user sharing, third-party analytics, new
+dependencies, or changes to existing database fields.
+
+### Phase 2-E3 Quick Actions And Workbench
 
 Phase 2-E3 organizes local navigation entry points on the dashboard and item
 list:
@@ -38,7 +52,7 @@ dependencies, external content sources, URL import, crawlers, adapters, AI
 recommendations, smart analysis, automatic classification, cloud sync,
 multi-user sharing, third-party analytics, or activity trend charts.
 
-## Completed Development: Phase 2-E2 Recent Activity
+### Phase 2-E2 Recent Activity
 
 Phase 2-E2 adds local recent activity for item records:
 
@@ -67,7 +81,7 @@ analysis, automatic classification, external content sources, URL import,
 crawlers, adapters, cloud sync, third-party analytics, multi-user activity
 feeds, new dependencies, or changes to existing database fields.
 
-## Completed Development: Phase 2-E1 Saved Views
+### Phase 2-E1 Saved Views
 
 Phase 2-E1 adds local saved views for the item list page:
 
@@ -556,10 +570,11 @@ Available local-only actions:
   use `POST /api/backup/restore/json`
 
 JSON backups include `items`, `tags`, `creators`, `collections`, `item_tags`,
-`item_creators`, `item_collections`, and `user_item_states`. Restore uses an
-append / merge strategy; it is not an overwrite restore and does not clear the
-current database. Collection restore merges by collection name and skips bad
-item-collection links without deleting existing items.
+`item_creators`, `item_collections`, `user_item_states`, `saved_views`, and
+`item_activity`. Restore uses an append / merge strategy; it is not an
+overwrite restore and does not clear the current database. Collection restore
+merges by collection name, saved views merge by name, and recent activity rows
+merge only for existing local items.
 
 Backup restore only accepts uploaded local JSON files exported by NSFWTrack. It
 never restores from a URL, cloud sync, or an external data source. Uploaded JSON
