@@ -60,6 +60,7 @@ from app.services.collections import (
     remove_item_from_collection,
     update_collection,
 )
+from app.services.data_health import build_data_health_report
 from app.services.duplicates import (
     DuplicateError,
     find_duplicate_candidates,
@@ -445,6 +446,19 @@ def activity_page(request: Request, db: Session = Depends(get_db)) -> HTMLRespon
             recent_edited=list_recently_edited(db, limit=ACTIVITY_PAGE_LIMIT),
             activity_total=count_item_activity(db),
         ),
+    )
+
+
+@router.get(
+    "/data-health",
+    response_class=HTMLResponse,
+    dependencies=[Depends(require_page_auth)],
+)
+def data_health_page(request: Request, db: Session = Depends(get_db)) -> HTMLResponse:
+    return templates.TemplateResponse(
+        request,
+        "data_health.html",
+        _base_context(request, report=build_data_health_report(db)),
     )
 
 

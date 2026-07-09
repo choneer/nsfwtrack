@@ -201,6 +201,16 @@
       border-color: #c7d2fe;
       color: #3730a3;
     }
+    .data-health-severity-problem {
+      background: #fef2f2;
+      border-color: #fecaca;
+      color: var(--danger);
+    }
+    .data-health-severity-warning {
+      background: #fff7ed;
+      border-color: #fed7aa;
+      color: var(--warn);
+    }
     form.stack, .stack {
       display: grid;
       gap: 12px;
@@ -799,6 +809,7 @@
         <a href="/collections">{{ t("nav.collections") }}</a>
         <a href="/duplicates">{{ t("nav.duplicates") }}</a>
         <a href="/cleanup">{{ t("nav.cleanup") }}</a>
+        <a href="/data-health">{{ t("nav.data_health") }}</a>
         <a href="/activity">{{ t("nav.activity") }}</a>
         <a href="/stats">{{ t("nav.stats") }}</a>
         <a href="/import">{{ t("nav.import") }}</a>

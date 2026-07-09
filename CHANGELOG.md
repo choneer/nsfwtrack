@@ -2,7 +2,40 @@
 
 ## Unreleased
 
-No unreleased changes.
+### Added
+
+- Added Phase 2-F1 local data health checking with a login-protected
+  `/data-health` page.
+- Added a read-only data health service that reports item data issues,
+  relation integrity issues, duplicate relation issues, saved views parameter
+  issues, and item activity issues without modifying SQLite data.
+- Added item checks for empty titles, invalid `rating` values, invalid
+  `status` values, missing / invalid item timestamps, updated-before-created
+  timestamps, and invalid `extra` JSON.
+- Added relation checks for orphaned `item_tags`, `item_creators`, and
+  `item_collections` rows that point to missing items, tags, creators, or
+  collections.
+- Added duplicate relation checks for repeated item-tag, item-creator, and
+  item-collection links, including legacy-schema test coverage where unique
+  constraints may be absent.
+- Added saved views checks for empty names, empty or malformed `query_string`
+  values, unknown query parameters, blocked `page` / `next` / `redirect`
+  parameters, and external URL values.
+- Added `item_activity` checks for missing item references, negative
+  `view_count` / `edit_count`, and invalid `last_viewed_at` /
+  `last_edited_at` values.
+- Added data health navigation from the authenticated top nav and dashboard
+  workbench.
+- Added Chinese / English data health UI text and tests for authentication,
+  healthy state rendering, issue reporting, read-only behavior, no business
+  data deletion, and language coverage.
+
+### Changed
+
+- Kept Phase 2-F1 strictly read-only: no auto-fix, one-click fix, automatic
+  deletion, automatic merge, AI judgment, external information lookup, external
+  content source, URL import, crawler, adapter, cloud sync, multi-user system,
+  database schema change, new table, new field, or new dependency.
 
 ## v0.6.0 - 2026-07-09
 

@@ -4,11 +4,42 @@ NSFWTrack is a local single-user content record manager / collection tracker.
 
 Current release: `v0.6.0 / Phase 2-E workbench and saved views`.
 
-Current development: `Phase 2-F data health checks planning`.
+Current development: `Phase 2-F data health checks in progress; Phase 2-F1 is complete`.
 
 NSFWTrack remains intentionally local-only. It is designed for manual records,
 local SQLite persistence, LAN deployment, and simple personal collection
 management.
+
+## Current Unreleased Work
+
+Phase 2-F1 adds a local data health check page at `/data-health`.
+
+- The page requires login and is linked from the authenticated top navigation
+  and the dashboard workbench.
+- The report is read-only. It does not modify the database, delete business
+  data, repair records, merge records, import data, or call external services.
+- The summary shows the overall status, total issue count, warning / problem
+  counts, and issue counts grouped by items, relations, duplicate relations,
+  saved views, and activity.
+- Item checks report empty titles, invalid status / rating values, missing or
+  invalid timestamps, updated-before-created timestamps, and invalid `extra`
+  JSON.
+- Relation checks report orphaned `item_tags`, `item_creators`, and
+  `item_collections` rows that point to missing items, tags, creators, or
+  collections.
+- Duplicate relation checks report repeated item-tag, item-creator, and
+  item-collection links.
+- Saved views checks report empty names, empty or malformed `query_string`
+  values, unknown parameters, blocked `page` / `next` / `redirect` parameters,
+  and external URL values.
+- Activity checks report `item_activity` rows that point to missing items,
+  negative `view_count` / `edit_count` values, and invalid activity timestamps.
+
+When the page reports issues, export a JSON backup from `/backup` before doing
+any manual cleanup. Phase 2-F1 deliberately does not provide automatic repair,
+one-click repair, automatic deletion, automatic merge, AI judgment, external
+lookup, URL import, crawler / adapter integration, cloud sync, or multi-user
+features.
 
 ## Features in v0.6.0
 
