@@ -30,6 +30,23 @@ class ItemCreator(Base):
     )
 
 
+class ItemCollection(Base):
+    __tablename__ = "item_collections"
+    __table_args__ = (
+        UniqueConstraint("item_id", "collection_id", name="uq_item_collections_pair"),
+    )
+
+    item_id: Mapped[int] = mapped_column(
+        ForeignKey("items.id", ondelete="CASCADE"), primary_key=True
+    )
+    collection_id: Mapped[int] = mapped_column(
+        ForeignKey("collections.id", ondelete="CASCADE"), primary_key=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        nullable=False, server_default=func.current_timestamp()
+    )
+
+
 class Item(Base):
     __tablename__ = "items"
 
@@ -55,6 +72,11 @@ class Item(Base):
     )
     creators: Mapped[list[Creator]] = relationship(
         secondary="item_creators",
+        back_populates="items",
+        lazy="selectin",
+    )
+    collections: Mapped[list[Collection]] = relationship(
+        secondary="item_collections",
         back_populates="items",
         lazy="selectin",
     )
@@ -98,6 +120,31 @@ class Tag(Base):
     items: Mapped[list[Item]] = relationship(
         secondary="item_tags",
         back_populates="tags",
+        lazy="selectin",
+    )
+
+
+class Collection(Base):
+    __tablename__ = "collections"
+    __table_args__ = (
+        CheckConstraint("trim(name) != ''", name="ck_collections_name_not_blank"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    name: Mapped[str] = mapped_column(String(255), nullable=False, unique=True, index=True)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        nullable=False, server_default=func.current_timestamp()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        nullable=False,
+        server_default=func.current_timestamp(),
+        onupdate=func.current_timestamp(),
+    )
+
+    items: Mapped[list[Item]] = relationship(
+        secondary="item_collections",
+        back_populates="collections",
         lazy="selectin",
     )
 

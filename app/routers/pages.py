@@ -30,11 +30,25 @@ from app.services.catalog import (
 from app.services.backup import BackupError, preview_backup_data, restore_backup_data
 from app.services.bulk_actions import (
     BulkActionError,
+    add_items_collection,
     add_items_tag,
     delete_items,
+    remove_items_collection,
     remove_items_tag,
     set_items_rating,
     set_items_status,
+)
+from app.services.collections import (
+    CollectionError,
+    add_item_to_collection,
+    create_collection,
+    delete_collection,
+    get_collection,
+    list_available_collections_for_item,
+    list_available_items_for_collection,
+    list_collection_rows,
+    remove_item_from_collection,
+    update_collection,
 )
 from app.services.importer import (
     IMPORT_FIELDS,
@@ -229,6 +243,7 @@ def items_page(
     q: str | None = None,
     tag: str | None = None,
     creator: str | None = None,
+    collection: str | None = None,
     state: str | None = None,
     min_rating: str | None = None,
     time_range: str | None = None,
@@ -243,6 +258,7 @@ def items_page(
         q=q,
         tag=tag,
         creator=creator,
+        collection=collection,
         state=state,
         min_rating=min_rating,
         time_range=time_range,
@@ -272,6 +288,8 @@ def bulk_items_page(
     status_value: str | None = Form(default=None),
     add_tag_id: str | None = Form(default=None),
     remove_tag_id: str | None = Form(default=None),
+    add_collection_id: str | None = Form(default=None),
+    remove_collection_id: str | None = Form(default=None),
     rating: str | None = Form(default=None),
     next_url: str = Form(default="/items", alias="next"),
     db: Session = Depends(get_db),
@@ -284,6 +302,10 @@ def bulk_items_page(
             result = add_items_tag(db, item_ids, add_tag_id)
         elif bulk_action == "remove_tag":
             result = remove_items_tag(db, item_ids, remove_tag_id)
+        elif bulk_action == "add_collection":
+            result = add_items_collection(db, item_ids, add_collection_id)
+        elif bulk_action == "remove_collection":
+            result = remove_items_collection(db, item_ids, remove_collection_id)
         elif bulk_action == "rating":
             result = set_items_rating(db, item_ids, rating)
         elif bulk_action == "delete":
@@ -373,6 +395,7 @@ def item_detail_page(
             extra=parse_extra(item.extra),
             available_tags=list_available_tags(db, item.id),
             available_creators=list_available_creators(db, item.id),
+            available_collections=list_available_collections_for_item(db, item.id),
             return_list_url=return_list_url,
             return_list_url_quoted=quote(return_list_url, safe=""),
             detail_url=_item_detail_url(item.id, return_list_url),
@@ -693,6 +716,216 @@ def delete_creator_page(
     db.commit()
     add_flash(request, "success", "flash.creator_deleted")
     return _redirect("/creators")
+
+
+@router.get(
+    "/collections",
+    response_class=HTMLResponse,
+    dependencies=[Depends(require_page_auth)],
+)
+def collections_page(request: Request, db: Session = Depends(get_db)) -> HTMLResponse:
+    return templates.TemplateResponse(
+        request,
+        "collections.html",
+        _base_context(request, collection_rows=list_collection_rows(db)),
+    )
+
+
+@router.get(
+    "/collections/new",
+    response_class=HTMLResponse,
+    dependencies=[Depends(require_page_auth)],
+)
+def new_collection_page(request: Request) -> HTMLResponse:
+    return templates.TemplateResponse(
+        request,
+        "collection_form.html",
+        _base_context(
+            request,
+            collection=None,
+            action="/collections",
+            mode_key="collections.create_title",
+        ),
+    )
+
+
+@router.post("/collections", dependencies=[Depends(require_page_auth)])
+def create_collection_page(
+    request: Request,
+    name: str | None = Form(default=None),
+    description: str | None = Form(default=None),
+    db: Session = Depends(get_db),
+) -> RedirectResponse:
+    try:
+        collection = create_collection(db, name=name, description=description)
+    except CollectionError as exc:
+        add_flash(request, "error", f"flash.collection_{exc.code}")
+        return _redirect("/collections/new")
+    add_flash(request, "success", "flash.collection_created")
+    return _redirect(f"/collections/{collection.id}")
+
+
+@router.get(
+    "/collections/{collection_id}/edit",
+    response_class=HTMLResponse,
+    dependencies=[Depends(require_page_auth)],
+)
+def edit_collection_page(
+    request: Request,
+    collection_id: int,
+    db: Session = Depends(get_db),
+) -> HTMLResponse:
+    try:
+        collection = get_collection(db, collection_id)
+    except CollectionError as exc:
+        raise HTTPException(status_code=404, detail="Collection not found") from exc
+    return templates.TemplateResponse(
+        request,
+        "collection_form.html",
+        _base_context(
+            request,
+            collection=collection,
+            action=f"/collections/{collection.id}/edit",
+            mode_key="collections.edit_title",
+        ),
+    )
+
+
+@router.post("/collections/{collection_id}/edit", dependencies=[Depends(require_page_auth)])
+def update_collection_page(
+    request: Request,
+    collection_id: int,
+    name: str | None = Form(default=None),
+    description: str | None = Form(default=None),
+    db: Session = Depends(get_db),
+) -> RedirectResponse:
+    try:
+        collection = update_collection(
+            db,
+            collection_id,
+            name=name,
+            description=description,
+        )
+    except CollectionError as exc:
+        add_flash(request, "error", f"flash.collection_{exc.code}")
+        return _redirect(f"/collections/{collection_id}/edit")
+    add_flash(request, "success", "flash.collection_updated")
+    return _redirect(f"/collections/{collection.id}")
+
+
+@router.post("/collections/{collection_id}/delete", dependencies=[Depends(require_page_auth)])
+def delete_collection_page(
+    request: Request,
+    collection_id: int,
+    db: Session = Depends(get_db),
+) -> RedirectResponse:
+    try:
+        delete_collection(db, collection_id)
+    except CollectionError as exc:
+        add_flash(request, "error", f"flash.collection_{exc.code}")
+    else:
+        add_flash(request, "success", "flash.collection_deleted")
+    return _redirect("/collections")
+
+
+@router.get(
+    "/collections/{collection_id}",
+    response_class=HTMLResponse,
+    dependencies=[Depends(require_page_auth)],
+)
+def collection_detail_page(
+    request: Request,
+    collection_id: int,
+    db: Session = Depends(get_db),
+) -> HTMLResponse:
+    try:
+        collection = get_collection(db, collection_id)
+        available_items = list_available_items_for_collection(db, collection_id)
+    except CollectionError as exc:
+        raise HTTPException(status_code=404, detail="Collection not found") from exc
+    return templates.TemplateResponse(
+        request,
+        "collection_detail.html",
+        _base_context(
+            request,
+            collection=collection,
+            available_items=available_items,
+        ),
+    )
+
+
+@router.post("/collections/{collection_id}/items", dependencies=[Depends(require_page_auth)])
+def add_collection_item_page(
+    request: Request,
+    collection_id: int,
+    item_id: str | None = Form(default=None),
+    db: Session = Depends(get_db),
+) -> RedirectResponse:
+    try:
+        add_item_to_collection(db, item_id=item_id, collection_id=collection_id)
+    except CollectionError as exc:
+        add_flash(request, "error", f"flash.collection_{exc.code}")
+    else:
+        add_flash(request, "success", "flash.collection_item_added")
+    return _redirect(f"/collections/{collection_id}")
+
+
+@router.post(
+    "/collections/{collection_id}/items/{item_id}/delete",
+    dependencies=[Depends(require_page_auth)],
+)
+def remove_collection_item_page(
+    request: Request,
+    collection_id: int,
+    item_id: int,
+    db: Session = Depends(get_db),
+) -> RedirectResponse:
+    try:
+        remove_item_from_collection(db, item_id=item_id, collection_id=collection_id)
+    except CollectionError as exc:
+        add_flash(request, "error", f"flash.collection_{exc.code}")
+    else:
+        add_flash(request, "success", "flash.collection_item_removed")
+    return _redirect(f"/collections/{collection_id}")
+
+
+@router.post("/items/{item_id}/collections", dependencies=[Depends(require_page_auth)])
+def add_item_collection_page(
+    request: Request,
+    item_id: int,
+    collection_id: str | None = Form(default=None),
+    next_url: str = Form(default="/items", alias="next"),
+    db: Session = Depends(get_db),
+) -> RedirectResponse:
+    target = _item_detail_url(item_id, next_url)
+    try:
+        add_item_to_collection(db, item_id=item_id, collection_id=collection_id)
+    except CollectionError as exc:
+        add_flash(request, "error", f"flash.collection_{exc.code}")
+        return _redirect(target)
+    add_flash(request, "success", "flash.collection_item_added")
+    return _redirect(target)
+
+
+@router.post(
+    "/items/{item_id}/collections/{collection_id}/delete",
+    dependencies=[Depends(require_page_auth)],
+)
+def remove_item_collection_page(
+    request: Request,
+    item_id: int,
+    collection_id: int,
+    next_url: str = Form(default="/items", alias="next"),
+    db: Session = Depends(get_db),
+) -> RedirectResponse:
+    target = _item_detail_url(item_id, next_url)
+    try:
+        remove_item_from_collection(db, item_id=item_id, collection_id=collection_id)
+    except CollectionError as exc:
+        add_flash(request, "error", f"flash.collection_{exc.code}")
+        return _redirect(target)
+    add_flash(request, "success", "flash.collection_item_removed")
+    return _redirect(target)
 
 
 @router.get("/stats", response_class=HTMLResponse, dependencies=[Depends(require_page_auth)])

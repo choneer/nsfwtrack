@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% block title %}{{ collection.name }} - NSFWTrack{% endblock %}
+{% block content %}
+<div class="toolbar">
+  <div>
+    <p class="muted">{{ t("collections.detail_title") }}</p>
+    <h1>{{ collection.name }}</h1>
+    {% if collection.description %}
+      <p>{{ collection.description }}</p>
+    {% else %}
+      <p class="muted">{{ t("common.none") }}</p>
+    {% endif %}
+  </div>
+  <div class="actions">
+    <a class="button secondary" href="/collections">{{ t("collections.back_to_list") }}</a>
+    <a class="button secondary" href="/collections/{{ collection.id }}/edit">{{ t("collections.edit") }}</a>
+  </div>
+</div>
+
+<section class="card stack">
+  <div class="metric-grid">
+    <div class="metric"><strong>{{ collection.items|length }}</strong><span>{{ t("collections.items") }}</span></div>
+    <div class="metric"><strong>{{ collection.created_at }}</strong><span>{{ t("detail.created_at") }}</span></div>
+    <div class="metric"><strong>{{ collection.updated_at }}</strong><span>{{ t("detail.updated_at") }}</span></div>
+  </div>
+  <div class="notice">{{ t("collections.delete_hint") }}</div>
+  <div class="actions">
+    <form class="inline-form" action="/collections/{{ collection.id }}/delete" method="post">
+      <button
+        class="danger"
+        type="submit"
+        data-confirm-message="{{ t('collections.confirm_delete') }}"
+      >{{ t("collections.delete") }}</button>
+    </form>
+  </div>
+</section>
+
+<section class="card stack">
+  <h2>{{ t("collections.add_item") }}</h2>
+  {% if available_items %}
+    <form class="relation-form" action="/collections/{{ collection.id }}/items" method="post">
+      <label>{{ t("collections.select_item") }}
+        <select name="item_id">
+          <option value="">{{ t("common.any") }}</option>
+          {% for item in available_items %}
+            <option value="{{ item.id }}">{{ item.title }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <button type="submit">{{ t("collections.add_item") }}</button>
+    </form>
+  {% else %}
+    <p class="muted">{{ t("collections.no_available_items") }}</p>
+  {% endif %}
+</section>
+
+<section class="stack">
+  <h2>{{ t("collections.items") }}</h2>
+  {% if collection.items %}
+    <div class="item-grid">
+      {% for item in collection.items|sort(attribute="title") %}
+        <article class="card">
+          <a href="/items/{{ item.id }}">
+            <div class="cover">
+              {% if item.cover_path %}
+                <img src="{{ item.cover_path }}" alt="">
+              {% else %}
+                {{ t("common.no_cover") }}
+              {% endif %}
+            </div>
+            <h3>{{ item.title }}</h3>
+          </a>
+          {% if item.state %}
+            <span class="pill state">{{ status_label(item.state.status) }}</span>
+            {% if item.state.rating %}
+              <span class="pill">{{ t("common.rating") }} {{ item.state.rating }}</span>
+            {% endif %}
+          {% endif %}
+          <div class="tag-row">
+            {% for tag in item.tags[:5] %}
+              <span class="pill">{{ tag.name }}</span>
+            {% endfor %}
+          </div>
+          {% if item.creators %}
+            <p class="muted">{{ item.creators|map(attribute="name")|join(", ") }}</p>
+          {% endif %}
+          <div class="actions">
+            <a class="button secondary" href="/items/{{ item.id }}">{{ t("collections.view") }}</a>
+            <form class="inline-form" action="/collections/{{ collection.id }}/items/{{ item.id }}/delete" method="post">
+              <button class="secondary" type="submit">{{ t("collections.remove_item") }}</button>
+            </form>
+          </div>
+        </article>
+      {% endfor %}
+    </div>
+  {% else %}
+    <section class="card empty-state">
+      <p class="muted">{{ t("collections.empty_items") }}</p>
+    </section>
+  {% endif %}
+</section>
+
+<script>
+  (() => {
+    document.querySelectorAll("[data-confirm-message]").forEach((button) => {
+      button.addEventListener("click", (event) => {
+        const message = button.dataset.confirmMessage;
+        if (message && !window.confirm(message)) {
+          event.preventDefault();
+        }
+      });
+    });
+  })();
+</script>
+{% endblock %}

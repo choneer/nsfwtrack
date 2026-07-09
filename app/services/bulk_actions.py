@@ -6,7 +6,7 @@ from collections.abc import Iterable
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
-from app.models import Item, Tag, UserItemState
+from app.models import Collection, Item, Tag, UserItemState
 from app.services.item_query import MIN_RATING_OPTIONS, STATUS_OPTIONS
 
 
@@ -54,6 +54,7 @@ def _load_items(db: Session, item_ids: list[int]) -> list[Item]:
             .options(
                 selectinload(Item.tags),
                 selectinload(Item.creators),
+                selectinload(Item.collections),
                 selectinload(Item.state),
             )
         ).all()
@@ -97,6 +98,23 @@ def _get_existing_tag(db: Session, raw_tag_id: str | int | None) -> Tag:
     return tag
 
 
+def _get_existing_collection(
+    db: Session,
+    raw_collection_id: str | int | None,
+) -> Collection:
+    try:
+        collection_id = int(raw_collection_id) if raw_collection_id not in {None, ""} else 0
+    except (TypeError, ValueError):
+        collection_id = 0
+    if collection_id <= 0:
+        raise BulkActionError("collection_required")
+
+    collection = db.get(Collection, collection_id)
+    if collection is None:
+        raise BulkActionError("collection_not_found")
+    return collection
+
+
 def add_items_tag(
     db: Session,
     raw_item_ids: Iterable[str | int] | None,
@@ -124,6 +142,39 @@ def remove_items_tag(
 
     for item in items:
         item.tags = [existing_tag for existing_tag in item.tags if existing_tag.id != tag.id]
+    db.commit()
+    return _result(item_ids, len(items))
+
+
+def add_items_collection(
+    db: Session,
+    raw_item_ids: Iterable[str | int] | None,
+    raw_collection_id: str | int | None,
+) -> BulkActionResult:
+    item_ids = normalize_item_ids(raw_item_ids)
+    collection = _get_existing_collection(db, raw_collection_id)
+    items = _load_items(db, item_ids)
+
+    for item in items:
+        if all(existing.id != collection.id for existing in item.collections):
+            item.collections.append(collection)
+    db.commit()
+    return _result(item_ids, len(items))
+
+
+def remove_items_collection(
+    db: Session,
+    raw_item_ids: Iterable[str | int] | None,
+    raw_collection_id: str | int | None,
+) -> BulkActionResult:
+    item_ids = normalize_item_ids(raw_item_ids)
+    collection = _get_existing_collection(db, raw_collection_id)
+    items = _load_items(db, item_ids)
+
+    for item in items:
+        item.collections = [
+            existing for existing in item.collections if existing.id != collection.id
+        ]
     db.commit()
     return _result(item_ids, len(items))
 

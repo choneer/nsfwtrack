@@ -35,6 +35,14 @@
       {% endfor %}
     </select>
   </label>
+  <label>{{ t("items.collection_filter") }}
+    <select name="collection">
+      <option value="">{{ t("common.any") }}</option>
+      {% for collection_option in filter_options.collections %}
+        <option value="{{ collection_option.id }}" {% if filters.collection_id == collection_option.id %}selected{% endif %}>{{ collection_option.name }}</option>
+      {% endfor %}
+    </select>
+  </label>
   <label>{{ t("items.min_rating") }}
     <select name="min_rating">
       <option value="">{{ t("common.any") }}</option>
@@ -92,6 +100,13 @@
     {% if filters.creator %}
       <span class="pill">{{ t("common.creators") }}: {{ filters.creator }}</span>
     {% endif %}
+    {% if filters.collection_id %}
+      {% for collection_option in filter_options.collections %}
+        {% if filters.collection_id == collection_option.id %}
+          <span class="pill">{{ t("collections.title") }}: {{ collection_option.name }}</span>
+        {% endif %}
+      {% endfor %}
+    {% endif %}
     {% if filters.min_rating %}
       <span class="pill">{{ t("items.min_rating") }}: {{ t("items.rating_at_least", rating=filters.min_rating) }}</span>
     {% endif %}
@@ -146,6 +161,24 @@
             {% endfor %}
           </select>
           <button type="submit" name="bulk_action" value="remove_tag">{{ t("items.bulk_remove_tag") }}</button>
+        </label>
+        <label>{{ t("items.bulk_add_collection") }}
+          <select name="add_collection_id">
+            <option value="">{{ t("common.any") }}</option>
+            {% for collection_option in filter_options.collections %}
+              <option value="{{ collection_option.id }}">{{ collection_option.name }}</option>
+            {% endfor %}
+          </select>
+          <button type="submit" name="bulk_action" value="add_collection">{{ t("items.bulk_add_collection") }}</button>
+        </label>
+        <label>{{ t("items.bulk_remove_collection") }}
+          <select name="remove_collection_id">
+            <option value="">{{ t("common.any") }}</option>
+            {% for collection_option in filter_options.collections %}
+              <option value="{{ collection_option.id }}">{{ collection_option.name }}</option>
+            {% endfor %}
+          </select>
+          <button type="submit" name="bulk_action" value="remove_collection">{{ t("items.bulk_remove_collection") }}</button>
         </label>
         <label>{{ t("items.bulk_set_rating") }}
           <select name="rating">

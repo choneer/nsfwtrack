@@ -18,6 +18,9 @@
     <div class="metric"><strong>{{ stats.overview.total_items }}</strong><span>{{ t("stats.total_items") }}</span></div>
     <div class="metric"><strong>{{ stats.overview.total_tags }}</strong><span>{{ t("stats.total_tags") }}</span></div>
     <div class="metric"><strong>{{ stats.overview.total_creators }}</strong><span>{{ t("stats.total_creators") }}</span></div>
+    <div class="metric"><strong>{{ stats.overview.total_collections }}</strong><span>{{ t("stats.total_collections") }}</span></div>
+    <div class="metric"><strong>{{ stats.overview.items_with_collections }}</strong><span>{{ t("stats.items_with_collections") }}</span></div>
+    <div class="metric"><strong>{{ stats.overview.items_without_collections }}</strong><span>{{ t("stats.items_without_collections") }}</span></div>
     <div class="metric"><strong>{{ stats.overview.state_items }}</strong><span>{{ t("stats.items_with_state") }}</span></div>
     <div class="metric"><strong>{{ stats.overview.rated_items }}</strong><span>{{ t("stats.items_with_rating") }}</span></div>
     <div class="metric">
@@ -27,6 +30,30 @@
     <div class="metric"><strong>{{ stats.overview.created_7d }}</strong><span>{{ t("stats.created_7d") }}</span></div>
     <div class="metric"><strong>{{ stats.overview.created_30d }}</strong><span>{{ t("stats.created_30d") }}</span></div>
   </div>
+</section>
+
+<section class="card stack stats-section">
+  <div class="stats-section-heading">
+    <h2>{{ t("stats.collection_ranking") }}</h2>
+    <p class="muted">{{ t("stats.collection_ranking_hint") }}</p>
+  </div>
+  {% if stats.collection_ranking.rows %}
+    <div class="ranking-list">
+      {% for row in stats.collection_ranking.rows %}
+        <div class="ranking-row">
+          <div class="stats-bar-heading">
+            <strong>{{ row.name }}</strong>
+            <span>{{ t("stats.collection_item_count", count=row.count) }} · {{ row.percent }}%</span>
+          </div>
+          <div class="bar-track" aria-label="{{ row.name }} {{ row.percent }}%">
+            <span class="bar-fill" style="--bar-width: {{ row.percent }}%;"></span>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <p class="notice">{{ t("stats.no_collection_data") }}</p>
+  {% endif %}
 </section>
 
 <section class="split stats-section">

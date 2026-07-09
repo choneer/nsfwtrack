@@ -59,6 +59,7 @@ def get_item_or_404(db: Session, item_id: int) -> models.Item:
         .options(
             selectinload(models.Item.tags),
             selectinload(models.Item.creators),
+            selectinload(models.Item.collections),
             selectinload(models.Item.state),
         )
     )
@@ -200,6 +201,16 @@ def creator_to_dict(creator: models.Creator) -> dict[str, Any]:
     }
 
 
+def collection_to_dict(collection: models.Collection) -> dict[str, Any]:
+    return {
+        "id": collection.id,
+        "name": collection.name,
+        "description": collection.description,
+        "created_at": collection.created_at,
+        "updated_at": collection.updated_at,
+    }
+
+
 def state_to_dict(state_row: models.UserItemState | None) -> dict[str, Any] | None:
     if state_row is None:
         return None
@@ -226,6 +237,10 @@ def item_to_dict(item: models.Item) -> dict[str, Any]:
         "creators": [
             creator_to_dict(creator)
             for creator in sorted(item.creators, key=lambda row: row.name)
+        ],
+        "collections": [
+            collection_to_dict(collection)
+            for collection in sorted(item.collections, key=lambda row: row.name)
         ],
         "state": state_to_dict(item.state),
         "created_at": item.created_at,

@@ -2,7 +2,34 @@
 
 ## Unreleased
 
-No unreleased changes.
+### Added
+
+- Added Phase 2-C1 local collections / list management backed by local SQLite
+  tables `collections` and `item_collections`.
+- Added collection create, edit, delete, list, and detail pages with login
+  protection, empty states, duplicate-name handling, and Chinese / English UI
+  text.
+- Added item-to-collection management from both collection detail pages and item
+  detail pages, including duplicate relation checks and safe removal of missing
+  relations.
+- Added item list filtering by collection, with query-string preservation across
+  keyword, tag, creator, status, sorting, and pagination flows.
+- Added current-page bulk add / remove collection actions using existing
+  collections only.
+- Added collection overview metrics and collection ranking to the local stats
+  dashboard and stats summary payload.
+- Added tests for collection login protection, CRUD, delete safety, detail
+  rendering, item membership management, list filtering, bulk collection
+  actions, stats, i18n coverage, and new table creation.
+
+### Changed
+
+- Item detail pages now show linked collections and allow adding or removing one
+  existing collection.
+- Item API responses now include linked collection metadata for local clients.
+- Kept Phase 2-C1 limited to local manual collections, with no external content
+  sources, URL import, crawlers, adapters, recommendation system, AI assistant,
+  cloud sync, multi-user system, new dependency, or front-end build flow.
 
 ## v0.3.0 - 2026-07-08
 

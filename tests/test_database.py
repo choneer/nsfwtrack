@@ -5,7 +5,7 @@ from sqlalchemy import inspect
 from app.database import engine
 
 
-def test_phase_one_tables_exist() -> None:
+def test_expected_tables_exist() -> None:
     tables = set(inspect(engine).get_table_names())
 
     assert {
@@ -15,4 +15,6 @@ def test_phase_one_tables_exist() -> None:
         "item_tags",
         "item_creators",
         "user_item_states",
+        "collections",
+        "item_collections",
     }.issubset(tables)

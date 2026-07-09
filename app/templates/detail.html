@@ -174,6 +174,37 @@
     {% endif %}
   </section>
 
+  <section class="card detail-section">
+    <h2>{{ t("detail.collection_info") }}</h2>
+    <h3>{{ t("detail.current_collections") }}</h3>
+    <div class="relation-list">
+      {% for collection in item.collections|sort(attribute="name") %}
+        <form class="relation-row" action="/items/{{ item.id }}/collections/{{ collection.id }}/delete" method="post">
+          <input type="hidden" name="next" value="{{ return_list_url }}">
+          <a class="pill" href="/collections/{{ collection.id }}">{{ collection.name }}</a>
+          <button class="secondary compact" type="submit">{{ t("detail.remove_collection") }}</button>
+        </form>
+      {% else %}
+        <p class="muted">{{ t("detail.no_collections") }}</p>
+      {% endfor %}
+    </div>
+    <form class="relation-form" action="/items/{{ item.id }}/collections" method="post">
+      <input type="hidden" name="next" value="{{ return_list_url }}">
+      <label>{{ t("detail.add_collection") }}
+        <select name="collection_id">
+          <option value="">{{ t("common.any") }}</option>
+          {% for collection in available_collections %}
+            <option value="{{ collection.id }}">{{ collection.name }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <button type="submit">{{ t("detail.add_collection") }}</button>
+    </form>
+    {% if not available_collections %}
+      <p class="muted">{{ t("detail.no_available_collections") }}</p>
+    {% endif %}
+  </section>
+
   <section class="card detail-section detail-actions-panel">
     <h2>{{ t("detail.actions") }}</h2>
     <div class="actions">

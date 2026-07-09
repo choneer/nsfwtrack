@@ -2,11 +2,39 @@
 
 NSFWTrack is a local single-user content record manager / collection tracker.
 
-Current status: `v0.3.0 / Phase 2-B local UI and stats enhancements`.
+Current status: `v0.3.0 release baseline + Unreleased Phase 2-C1 local collections`.
 
 NSFWTrack remains intentionally local-only. It is designed for manual records,
 local SQLite persistence, LAN deployment, and simple personal collection
 management.
+
+## Unreleased Phase 2-C1 Local Collections
+
+Unreleased Phase 2-C1 adds local collections / list management on top of
+`v0.3.0`. Collections are manual local lists for grouping existing items into
+long-term watch lists, topic lists, review queues, or any other personal
+organization scheme.
+
+- Collections are stored in local SQLite tables `collections` and
+  `item_collections`.
+- The Collections page supports creating, editing, deleting, listing, and
+  opening collection detail pages.
+- Collection detail pages show the items in a collection and allow adding or
+  removing existing local items.
+- Item detail pages show linked collections and allow adding or removing one
+  existing collection.
+- The item list can filter by collection while preserving existing keyword,
+  tag, creator, status, sorting, and pagination query-string state.
+- Current-page bulk editing can add selected items to one existing collection
+  or remove selected items from one existing collection.
+- The stats page includes total collections, items with collections, items
+  without collections, and a local collection ranking.
+- Deleting a collection deletes only the collection and its item links. It does
+  not delete any items.
+
+Phase 2-C1 remains local-only. It does not add external content sources, URL
+import, crawlers, adapters, recommendation systems, AI assistants, cloud sync,
+multi-user support, new dependencies, or a front-end build flow.
 
 ## Features in v0.3.0
 
@@ -181,11 +209,11 @@ sync, recommendations, AI assistants, cloud sync, or multi-user support.
 
 ## Local Boundaries
 
-`v0.2.0` is still a local single-user release. It does not include external
-content sources, crawlers, adapters, remote image fetching, third-party
-cookie/token management, automatic sync, multi-source search, random
-exploration, recommendation systems, AI assistants, URL import, cloud backup,
-scheduled backup, overwrite restore, complex permissions, or multi-user
+The current development state is still a local single-user app. It does not
+include external content sources, crawlers, adapters, remote image fetching,
+third-party cookie/token management, automatic sync, multi-source search,
+random exploration, recommendation systems, AI assistants, URL import, cloud
+backup, scheduled backup, overwrite restore, complex permissions, or multi-user
 support.
 
 ## Local Development

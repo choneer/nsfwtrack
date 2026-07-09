@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}{{ t(mode_key) }} - NSFWTrack{% endblock %}
+{% block content %}
+<div class="toolbar">
+  <h1>{{ t(mode_key) }}</h1>
+  <a class="button secondary" href="{% if collection %}/collections/{{ collection.id }}{% else %}/collections{% endif %}">{{ t("common.back") }}</a>
+</div>
+
+<form class="card stack" action="{{ action }}" method="post">
+  <label>{{ t("collections.name") }}
+    <input
+      name="name"
+      value="{{ collection.name if collection else '' }}"
+      placeholder="{{ t('collections.placeholder_name') }}"
+      required
+    >
+  </label>
+  <label>{{ t("collections.description") }}
+    <textarea name="description" placeholder="{{ t('collections.placeholder_description') }}">{{ collection.description if collection and collection.description else '' }}</textarea>
+  </label>
+  <div class="actions">
+    <button type="submit">{{ t("common.save") }}</button>
+    <a class="button secondary" href="{% if collection %}/collections/{{ collection.id }}{% else %}/collections{% endif %}">{{ t("common.back") }}</a>
+  </div>
+</form>
+{% endblock %}

@@ -37,6 +37,7 @@ def list_items(
         .options(
             selectinload(Item.tags),
             selectinload(Item.creators),
+            selectinload(Item.collections),
             selectinload(Item.state),
         )
         .order_by(Item.created_at.desc(), Item.id.desc())

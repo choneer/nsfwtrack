@@ -6,7 +6,16 @@ from typing import Any
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
-from app.models import Creator, Item, ItemCreator, ItemTag, Tag, UserItemState
+from app.models import (
+    Collection,
+    Creator,
+    Item,
+    ItemCollection,
+    ItemCreator,
+    ItemTag,
+    Tag,
+    UserItemState,
+)
 from app.services.item_query import STATUS_OPTIONS
 
 RATINGS = (1, 2, 3, 4, 5)
@@ -122,6 +131,28 @@ def _creator_ranking(db: Session) -> dict[str, object]:
     }
 
 
+def _collection_ranking(db: Session) -> dict[str, object]:
+    total_links = _count(db, select(func.count()).select_from(ItemCollection))
+    rows = db.execute(
+        select(Collection.name, func.count(ItemCollection.item_id).label("item_count"))
+        .join(ItemCollection, ItemCollection.collection_id == Collection.id)
+        .group_by(Collection.id)
+        .order_by(func.count(ItemCollection.item_id).desc(), func.lower(Collection.name).asc())
+        .limit(RANKING_LIMIT)
+    ).all()
+    return {
+        "total_links": total_links,
+        "rows": [
+            {
+                "name": str(name),
+                "count": int(count),
+                "percent": _percent(int(count), total_links),
+            }
+            for name, count in rows
+        ],
+    }
+
+
 def _activity(db: Session, now: datetime) -> dict[str, object]:
     created_7d = _items_since(db, Item.created_at, 7, now)
     created_30d = _items_since(db, Item.created_at, 30, now)
@@ -208,6 +239,10 @@ def build_stats_dashboard(db: Session) -> dict[str, object]:
     total_items = _count(db, select(func.count(Item.id)))
     total_tags = _count(db, select(func.count(Tag.id)))
     total_creators = _count(db, select(func.count(Creator.id)))
+    total_collections = _count(db, select(func.count(Collection.id)))
+    items_with_collections = _count(
+        db, select(func.count(Item.id)).where(Item.collections.any())
+    )
     state_items = _count(db, select(func.count(UserItemState.id)))
     rated_items = _count(
         db,
@@ -233,6 +268,9 @@ def build_stats_dashboard(db: Session) -> dict[str, object]:
             "total_items": total_items,
             "total_tags": total_tags,
             "total_creators": total_creators,
+            "total_collections": total_collections,
+            "items_with_collections": items_with_collections,
+            "items_without_collections": max(total_items - items_with_collections, 0),
             "state_items": state_items,
             "rated_items": rated_items,
             "average_rating": average_rating,
@@ -252,6 +290,7 @@ def build_stats_dashboard(db: Session) -> dict[str, object]:
         },
         "tag_ranking": _tag_ranking(db),
         "creator_ranking": _creator_ranking(db),
+        "collection_ranking": _collection_ranking(db),
         "activity": activity,
         "integrity": _integrity_overview(
             db,
@@ -278,6 +317,7 @@ def stats_summary_payload(db: Session) -> dict[str, object]:
         "rating_distribution": dashboard["rating_distribution"],
         "tag_ranking": dashboard["tag_ranking"],
         "creator_ranking": dashboard["creator_ranking"],
+        "collection_ranking": dashboard["collection_ranking"],
         "activity": dashboard["activity"],
         "integrity": dashboard["integrity"],
     }

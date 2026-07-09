@@ -9,7 +9,7 @@ from urllib.parse import urlencode
 from sqlalchemy import case, func, select
 from sqlalchemy.orm import Session, selectinload
 
-from app.models import Creator, Item, Tag, UserItemState
+from app.models import Collection, Creator, Item, Tag, UserItemState
 
 STATUS_OPTIONS = ("wish", "watching", "watched", "like", "dislike", "ignore")
 PAGE_SIZE_OPTIONS = (10, 20, 50, 100)
@@ -39,6 +39,7 @@ class ItemListFilters:
     q: str = ""
     tag: str = ""
     creator: str = ""
+    collection_id: int | None = None
     state: str = ""
     min_rating: int | None = None
     time_range: str = DEFAULT_TIME_RANGE
@@ -53,6 +54,7 @@ class ItemListFilters:
             self.q
             or self.tag
             or self.creator
+            or self.collection_id is not None
             or self.state
             or self.min_rating is not None
             or self.time_range != DEFAULT_TIME_RANGE
@@ -63,6 +65,7 @@ class ItemListFilters:
 class ItemFilterOptions:
     tags: list[Tag]
     creators: list[Creator]
+    collections: list[Collection]
     statuses: tuple[str, ...] = STATUS_OPTIONS
     min_ratings: tuple[int, ...] = MIN_RATING_OPTIONS
     time_ranges: tuple[str, ...] = TIME_RANGE_OPTIONS
@@ -98,6 +101,7 @@ def normalize_item_list_filters(
     q: str | None = None,
     tag: str | None = None,
     creator: str | None = None,
+    collection: str | int | None = None,
     state: str | None = None,
     min_rating: str | int | None = None,
     time_range: str | None = None,
@@ -117,6 +121,10 @@ def normalize_item_list_filters(
     parsed_page_size = _parse_int(page_size)
     if parsed_page_size not in PAGE_SIZE_OPTIONS:
         parsed_page_size = DEFAULT_PAGE_SIZE
+
+    parsed_collection = _parse_int(collection)
+    if parsed_collection is not None and parsed_collection <= 0:
+        parsed_collection = None
 
     normalized_state = _clean_text(state)
     if normalized_state not in STATUS_OPTIONS:
@@ -138,6 +146,7 @@ def normalize_item_list_filters(
         q=_clean_text(q),
         tag=_clean_text(tag),
         creator=_clean_text(creator),
+        collection_id=parsed_collection,
         state=normalized_state,
         min_rating=parsed_min_rating,
         time_range=normalized_time_range,
@@ -167,6 +176,8 @@ def _apply_filters(stmt: Any, filters: ItemListFilters) -> Any:
         stmt = stmt.where(Item.tags.any(Tag.name == filters.tag))
     if filters.creator:
         stmt = stmt.where(Item.creators.any(Creator.name == filters.creator))
+    if filters.collection_id is not None:
+        stmt = stmt.where(Item.collections.any(Collection.id == filters.collection_id))
     if filters.state:
         stmt = stmt.where(Item.state.has(UserItemState.status == filters.state))
     if filters.min_rating is not None:
@@ -221,6 +232,7 @@ def query_items(
     q: str | None = None,
     tag: str | None = None,
     creator: str | None = None,
+    collection: str | int | None = None,
     state: str | None = None,
     min_rating: str | int | None = None,
     time_range: str | None = None,
@@ -233,6 +245,7 @@ def query_items(
         q=q,
         tag=tag,
         creator=creator,
+        collection=collection,
         state=state,
         min_rating=min_rating,
         time_range=time_range,
@@ -252,6 +265,7 @@ def query_items(
         stmt.options(
             selectinload(Item.tags),
             selectinload(Item.creators),
+            selectinload(Item.collections),
             selectinload(Item.state),
         )
         .offset((filters.page - 1) * filters.page_size)
@@ -270,7 +284,14 @@ def query_items(
 def list_item_filter_options(db: Session) -> ItemFilterOptions:
     tags = db.scalars(select(Tag).order_by(func.lower(Tag.name).asc())).all()
     creators = db.scalars(select(Creator).order_by(func.lower(Creator.name).asc())).all()
-    return ItemFilterOptions(tags=list(tags), creators=list(creators))
+    collections = db.scalars(
+        select(Collection).order_by(func.lower(Collection.name).asc())
+    ).all()
+    return ItemFilterOptions(
+        tags=list(tags),
+        creators=list(creators),
+        collections=list(collections),
+    )
 
 
 def item_list_query_params(
@@ -285,6 +306,8 @@ def item_list_query_params(
         params["tag"] = filters.tag
     if filters.creator:
         params["creator"] = filters.creator
+    if filters.collection_id is not None:
+        params["collection"] = str(filters.collection_id)
     if filters.state:
         params["state"] = filters.state
     if filters.min_rating is not None:
