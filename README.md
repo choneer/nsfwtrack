@@ -4,9 +4,35 @@ NSFWTrack is a local single-user content record manager / collection tracker.
 
 Current release: `v0.5.0 / Phase 2-D data cleanup and manual merge`.
 
+Current development: `Phase 2-E1 saved item-list views`.
+
 NSFWTrack remains intentionally local-only. It is designed for manual records,
 local SQLite persistence, LAN deployment, and simple personal collection
 management.
+
+## Current Development: Phase 2-E1 Saved Views
+
+Phase 2-E1 adds local saved views for the item list page:
+
+- The item list can save the current keyword, status, tag, creator, collection,
+  minimum rating, time range, sort, and page-size settings as a named view.
+- Saved views are stored locally in the SQLite `saved_views` table.
+- Saved views can be applied with one click, updated to the current filter
+  state, or deleted with browser confirmation.
+- Create, update, and delete actions require login and POST.
+- Applying a saved view is a GET redirect back to `/items` and does not modify
+  the database.
+- Saved view query strings are filtered through a whitelist, normalized, and
+  stored in stable order.
+- Unknown parameters, page numbers, session data, cookies, CSRF values, and
+  external redirect targets are not stored.
+- JSON backup export / preview / restore includes saved views while remaining
+  compatible with older backups that do not contain `saved_views`.
+
+This feature stays local-only. It does not add AI recommendations, smart
+classification, external content sources, URL import, crawlers, adapters, cloud
+sync, multi-user shared views, new dependencies, or changes to existing
+database fields.
 
 ## Features in v0.5.0
 

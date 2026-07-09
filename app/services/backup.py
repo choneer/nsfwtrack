@@ -8,6 +8,10 @@ from sqlalchemy.orm import Session
 
 from app import models
 from app.services.exporter import BACKUP_SCHEMA
+from app.services.saved_views import (
+    MAX_SAVED_VIEW_NAME_LENGTH,
+    normalize_saved_view_query_string,
+)
 
 CORE_TABLE_NAMES = {
     "items",
@@ -17,7 +21,7 @@ CORE_TABLE_NAMES = {
     "item_creators",
     "user_item_states",
 }
-OPTIONAL_TABLE_NAMES = {"collections", "item_collections"}
+OPTIONAL_TABLE_NAMES = {"collections", "item_collections", "saved_views"}
 TABLE_NAMES = CORE_TABLE_NAMES | OPTIONAL_TABLE_NAMES
 VALID_STATUSES = {"wish", "watching", "watched", "like", "dislike", "ignore"}
 
@@ -160,6 +164,49 @@ def _preview_collection_counts(
     }
 
 
+def _valid_saved_view_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return [
+        row
+        for row in rows
+        if str(row.get("name", "")).strip()
+        and len(str(row.get("name", "")).strip()) <= MAX_SAVED_VIEW_NAME_LENGTH
+    ]
+
+
+def _preview_saved_view_counts(
+    rows: dict[str, list[dict[str, Any]]],
+    db: Session | None,
+) -> dict[str, int]:
+    valid_saved_views = _valid_saved_view_rows(rows["saved_views"])
+    saved_view_errors = len(rows["saved_views"]) - len(valid_saved_views)
+    existing_names: set[str] = set()
+    if db is not None:
+        existing_names = {
+            name.casefold() for name in db.scalars(select(models.SavedView.name)).all()
+        }
+
+    seen_names: set[str] = set()
+    saved_views_to_create = 0
+    saved_views_to_update = 0
+    for row in valid_saved_views:
+        key = str(row.get("name", "")).strip().casefold()
+        if key in seen_names:
+            saved_view_errors += 1
+            continue
+        seen_names.add(key)
+        if key in existing_names:
+            saved_views_to_update += 1
+        else:
+            saved_views_to_create += 1
+
+    return {
+        "saved_views": len(rows["saved_views"]),
+        "saved_views_to_create": saved_views_to_create,
+        "saved_views_to_update": saved_views_to_update,
+        "saved_view_errors": saved_view_errors,
+    }
+
+
 def preview_backup_data(
     payload: dict[str, Any],
     db: Session | None = None,
@@ -175,6 +222,7 @@ def preview_backup_data(
         "item_creators": len(rows["item_creators"]),
         "user_item_states": len(rows["user_item_states"]),
         **_preview_collection_counts(rows, db),
+        **_preview_saved_view_counts(rows, db),
     }
 
 
@@ -233,6 +281,15 @@ def _set_collection_fields(collection: models.Collection, row: dict[str, Any]) -
     collection.description = row.get("description") or None
     _set_optional_datetime(collection, "created_at", row.get("created_at"))
     _set_optional_datetime(collection, "updated_at", row.get("updated_at"))
+
+
+def _set_saved_view_fields(saved_view: models.SavedView, row: dict[str, Any]) -> None:
+    saved_view.name = _required_text(row, "name")[:MAX_SAVED_VIEW_NAME_LENGTH]
+    saved_view.query_string = normalize_saved_view_query_string(
+        row.get("query_string") or ""
+    )
+    _set_optional_datetime(saved_view, "created_at", row.get("created_at"))
+    _set_optional_datetime(saved_view, "updated_at", row.get("updated_at"))
 
 
 def _merge_tags(
@@ -367,6 +424,49 @@ def _merge_collections(
     return id_map
 
 
+def _merge_saved_views(
+    db: Session,
+    rows: list[dict[str, Any]],
+    result: dict[str, int],
+) -> None:
+    seen_names: set[str] = set()
+    for row in rows:
+        backup_id = _safe_int_or_none(row.get("id"))
+        name = str(row.get("name", "")).strip()
+        if not name or len(name) > MAX_SAVED_VIEW_NAME_LENGTH:
+            result["skipped"] += 1
+            result["saved_views_skipped"] += 1
+            result["saved_view_errors"] += 1
+            continue
+
+        key = name.casefold()
+        if key in seen_names:
+            result["skipped"] += 1
+            result["saved_views_skipped"] += 1
+            result["saved_view_errors"] += 1
+            continue
+        seen_names.add(key)
+
+        saved_view = db.scalar(
+            select(models.SavedView).where(
+                func.lower(models.SavedView.name) == name.lower()
+            )
+        )
+        if saved_view is None and backup_id is not None:
+            saved_view = db.get(models.SavedView, backup_id)
+
+        if saved_view is None:
+            saved_view = models.SavedView(id=backup_id)
+            db.add(saved_view)
+            result["created"] += 1
+            result["saved_views_created"] += 1
+        else:
+            result["updated"] += 1
+            result["saved_views_updated"] += 1
+        _set_saved_view_fields(saved_view, row)
+        db.flush()
+
+
 def _merge_item_tags(
     db: Session,
     rows: list[dict[str, Any]],
@@ -475,6 +575,10 @@ def restore_backup_data(db: Session, payload: dict[str, Any]) -> dict[str, int]:
         "item_collections_created": 0,
         "item_collections_skipped": 0,
         "collection_errors": 0,
+        "saved_views_created": 0,
+        "saved_views_updated": 0,
+        "saved_views_skipped": 0,
+        "saved_view_errors": 0,
     }
     with db.begin():
         tag_ids = _merge_tags(db, rows["tags"], result)
@@ -497,4 +601,5 @@ def restore_backup_data(db: Session, payload: dict[str, Any]) -> dict[str, int]:
             result,
         )
         _merge_states(db, rows["user_item_states"], item_ids, result)
+        _merge_saved_views(db, rows["saved_views"], result)
     return result

@@ -2,7 +2,33 @@
 
 ## Unreleased
 
-No changes yet.
+### Added
+
+- Added Phase 2-E1 local saved views for the item list page, backed by a new
+  local SQLite `saved_views` table.
+- Added login-protected saved view create, update, delete, and apply flows:
+  `POST /saved-views`, `POST /saved-views/{id}/update`,
+  `POST /saved-views/{id}/delete`, and `GET /saved-views/{id}/apply`.
+- Added an item-list saved views panel for naming the current filter view,
+  applying saved views, updating a saved view to the current filters, and
+  deleting saved views with browser confirmation.
+- Added saved view query-string normalization that stores only existing
+  item-list filter / sort / page-size parameters, removes page numbers, ignores
+  unknown parameters, and uses stable parameter ordering.
+- Added Chinese / English saved view UI and flash text.
+- Added JSON backup export / preview / restore support for saved views while
+  keeping old backups without `saved_views` compatible.
+- Added tests for saved view login protection, creation, validation, duplicate
+  names, parameter filtering, apply redirects, no-write apply behavior, invalid
+  IDs, update, POST-only delete, deletion, page rendering, i18n coverage, table
+  creation, and JSON backup compatibility.
+
+### Changed
+
+- Kept Phase 2-E1 limited to local saved item-list views, with no AI
+  recommendation, smart classification, external content source, URL import,
+  crawler, adapter, cloud sync, multi-user shared views, database field
+  changes, or new dependency.
 
 ## v0.5.0 - 2026-07-09
 

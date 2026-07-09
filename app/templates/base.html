@@ -202,6 +202,53 @@
     .filter-summary strong {
       margin-right: 2px;
     }
+    .saved-views-panel {
+      display: grid;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+    .saved-views-heading {
+      align-items: start;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: space-between;
+    }
+    .saved-views-heading h2,
+    .saved-views-heading p {
+      margin-bottom: 0;
+    }
+    .saved-view-form {
+      align-items: end;
+      display: grid;
+      gap: 10px;
+      grid-template-columns: minmax(180px, 1fr) auto;
+    }
+    .saved-view-list {
+      display: grid;
+      gap: 10px;
+    }
+    .saved-view-row {
+      align-items: center;
+      background: #f8fafc;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      display: grid;
+      gap: 10px;
+      grid-template-columns: minmax(0, 1fr) auto;
+      padding: 12px;
+    }
+    .saved-view-info {
+      display: grid;
+      gap: 5px;
+      min-width: 0;
+    }
+    .saved-view-info code {
+      display: block;
+      max-width: 100%;
+      overflow-wrap: anywhere;
+      white-space: normal;
+    }
     .bulk-panel {
       display: grid;
       gap: 12px;
@@ -661,6 +708,8 @@
       .detail-layout,
       .detail-overview,
       .relation-form,
+      .saved-view-form,
+      .saved-view-row,
       .candidate-row,
       .comparison-grid {
         grid-template-columns: 1fr;

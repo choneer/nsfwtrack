@@ -47,6 +47,26 @@ class ItemCollection(Base):
     )
 
 
+class SavedView(Base):
+    __tablename__ = "saved_views"
+    __table_args__ = (
+        CheckConstraint("trim(name) != ''", name="ck_saved_views_name_not_blank"),
+        UniqueConstraint("name", name="uq_saved_views_name"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    name: Mapped[str] = mapped_column(String(80), nullable=False, unique=True, index=True)
+    query_string: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    created_at: Mapped[datetime] = mapped_column(
+        nullable=False, server_default=func.current_timestamp()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        nullable=False,
+        server_default=func.current_timestamp(),
+        onupdate=func.current_timestamp(),
+    )
+
+
 class Item(Base):
     __tablename__ = "items"
 

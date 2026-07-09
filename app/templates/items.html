@@ -123,6 +123,61 @@
   <span class="pill">{{ t("items.page_size") }}: {{ filters.page_size }}</span>
 </div>
 
+<section class="card saved-views-panel">
+  <div class="saved-views-heading">
+    <div>
+      <h2>{{ t("saved_views.title") }}</h2>
+      <p class="muted">{{ t("saved_views.current_filters") }}</p>
+    </div>
+    <a class="button secondary" href="/items">{{ t("saved_views.back_to_items") }}</a>
+  </div>
+  <form class="saved-view-form" method="post" action="/saved-views">
+    <input type="hidden" name="query_string" value="{{ saved_view_query_string }}">
+    <label>{{ t("saved_views.name") }}
+      <input
+        name="name"
+        maxlength="{{ saved_view_max_name_length }}"
+        placeholder="{{ t('saved_views.name_placeholder') }}"
+        required
+      >
+    </label>
+    <button type="submit">{{ t("saved_views.save_current") }}</button>
+  </form>
+  {% if saved_views %}
+    <div class="saved-view-list" aria-label="{{ t('saved_views.saved') }}">
+      {% for saved_view in saved_views %}
+        <div class="saved-view-row">
+          <div class="saved-view-info">
+            <strong>{{ saved_view.name }}</strong>
+            {% if saved_view.query_string %}
+              <code>{{ saved_view.query_string }}</code>
+            {% else %}
+              <span class="muted">{{ t("items.all_items") }}</span>
+            {% endif %}
+          </div>
+          <div class="actions">
+            <a class="button secondary compact" href="/saved-views/{{ saved_view.id }}/apply">{{ t("saved_views.apply") }}</a>
+            <form class="inline-form" method="post" action="/saved-views/{{ saved_view.id }}/update">
+              <input type="hidden" name="query_string" value="{{ saved_view_query_string }}">
+              <button class="secondary compact" type="submit">{{ t("saved_views.update") }}</button>
+            </form>
+            <form class="inline-form" method="post" action="/saved-views/{{ saved_view.id }}/delete">
+              <input type="hidden" name="query_string" value="{{ saved_view_query_string }}">
+              <button
+                class="danger compact"
+                type="submit"
+                data-confirm-message="{{ t('saved_views.confirm_delete') }}"
+              >{{ t("saved_views.delete") }}</button>
+            </form>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <p class="muted">{{ t("saved_views.empty") }}</p>
+  {% endif %}
+</section>
+
 {% if items %}
   <form id="bulk-form" method="post" action="/items/bulk">
     <input type="hidden" name="next" value="{{ current_url_path }}">
@@ -261,16 +316,16 @@
     checkboxes.forEach((checkbox) => {
       checkbox.addEventListener("change", updateCount);
     });
-    form.addEventListener("submit", (event) => {
-      const submitter = event.submitter;
-      if (submitter?.value === "delete") {
-        const message = submitter.dataset.confirmMessage;
-        if (message && !window.confirm(message)) {
-          event.preventDefault();
-        }
-      }
-    });
     updateCount();
   })();
+
+  document.querySelectorAll("[data-confirm-message]").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      const message = button.dataset.confirmMessage;
+      if (message && !window.confirm(message)) {
+        event.preventDefault();
+      }
+    });
+  });
 </script>
 {% endblock %}

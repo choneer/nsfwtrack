@@ -99,6 +99,17 @@ from app.services.metadata_cleanup import (
     get_metadata_comparison,
     merge_metadata_objects,
 )
+from app.services.saved_views import (
+    MAX_SAVED_VIEW_NAME_LENGTH,
+    SavedViewError,
+    create_saved_view,
+    delete_saved_view,
+    get_saved_view,
+    list_saved_views,
+    normalize_saved_view_query_string,
+    saved_view_items_url,
+    update_saved_view,
+)
 from app.services.stats import build_stats_dashboard
 
 router = APIRouter(tags=["pages"])
@@ -271,7 +282,15 @@ def _cleanup_action_label(request: Request, action: str) -> str:
     return translate(get_language(request), f"cleanup.action_{action}")
 
 
-@router.get("/items", response_class=HTMLResponse, dependencies=[Depends(require_page_auth)])
+def _saved_view_error_flash(request: Request, exc: SavedViewError) -> None:
+    add_flash(request, "error", f"flash.saved_view_{exc.code}")
+
+
+@router.get(
+    "/items",
+    response_class=HTMLResponse,
+    dependencies=[Depends(require_page_auth)],
+)
 def items_page(
     request: Request,
     q: str | None = None,
@@ -310,8 +329,87 @@ def items_page(
             filters=result.filters,
             filter_options=list_item_filter_options(db),
             pagination=_pagination_context(result),
+            saved_views=list_saved_views(db),
+            saved_view_query_string=normalize_saved_view_query_string(
+                request.query_params
+            ),
+            saved_view_max_name_length=MAX_SAVED_VIEW_NAME_LENGTH,
         ),
     )
+
+
+@router.post("/saved-views", dependencies=[Depends(require_page_auth)])
+def create_saved_view_page(
+    request: Request,
+    name: str = Form(default=""),
+    query_string: str = Form(default=""),
+    db: Session = Depends(get_db),
+) -> RedirectResponse:
+    target = saved_view_items_url(query_string)
+    try:
+        create_saved_view(db, name=name, query_string=query_string)
+    except SavedViewError as exc:
+        _saved_view_error_flash(request, exc)
+        return _redirect(target)
+    add_flash(request, "success", "flash.saved_view_saved")
+    return _redirect(target)
+
+
+@router.post(
+    "/saved-views/{saved_view_id}/update",
+    dependencies=[Depends(require_page_auth)],
+)
+def update_saved_view_page(
+    request: Request,
+    saved_view_id: int,
+    query_string: str = Form(default=""),
+    db: Session = Depends(get_db),
+) -> RedirectResponse:
+    target = saved_view_items_url(query_string)
+    try:
+        update_saved_view(db, saved_view_id, query_string=query_string)
+    except SavedViewError as exc:
+        _saved_view_error_flash(request, exc)
+        return _redirect(target)
+    add_flash(request, "success", "flash.saved_view_updated")
+    return _redirect(target)
+
+
+@router.post(
+    "/saved-views/{saved_view_id}/delete",
+    dependencies=[Depends(require_page_auth)],
+)
+def delete_saved_view_page(
+    request: Request,
+    saved_view_id: int,
+    query_string: str = Form(default=""),
+    db: Session = Depends(get_db),
+) -> RedirectResponse:
+    target = saved_view_items_url(query_string)
+    try:
+        delete_saved_view(db, saved_view_id)
+    except SavedViewError as exc:
+        _saved_view_error_flash(request, exc)
+        return _redirect(target)
+    add_flash(request, "success", "flash.saved_view_deleted")
+    return _redirect(target)
+
+
+@router.get(
+    "/saved-views/{saved_view_id}/apply",
+    dependencies=[Depends(require_page_auth)],
+)
+def apply_saved_view_page(
+    request: Request,
+    saved_view_id: int,
+    db: Session = Depends(get_db),
+) -> RedirectResponse:
+    try:
+        saved_view = get_saved_view(db, saved_view_id)
+    except SavedViewError as exc:
+        _saved_view_error_flash(request, exc)
+        return _redirect("/items")
+    return _redirect(saved_view_items_url(saved_view.query_string))
 
 
 @router.get(

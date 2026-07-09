@@ -78,6 +78,16 @@ def _collection_row(collection: models.Collection) -> dict[str, Any]:
     }
 
 
+def _saved_view_row(saved_view: models.SavedView) -> dict[str, Any]:
+    return {
+        "id": saved_view.id,
+        "name": saved_view.name,
+        "query_string": saved_view.query_string,
+        "created_at": _format_datetime(saved_view.created_at),
+        "updated_at": _format_datetime(saved_view.updated_at),
+    }
+
+
 def export_backup_data(db: Session) -> dict[str, Any]:
     items = db.scalars(select(models.Item).order_by(models.Item.id.asc())).all()
     tags = db.scalars(select(models.Tag).order_by(models.Tag.id.asc())).all()
@@ -103,6 +113,9 @@ def export_backup_data(db: Session) -> dict[str, Any]:
     states = db.scalars(
         select(models.UserItemState).order_by(models.UserItemState.id.asc())
     ).all()
+    saved_views = db.scalars(
+        select(models.SavedView).order_by(models.SavedView.id.asc())
+    ).all()
     return {
         "schema": BACKUP_SCHEMA,
         "exported_at": datetime.now(timezone.utc).isoformat(),
@@ -123,6 +136,7 @@ def export_backup_data(db: Session) -> dict[str, Any]:
                 for row in item_collections
             ],
             "user_item_states": [_state_row(state) for state in states],
+            "saved_views": [_saved_view_row(saved_view) for saved_view in saved_views],
         },
     }
 

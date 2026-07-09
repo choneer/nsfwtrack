@@ -17,4 +17,5 @@ def test_expected_tables_exist() -> None:
         "user_item_states",
         "collections",
         "item_collections",
+        "saved_views",
     }.issubset(tables)
