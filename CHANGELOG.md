@@ -4,6 +4,21 @@
 
 ### Added
 
+- Added Phase 2-E3 dashboard / workbench quick action entry points for new
+  items, the item list, saved views, recent activity, stats, collections,
+  duplicate item detection, metadata cleanup, import, and backup.
+- Added a dashboard saved views panel that shows a small set of local saved
+  views and links to apply them without saving, updating, deleting, or
+  modifying any data from the dashboard.
+- Added an item-list quick action section for new items, save-current-view /
+  saved views, recent activity, duplicate detection, metadata cleanup, import,
+  and backup while preserving the existing filter, sort, pagination, saved
+  views, and bulk edit areas.
+- Added Chinese / English workbench and quick action UI text.
+- Added tests for dashboard login protection, dashboard quick action rendering,
+  navigation-only quick action sections, empty saved views / activity states,
+  dashboard saved view and recent activity entries, item-list quick actions,
+  existing filter and saved view preservation, and English quick action labels.
 - Added Phase 2-E2 local item activity tracking backed by a new local SQLite
   `item_activity` table with one activity row per item.
 - Added recent view recording for login-protected item detail visits, tracking
@@ -48,6 +63,12 @@
 
 ### Changed
 
+- Kept Phase 2-E3 limited to local UI entry-point organization, with no
+  database schema change, new table, dependency, dangerous one-click shortcut,
+  login bypass, POST / confirm bypass, AI recommendation, smart analysis,
+  automatic classification, external content source, URL import, crawler,
+  adapter, cloud sync, multi-user sharing, third-party analytics, activity
+  trend chart, tag, or GitHub Release.
 - Kept Phase 2-E2 limited to local item activity, with no AI recommendation,
   smart analysis, automatic classification, external content source, URL
   import, crawler, adapter, cloud sync, multi-user activity feed, third-party

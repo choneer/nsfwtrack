@@ -11,6 +11,46 @@
     <a class="button secondary" href="/import">{{ t("dashboard.import") }}</a>
   </div>
 </div>
+<section class="quick-actions" id="workbench" aria-labelledby="workbench-title">
+  <div class="toolbar">
+    <div>
+      <h2 id="workbench-title">{{ t("quick.workbench") }}</h2>
+      <p class="muted">{{ t("quick.common_entries") }}</p>
+    </div>
+  </div>
+  <div class="quick-action-grid">
+    <a class="card quick-action" href="/items/new">
+      <strong>{{ t("quick.add_item") }}</strong>
+    </a>
+    <a class="card quick-action" href="/items">
+      <strong>{{ t("quick.items") }}</strong>
+    </a>
+    <a class="card quick-action" href="/items#saved-views">
+      <strong>{{ t("quick.saved_views") }}</strong>
+    </a>
+    <a class="card quick-action" href="/activity">
+      <strong>{{ t("quick.activity") }}</strong>
+    </a>
+    <a class="card quick-action" href="/stats">
+      <strong>{{ t("quick.stats") }}</strong>
+    </a>
+    <a class="card quick-action" href="/collections">
+      <strong>{{ t("quick.collections") }}</strong>
+    </a>
+    <a class="card quick-action" href="/duplicates">
+      <strong>{{ t("quick.duplicates") }}</strong>
+    </a>
+    <a class="card quick-action" href="/cleanup">
+      <strong>{{ t("quick.cleanup") }}</strong>
+    </a>
+    <a class="card quick-action" href="/import">
+      <strong>{{ t("quick.import_data") }}</strong>
+    </a>
+    <a class="card quick-action" href="/backup">
+      <strong>{{ t("quick.backup_data") }}</strong>
+    </a>
+  </div>
+</section>
 <section>
   <h2>{{ t("dashboard.recent_items") }}</h2>
   <div class="item-grid">
@@ -18,6 +58,26 @@
       {% include "_item_card.html" %}
     {% else %}
       <p class="muted">{{ t("dashboard.empty") }}</p>
+    {% endfor %}
+  </div>
+</section>
+<section class="stats-section" id="dashboard-saved-views">
+  <div class="toolbar">
+    <h2>{{ t("quick.saved_views") }}</h2>
+    <a class="button secondary" href="/items#saved-views">{{ t("quick.view_all") }}</a>
+  </div>
+  <div class="grid">
+    {% for saved_view in saved_views %}
+      <a class="card quick-action" href="/saved-views/{{ saved_view.id }}/apply">
+        <strong>{{ saved_view.name }}</strong>
+        {% if saved_view.query_string %}
+          <span>{{ saved_view.query_string }}</span>
+        {% else %}
+          <span>{{ t("items.all_items") }}</span>
+        {% endif %}
+      </a>
+    {% else %}
+      <p class="muted">{{ t("quick.no_saved_views") }}</p>
     {% endfor %}
   </div>
 </section>

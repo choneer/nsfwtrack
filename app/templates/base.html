@@ -124,6 +124,39 @@
       gap: 14px;
       grid-template-columns: repeat(auto-fill, minmax(min(100%, 230px), 1fr));
     }
+    .quick-actions {
+      display: grid;
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+    .quick-actions h2,
+    .quick-actions p {
+      margin-bottom: 0;
+    }
+    .quick-action-grid {
+      display: grid;
+      gap: 10px;
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr));
+    }
+    .quick-action {
+      color: var(--text);
+      display: grid;
+      gap: 4px;
+      min-height: 84px;
+      text-decoration: none;
+    }
+    .quick-action:hover {
+      border-color: #b7ddd8;
+      text-decoration: none;
+    }
+    .quick-action strong {
+      color: var(--accent-strong);
+      line-height: 1.25;
+    }
+    .quick-action span {
+      color: var(--muted);
+      font-size: 13px;
+    }
     .grid > *, .item-grid > *, .detail-layout > *, .detail-overview > * { min-width: 0; }
     .cover {
       align-items: center;
@@ -698,7 +731,7 @@
       h1 { font-size: 24px; }
       h2 { font-size: 18px; }
       .card { padding: 14px; }
-      .grid, .item-grid, .form-grid, .bulk-controls, .metric-grid {
+      .grid, .item-grid, .form-grid, .bulk-controls, .metric-grid, .quick-action-grid {
         grid-template-columns: 1fr;
       }
       .activity-bars {

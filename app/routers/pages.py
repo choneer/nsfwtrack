@@ -259,6 +259,7 @@ def index_page(request: Request, db: Session = Depends(get_db)) -> HTMLResponse:
             recent_items=recent_items,
             recent_viewed=list_recently_viewed(db, limit=4),
             recent_edited=list_recently_edited(db, limit=4),
+            saved_views=list_saved_views(db)[:4],
             totals=totals,
         ),
     )

@@ -4,12 +4,43 @@
 <div class="toolbar">
   <h1>{{ t("items.title") }}</h1>
   <div class="actions">
-    <a class="button secondary" href="/activity#recent-views">{{ t("activity.recent_views") }}</a>
-    <a class="button secondary" href="/activity#recent-edits">{{ t("activity.recent_edits") }}</a>
-    <a class="button secondary" href="/duplicates">{{ t("duplicates.find_duplicates") }}</a>
     <a class="button" href="/items/new">{{ t("items.new") }}</a>
   </div>
 </div>
+<section class="quick-actions" id="item-list-quick-actions" aria-labelledby="item-list-quick-actions-title">
+  <div class="toolbar">
+    <div>
+      <h2 id="item-list-quick-actions-title">{{ t("quick.quick_actions") }}</h2>
+      <p class="muted">{{ t("quick.common_entries") }}</p>
+    </div>
+  </div>
+  <div class="quick-action-grid">
+    <a class="card quick-action" href="/items/new">
+      <strong>{{ t("quick.add_item") }}</strong>
+    </a>
+    <a class="card quick-action" href="#saved-views">
+      <strong>{{ t("quick.save_current_view") }}</strong>
+    </a>
+    <a class="card quick-action" href="#saved-views">
+      <strong>{{ t("quick.saved_views") }}</strong>
+    </a>
+    <a class="card quick-action" href="/activity">
+      <strong>{{ t("quick.activity") }}</strong>
+    </a>
+    <a class="card quick-action" href="/duplicates">
+      <strong>{{ t("quick.duplicates") }}</strong>
+    </a>
+    <a class="card quick-action" href="/cleanup">
+      <strong>{{ t("quick.cleanup") }}</strong>
+    </a>
+    <a class="card quick-action" href="/import">
+      <strong>{{ t("quick.import_data") }}</strong>
+    </a>
+    <a class="card quick-action" href="/backup">
+      <strong>{{ t("quick.backup_data") }}</strong>
+    </a>
+  </div>
+</section>
 <form class="card form-grid filter-panel" method="get" action="/items">
   <div class="filter-heading">{{ t("items.advanced_filters") }}</div>
   <input type="hidden" name="page" value="1">
@@ -125,7 +156,7 @@
   <span class="pill">{{ t("items.page_size") }}: {{ filters.page_size }}</span>
 </div>
 
-<section class="card saved-views-panel">
+<section class="card saved-views-panel" id="saved-views">
   <div class="saved-views-heading">
     <div>
       <h2>{{ t("saved_views.title") }}</h2>

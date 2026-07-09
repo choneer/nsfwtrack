@@ -4,13 +4,41 @@ NSFWTrack is a local single-user content record manager / collection tracker.
 
 Current release: `v0.5.0 / Phase 2-D data cleanup and manual merge`.
 
-Current development: `Phase 2-E2 recent views and recent edits`.
+Current development: `Phase 2-E3 quick actions and workbench`.
 
 NSFWTrack remains intentionally local-only. It is designed for manual records,
 local SQLite persistence, LAN deployment, and simple personal collection
 management.
 
-## Current Development: Phase 2-E2 Recent Activity
+## Current Development: Phase 2-E3 Quick Actions And Workbench
+
+Phase 2-E3 organizes local navigation entry points on the dashboard and item
+list:
+
+- The dashboard now includes a workbench quick action grid for creating an
+  item, opening the item list, saved views, recent activity, stats,
+  collections, duplicate item detection, metadata cleanup, import, and backup.
+- The dashboard shows a small saved views panel so local saved filters can be
+  opened from the workbench without saving or updating anything automatically.
+- Recent views and recent edits remain visible from the dashboard with links to
+  the full recent activity page.
+- The item list now has a quick action section for creating items, jumping to
+  saved views / save-current-view controls, recent activity, duplicate
+  detection, metadata cleanup, import, and backup.
+- Quick action entries are navigation links only. They do not delete, merge,
+  clear activity, restore backups, or run any dangerous action directly.
+- Existing login protection, POST-only mutations, browser confirmation prompts,
+  saved views, filters, sorting, pagination, and current-page bulk editing are
+  preserved.
+- The quick action layout uses existing Jinja2 templates and CSS, remains
+  mobile-friendly, and adds no front-end framework or build step.
+
+Phase 2-E3 does not add database tables, change existing database fields, add
+dependencies, external content sources, URL import, crawlers, adapters, AI
+recommendations, smart analysis, automatic classification, cloud sync,
+multi-user sharing, third-party analytics, or activity trend charts.
+
+## Completed Development: Phase 2-E2 Recent Activity
 
 Phase 2-E2 adds local recent activity for item records:
 
