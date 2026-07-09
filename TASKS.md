@@ -332,3 +332,32 @@
 - [x] 确认本轮未新增数据库表、未修改已有数据库字段、未新增依赖
 - [x] 确认本轮未接入外部内容源、URL 导入、爬虫、adapter、AI 去重、图片相似度、自动批量合并、推荐系统、云同步或多用户系统
 - [x] 确认本轮未修改 `v0.1.0`、`v0.2.0`、`v0.3.0` 或 `v0.4.0` tag，未创建 GitHub Release
+
+## Phase 2-D2 标签 / 创作者 / 合集清理与合并
+
+- [x] 新增本地元数据清理 service，基于本地 SQLite tags、creators、collections 生成候选组
+- [x] 支持名称完全匹配检测，忽略首尾空格，不修改数据库原始名称
+- [x] 支持名称归一化匹配检测，使用 Unicode NFKC、首尾 trim、casefold 和连续空白折叠
+- [x] 检测结果标明 `exact_name` 或 `normalized_name`
+- [x] 新增 `/cleanup` 候选列表页，要求登录且只读展示
+- [x] 候选列表展示元数据类型、匹配类型、匹配 key、对象名称、关联条目数量和对比入口
+- [x] 候选列表覆盖重复标签、重复创作者、重复合集和稳定空状态
+- [x] 新增 `/cleanup/compare` 元数据对比页，要求登录并校验非法 type、非法对象和相同对象
+- [x] 对比页展示 primary 保留对象、duplicate 将删除对象、名称、关联条目数量、关联条目预览和危险提示
+- [x] 合集对比页展示 primary / duplicate description、description 冲突提示和使用 duplicate description 覆盖选项
+- [x] 合并仅支持手动 POST 提交，不支持 GET 合并、自动合并、一键全部合并或批量自动合并
+- [x] 合并前显示危险提示、备份建议和浏览器二次确认
+- [x] 标签合并保留 primary tag，转移 duplicate tag 的 item_tags，跳过重复关联并删除 duplicate tag
+- [x] 创作者合并保留 primary creator，转移 duplicate creator 的 item_creators，跳过重复关联并删除 duplicate creator
+- [x] 合集合并保留 primary collection，转移 duplicate collection 的 item_collections，跳过重复关联并删除 duplicate collection
+- [x] 合集合并不会删除任何条目、标签或创作者
+- [x] primary description 为空且 duplicate description 非空时自动复制
+- [x] description 冲突默认保留 primary，只有用户显式选择时才覆盖
+- [x] 合并结果 flash 摘要展示合并类型、保留对象、删除对象、转移关联数、跳过重复关联数、description 处理、duplicate 删除状态和重新查看清理页建议
+- [x] 登录后导航、标签页、创作者页和合集页加入元数据清理入口
+- [x] 新增元数据清理 / 合并相关中文 / English 文案，并保持 i18n key 覆盖一致
+- [x] 补充元数据清理登录保护、空状态、候选检测、对比校验、POST-only 合并、关系转移、重复关系跳过、删除 duplicate、保留条目、description 冲突和中英文文案测试
+- [x] 更新 README / TASKS / REVIEW / CHANGELOG，记录 Phase 2-D2 未发布改动
+- [x] 确认本轮未新增数据库表、未修改已有数据库字段、未新增依赖
+- [x] 确认本轮未接入外部内容源、URL 导入、爬虫、adapter、AI 同义词识别、自动批量合并、推荐系统、云同步或多用户系统
+- [x] 确认本轮未修改 `v0.1.0`、`v0.2.0`、`v0.3.0` 或 `v0.4.0` tag，未创建 GitHub Release

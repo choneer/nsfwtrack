@@ -1,7 +1,12 @@
 {% extends "base.html" %}
 {% block title %}{{ t("creators.title") }} - NSFWTrack{% endblock %}
 {% block content %}
-<h1>{{ t("creators.title") }}</h1>
+<div class="toolbar">
+  <div>
+    <h1>{{ t("creators.title") }}</h1>
+  </div>
+  <a class="button secondary" href="/cleanup">{{ t("cleanup.title") }}</a>
+</div>
 <form class="card form-grid" action="/creators" method="post">
   <label>{{ t("common.name") }}
     <input name="name" required>

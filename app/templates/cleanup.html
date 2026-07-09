@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block title %}{{ t("cleanup.title") }} - NSFWTrack{% endblock %}
+{% block content %}
+<div class="toolbar">
+  <div>
+    <p class="muted">{{ t("cleanup.local_only") }}</p>
+    <h1>{{ t("cleanup.title") }}</h1>
+  </div>
+  <div class="actions">
+    <a class="button secondary" href="/tags">{{ t("nav.tags") }}</a>
+    <a class="button secondary" href="/creators">{{ t("nav.creators") }}</a>
+    <a class="button secondary" href="/collections">{{ t("nav.collections") }}</a>
+  </div>
+</div>
+
+<section class="notice">
+  <strong>{{ t("cleanup.readonly_notice") }}</strong>
+  <p>{{ t("cleanup.no_auto_merge") }}</p>
+</section>
+
+{% if has_candidates %}
+  <div class="candidate-list">
+    {% for section in candidate_sections %}
+      <section class="card stack">
+        <div class="toolbar">
+          <div>
+            <p class="muted">{{ t("cleanup.metadata_type") }}</p>
+            <h2>{{ t("cleanup." ~ section.metadata_type ~ "_candidates") }}</h2>
+          </div>
+          <span class="pill">{{ t("cleanup.group_count", count=section.groups|length) }}</span>
+        </div>
+
+        {% if section.groups %}
+          {% for group in section.groups %}
+            {% set primary = group.objects[0] %}
+            <section class="cleanup-group">
+              <div class="metric-grid compact-metrics">
+                <div class="metric">
+                  <strong>{{ t("cleanup." ~ group.match_type) }}</strong>
+                  <span>{{ t("cleanup.match_type") }}</span>
+                </div>
+                <div class="metric">
+                  <strong>{{ group.objects|length }}</strong>
+                  <span>{{ t("common.count") }}</span>
+                </div>
+              </div>
+              <div class="detail-field">
+                <span class="muted">{{ t("cleanup.match_key") }}</span>
+                <code>{{ group.match_key }}</code>
+              </div>
+              <div class="candidate-items">
+                {% for metadata_object in group.objects %}
+                  <div class="candidate-row">
+                    <div class="stack">
+                      <strong>{{ metadata_object.name }}</strong>
+                      <div class="tag-row">
+                        <span class="pill">{{ t("cleanup.item_relation_count", count=metadata_object.items|length) }}</span>
+                        {% if metadata_object.id == primary.id %}
+                          <span class="pill">{{ t("cleanup.default_primary") }}</span>
+                        {% endif %}
+                      </div>
+                    </div>
+                    {% if metadata_object.id != primary.id %}
+                      <a
+                        class="button secondary"
+                        href="/cleanup/compare?type={{ section.metadata_type }}&primary_id={{ primary.id }}&duplicate_id={{ metadata_object.id }}"
+                      >{{ t("cleanup.compare") }}</a>
+                    {% else %}
+                      <span class="pill">{{ t("cleanup.keep_object") }}</span>
+                    {% endif %}
+                  </div>
+                {% endfor %}
+              </div>
+            </section>
+          {% endfor %}
+        {% else %}
+          <p class="muted">{{ t("cleanup.section_empty") }}</p>
+        {% endif %}
+      </section>
+    {% endfor %}
+  </div>
+{% else %}
+  <section class="card empty-state">
+    <h2>{{ t("cleanup.empty_title") }}</h2>
+    <p class="muted">{{ t("cleanup.empty_body") }}</p>
+  </section>
+{% endif %}
+{% endblock %}

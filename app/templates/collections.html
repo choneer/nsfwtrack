@@ -6,7 +6,10 @@
     <h1>{{ t("collections.list_title") }}</h1>
     <p class="muted">{{ t("collections.delete_hint") }}</p>
   </div>
-  <a class="button" href="/collections/new">{{ t("collections.new") }}</a>
+  <div class="actions">
+    <a class="button secondary" href="/cleanup">{{ t("cleanup.title") }}</a>
+    <a class="button" href="/collections/new">{{ t("collections.new") }}</a>
+  </div>
 </div>
 
 {% if collection_rows %}

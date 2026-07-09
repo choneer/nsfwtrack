@@ -4,7 +4,17 @@ import json
 from typing import Any
 from urllib.parse import quote
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    Form,
+    HTTPException,
+    Query,
+    Request,
+    UploadFile,
+    status,
+)
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import func, select
@@ -82,6 +92,12 @@ from app.services.item_query import (
     build_item_list_url,
     list_item_filter_options,
     query_items,
+)
+from app.services.metadata_cleanup import (
+    MetadataCleanupError,
+    find_metadata_cleanup_candidates,
+    get_metadata_comparison,
+    merge_metadata_objects,
 )
 from app.services.stats import build_stats_dashboard
 
@@ -247,6 +263,14 @@ def _duplicate_action_label(request: Request, action: str) -> str:
     return translate(get_language(request), f"duplicates.action_{action}")
 
 
+def _cleanup_type_label(request: Request, metadata_type: str) -> str:
+    return translate(get_language(request), f"cleanup.type_{metadata_type}")
+
+
+def _cleanup_action_label(request: Request, action: str) -> str:
+    return translate(get_language(request), f"cleanup.action_{action}")
+
+
 @router.get("/items", response_class=HTMLResponse, dependencies=[Depends(require_page_auth)])
 def items_page(
     request: Request,
@@ -374,6 +398,97 @@ def duplicate_merge_page(
         duplicate_deleted=translate(get_language(request), "duplicates.deleted_yes"),
     )
     return _redirect(f"/items/{result.primary_id}")
+
+
+@router.get(
+    "/cleanup",
+    response_class=HTMLResponse,
+    dependencies=[Depends(require_page_auth)],
+)
+def cleanup_page(request: Request, db: Session = Depends(get_db)) -> HTMLResponse:
+    sections = find_metadata_cleanup_candidates(db)
+    return templates.TemplateResponse(
+        request,
+        "cleanup.html",
+        _base_context(
+            request,
+            candidate_sections=sections,
+            has_candidates=any(section.groups for section in sections),
+        ),
+    )
+
+
+@router.get(
+    "/cleanup/compare",
+    response_class=HTMLResponse,
+    dependencies=[Depends(require_page_auth)],
+)
+def cleanup_compare_page(
+    request: Request,
+    cleanup_type: str | None = Query(default=None, alias="type"),
+    primary_id: str | None = None,
+    duplicate_id: str | None = None,
+    db: Session = Depends(get_db),
+) -> Response:
+    try:
+        comparison = get_metadata_comparison(
+            db,
+            metadata_type=cleanup_type,
+            primary_id=primary_id,
+            duplicate_id=duplicate_id,
+        )
+    except MetadataCleanupError as exc:
+        add_flash(request, "error", f"flash.cleanup_{exc.code}")
+        return _redirect("/cleanup")
+    return templates.TemplateResponse(
+        request,
+        "cleanup_compare.html",
+        _base_context(request, comparison=comparison),
+    )
+
+
+@router.post("/cleanup/merge", dependencies=[Depends(require_page_auth)])
+def cleanup_merge_page(
+    request: Request,
+    cleanup_type: str = Form(..., alias="type"),
+    primary_id: str = Form(...),
+    duplicate_id: str = Form(...),
+    use_duplicate_description: str | None = Form(default=None),
+    db: Session = Depends(get_db),
+) -> RedirectResponse:
+    try:
+        result = merge_metadata_objects(
+            db,
+            metadata_type=cleanup_type,
+            primary_id=primary_id,
+            duplicate_id=duplicate_id,
+            use_duplicate_description=bool(use_duplicate_description),
+        )
+    except MetadataCleanupError as exc:
+        add_flash(request, "error", f"flash.cleanup_{exc.code}")
+        return _redirect("/cleanup")
+
+    add_flash(
+        request,
+        "success",
+        "flash.cleanup_merge_success",
+        metadata_type=_cleanup_type_label(request, result.metadata_type),
+        duplicate_name=result.duplicate_name,
+        primary_name=result.primary_name,
+    )
+    add_flash(
+        request,
+        "info",
+        "flash.cleanup_merge_result",
+        metadata_type=_cleanup_type_label(request, result.metadata_type),
+        primary_name=result.primary_name,
+        duplicate_name=result.duplicate_name,
+        transferred=result.transferred_relations,
+        skipped=result.skipped_relations,
+        description=_cleanup_action_label(request, result.description_action),
+        duplicate_deleted=translate(get_language(request), "cleanup.deleted_yes"),
+    )
+    return _redirect("/cleanup")
 
 
 @router.post("/items/bulk", dependencies=[Depends(require_page_auth)])

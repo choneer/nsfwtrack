@@ -4,6 +4,32 @@
 
 ### Added
 
+- Added Phase 2-D2 local metadata cleanup for tags, creators, and collections
+  using exact trimmed name matches and normalized name matches with Unicode
+  NFKC, trimming, casefolding, and whitespace collapsing.
+- Added a login-protected `/cleanup` page showing read-only duplicate metadata
+  candidate groups, match type, match key, object names, and related item
+  counts across tags, creators, and collections.
+- Added a login-protected `/cleanup/compare` page for manually comparing a
+  primary metadata object and a duplicate metadata object before merge.
+- Added manual metadata merge handling that keeps the primary tag / creator /
+  collection, transfers related item links without duplicating relations,
+  deletes the duplicate metadata object after confirmation, and never deletes
+  items.
+- Added collection description conflict handling: copy duplicate description
+  when primary is empty, keep primary by default when both differ, and overwrite
+  only when the user explicitly chooses the duplicate description.
+- Added merge result flash summaries covering metadata type, kept object,
+  deleted object, transferred relations, skipped duplicate relations,
+  description handling, duplicate deletion, and a prompt to recheck cleanup.
+- Added navigation, tag page, creator page, and collection page entry points for
+  metadata cleanup.
+- Added Chinese / English metadata cleanup and merge UI text.
+- Added tests for cleanup login protection, empty states, tag / creator /
+  collection exact and normalized candidate detection, comparison validation,
+  POST-only merge, relation transfer, duplicate relation skipping, duplicate
+  metadata deletion, item preservation, collection description copy / keep /
+  overwrite handling, merge summaries, and i18n labels.
 - Added Phase 2-D1 local duplicate candidate detection using exact trimmed title
   matches and normalized title matches with Unicode NFKC, trimming, casefolding,
   and whitespace collapsing.
@@ -29,6 +55,11 @@
 
 ### Changed
 
+- Kept Phase 2-D2 limited to local SQLite metadata duplicate detection and
+  manual merge, with no AI synonym detection, fuzzy matching dependency,
+  automatic bulk merge, external information lookup, external content source,
+  URL import, crawler, adapter, recommendation system, cloud sync, multi-user
+  system, database schema change, or new dependency.
 - Kept Phase 2-D1 limited to local SQLite duplicate detection and manual merge,
   with no AI dedupe, image similarity, fuzzy matching dependency, automatic
   bulk merge, external content source, URL import, crawler, adapter,

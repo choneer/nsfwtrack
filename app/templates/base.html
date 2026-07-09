@@ -546,6 +546,16 @@
       display: grid;
       gap: 16px;
     }
+    .cleanup-group {
+      border-top: 1px solid var(--line);
+      display: grid;
+      gap: 12px;
+      padding-top: 14px;
+    }
+    .cleanup-group:first-of-type {
+      border-top: 0;
+      padding-top: 0;
+    }
     .candidate-items {
       display: grid;
       gap: 10px;
@@ -706,6 +716,7 @@
         <a href="/creators">{{ t("nav.creators") }}</a>
         <a href="/collections">{{ t("nav.collections") }}</a>
         <a href="/duplicates">{{ t("nav.duplicates") }}</a>
+        <a href="/cleanup">{{ t("nav.cleanup") }}</a>
         <a href="/stats">{{ t("nav.stats") }}</a>
         <a href="/import">{{ t("nav.import") }}</a>
         <a href="/backup">{{ t("nav.backup") }}</a>

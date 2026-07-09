@@ -4,7 +4,8 @@ NSFWTrack is a local single-user content record manager / collection tracker.
 
 Current release: `v0.4.0 / Phase 2-C local collections and backup / import support`.
 
-Unreleased work: `Phase 2-D1 / local duplicate detection and manual merge`.
+Unreleased work: `Phase 2-D1 / local duplicate item detection` and
+`Phase 2-D2 / metadata cleanup and manual merge`.
 
 NSFWTrack remains intentionally local-only. It is designed for manual records,
 local SQLite persistence, LAN deployment, and simple personal collection
@@ -40,6 +41,38 @@ Phase 2-D1 is still local-only. It does not add external content sources, URL
 import, crawlers, adapters, AI dedupe, image similarity, automatic bulk merge,
 recommendation systems, cloud sync, multi-user support, database schema changes,
 or new dependencies.
+
+## Unreleased: Phase 2-D2 Metadata Cleanup
+
+Phase 2-D2 adds local duplicate metadata candidate detection and manual merge
+support for tags, creators, and collections:
+
+- `/cleanup` lists read-only duplicate metadata candidate groups for tags,
+  creators, and collections.
+- Exact name matching trims leading and trailing whitespace for detection only.
+- Normalized name matching uses Unicode NFKC, trimming, casefolding, and
+  whitespace collapsing for detection only.
+- Candidate groups show metadata type, match type, match key, object names, and
+  related item counts.
+- `/cleanup/compare` shows the primary object that will be kept and the
+  duplicate object that will be deleted after merge.
+- Manual merge keeps the primary tag / creator / collection and deletes the
+  duplicate object only after a POST submission and browser confirmation.
+- Related item links are transferred to the primary object without creating
+  duplicate relations and without deleting any items.
+- Collection description handling is conservative: duplicate description is
+  copied only when primary is empty, conflicts keep primary by default, and the
+  duplicate description overwrites primary only when explicitly selected.
+- Merge results summarize the metadata type, kept object, deleted object,
+  transferred relations, skipped duplicate relations, description handling, and
+  duplicate deletion.
+
+Before merging duplicate metadata, export a JSON backup from the Backup page.
+This first version only supports manual confirmed merges. It does not support
+automatic batch merging, merge-all actions, AI synonym detection, fuzzy
+matching, external information lookup, external content sources, URL import,
+crawlers, adapters, recommendation systems, cloud sync, multi-user support,
+database schema changes, or new dependencies.
 
 ## Features in v0.4.0
 
