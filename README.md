@@ -2,16 +2,26 @@
 
 NSFWTrack is a local single-user content record manager / collection tracker.
 
-Current release: `v0.4.0 / Phase 2-C local collections and backup / import support`.
-
-Unreleased work: `Phase 2-D1 / local duplicate item detection` and
-`Phase 2-D2 / metadata cleanup and manual merge`.
+Current release: `v0.5.0 / Phase 2-D data cleanup and manual merge`.
 
 NSFWTrack remains intentionally local-only. It is designed for manual records,
 local SQLite persistence, LAN deployment, and simple personal collection
 management.
 
-## Unreleased: Phase 2-D1 Duplicate Detection
+## Features in v0.5.0
+
+`v0.5.0` adds local Phase 2-D data cleanup and manual merge support on top of
+`v0.4.0`:
+
+- Phase 2-D1 duplicate item detection and manual merge.
+- Phase 2-D2 tag / creator / collection cleanup and manual merge.
+
+These features stay local-only. They do not add automatic merging, AI judgment,
+external content sources, URL import, crawlers, adapters, recommendation
+systems, cloud sync, multi-user support, new dependencies, or database schema
+changes. Export a JSON backup before merging duplicate items or metadata.
+
+### Phase 2-D1 Duplicate Detection
 
 Phase 2-D1 adds local duplicate candidate detection and manual merge support on
 top of `v0.4.0`:
@@ -42,7 +52,7 @@ import, crawlers, adapters, AI dedupe, image similarity, automatic bulk merge,
 recommendation systems, cloud sync, multi-user support, database schema changes,
 or new dependencies.
 
-## Unreleased: Phase 2-D2 Metadata Cleanup
+### Phase 2-D2 Metadata Cleanup
 
 Phase 2-D2 adds local duplicate metadata candidate detection and manual merge
 support for tags, creators, and collections:

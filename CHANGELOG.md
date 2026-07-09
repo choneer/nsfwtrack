@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+No changes yet.
+
+## v0.5.0 - 2026-07-09
+
 ### Added
 
 - Added Phase 2-D2 local metadata cleanup for tags, creators, and collections
