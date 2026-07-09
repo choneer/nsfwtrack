@@ -2,7 +2,7 @@
 
 NSFWTrack is a local single-user content record manager / collection tracker.
 
-Current status: `v0.3.0 release baseline + Unreleased Phase 2-C1 local collections`.
+Current status: `v0.3.0 release baseline + Unreleased Phase 2-C local collections and backup / import support`.
 
 NSFWTrack remains intentionally local-only. It is designed for manual records,
 local SQLite persistence, LAN deployment, and simple personal collection
@@ -35,6 +35,33 @@ organization scheme.
 Phase 2-C1 remains local-only. It does not add external content sources, URL
 import, crawlers, adapters, recommendation systems, AI assistants, cloud sync,
 multi-user support, new dependencies, or a front-end build flow.
+
+## Unreleased Phase 2-C2 Collection Backup And Import
+
+Unreleased Phase 2-C2 closes the local data loop for collections:
+
+- JSON backups include `collections` and `item_collections` alongside the
+  existing items, tags, creators, relations, and state records.
+- JSON backup preview reports collection counts, item-collection relation
+  counts, collections to create or merge, restorable collection links, skipped
+  collection links, and collection-related errors.
+- JSON restore merges collections and item-collection links. It does not delete
+  existing items, does not overwrite the database, and skips bad collection
+  links with a readable result summary.
+- Old JSON backups without `collections` or `item_collections` remain
+  compatible and restore as backups with no collection data.
+- CSV export includes a `collections` field. Multiple collection names are
+  separated with semicolons.
+- CSV import and JSON import support an optional `collections` field. CSV uses
+  semicolon-separated names, while JSON requires an array of strings.
+- Import preview and import results include collection creation, collection
+  link, skipped collection, and collections field error counts.
+- Old CSV / JSON import files without a `collections` field remain compatible.
+
+Collections in import files are still local user-provided data from uploaded
+files. Phase 2-C2 does not add URL import, external content sources, crawlers,
+adapters, recommendation systems, AI assistants, cloud sync, multi-user
+support, new dependencies, or database schema changes.
 
 ## Features in v0.3.0
 
@@ -325,25 +352,27 @@ Available local-only actions:
 The CSV template uses these headers:
 
 ```text
-title,summary,status,rating,note,tags,creators,extra
+title,summary,status,rating,note,tags,creators,collections,extra
 ```
 
 The JSON template uses an `items` array with the same field names. Field names
 are not translated. `title` is required. `status` must be one of the internal
 values `wish`, `watching`, `watched`, `like`, `dislike`, or `ignore`.
-`rating` must be `1` to `5`. `tags` and `creators` are created or linked using
-the current local import logic.
+`rating` must be `1` to `5`. `tags`, `creators`, and `collections` are created
+or linked using the current local import logic.
 
 CSV preview includes a field mapping table. If a source CSV has custom column
 names, choose which source column maps to `title`, `summary`, `status`,
-`rating`, `note`, `tags`, `creators`, or `extra`; columns can also be ignored.
-The mapping is used only for the current import and is not saved.
+`rating`, `note`, `tags`, `creators`, `collections`, or `extra`; columns can
+also be ignored. The mapping is used only for the current import and is not
+saved.
 
 Preview does not write to the database. It shows total rows, importable rows,
-error rows, tags and creators that would be created, the first five recognized
-rows, and error rows with row number, reason, and brief source content. If some
-rows are invalid, confirmation imports only valid rows and reports the skipped
-rows. If every row is invalid, confirmation is disabled.
+error rows, tags / creators / collections that would be created, collection
+links that would be created, the first five recognized rows, and error rows
+with row number, reason, and brief source content. If some rows are invalid,
+confirmation imports only valid rows and reports the skipped rows. If every row
+is invalid, confirmation is disabled.
 
 Import only accepts uploaded local files. NSFWTrack does not import from URLs,
 external data sources, crawlers, adapters, cloud sync, or remote fetchers.
@@ -360,9 +389,11 @@ Available local-only actions:
 - Restore a JSON backup exported by NSFWTrack: upload the file on `/backup`, or
   use `POST /api/backup/restore/json`
 
-JSON backups include `items`, `tags`, `creators`, `item_tags`,
-`item_creators`, and `user_item_states`. Restore uses an append / merge strategy;
-it is not an overwrite restore and does not clear the current database.
+JSON backups include `items`, `tags`, `creators`, `collections`, `item_tags`,
+`item_creators`, `item_collections`, and `user_item_states`. Restore uses an
+append / merge strategy; it is not an overwrite restore and does not clear the
+current database. Collection restore merges by collection name and skips bad
+item-collection links without deleting existing items.
 
 Backup restore only accepts uploaded local JSON files exported by NSFWTrack. It
 never restores from a URL, cloud sync, or an external data source. Uploaded JSON

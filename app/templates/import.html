@@ -27,8 +27,12 @@
       <div class="metric"><strong>{{ result.skipped }}</strong><span>{{ t("import.skipped_count") }}</span></div>
       <div class="metric"><strong>{{ result.created_tags }}</strong><span>{{ t("import.created_tags") }}</span></div>
       <div class="metric"><strong>{{ result.created_creators }}</strong><span>{{ t("import.created_creators") }}</span></div>
+      <div class="metric"><strong>{{ result.created_collections }}</strong><span>{{ t("import.created_collections") }}</span></div>
       <div class="metric"><strong>{{ result.linked_tags }}</strong><span>{{ t("import.linked_tags") }}</span></div>
       <div class="metric"><strong>{{ result.linked_creators }}</strong><span>{{ t("import.linked_creators") }}</span></div>
+      <div class="metric"><strong>{{ result.linked_collections }}</strong><span>{{ t("import.linked_collections") }}</span></div>
+      <div class="metric"><strong>{{ result.skipped_collections }}</strong><span>{{ t("import.skipped_collections") }}</span></div>
+      <div class="metric"><strong>{{ result.collections_errors }}</strong><span>{{ t("import.collections_errors") }}</span></div>
       <div class="metric"><strong>{{ result.state_records }}</strong><span>{{ t("import.state_records") }}</span></div>
       <div class="metric"><strong>{{ result.error_rows }}</strong><span>{{ t("import.error_count") }}</span></div>
     </div>
@@ -133,6 +137,9 @@
       <div class="metric"><strong>{{ preview.summary.error_rows }}</strong><span>{{ t("import.error_count") }}</span></div>
       <div class="metric"><strong>{{ preview.summary.new_tags }}</strong><span>{{ t("import.new_tags") }}</span></div>
       <div class="metric"><strong>{{ preview.summary.new_creators }}</strong><span>{{ t("import.new_creators") }}</span></div>
+      <div class="metric"><strong>{{ preview.summary.new_collections }}</strong><span>{{ t("import.new_collections") }}</span></div>
+      <div class="metric"><strong>{{ preview.summary.collection_links }}</strong><span>{{ t("import.collection_links") }}</span></div>
+      <div class="metric"><strong>{{ preview.summary.collections_errors }}</strong><span>{{ t("import.collections_errors") }}</span></div>
     </div>
 
     <form class="stack" action="/import/confirm" method="post">
@@ -203,7 +210,7 @@
                   <tr>
                     {% for field in import_fields %}
                       <td>
-                        {% if field in ["tags", "creators"] %}
+                        {% if field in ["tags", "creators", "collections"] %}
                           {{ row.get(field, []) | join("; ") }}
                         {% elif field == "extra" and row.get(field) %}
                           <code>{{ row.get(field) }}</code>

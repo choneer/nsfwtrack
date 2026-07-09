@@ -12,7 +12,17 @@ from app import models
 from app.services.catalog import serialize_extra, split_names
 from app.services.item_query import STATUS_OPTIONS
 
-IMPORT_FIELDS = ["title", "summary", "status", "rating", "note", "tags", "creators", "extra"]
+IMPORT_FIELDS = [
+    "title",
+    "summary",
+    "status",
+    "rating",
+    "note",
+    "tags",
+    "creators",
+    "collections",
+    "extra",
+]
 CSV_TEMPLATE_FILENAME = "nsfwtrack-import-template.csv"
 JSON_TEMPLATE_FILENAME = "nsfwtrack-import-template.json"
 IGNORE_FIELD = "ignore"
@@ -45,6 +55,7 @@ def csv_template_content() -> str:
             "note": "Example note",
             "tags": "example;local",
             "creators": "Example creator",
+            "collections": "Example collection",
             "extra": json.dumps({"source": "manual"}, ensure_ascii=False),
         }
     )
@@ -57,6 +68,7 @@ def csv_template_content() -> str:
             "note": "",
             "tags": "local",
             "creators": "",
+            "collections": "",
             "extra": "",
         }
     )
@@ -75,6 +87,7 @@ def json_template_content() -> str:
                     "note": "Example note",
                     "tags": ["example", "local"],
                     "creators": ["Example creator"],
+                    "collections": ["Example collection"],
                     "extra": {"source": "manual"},
                 },
                 {
@@ -85,6 +98,7 @@ def json_template_content() -> str:
                     "note": "",
                     "tags": ["local"],
                     "creators": [],
+                    "collections": [],
                     "extra": {},
                 },
             ]
@@ -101,6 +115,9 @@ def _blank_summary(total_rows: int = 0) -> dict[str, int]:
         "error_rows": 0,
         "new_tags": 0,
         "new_creators": 0,
+        "new_collections": 0,
+        "collection_links": 0,
+        "collections_errors": 0,
     }
 
 
@@ -253,6 +270,19 @@ def _normalize_extra(value: Any) -> dict[str, Any] | None:
     raise ImportDataError("invalid_extra_json")
 
 
+def _normalize_collections(value: Any, source_type: str) -> list[str]:
+    if source_type == "json":
+        if value is None:
+            return []
+        if not isinstance(value, list):
+            raise ImportDataError("collections_not_array")
+        for entry in value:
+            if not isinstance(entry, str):
+                raise ImportDataError("collections_non_string")
+        return split_names(value)
+    return split_names(value)
+
+
 def _normalize_row(row: dict[str, Any], row_number: int, source_type: str) -> dict[str, Any]:
     title = str(row.get("title") or "").strip()
     if not title:
@@ -272,12 +302,16 @@ def _normalize_row(row: dict[str, Any], row_number: int, source_type: str) -> di
         "note": (str(row.get("note", row.get("review", "")) or "").strip() or None),
         "tags": split_names(row.get("tags")),
         "creators": split_names(row.get("creators")),
+        "collections": _normalize_collections(row.get("collections"), source_type),
         "extra": _normalize_extra(row.get("extra")),
     }
     return normalized
 
 
-def _existing_names(db: Session, model: type[models.Tag] | type[models.Creator]) -> set[str]:
+def _existing_names(
+    db: Session,
+    model: type[models.Tag] | type[models.Creator] | type[models.Collection],
+) -> set[str]:
     rows = db.scalars(select(model.name)).all()
     return {name.casefold() for name in rows}
 
@@ -289,6 +323,7 @@ def _summary_for_rows(
 ) -> dict[str, int]:
     existing_tags = _existing_names(db, models.Tag)
     existing_creators = _existing_names(db, models.Creator)
+    existing_collections = _existing_names(db, models.Collection)
     tag_names = {
         name.casefold()
         for row in rows
@@ -301,12 +336,24 @@ def _summary_for_rows(
         for name in row["creators"]
         if name.casefold() not in existing_creators
     }
+    collection_names = {
+        name.casefold()
+        for row in rows
+        for name in row["collections"]
+        if name.casefold() not in existing_collections
+    }
+    collection_error_codes = {"collections_not_array", "collections_non_string"}
     return {
         "total_rows": len(rows) + len([error for error in errors if error.get("row")]),
         "valid_rows": len(rows),
         "error_rows": len(errors),
         "new_tags": len(tag_names),
         "new_creators": len(creator_names),
+        "new_collections": len(collection_names),
+        "collection_links": sum(len(row["collections"]) for row in rows),
+        "collections_errors": len(
+            [error for error in errors if error.get("code") in collection_error_codes]
+        ),
     }
 
 
@@ -332,6 +379,9 @@ def _preview_from_rows(
         summary["error_rows"] = len(row_errors)
         summary["new_tags"] = 0
         summary["new_creators"] = 0
+        summary["new_collections"] = 0
+        summary["collection_links"] = 0
+        summary["collections_errors"] = 0
 
     return {
         "source_type": source_type,
@@ -437,6 +487,24 @@ def _get_or_create_creator(db: Session, name: str, result: ImportResult) -> mode
     return creator
 
 
+def _get_or_create_collection(
+    db: Session,
+    name: str,
+    result: ImportResult,
+) -> models.Collection:
+    cleaned = name.strip()
+    collection = db.scalar(
+        select(models.Collection).where(func.lower(models.Collection.name) == cleaned.lower())
+    )
+    if collection is not None:
+        return collection
+    collection = models.Collection(name=cleaned)
+    db.add(collection)
+    db.flush()
+    result["created_collections"] += 1
+    return collection
+
+
 def import_valid_rows(
     db: Session,
     valid_rows: list[dict[str, Any]],
@@ -449,6 +517,16 @@ def import_valid_rows(
         created_creators=0,
         linked_tags=0,
         linked_creators=0,
+        created_collections=0,
+        linked_collections=0,
+        skipped_collections=0,
+        collections_errors=len(
+            [
+                error
+                for error in errors or []
+                if error.get("code") in {"collections_not_array", "collections_non_string"}
+            ]
+        ),
         state_records=0,
         error_rows=len(errors or []),
         errors=list(errors or []),
@@ -470,10 +548,16 @@ def import_valid_rows(
             creators = [
                 _get_or_create_creator(db, name, result) for name in row["creators"]
             ]
+            collections = [
+                _get_or_create_collection(db, name, result)
+                for name in row["collections"]
+            ]
             item.tags = tags
             item.creators = creators
+            item.collections = collections
             result["linked_tags"] += len(tags)
             result["linked_creators"] += len(creators)
+            result["linked_collections"] += len(collections)
 
             if row["status"]:
                 state = models.UserItemState(
@@ -496,6 +580,10 @@ def import_valid_rows(
             created_creators=0,
             linked_tags=0,
             linked_creators=0,
+            created_collections=0,
+            linked_collections=0,
+            skipped_collections=0,
+            collections_errors=len(valid_rows) + len(errors or []),
             state_records=0,
             error_rows=len(valid_rows) + len(errors or []),
             errors=[*(errors or []), _error(None, "import_failed")],

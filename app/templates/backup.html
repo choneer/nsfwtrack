@@ -11,13 +11,26 @@
 <section class="card stack">
   <p>{{ t("backup.merge_notice") }}</p>
   <p>{{ t("backup.support_notice") }}</p>
+  <p>{{ t("backup.collections_notice") }}</p>
+  <p>{{ t("backup.collections_restore_notice") }}</p>
   <p>{{ t("backup.local_only_notice") }}</p>
   <p class="muted">{{ t("backup.size_limit", size=max_backup_upload_mb) }}</p>
 </section>
 
 {% if preview_result %}
-  <section class="flash success">
-    {{ t("backup.preview_success", schema=preview_result.schema, items=preview_result["items"], tags=preview_result.tags, creators=preview_result.creators, item_tags=preview_result.item_tags, item_creators=preview_result.item_creators, user_item_states=preview_result.user_item_states) }}
+  <section class="card stack">
+    <div class="flash success">
+      {{ t("backup.preview_success", schema=preview_result.schema, items=preview_result["items"], tags=preview_result.tags, creators=preview_result.creators, item_tags=preview_result.item_tags, item_creators=preview_result.item_creators, user_item_states=preview_result.user_item_states, collections=preview_result.collections, item_collections=preview_result.item_collections) }}
+    </div>
+    <div class="metric-grid">
+      <div class="metric"><strong>{{ preview_result.collections }}</strong><span>{{ t("backup.collections_count") }}</span></div>
+      <div class="metric"><strong>{{ preview_result.item_collections }}</strong><span>{{ t("backup.item_collections_count") }}</span></div>
+      <div class="metric"><strong>{{ preview_result.collections_to_create }}</strong><span>{{ t("backup.collections_to_create") }}</span></div>
+      <div class="metric"><strong>{{ preview_result.collections_to_merge }}</strong><span>{{ t("backup.collections_to_merge") }}</span></div>
+      <div class="metric"><strong>{{ preview_result.item_collections_restorable }}</strong><span>{{ t("backup.item_collections_restorable") }}</span></div>
+      <div class="metric"><strong>{{ preview_result.item_collections_unrestorable }}</strong><span>{{ t("backup.item_collections_unrestorable") }}</span></div>
+      <div class="metric"><strong>{{ preview_result.collection_errors }}</strong><span>{{ t("backup.collection_errors") }}</span></div>
+    </div>
   </section>
 {% endif %}
 {% if preview_error %}
@@ -26,8 +39,17 @@
   </section>
 {% endif %}
 {% if restore_result %}
-  <section class="flash success">
-    {{ t("backup.restore_success", created=restore_result.created, updated=restore_result.updated, skipped=restore_result.skipped) }}
+  <section class="card stack">
+    <div class="flash success">
+      {{ t("backup.restore_success", created=restore_result.created, updated=restore_result.updated, skipped=restore_result.skipped, collections_created=restore_result.collections_created, collections_skipped=restore_result.collections_skipped, item_collections_created=restore_result.item_collections_created, item_collections_skipped=restore_result.item_collections_skipped, collection_errors=restore_result.collection_errors) }}
+    </div>
+    <div class="metric-grid">
+      <div class="metric"><strong>{{ restore_result.collections_created }}</strong><span>{{ t("backup.collections_restored") }}</span></div>
+      <div class="metric"><strong>{{ restore_result.collections_skipped }}</strong><span>{{ t("backup.collections_skipped") }}</span></div>
+      <div class="metric"><strong>{{ restore_result.item_collections_created }}</strong><span>{{ t("backup.item_collections_restored") }}</span></div>
+      <div class="metric"><strong>{{ restore_result.item_collections_skipped }}</strong><span>{{ t("backup.item_collections_skipped") }}</span></div>
+      <div class="metric"><strong>{{ restore_result.collection_errors }}</strong><span>{{ t("backup.collection_errors") }}</span></div>
+    </div>
   </section>
 {% endif %}
 {% if restore_error %}
@@ -39,13 +61,13 @@
 <div class="grid">
   <section class="card stack">
     <h2>{{ t("backup.export_json") }}</h2>
-    <p class="muted">{{ t("backup.description") }}</p>
+    <p class="muted">{{ t("backup.export_json_hint") }}</p>
     <a class="button" href="/api/backup/export/json">{{ t("backup.export_json") }}</a>
   </section>
 
   <section class="card stack">
     <h2>{{ t("backup.export_csv") }}</h2>
-    <p class="muted">{{ t("backup.description") }}</p>
+    <p class="muted">{{ t("backup.export_csv_hint") }}</p>
     <a class="button" href="/api/backup/export/csv">{{ t("backup.export_csv") }}</a>
   </section>
 

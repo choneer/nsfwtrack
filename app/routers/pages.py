@@ -955,6 +955,7 @@ def _import_field_specs() -> list[dict[str, Any]]:
         {"name": "note", "required": False},
         {"name": "tags", "required": False},
         {"name": "creators", "required": False},
+        {"name": "collections", "required": False},
         {"name": "extra", "required": False},
     ]
 
@@ -1150,10 +1151,11 @@ def backup_page(request: Request) -> HTMLResponse:
 async def backup_preview_page(
     request: Request,
     file: UploadFile | None = File(default=None),
+    db: Session = Depends(get_db),
 ) -> HTMLResponse:
     try:
         payload = await _read_backup_upload_for_page(request, file)
-        return _backup_template(request, preview_result=preview_backup_data(payload))
+        return _backup_template(request, preview_result=preview_backup_data(payload, db))
     except BackupError as exc:
         return _backup_template(
             request,

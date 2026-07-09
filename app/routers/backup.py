@@ -99,10 +99,11 @@ def export_csv_endpoint(db: Session = Depends(get_db)) -> Response:
 async def preview_json_endpoint(
     request: Request,
     file: UploadFile | None = File(default=None),
+    db: Session = Depends(get_db),
 ) -> dict[str, object]:
     payload = await _read_backup_upload(request, file)
     try:
-        preview = preview_backup_data(payload)
+        preview = preview_backup_data(payload, db)
     except BackupError as exc:
         raise _handle_backup_error(request, exc) from exc
     return {"ok": True, "preview": preview}

@@ -6,6 +6,8 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.config import get_settings
+from app.database import SessionLocal
+from app.models import Collection, ItemCollection
 
 
 def _create_backup_item(client: TestClient) -> int:
@@ -26,6 +28,37 @@ def _create_backup_item(client: TestClient) -> int:
     )
     assert state_response.status_code == 201
     return item_id
+
+
+def _create_backup_collection(
+    client: TestClient,
+    item_id: int,
+    name: str = "Backup Collection",
+) -> int:
+    response = client.post(
+        "/collections",
+        data={"name": name, "description": "Local collection"},
+        follow_redirects=False,
+    )
+    assert response.status_code == 303
+    collection_id = int(response.headers["location"].rstrip("/").split("/")[-1])
+    add_response = client.post(
+        f"/collections/{collection_id}/items",
+        data={"item_id": str(item_id)},
+        follow_redirects=True,
+    )
+    assert add_response.status_code == 200
+    return collection_id
+
+
+def _collection_count() -> int:
+    with SessionLocal() as db:
+        return db.query(Collection).count()
+
+
+def _item_collection_count() -> int:
+    with SessionLocal() as db:
+        return db.query(ItemCollection).count()
 
 
 def test_backup_exports_require_login(client: TestClient) -> None:
@@ -57,12 +90,49 @@ def test_json_export_contains_core_tables(auth_client: TestClient) -> None:
         "items",
         "tags",
         "creators",
+        "collections",
         "item_tags",
         "item_creators",
+        "item_collections",
         "user_item_states",
     }
     assert payload["tables"]["items"][0]["title"] == "Backup Item"
     assert payload["tables"]["user_item_states"][0]["status"] == "watched"
+
+
+def test_json_backup_exports_and_previews_collection_tables(
+    auth_client: TestClient,
+) -> None:
+    item_id = _create_backup_item(auth_client)
+    collection_id = _create_backup_collection(auth_client, item_id)
+
+    payload = auth_client.get("/api/backup/export/json").json()
+
+    assert payload["tables"]["collections"][0]["name"] == "Backup Collection"
+    assert payload["tables"]["collections"][0]["description"] == "Local collection"
+    assert payload["tables"]["item_collections"] == [
+        {"item_id": item_id, "collection_id": collection_id}
+    ]
+
+    preview_response = auth_client.post(
+        "/api/backup/preview/json",
+        files={
+            "file": (
+                "backup.json",
+                json.dumps(payload).encode("utf-8"),
+                "application/json",
+            )
+        },
+    )
+
+    assert preview_response.status_code == 200
+    preview = preview_response.json()["preview"]
+    assert preview["collections"] == 1
+    assert preview["item_collections"] == 1
+    assert preview["collections_to_create"] == 0
+    assert preview["collections_to_merge"] == 1
+    assert preview["item_collections_restorable"] == 1
+    assert preview["item_collections_unrestorable"] == 0
 
 
 def test_csv_export_contains_readable_item_data(auth_client: TestClient) -> None:
@@ -77,7 +147,22 @@ def test_csv_export_contains_readable_item_data(auth_client: TestClient) -> None
     assert "Backup Item" in response.text
     assert "backup-tag" in response.text
     assert "Backup Creator" in response.text
+    assert "collections" in response.text.splitlines()[0]
     assert "watched" in response.text
+
+
+def test_csv_export_contains_semicolon_separated_collections(
+    auth_client: TestClient,
+) -> None:
+    item_id = _create_backup_item(auth_client)
+    _create_backup_collection(auth_client, item_id, "Watch Later")
+    _create_backup_collection(auth_client, item_id, "Favorites")
+
+    response = auth_client.get("/api/backup/export/csv")
+
+    assert response.status_code == 200
+    assert "collections" in response.text.splitlines()[0]
+    assert "Favorites;Watch Later" in response.text
 
 
 def test_json_backup_preview_succeeds_without_modifying_database(
@@ -110,7 +195,46 @@ def test_json_backup_preview_succeeds_without_modifying_database(
     assert preview["item_tags"] == 1
     assert preview["item_creators"] == 1
     assert preview["user_item_states"] == 1
+    assert preview["collections"] == 0
+    assert preview["item_collections"] == 0
     assert auth_client.get("/api/items").json()["total"] == 0
+
+
+def test_old_json_backup_without_collections_still_previews_and_restores(
+    auth_client: TestClient,
+) -> None:
+    _create_backup_item(auth_client)
+    backup_payload = auth_client.get("/api/backup/export/json").json()
+    backup_payload["tables"].pop("collections")
+    backup_payload["tables"].pop("item_collections")
+    item_id = backup_payload["tables"]["items"][0]["id"]
+    assert auth_client.delete(f"/api/items/{item_id}").status_code == 200
+
+    preview_response = auth_client.post(
+        "/api/backup/preview/json",
+        files={
+            "file": (
+                "backup.json",
+                json.dumps(backup_payload).encode("utf-8"),
+                "application/json",
+            )
+        },
+    )
+    restore_response = auth_client.post(
+        "/api/backup/restore/json",
+        files={
+            "file": (
+                "backup.json",
+                json.dumps(backup_payload).encode("utf-8"),
+                "application/json",
+            )
+        },
+    )
+
+    assert preview_response.status_code == 200
+    assert preview_response.json()["preview"]["collections"] == 0
+    assert restore_response.status_code == 200
+    assert auth_client.get("/api/items").json()["total"] == 1
 
 
 def test_backup_preview_rejects_missing_invalid_and_wrong_schema_files(
@@ -251,6 +375,74 @@ def test_json_backup_restore_merges_data(auth_client: TestClient) -> None:
     assert restored_item["state"]["status"] == "watched"
 
 
+def test_json_backup_restore_collections_deduplicates_and_skips_bad_links(
+    auth_client: TestClient,
+) -> None:
+    existing_id = _create_backup_item(auth_client)
+    payload = {
+        "schema": "nsfwtrack.backup.v1",
+        "exported_at": "2026-07-09T00:00:00+00:00",
+        "tables": {
+            "items": [{"id": 99, "title": "Restored Collection Item"}],
+            "tags": [],
+            "creators": [],
+            "collections": [
+                {"id": 1, "name": "Restored Collection", "description": "One"},
+                {"id": 2, "name": "Restored Collection", "description": "Duplicate"},
+                {"id": 3, "name": "   ", "description": "Bad"},
+            ],
+            "item_tags": [],
+            "item_creators": [],
+            "item_collections": [
+                {"item_id": 99, "collection_id": 1},
+                {"item_id": 99, "collection_id": 1},
+                {"item_id": 404, "collection_id": 1},
+                {"item_id": 99, "collection_id": 404},
+                {"item_id": "bad", "collection_id": 1},
+            ],
+            "user_item_states": [],
+        },
+    }
+
+    response = auth_client.post(
+        "/api/backup/restore/json",
+        files={
+            "file": (
+                "backup.json",
+                json.dumps(payload).encode("utf-8"),
+                "application/json",
+            )
+        },
+    )
+
+    assert response.status_code == 200
+    result = response.json()["result"]
+    assert result["collections_created"] == 1
+    assert result["collections_skipped"] == 2
+    assert result["item_collections_created"] == 1
+    assert result["item_collections_skipped"] == 4
+    assert result["collection_errors"] == 4
+    assert _collection_count() == 1
+    assert _item_collection_count() == 1
+    item_titles = [item["title"] for item in auth_client.get("/api/items").json()["items"]]
+    assert "Restored Collection Item" in item_titles
+    assert auth_client.get(f"/api/items/{existing_id}").status_code == 200
+
+    repeat_response = auth_client.post(
+        "/api/backup/restore/json",
+        files={
+            "file": (
+                "backup.json",
+                json.dumps(payload).encode("utf-8"),
+                "application/json",
+            )
+        },
+    )
+    assert repeat_response.status_code == 200
+    assert _collection_count() == 1
+    assert _item_collection_count() == 1
+
+
 def test_invalid_json_backup_does_not_modify_database(auth_client: TestClient) -> None:
     _create_backup_item(auth_client)
 
@@ -309,6 +501,8 @@ def test_backup_page_renders_chinese_and_english(auth_client: TestClient) -> Non
     assert "备份与恢复" in zh_response.text
     assert "导出 JSON 备份" in zh_response.text
     assert "合并恢复" in zh_response.text
+    assert "合集" in zh_response.text
+    assert "collections 字段" in zh_response.text
     assert "不支持 URL 导入" in zh_response.text
     assert "预览备份" in zh_response.text
 
@@ -320,6 +514,7 @@ def test_backup_page_renders_chinese_and_english(auth_client: TestClient) -> Non
     assert "Backup and Restore" in en_response.text
     assert "Export JSON Backup" in en_response.text
     assert "merge strategy" in en_response.text
+    assert "collections field" in en_response.text
     assert "URL import" in en_response.text
     assert "Preview Backup" in en_response.text
 

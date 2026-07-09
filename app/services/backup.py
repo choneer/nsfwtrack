@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from app import models
 from app.services.exporter import BACKUP_SCHEMA
 
-TABLE_NAMES = {
+CORE_TABLE_NAMES = {
     "items",
     "tags",
     "creators",
@@ -17,6 +17,8 @@ TABLE_NAMES = {
     "item_creators",
     "user_item_states",
 }
+OPTIONAL_TABLE_NAMES = {"collections", "item_collections"}
+TABLE_NAMES = CORE_TABLE_NAMES | OPTIONAL_TABLE_NAMES
 VALID_STATUSES = {"wish", "watching", "watched", "like", "dislike", "ignore"}
 
 
@@ -38,8 +40,15 @@ def _rows_from_payload(payload: dict[str, Any]) -> dict[str, list[dict[str, Any]
     if not isinstance(tables, dict):
         _raise("missing_tables")
     rows: dict[str, list[dict[str, Any]]] = {}
-    for table_name in TABLE_NAMES:
+    for table_name in CORE_TABLE_NAMES:
         table_rows = tables.get(table_name)
+        if not isinstance(table_rows, list):
+            _raise("invalid_table", table_name)
+        if not all(isinstance(row, dict) for row in table_rows):
+            _raise("invalid_rows", table_name)
+        rows[table_name] = table_rows
+    for table_name in OPTIONAL_TABLE_NAMES:
+        table_rows = tables.get(table_name, [])
         if not isinstance(table_rows, list):
             _raise("invalid_table", table_name)
         if not all(isinstance(row, dict) for row in table_rows):
@@ -71,7 +80,90 @@ def _validate_preview_rows(rows: dict[str, list[dict[str, Any]]]) -> None:
             _raise("invalid_rows", "user_item_states.status")
 
 
-def preview_backup_data(payload: dict[str, Any]) -> dict[str, int | str]:
+def _safe_int_or_none(value: Any) -> int | None:
+    try:
+        return _int_or_none(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _valid_collection_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return [row for row in rows if str(row.get("name", "")).strip()]
+
+
+def _preview_collection_counts(
+    rows: dict[str, list[dict[str, Any]]],
+    db: Session | None,
+) -> dict[str, int]:
+    valid_collections = _valid_collection_rows(rows["collections"])
+    collection_errors = len(rows["collections"]) - len(valid_collections)
+    existing_names: set[str] = set()
+    if db is not None:
+        existing_names = {
+            name.casefold() for name in db.scalars(select(models.Collection.name)).all()
+        }
+
+    backup_collection_ids: set[int] = set()
+    seen_names: set[str] = set()
+    collections_to_create = 0
+    collections_to_merge = 0
+    for row in valid_collections:
+        backup_id = _safe_int_or_none(row.get("id"))
+        name = str(row.get("name", "")).strip()
+        key = name.casefold()
+        if backup_id is not None:
+            backup_collection_ids.add(backup_id)
+        if key in seen_names:
+            collections_to_merge += 1
+            continue
+        seen_names.add(key)
+        if key in existing_names:
+            collections_to_merge += 1
+        else:
+            collections_to_create += 1
+
+    backup_item_ids = {
+        item_id
+        for item_id in (_safe_int_or_none(row.get("id")) for row in rows["items"])
+        if item_id is not None
+    }
+    seen_pairs: set[tuple[int, int]] = set()
+    restorable_item_collections = 0
+    unrestorable_item_collections = 0
+    for row in rows["item_collections"]:
+        item_id = _safe_int_or_none(row.get("item_id"))
+        collection_id = _safe_int_or_none(row.get("collection_id"))
+        if (
+            item_id is None
+            or collection_id is None
+            or item_id not in backup_item_ids
+            or collection_id not in backup_collection_ids
+        ):
+            unrestorable_item_collections += 1
+            collection_errors += 1
+            continue
+        pair = (item_id, collection_id)
+        if pair in seen_pairs:
+            unrestorable_item_collections += 1
+            continue
+        seen_pairs.add(pair)
+        restorable_item_collections += 1
+
+    return {
+        "collections": len(rows["collections"]),
+        "item_collections": len(rows["item_collections"]),
+        "collections_to_create": collections_to_create,
+        "collections_to_merge": collections_to_merge,
+        "item_collections_restorable": restorable_item_collections,
+        "item_collections_unrestorable": unrestorable_item_collections,
+        "collection_errors": collection_errors,
+    }
+
+
+def preview_backup_data(
+    payload: dict[str, Any],
+    db: Session | None = None,
+) -> dict[str, int | str]:
     rows = _rows_from_payload(payload)
     _validate_preview_rows(rows)
     return {
@@ -82,6 +174,7 @@ def preview_backup_data(payload: dict[str, Any]) -> dict[str, int | str]:
         "item_tags": len(rows["item_tags"]),
         "item_creators": len(rows["item_creators"]),
         "user_item_states": len(rows["user_item_states"]),
+        **_preview_collection_counts(rows, db),
     }
 
 
@@ -133,6 +226,13 @@ def _set_creator_fields(creator: models.Creator, row: dict[str, Any]) -> None:
     creator.type = str(row.get("type") or "other").strip() or "other"
     creator.avatar_path = row.get("avatar_path") or None
     _set_optional_datetime(creator, "created_at", row.get("created_at"))
+
+
+def _set_collection_fields(collection: models.Collection, row: dict[str, Any]) -> None:
+    collection.name = _required_text(row, "name")
+    collection.description = row.get("description") or None
+    _set_optional_datetime(collection, "created_at", row.get("created_at"))
+    _set_optional_datetime(collection, "updated_at", row.get("updated_at"))
 
 
 def _merge_tags(
@@ -222,6 +322,51 @@ def _merge_items(
     return id_map
 
 
+def _merge_collections(
+    db: Session,
+    rows: list[dict[str, Any]],
+    result: dict[str, int],
+) -> dict[int, int]:
+    id_map: dict[int, int] = {}
+    seen_names: set[str] = set()
+    for row in rows:
+        backup_id = _safe_int_or_none(row.get("id"))
+        name = str(row.get("name", "")).strip()
+        if not name:
+            result["skipped"] += 1
+            result["collections_skipped"] += 1
+            result["collection_errors"] += 1
+            continue
+
+        key = name.casefold()
+        collection = db.scalar(
+            select(models.Collection).where(func.lower(models.Collection.name) == name.lower())
+        )
+        if collection is None and backup_id is not None:
+            collection = db.get(models.Collection, backup_id)
+
+        if key in seen_names:
+            if collection is not None and backup_id is not None:
+                id_map[backup_id] = collection.id
+            result["skipped"] += 1
+            result["collections_skipped"] += 1
+            continue
+
+        seen_names.add(key)
+        if collection is None:
+            collection = models.Collection(id=backup_id)
+            db.add(collection)
+            result["created"] += 1
+            result["collections_created"] += 1
+        else:
+            result["updated"] += 1
+        _set_collection_fields(collection, row)
+        db.flush()
+        if backup_id is not None:
+            id_map[backup_id] = collection.id
+    return id_map
+
+
 def _merge_item_tags(
     db: Session,
     rows: list[dict[str, Any]],
@@ -238,6 +383,39 @@ def _merge_item_tags(
         if db.get(models.ItemTag, (item_id, tag_id)) is None:
             db.add(models.ItemTag(item_id=item_id, tag_id=tag_id))
             result["created"] += 1
+
+
+def _merge_item_collections(
+    db: Session,
+    rows: list[dict[str, Any]],
+    item_ids: dict[int, int],
+    collection_ids: dict[int, int],
+    result: dict[str, int],
+) -> None:
+    seen_pairs: set[tuple[int, int]] = set()
+    for row in rows:
+        item_id = item_ids.get(_safe_int_or_none(row.get("item_id")) or -1)
+        collection_id = collection_ids.get(
+            _safe_int_or_none(row.get("collection_id")) or -1
+        )
+        if item_id is None or collection_id is None:
+            result["skipped"] += 1
+            result["item_collections_skipped"] += 1
+            result["collection_errors"] += 1
+            continue
+        pair = (item_id, collection_id)
+        if pair in seen_pairs:
+            result["skipped"] += 1
+            result["item_collections_skipped"] += 1
+            continue
+        seen_pairs.add(pair)
+        if db.get(models.ItemCollection, pair) is None:
+            db.add(models.ItemCollection(item_id=item_id, collection_id=collection_id))
+            result["created"] += 1
+            result["item_collections_created"] += 1
+        else:
+            result["skipped"] += 1
+            result["item_collections_skipped"] += 1
 
 
 def _merge_item_creators(
@@ -288,10 +466,20 @@ def _merge_states(
 
 def restore_backup_data(db: Session, payload: dict[str, Any]) -> dict[str, int]:
     rows = _rows_from_payload(payload)
-    result = {"created": 0, "updated": 0, "skipped": 0}
+    result = {
+        "created": 0,
+        "updated": 0,
+        "skipped": 0,
+        "collections_created": 0,
+        "collections_skipped": 0,
+        "item_collections_created": 0,
+        "item_collections_skipped": 0,
+        "collection_errors": 0,
+    }
     with db.begin():
         tag_ids = _merge_tags(db, rows["tags"], result)
         creator_ids = _merge_creators(db, rows["creators"], result)
+        collection_ids = _merge_collections(db, rows["collections"], result)
         item_ids = _merge_items(db, rows["items"], result)
         _merge_item_tags(db, rows["item_tags"], item_ids, tag_ids, result)
         _merge_item_creators(
@@ -299,6 +487,13 @@ def restore_backup_data(db: Session, payload: dict[str, Any]) -> dict[str, int]:
             rows["item_creators"],
             item_ids,
             creator_ids,
+            result,
+        )
+        _merge_item_collections(
+            db,
+            rows["item_collections"],
+            item_ids,
+            collection_ids,
             result,
         )
         _merge_states(db, rows["user_item_states"], item_ids, result)

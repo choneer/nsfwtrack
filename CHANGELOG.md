@@ -4,6 +4,22 @@
 
 ### Added
 
+- Added Phase 2-C2 collection data support for JSON backup export, JSON backup
+  preview, JSON restore, CSV export, CSV import, JSON import, import preview,
+  and import result summaries.
+- Added `collections` and `item_collections` tables to JSON backup payloads
+  while keeping old backups without those tables compatible.
+- Added collection restore merge logic with duplicate collection protection,
+  duplicate item-collection relation protection, bad relation skipping, and
+  collection-specific restore counters.
+- Added `collections` to CSV export and CSV / JSON import templates, with CSV
+  semicolon-separated collection names and JSON collection arrays.
+- Added import preview and result counters for collections to create,
+  collection links, skipped collections, and collections field errors.
+- Added tests for collection backup export / preview / restore, old backup
+  compatibility, bad collection relation skipping, CSV export, CSV / JSON
+  collection imports, template updates, preview no-write behavior, and
+  Chinese / English collection backup copy.
 - Added Phase 2-C1 local collections / list management backed by local SQLite
   tables `collections` and `item_collections`.
 - Added collection create, edit, delete, list, and detail pages with login
@@ -24,6 +40,9 @@
 
 ### Changed
 
+- Backup and import pages now document that JSON backups include collection
+  data, CSV exports include `collections`, JSON restore merges local collection
+  data, and old backup / import files remain compatible.
 - Item detail pages now show linked collections and allow adding or removing one
   existing collection.
 - Item API responses now include linked collection metadata for local clients.

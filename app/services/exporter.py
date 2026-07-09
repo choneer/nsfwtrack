@@ -68,10 +68,23 @@ def _state_row(state: models.UserItemState) -> dict[str, Any]:
     }
 
 
+def _collection_row(collection: models.Collection) -> dict[str, Any]:
+    return {
+        "id": collection.id,
+        "name": collection.name,
+        "description": collection.description,
+        "created_at": _format_datetime(collection.created_at),
+        "updated_at": _format_datetime(collection.updated_at),
+    }
+
+
 def export_backup_data(db: Session) -> dict[str, Any]:
     items = db.scalars(select(models.Item).order_by(models.Item.id.asc())).all()
     tags = db.scalars(select(models.Tag).order_by(models.Tag.id.asc())).all()
     creators = db.scalars(select(models.Creator).order_by(models.Creator.id.asc())).all()
+    collections = db.scalars(
+        select(models.Collection).order_by(models.Collection.id.asc())
+    ).all()
     item_tags = db.scalars(
         select(models.ItemTag).order_by(models.ItemTag.item_id, models.ItemTag.tag_id)
     ).all()
@@ -79,6 +92,12 @@ def export_backup_data(db: Session) -> dict[str, Any]:
         select(models.ItemCreator).order_by(
             models.ItemCreator.item_id,
             models.ItemCreator.creator_id,
+        )
+    ).all()
+    item_collections = db.scalars(
+        select(models.ItemCollection).order_by(
+            models.ItemCollection.item_id,
+            models.ItemCollection.collection_id,
         )
     ).all()
     states = db.scalars(
@@ -91,12 +110,17 @@ def export_backup_data(db: Session) -> dict[str, Any]:
             "items": [_item_row(item) for item in items],
             "tags": [_tag_row(tag) for tag in tags],
             "creators": [_creator_row(creator) for creator in creators],
+            "collections": [_collection_row(collection) for collection in collections],
             "item_tags": [
                 {"item_id": row.item_id, "tag_id": row.tag_id} for row in item_tags
             ],
             "item_creators": [
                 {"item_id": row.item_id, "creator_id": row.creator_id}
                 for row in item_creators
+            ],
+            "item_collections": [
+                {"item_id": row.item_id, "collection_id": row.collection_id}
+                for row in item_collections
             ],
             "user_item_states": [_state_row(state) for state in states],
         },
@@ -113,6 +137,7 @@ def export_items_csv(db: Session) -> str:
         .options(
             selectinload(models.Item.tags),
             selectinload(models.Item.creators),
+            selectinload(models.Item.collections),
             selectinload(models.Item.state),
         )
         .order_by(models.Item.id.asc())
@@ -126,6 +151,7 @@ def export_items_csv(db: Session) -> str:
         "release_date",
         "tags",
         "creators",
+        "collections",
         "status",
         "rating",
         "review",
@@ -146,6 +172,10 @@ def export_items_csv(db: Session) -> str:
                 "tags": ", ".join(tag.name for tag in sorted(item.tags, key=lambda row: row.name)),
                 "creators": ", ".join(
                     creator.name for creator in sorted(item.creators, key=lambda row: row.name)
+                ),
+                "collections": ";".join(
+                    collection.name
+                    for collection in sorted(item.collections, key=lambda row: row.name)
                 ),
                 "status": state.status if state else "",
                 "rating": state.rating if state and state.rating is not None else "",

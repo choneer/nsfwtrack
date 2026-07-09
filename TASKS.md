@@ -270,3 +270,25 @@
 - [x] 更新 README / TASKS / REVIEW / CHANGELOG，记录 Phase 2-C1 未发布改动
 - [x] 确认本轮未接入外部内容源、URL 导入、爬虫、adapter、推荐系统、AI 助手、云同步、多用户系统、前端构建流程或新依赖
 - [x] 确认本轮未修改 `v0.1.0`、`v0.2.0` 或 `v0.3.0` tag，未创建 GitHub Release
+
+## Phase 2-C2 备份 / 导入支持合集数据
+
+- [x] JSON 备份导出包含 `collections` 和 `item_collections`
+- [x] JSON 备份预览显示合集数量、条目-合集关联数量、即将创建 / 合并合集数量、可恢复 / 不可恢复关联数量和合集错误数量
+- [x] JSON 恢复支持合并合集，并保留旧备份缺少合集表时的兼容性
+- [x] JSON 恢复支持恢复条目-合集关联，重复关联不会重复创建
+- [x] JSON 恢复遇到空合集名称、坏关联、缺失条目或缺失合集时跳过并记录合集错误
+- [x] JSON 恢复采用追加 / 合并策略，不删除现有条目，不覆盖清空数据库
+- [x] CSV 导出增加 `collections` 字段，多合集用分号分隔
+- [x] CSV 导入支持可选 `collections` 字段，自动创建或关联本地合集
+- [x] JSON 导入支持可选 `collections` 字符串数组，非数组或非字符串元素进入错误行
+- [x] CSV / JSON 旧导入文件缺少 `collections` 字段时仍可正常导入
+- [x] CSV / JSON 导入预览显示即将创建合集、即将关联合集和 collections 字段错误数量，且预览不写库
+- [x] 导入结果摘要显示创建合集、关联合集、跳过合集和 collections 字段错误数量
+- [x] CSV / JSON 导入模板加入 `collections` 示例字段
+- [x] 备份页面说明 JSON 备份包含合集和条目-合集关联，CSV 导出包含 `collections` 字段，恢复不会删除条目
+- [x] 新增备份 / 导入合集相关中文 / English 文案，并保持 i18n key 覆盖一致
+- [x] 补充备份、恢复、导出、导入、预览、模板、兼容性和坏关联测试
+- [x] 更新 README / TASKS / REVIEW / CHANGELOG，记录 Phase 2-C2 未发布改动
+- [x] 确认本轮未新增数据库表、未修改已有数据库字段、未新增依赖、未引入外部内容源 / URL 导入 / 爬虫 / adapter / 推荐系统 / AI 助手 / 云同步 / 多用户系统
+- [x] 确认本轮未修改 `v0.1.0`、`v0.2.0` 或 `v0.3.0` tag，未创建 GitHub Release
