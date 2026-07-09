@@ -1,223 +1,475 @@
-# NSFWTrack — MVP 开发计划
+# NSFWTrack — 项目进度与开发规划
 
-> NSFWTrack 是项目名称。Phase 1 严格限定为：**本地单用户内容记录器 / 收藏管理器 MVP**。
-> Phase 1 禁止实现任何外部内容源、爬虫、远程图片拉取、站点 adapter、第三方 cookie/token 管理、自动同步、多源搜索或随机探索接口。
+> NSFWTrack 是本地单用户媒体记录器 / 收藏管理器。  
+> 当前开发边界：本地管理、本地数据维护、手动确认操作、SQLite、FastAPI、Jinja2、HTMX、Docker Compose。  
+> 本项目不做外部内容源、爬虫、URL 导入、自动同步、推荐系统、AI 语义判断、多用户系统或云同步，除非用户单独明确开启并重新制定规则。
 
-## 角色分工
+---
 
-- **我（DeepSeek）**：项目规划、任务拆分、审核 Codex 产出、测试验收
-- **Codex（GPT-5.5）**：编码实现
-- **你**：审批、最终确认
+## 一、当前总体状态
 
-## 项目定位
+当前最新发布版本：
 
-第一版描述：
-
-> **本地单用户媒体记录器 / 收藏管理器 MVP**
-
-不强调成人内容聚合、外部内容探索、多站点搜索等方向。Phase 1 仅做本地管理。
-
-## Phase 1 目标
-
-- ✅ 手动录入条目
-- ✅ CSV / JSON 批量导入
-- ✅ 标签管理（创建/关联/搜索）
-- ✅ 创作者管理（演员/作者/画师）
-- ✅ 状态标记（想看/已看/喜欢/不喜欢/忽略）
-- ✅ 本地搜索（标题/标签/状态过滤）
-- ✅ 简单统计（数量/状态分布/时间线）
-- ✅ 单用户登录保护（环境变量密码 + Session）
-- ✅ 中文 / English 语言切换（默认中文，Session 保存偏好）
-- ✅ Docker Compose 部署
-- ✅ 基础测试
-
-## Phase 1 禁止出现
-
-❌ 外部 HTTP 拉取
-❌ 站点 adapter
-❌ 随机探索接口
-❌ 爬虫
-❌ 远程图片源
-❌ 第三方 cookie / token 管理（登录 Session 与语言偏好 Session 除外）
-❌ 自动同步
-❌ 多源聚合搜索
-❌ 推荐系统
-❌ AI 助手
-❌ WebAuthn / CF / D1
-
-## Phase 2（后续）
-
-导入/备份增强、搜索增强、标签翻译（EhTagTranslation）
-
-## Phase 3（后续）
-
-插件化数据源，需合规、授权、可控，先 mock 后真实接入。
-
-## 技术栈
-
-```
-FastAPI + SQLite + SQLAlchemy + Jinja2 + HTMX + Docker Compose
+```text
+v0.5.0
 ```
 
-## 项目结构
+当前项目状态：
 
-```
-nsfwtrack/
-├── app/
-│   ├── __init__.py
-│   ├── main.py              # FastAPI 入口
-│   ├── config.py            # 配置（环境变量）
-│   ├── database.py          # SQLite + 建表
-│   ├── models.py            # SQLAlchemy 模型
-│   ├── schemas.py           # Pydantic 请求/响应
-│   ├── auth.py              # 登录保护
-│   ├── i18n.py              # 中文 / English 翻译字典
-│   ├── routers/
-│   │   ├── items.py         # 条目 CRUD + 标记
-│   │   ├── tags.py          # 标签管理
-│   │   ├── creators.py      # 创作者管理
-│   │   ├── search.py        # 搜索
-│   │   ├── stats.py         # 统计
-│   │   └── auth.py          # 登录路由
-│   ├── services/
-│   │   └── importer.py      # CSV/JSON 导入
-│   └── templates/
-│       ├── base.html
-│       ├── login.html       # 登录页
-│       ├── index.html       # 首页
-│       ├── items.html       # 条目列表
-│       ├── detail.html      # 条目详情 + 标记
-│       ├── tags.html        # 标签管理
-│       ├── creators.html    # 创作者管理
-│       ├── stats.html       # 统计
-│       └── import.html      # 导入页面
-├── tests/
-├── data/                    # SQLite 持久化
-├── docker-compose.yml
-├── Dockerfile
-├── requirements.txt
-└── .env.example             # 密码配置示例（.env 本身在 gitignore）
+```text
+基础可用：已完成
+本地管理闭环：已完成
+数据导入 / 备份闭环：已完成
+合集体系：已完成
+重复条目清理：已完成
+元数据清理：已完成
+长期稳定性与使用效率：继续开发中
 ```
 
-## 数据库模型（6 张表）
+当前完成度估算：
 
-```sql
-CREATE TABLE items (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  title TEXT NOT NULL,
-  cover_path TEXT,                   -- 本地封面路径（Phase 1 不上传远程图片）
-  summary TEXT,
-  release_date TEXT,
-  extra TEXT,                   -- JSON，Phase 2+ 扩展用
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE creators (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  name TEXT NOT NULL UNIQUE,
-  type TEXT DEFAULT 'other',
-  avatar_path TEXT,                 -- 本地头像路径（Phase 1 不上传远程图片）
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE tags (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  name TEXT NOT NULL UNIQUE,
-  category TEXT,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE item_tags (
-  item_id INTEGER REFERENCES items(id) ON DELETE CASCADE,
-  tag_id INTEGER REFERENCES tags(id) ON DELETE CASCADE,
-  PRIMARY KEY (item_id, tag_id)
-);
-
-CREATE TABLE item_creators (
-  item_id INTEGER REFERENCES items(id) ON DELETE CASCADE,
-  creator_id INTEGER REFERENCES creators(id) ON DELETE CASCADE,
-  PRIMARY KEY (item_id, creator_id)
-);
-
-CREATE TABLE user_item_states (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  item_id INTEGER NOT NULL REFERENCES items(id) ON DELETE CASCADE,
-  status TEXT NOT NULL CHECK (status IN ('wish','watching','watched','like','dislike','ignore')),
-  rating INTEGER CHECK (rating >= 1 AND rating <= 5),
-  review TEXT,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  UNIQUE(item_id)
-);
+```text
+作为本地可用系统：约 80%
+作为长期稳定系统：约 70% ~ 75%
+距离 v1.0.0：还需要 3 ~ 5 个小阶段
 ```
 
-## API 路由
+---
 
+## 二、角色分工
+
+- 用户：需求确认、范围审批、最终发布确认
+- Codex：编码实现、测试、Docker 验收、提交推送
+- GPT：阶段规划、GOAL.md / RULE.md 协助、审查提示词、结果判断
+- Hermes：代码审查、范围审查、安全审查、发布前复核
+
+---
+
+## 三、长期开发规则
+
+长期规则以 `RULE.md` 为准。
+
+每个阶段的当前目标以 `GOAL.md` 为准。
+
+原则：
+
+- `RULE.md` 负责长期边界
+- `GOAL.md` 负责当前阶段目标
+- `CHANGELOG.md` 记录版本变化
+- `TASKS.md` 记录任务状态
+- `REVIEW.md` 记录审查重点
+- `PLAN.md` 记录总体路线和进度
+
+---
+
+## 四、已发布版本
+
+### v0.1.0 — Phase 1 MVP
+
+目标：完成项目底座。
+
+已完成：
+
+- FastAPI 项目结构
+- SQLite / SQLAlchemy 数据模型
+- Jinja2 页面
+- HTMX 轻量交互
+- 单用户登录保护
+- 条目 CRUD
+- 标签管理
+- 创作者管理
+- 状态 / 评分 / 短评
+- 本地搜索
+- 基础统计
+- CSV / JSON 导入
+- Docker Compose
+- 基础测试
+- README / TASKS / REVIEW / CHANGELOG
+
+---
+
+### v0.2.0 — Phase 2-A 本地管理增强
+
+目标：增强日常条目管理能力。
+
+已完成：
+
+- Phase 2-A1：高级筛选 / 排序 / 分页
+- Phase 2-A2：批量编辑
+- Phase 2-A3：条目详情页增强
+- Phase 2-A4：导入增强
+
+能力：
+
+- 多条件筛选
+- 列表排序
+- 分页控制
+- 当前页批量编辑
+- 状态 / 标签 / 评分批量处理
+- 条目详情页快速维护
+- CSV / JSON 模板
+- 导入预览
+- 导入错误摘要
+
+---
+
+### v0.3.0 — Phase 2-B UI 与统计增强
+
+目标：提升界面可用性和本地统计能力。
+
+已完成：
+
+- Phase 2-B1：响应式 UI / 移动端打磨
+- Phase 2-B2：统计面板增强
+
+能力：
+
+- 移动端布局优化
+- 导航与表格适配
+- 状态分布统计
+- 评分分布统计
+- 标签排行
+- 创作者排行
+- 最近活动
+- 数据完整度统计
+
+---
+
+### v0.4.0 — Phase 2-C 合集 / 清单体系
+
+目标：新增合集 / 清单管理能力，并纳入备份导入闭环。
+
+已完成：
+
+- Phase 2-C1：本地合集 / 清单管理
+- Phase 2-C2：合集备份 / 导入 / 导出支持
+
+能力：
+
+- 创建合集
+- 编辑合集
+- 删除合集
+- 合集详情页
+- 条目加入 / 移出合集
+- 批量加入 / 移出合集
+- 按合集筛选
+- 合集统计
+- JSON 备份合集
+- JSON 恢复合集
+- CSV 导出 / 导入合集
+- 旧备份兼容
+
+---
+
+### v0.5.0 — Phase 2-D 数据清理与手动合并
+
+目标：补齐本地数据质量维护能力。
+
+已完成：
+
+- Phase 2-D1：重复条目检测与手动合并
+- Phase 2-D2：标签 / 创作者 / 合集清理与合并
+
+能力：
+
+- 重复条目候选检测
+- 条目对比页
+- 条目手动合并
+- 标签重复检测
+- 创作者重复检测
+- 合集重复检测
+- 标签手动合并
+- 创作者手动合并
+- 合集手动合并
+- 合并时 primary 保留
+- 合并时 duplicate 删除
+- 关联关系转移
+- 重复关联跳过
+- 合集 description 冲突处理
+- 合并前危险提示
+- 合并前备份提示
+- 合并结果摘要
+
+安全边界：
+
+- 不自动合并
+- 不使用 AI 判断语义
+- 不请求外部信息
+- 不引入外部内容源
+- 不删除条目
+- 合并必须登录
+- 合并必须 POST
+- 合并必须手动确认
+
+---
+
+## 五、当前未完成内容
+
+### 1. 使用效率增强
+
+目标：减少重复操作，提高日常使用效率。
+
+计划：
+
+- Phase 2-E1：保存筛选视图 / 常用视图
+- Phase 2-E2：最近访问 / 最近编辑
+- Phase 2-E3：快捷操作入口
+
+优先级：
+
+```text
+高
 ```
-# 登录
-POST   /api/auth/login              # 密码登录
-POST   /api/auth/logout             # 退出
 
-# 条目
-GET    /api/items                    # 列表（分页）
-POST   /api/items                    # 新增
-GET    /api/items/{id}               # 详情
-PUT    /api/items/{id}               # 编辑
-DELETE /api/items/{id}               # 删除
+---
 
-# 状态标记
-POST   /api/items/{id}/state         # 设置标记
-GET    /api/items/{id}/state         # 查状态
-DELETE /api/items/{id}/state         # 取消
+### 2. 数据健康检查
 
-# 标签
-GET    /api/tags                     # 列表
-POST   /api/tags                     # 创建
-PUT    /api/tags/{id}                # 编辑
-DELETE /api/tags/{id}                # 删除
+目标：让用户能主动发现数据问题。
 
-# 创作者
-GET    /api/creators                 # 列表
-POST   /api/creators                 # 创建
-GET    /api/creators/{id}            # 详情 + 作品
-DELETE /api/creators/{id}            # 删除
+计划：
 
-# 搜索
-GET    /api/search?q=xxx&tag=xxx&status=xxx&page=1
+- Phase 2-F1：数据健康检查页
+- Phase 2-F2：孤立关系检查
+- Phase 2-F3：重复关系检查
+- Phase 2-F4：备份文件校验
+- Phase 2-F5：导入前更详细 dry-run
 
-# 统计
-GET    /api/stats/summary
-GET    /api/stats/timeline
+优先级：
 
-# 导入
-POST   /api/import/csv
-POST   /api/import/json
+```text
+高
 ```
 
-## 安全边界
+---
 
-- 密码从环境变量 `APP_PASSWORD` 读取，禁止默认空密码
-- Session cookie 认证
-- `.env` 已加入 `.gitignore`
-- 所有页面需登录才能访问
-- 日志不得输出密码、cookie、token
-- 默认仅监听 `0.0.0.0:8000`（局域网可访问）
-- `data/` Docker 卷持久化
+### 3. 设置中心
 
-## Phase 1 执行顺序
+目标：让常用偏好可配置。
 
+计划：
+
+- Phase 2-G1：设置页
+- Phase 2-G2：默认语言
+- Phase 2-G3：默认每页数量
+- Phase 2-G4：默认排序方式
+- Phase 2-G5：默认首页视图
+- Phase 2-G6：危险操作提示偏好
+
+优先级：
+
+```text
+中
 ```
-Day 1: 项目骨架 + 数据库模型 + items CRUD
-Day 2: 标签 + 创作者管理 + 关联
-Day 3: 登录保护 + 状态标记 + 搜索 + 统计
-Day 4: 前端页面（列表/详情/标签/创作者/统计/导入/登录）
-Day 5: CSV/JSON 导入 + Docker 部署 + 测试
-Day 6: 中文 / English 语言切换 + 文档清理
+
+---
+
+### 4. 维护与迁移
+
+目标：提高长期升级稳定性。
+
+计划：
+
+- Phase 2-H1：数据库版本记录
+- Phase 2-H2：轻量 migration 机制
+- Phase 2-H3：升级前备份提示
+- Phase 2-H4：启动时结构检查
+- Phase 2-H5：升级日志与失败回滚说明
+
+优先级：
+
+```text
+中高
 ```
 
-## 数据来源（Phase 1）
+---
 
-- 手动录入：Web UI 表单
-- CSV 导入：`title,tags,creators,status,rating,review`
-- JSON 导入：同上格式
+### 5. 性能与稳定性收尾
+
+目标：为大量数据场景做收尾优化。
+
+计划：
+
+- Phase 2-I1：列表页查询性能检查
+- Phase 2-I2：统计页性能检查
+- Phase 2-I3：筛选组合性能检查
+- Phase 2-I4：索引检查
+- Phase 2-I5：大量导入性能检查
+- Phase 2-I6：错误处理统一审查
+
+优先级：
+
+```text
+中
+```
+
+---
+
+## 六、建议后续路线
+
+### v0.6.0 — Phase 2-E 使用效率增强
+
+建议包含：
+
+- E1：保存筛选视图 / 常用视图
+- E2：最近访问 / 最近编辑，可选
+
+目标完成度：
+
+```text
+约 82% ~ 85%
+```
+
+---
+
+### v0.7.0 — Phase 2-F 数据健康检查
+
+建议包含：
+
+- 数据健康检查页
+- 孤立关系检查
+- 重复关系检查
+- 备份文件校验
+- 导入 dry-run 增强
+
+目标完成度：
+
+```text
+约 87% ~ 90%
+```
+
+---
+
+### v0.8.0 — Phase 2-G 设置中心
+
+建议包含：
+
+- 设置页
+- 默认语言
+- 默认排序
+- 默认分页
+- 默认首页视图
+
+目标完成度：
+
+```text
+约 90% ~ 92%
+```
+
+---
+
+### v0.9.0 — Phase 2-H 维护与迁移
+
+建议包含：
+
+- 数据库版本记录
+- 轻量 migration
+- 升级前备份提示
+- 启动时结构检查
+
+目标完成度：
+
+```text
+约 93% ~ 95%
+```
+
+---
+
+### v1.0.0 — 稳定版收尾
+
+建议包含：
+
+- 性能审查
+- 数据安全审查
+- 全量测试审查
+- Docker 验收审查
+- 文档整理
+- 发布说明整理
+- 旧版本升级说明
+
+目标状态：
+
+```text
+本地单用户管理系统稳定版
+```
+
+---
+
+## 七、下一阶段建议
+
+当前建议进入：
+
+```text
+Phase 2-E1：保存筛选视图 / 常用视图
+目标版本：v0.6.0
+```
+
+理由：
+
+- 当前筛选能力已经较强
+- 用户日常会反复使用固定筛选组合
+- 保存视图能明显提升使用效率
+- 范围可控
+- 不涉及外部源
+- 不涉及复杂权限
+- 不破坏当前数据结构，只需新增一个本地表
+
+---
+
+## 八、长期禁止项
+
+除非用户明确重新审批，否则禁止实现：
+
+- 外部内容源
+- URL 导入
+- 爬虫
+- 站点 adapter
+- 远程图片拉取
+- 自动同步
+- 多源搜索
+- 随机探索
+- 推荐系统
+- AI 语义判断
+- 云同步
+- 多用户系统
+- 复杂权限系统
+- 前端框架重构
+- 未审批的新依赖
+
+---
+
+## 九、开发阶段完成标准
+
+每个阶段完成前必须确认：
+
+- 功能在 GOAL.md 范围内
+- 未触碰 RULE.md 禁止项
+- 测试通过
+- Docker build 通过
+- Docker compose 能启动
+- `/login` GET 返回 200
+- i18n key 对称
+- README 更新
+- TASKS 更新
+- REVIEW 更新
+- CHANGELOG 写入 Unreleased
+- 工作区干净
+- 已提交并推送，除非用户要求暂停
+
+---
+
+## 十、发布标准
+
+发布版本前必须确认：
+
+- 当前阶段已通过审查
+- 完整测试通过
+- Docker 验收通过
+- CHANGELOG 从 Unreleased 整理到新版本段
+- README 当前版本号更新
+- TASKS / REVIEW 同步更新
+- 不修改旧 tag
+- 创建 annotated tag
+- 推送 main 和 tag
+- 创建 GitHub Release
+- Release 内容与 CHANGELOG 一致
