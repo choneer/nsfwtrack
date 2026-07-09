@@ -4,13 +4,31 @@ NSFWTrack is a local single-user content record manager / collection tracker.
 
 Current release: `v0.6.0 / Phase 2-E workbench and saved views`.
 
-Current development: `Phase 2-F data health checks in progress; Phase 2-F1 and Phase 2-F2 are complete`.
+Current development: `Phase 2-F data health checks in progress; Phase 2-F1, Phase 2-F2, and Phase 2-F3 are complete`.
 
 NSFWTrack remains intentionally local-only. It is designed for manual records,
 local SQLite persistence, LAN deployment, and simple personal collection
 management.
 
 ## Current Unreleased Work
+
+Phase 2-F3 adds low-risk manual data health fixes on `/data-health`.
+
+- Fixes are limited to orphaned and duplicate `item_tags`, `item_creators`, and
+  `item_collections` rows; orphaned `item_activity`; negative
+  `view_count` / `edit_count`; and risky or unknown
+  `saved_views.query_string` parameters.
+- The page only shows a fix button when the matching issue exists in the
+  current health report.
+- Each fix requires login, `POST`, browser confirmation, and a server-side
+  `confirm=1` check.
+- The server accepts only whitelisted `fix_type` values and does not accept
+  table names, column names, SQL, or `fix_all`.
+- Fix failures are rolled back before returning an error flash message.
+- Result summaries report deleted, corrected, and skipped row counts.
+- These fixes do not delete items, tags, creators, or collections. They only
+  remove relation/helper rows or normalize saved views query strings.
+- Export a JSON backup from `/backup` before running any manual fix.
 
 Phase 2-F2 adds backup validation, restore dry-run reporting, and import
 dry-run reporting.
@@ -60,10 +78,10 @@ Phase 2-F1 adds a local data health check page at `/data-health`.
   negative `view_count` / `edit_count` values, and invalid activity timestamps.
 
 When the page reports issues, export a JSON backup from `/backup` before doing
-any manual cleanup. Phase 2-F1 deliberately does not provide automatic repair,
-one-click repair, automatic deletion, automatic merge, AI judgment, external
-lookup, URL import, crawler / adapter integration, cloud sync, or multi-user
-features.
+any manual cleanup. The data health flow does not provide automatic repair,
+one-click repair, automatic deletion of core entities, automatic merge, AI
+judgment, external lookup, URL import, crawler / adapter integration, cloud
+sync, or multi-user features.
 
 ## Features in v0.6.0
 

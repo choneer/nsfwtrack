@@ -57,6 +57,46 @@
   </div>
 </section>
 
+{% if fix_options %}
+  <section class="card stack stats-section">
+    <div class="toolbar">
+      <div>
+        <p class="muted">{{ t("data_health.fix_local_only") }}</p>
+        <h2>{{ t("data_health.fix_title") }}</h2>
+      </div>
+      <a class="button secondary" href="/backup">{{ t("data_health.backup_action") }}</a>
+    </div>
+    <div class="notice">
+      <strong>{{ t("data_health.fix_backup_warning_title") }}</strong>
+      <p>{{ t("data_health.fix_backup_warning_body") }}</p>
+      <p>{{ t("data_health.fix_core_entities_safe") }}</p>
+      <p>{{ t("data_health.fix_manual_only") }}</p>
+    </div>
+    <div class="stack">
+      {% for option in fix_options %}
+        <div class="relation-row">
+          <div>
+            <strong>{{ t("data_health.fix_label_" ~ option.fix_type) }}</strong>
+            <p class="muted">{{ t("data_health.fix_description_" ~ option.fix_type) }}</p>
+            <span class="pill">
+              {{ t("data_health.fix_issue_count", count=option.issue_count) }}
+            </span>
+          </div>
+          <form class="inline-form" action="/data-health/fix" method="post">
+            <input type="hidden" name="fix_type" value="{{ option.fix_type }}">
+            <input type="hidden" name="confirm" value="1">
+            <button
+              class="danger"
+              type="submit"
+              data-confirm-message="{{ t('data_health.fix_confirm') }}"
+            >{{ t("data_health.fix_action") }}</button>
+          </form>
+        </div>
+      {% endfor %}
+    </div>
+  </section>
+{% endif %}
+
 {% if report.has_issues %}
   <section class="card stack stats-section">
     <div class="toolbar">
@@ -108,4 +148,17 @@
     <p class="muted">{{ t("data_health.no_issues_body") }}</p>
   </section>
 {% endif %}
+
+<script>
+  (() => {
+    document.querySelectorAll("[data-confirm-message]").forEach((button) => {
+      button.addEventListener("click", (event) => {
+        const message = button.dataset.confirmMessage;
+        if (message && !window.confirm(message)) {
+          event.preventDefault();
+        }
+      });
+    });
+  })();
+</script>
 {% endblock %}

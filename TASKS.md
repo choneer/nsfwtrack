@@ -486,3 +486,25 @@
 - [x] 确认本轮未新增数据库表、未修改已有数据库字段、未新增依赖
 - [x] 确认本轮未接入外部内容源、URL 导入、爬虫、adapter、AI 判断、自动修复、一键修复、自动删除、自动导入、自动恢复、自动合并、云同步或多用户系统
 - [x] 确认本轮未修改已发布 tag，未创建 GitHub Release
+
+## Phase 2-F3 数据健康手动修复 / 低风险维护操作
+
+- [x] 新增 `app/services/data_health_fixes.py`，使用服务端白名单分派低风险修复逻辑
+- [x] 新增 `POST /data-health/fix`，要求登录、POST、`confirm=1` 和单一 `fix_type`
+- [x] `/data-health` 继续通过 GET 只读生成健康报告，不写数据库、不执行修复
+- [x] 页面只在对应问题存在时显示修复按钮，并提供浏览器确认、备份提示和核心实体不删除说明
+- [x] 支持清理孤立 `item_tags`、`item_creators`、`item_collections`
+- [x] 支持清理重复 `item_tags`、`item_creators`、`item_collections`，兼容旧 schema 中缺少唯一约束的重复关系
+- [x] 支持清理孤立 `item_activity`
+- [x] 支持将负数 `view_count` / `edit_count` 修正为 `0`
+- [x] 支持清理 `saved_views.query_string` 中的 `page` / `next` / `redirect`、未知参数和外部 URL 值
+- [x] 修复结果显示删除 / 修正 / 跳过数量摘要
+- [x] 修复失败时 rollback，并展示友好错误，不展示完整异常堆栈
+- [x] 非法 `fix_type` 和 `fix_all` 会被拒绝且不 500
+- [x] 确认不会删除 `items`、`tags`、`creators`、`collections`
+- [x] 新增低风险修复中文 / English 文案，并保持 i18n key 覆盖一致
+- [x] 补充未登录、GET、非法 `fix_type`、`fix_all`、缺少 confirm、孤立关系、重复关系、孤立 activity、负数计数、saved views 参数、核心实体保留和 rollback 测试
+- [x] 更新 README / TASKS / REVIEW / CHANGELOG / PLAN，记录 Phase 2-F3 未发布改动
+- [x] 确认本轮未新增数据库表、未修改已有数据库字段、未新增依赖
+- [x] 确认本轮未接入外部内容源、URL 导入、爬虫、adapter、AI 判断、自动修复、一键修复全部、自动合并、云同步或多用户系统
+- [x] 确认本轮未修改已发布 tag，未创建 GitHub Release

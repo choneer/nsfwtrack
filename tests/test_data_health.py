@@ -88,7 +88,7 @@ def test_data_health_page_renders_healthy_state_and_navigation(
 
     assert response.status_code == 200
     assert "数据健康检查" in response.text
-    assert "本页只读" in response.text
+    assert "GET 健康报告只读" in response.text
     assert "暂无数据问题" in response.text
     assert "问题总数" in response.text
     assert 'href="/data-health"' in response.text
@@ -105,7 +105,7 @@ def test_data_health_page_renders_in_english(auth_client: TestClient) -> None:
 
     assert response.status_code == 200
     assert "Data Health Check" in response.text
-    assert "This page is read-only" in response.text
+    assert "The GET health report is read-only" in response.text
     assert "No Data Issues" in response.text
     assert "Total Issues" in response.text
 

@@ -62,6 +62,11 @@ from app.services.collections import (
     update_collection,
 )
 from app.services.data_health import build_data_health_report
+from app.services.data_health_fixes import (
+    DataHealthFixError,
+    apply_data_health_fix,
+    build_data_health_fix_options,
+)
 from app.services.duplicates import (
     DuplicateError,
     find_duplicate_candidates,
@@ -456,11 +461,48 @@ def activity_page(request: Request, db: Session = Depends(get_db)) -> HTMLRespon
     dependencies=[Depends(require_page_auth)],
 )
 def data_health_page(request: Request, db: Session = Depends(get_db)) -> HTMLResponse:
+    report = build_data_health_report(db)
     return templates.TemplateResponse(
         request,
         "data_health.html",
-        _base_context(request, report=build_data_health_report(db)),
+        _base_context(
+            request,
+            report=report,
+            fix_options=build_data_health_fix_options(report),
+        ),
     )
+
+
+@router.post("/data-health/fix", dependencies=[Depends(require_page_auth)])
+def data_health_fix_page(
+    request: Request,
+    fix_type: str = Form(...),
+    confirm: str | None = Form(default=None),
+    db: Session = Depends(get_db),
+) -> RedirectResponse:
+    try:
+        result = apply_data_health_fix(
+            db,
+            fix_type=fix_type,
+            confirm=confirm == "1",
+        )
+    except DataHealthFixError as exc:
+        add_flash(request, "error", f"flash.data_health_fix_{exc.code}")
+        return _redirect("/data-health")
+
+    add_flash(
+        request,
+        "success",
+        "flash.data_health_fix_success",
+        fix_type=translate(
+            get_language(request),
+            f"data_health.fix_label_{result.fix_type}",
+        ),
+        deleted=result.deleted_count,
+        updated=result.updated_count,
+        skipped=result.skipped_count,
+    )
+    return _redirect("/data-health")
 
 
 @router.post("/activity/clear", dependencies=[Depends(require_page_auth)])

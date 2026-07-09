@@ -4,6 +4,23 @@
 
 ### Added
 
+- Added Phase 2-F3 low-risk manual data health fixes on `/data-health`,
+  limited to relation tables, `item_activity`, and `saved_views.query_string`.
+- Added a whitelisted data health fix service for orphaned `item_tags`,
+  `item_creators`, and `item_collections` rows; duplicate relation rows in
+  those same tables; orphaned `item_activity`; negative `view_count` /
+  `edit_count`; and risky or unknown saved views query parameters.
+- Added login-protected `POST /data-health/fix` with server-side confirmation
+  checks, one-fix-type-at-a-time dispatch, rollback on failure, and flash
+  summaries for deleted, corrected, and skipped rows.
+- Added `/data-health` manual fix controls that appear only when the matching
+  issue exists, include browser confirmation, link to JSON backup, and state
+  that items, tags, creators, and collections are not deleted.
+- Added tests for unauthenticated fix rejection, GET no-fix behavior, invalid
+  `fix_type`, rejected `fix_all`, missing confirmation, orphan relation
+  cleanup, duplicate relation cleanup for legacy schemas, orphan activity
+  cleanup, negative activity count correction, saved views query cleanup, core
+  entity preservation, rollback, and i18n coverage.
 - Added Phase 2-F2 JSON backup file validation with a structured
   `error` / `warning` / `info` report for schema, tables, rows, required
   fields, unknown fields, duplicate ids, relation integrity, duplicate
@@ -52,6 +69,11 @@
 
 ### Changed
 
+- Kept Phase 2-F3 scoped to manual low-risk maintenance: no items, tags,
+  creators, or collections are deleted; no automatic fix-all, automatic merge,
+  AI judgment, external content source, URL import, crawler, cloud sync,
+  multi-user system, database schema change, dependency change, tag, or GitHub
+  Release is added.
 - Kept Phase 2-F2 strictly read-only: validation and dry-run reports do not
   restore backups, import data, create tags / creators / collections, modify
   saved views / activity, write SQLite data, delete business data, auto-fix,
