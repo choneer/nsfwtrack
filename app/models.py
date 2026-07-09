@@ -98,6 +98,26 @@ class ItemActivity(Base):
     item: Mapped[Item] = relationship(back_populates="activity")
 
 
+class AppSetting(Base):
+    __tablename__ = "app_settings"
+    __table_args__ = (
+        CheckConstraint("trim(key) != ''", name="ck_app_settings_key_not_blank"),
+        UniqueConstraint("key", name="uq_app_settings_key"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    key: Mapped[str] = mapped_column(String(64), nullable=False, unique=True, index=True)
+    value: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    created_at: Mapped[datetime] = mapped_column(
+        nullable=False, server_default=func.current_timestamp()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        nullable=False,
+        server_default=func.current_timestamp(),
+        onupdate=func.current_timestamp(),
+    )
+
+
 class Item(Base):
     __tablename__ = "items"
 

@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block title %}{{ t("settings.title") }} - NSFWTrack{% endblock %}
+{% block content %}
+{% set values = app_settings.form_values() %}
+<div class="toolbar">
+  <div>
+    <p class="muted">{{ t("settings.local_only") }}</p>
+    <h1>{{ t("settings.title") }}</h1>
+    <p class="muted">{{ t("settings.description") }}</p>
+  </div>
+  <div class="actions">
+    <a class="button secondary" href="/">{{ t("common.back") }}</a>
+  </div>
+</div>
+
+<section class="notice">
+  <p>{{ t("settings.no_external") }}</p>
+  <p>{{ t("settings.only_local") }}</p>
+</section>
+
+<form class="card stack" action="/settings" method="post">
+  <h2>{{ t("settings.preferences") }}</h2>
+  <div class="form-grid">
+    <label>{{ t("settings.default_language") }}
+      <select name="default_language">
+        {% for option in setting_options.default_language %}
+          <option value="{{ option }}"{% if values.default_language == option %} selected{% endif %}>
+            {{ t("settings.option_default_language_" ~ option) }}
+          </option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>{{ t("settings.default_page_size") }}
+      <select name="default_page_size">
+        {% for option in setting_options.default_page_size %}
+          <option value="{{ option }}"{% if values.default_page_size == option %} selected{% endif %}>
+            {{ option }}
+          </option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>{{ t("settings.default_sort") }}
+      <select name="default_sort">
+        {% for option in setting_options.default_sort %}
+          <option value="{{ option }}"{% if values.default_sort == option %} selected{% endif %}>
+            {{ t("settings.option_default_sort_" ~ option) }}
+          </option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>{{ t("settings.default_sort_dir") }}
+      <select name="default_sort_dir">
+        {% for option in setting_options.default_sort_dir %}
+          <option value="{{ option }}"{% if values.default_sort_dir == option %} selected{% endif %}>
+            {{ t("settings.option_default_sort_dir_" ~ option) }}
+          </option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>{{ t("settings.default_home") }}
+      <select name="default_home">
+        {% for option in setting_options.default_home %}
+          <option value="{{ option }}"{% if values.default_home == option %} selected{% endif %}>
+            {{ t("settings.option_default_home_" ~ option) }}
+          </option>
+        {% endfor %}
+      </select>
+    </label>
+  </div>
+  <div class="actions">
+    <button type="submit">{{ t("settings.save") }}</button>
+  </div>
+</form>
+
+<section class="card stack stats-section">
+  <div>
+    <h2>{{ t("settings.reset") }}</h2>
+    <p class="muted">{{ t("settings.reset_hint") }}</p>
+  </div>
+  <form class="stack" action="/settings/reset" method="post">
+    <label class="bulk-card-select">
+      <input type="checkbox" name="confirm" value="1" required>
+      <span>{{ t("settings.confirm_reset") }}</span>
+    </label>
+    <div class="actions">
+      <button class="danger" type="submit">{{ t("settings.reset") }}</button>
+    </div>
+  </form>
+</section>
+{% endblock %}

@@ -12,6 +12,11 @@ from app.services.saved_views import (
     MAX_SAVED_VIEW_NAME_LENGTH,
     normalize_saved_view_query_string,
 )
+from app.services.settings import (
+    AppSettingsError,
+    upsert_setting_row,
+    validate_setting_value,
+)
 
 CORE_TABLE_NAMES = {
     "items",
@@ -26,6 +31,7 @@ OPTIONAL_TABLE_NAMES = {
     "item_collections",
     "saved_views",
     "item_activity",
+    "app_settings",
 }
 TABLE_NAMES = CORE_TABLE_NAMES | OPTIONAL_TABLE_NAMES
 VALID_STATUSES = {"wish", "watching", "watched", "like", "dislike", "ignore"}
@@ -248,6 +254,32 @@ def _preview_item_activity_counts(rows: dict[str, list[dict[str, Any]]]) -> dict
     }
 
 
+def _preview_app_settings_counts(rows: dict[str, list[dict[str, Any]]]) -> dict[str, int]:
+    valid = 0
+    skipped = 0
+    errors = 0
+    seen_keys: set[str] = set()
+    for row in rows["app_settings"]:
+        key = str(row.get("key") or "").strip()
+        try:
+            validate_setting_value(key, row.get("value"))
+        except AppSettingsError:
+            skipped += 1
+            errors += 1
+            continue
+        if key in seen_keys:
+            skipped += 1
+            continue
+        seen_keys.add(key)
+        valid += 1
+    return {
+        "app_settings": len(rows["app_settings"]),
+        "app_settings_valid": valid,
+        "app_settings_skipped": skipped,
+        "app_settings_errors": errors,
+    }
+
+
 def preview_backup_data(
     payload: dict[str, Any],
     db: Session | None = None,
@@ -265,6 +297,7 @@ def preview_backup_data(
         **_preview_collection_counts(rows, db),
         **_preview_saved_view_counts(rows, db),
         **_preview_item_activity_counts(rows),
+        **_preview_app_settings_counts(rows),
     }
 
 
@@ -693,6 +726,39 @@ def _merge_item_activity(
         db.flush()
 
 
+def _merge_app_settings(
+    db: Session,
+    rows: list[dict[str, Any]],
+    result: dict[str, int],
+) -> None:
+    seen_keys: set[str] = set()
+    for row in rows:
+        key = str(row.get("key") or "").strip()
+        try:
+            value = validate_setting_value(key, row.get("value"))
+        except AppSettingsError:
+            result["skipped"] += 1
+            result["app_settings_skipped"] += 1
+            result["app_settings_errors"] += 1
+            continue
+        if key in seen_keys:
+            result["skipped"] += 1
+            result["app_settings_skipped"] += 1
+            continue
+        seen_keys.add(key)
+
+        action = upsert_setting_row(db, key, value)
+        if action == "created":
+            result["created"] += 1
+            result["app_settings_created"] += 1
+        elif action == "updated":
+            result["updated"] += 1
+            result["app_settings_updated"] += 1
+        else:
+            result["skipped"] += 1
+            result["app_settings_skipped"] += 1
+
+
 def restore_backup_data(db: Session, payload: dict[str, Any]) -> dict[str, int]:
     rows = _rows_from_payload(payload)
     result = {
@@ -712,6 +778,10 @@ def restore_backup_data(db: Session, payload: dict[str, Any]) -> dict[str, int]:
         "item_activity_updated": 0,
         "item_activity_skipped": 0,
         "item_activity_errors": 0,
+        "app_settings_created": 0,
+        "app_settings_updated": 0,
+        "app_settings_skipped": 0,
+        "app_settings_errors": 0,
     }
     with db.begin():
         tag_ids = _merge_tags(db, rows["tags"], result)
@@ -736,4 +806,5 @@ def restore_backup_data(db: Session, payload: dict[str, Any]) -> dict[str, int]:
         _merge_states(db, rows["user_item_states"], item_ids, result)
         _merge_saved_views(db, rows["saved_views"], result)
         _merge_item_activity(db, rows["item_activity"], item_ids, result)
+        _merge_app_settings(db, rows["app_settings"], result)
     return result

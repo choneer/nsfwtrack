@@ -117,6 +117,14 @@ from app.services.saved_views import (
     saved_view_items_url,
     update_saved_view,
 )
+from app.services.settings import (
+    AppSettingsError,
+    SETTING_OPTIONS,
+    get_app_settings,
+    get_default_language,
+    reset_app_settings,
+    save_app_settings,
+)
 from app.services.activity import (
     ACTIVITY_PAGE_LIMIT,
     clear_item_activity,
@@ -158,8 +166,12 @@ def _item_edit_url(item_id: int, next_url: str | None = None) -> str:
     return f"/items/{item_id}/edit?next={quote(target, safe='')}"
 
 
-def _base_context(request: Request, **values: Any) -> dict[str, Any]:
-    language = get_language(request)
+def _base_context(
+    request: Request,
+    db: Session | None = None,
+    **values: Any,
+) -> dict[str, Any]:
+    language = get_language(request, default_language=get_default_language(db))
     current_path = request.url.path
     if request.url.query:
         current_path = f"{current_path}?{request.url.query}"
@@ -209,13 +221,13 @@ def _item_form_payload(
 
 
 @router.get("/login", response_class=HTMLResponse)
-def login_page(request: Request) -> Response:
+def login_page(request: Request, db: Session = Depends(get_db)) -> Response:
     if is_authenticated(request):
         return _redirect("/")
     return templates.TemplateResponse(
         request,
         "login.html",
-        _base_context(request, error=request.query_params.get("error")),
+        _base_context(request, db=db, error=request.query_params.get("error")),
     )
 
 
@@ -243,6 +255,7 @@ def set_language_page(
 
 @router.get("/", response_class=HTMLResponse, dependencies=[Depends(require_page_auth)])
 def index_page(request: Request, db: Session = Depends(get_db)) -> HTMLResponse:
+    app_settings = get_app_settings(db)
     recent_items = db.scalars(
         select(Item)
         .options(
@@ -263,11 +276,14 @@ def index_page(request: Request, db: Session = Depends(get_db)) -> HTMLResponse:
         "index.html",
         _base_context(
             request,
+            db=db,
             recent_items=recent_items,
             recent_viewed=list_recently_viewed(db, limit=4),
             recent_edited=list_recently_edited(db, limit=4),
             saved_views=list_saved_views(db)[:4],
             totals=totals,
+            default_home=app_settings.default_home,
+            default_home_url=app_settings.default_home_url,
         ),
     )
 
@@ -331,6 +347,7 @@ def items_page(
     page_size: str | None = None,
     db: Session = Depends(get_db),
 ) -> HTMLResponse:
+    app_settings = get_app_settings(db)
     result = query_items(
         db,
         q=q,
@@ -341,15 +358,18 @@ def items_page(
         min_rating=min_rating,
         time_range=time_range,
         date_field=date_field,
-        sort=sort,
+        sort=sort if sort is not None else app_settings.item_list_sort,
         page=page,
-        page_size=page_size,
+        page_size=(
+            page_size if page_size is not None else str(app_settings.default_page_size)
+        ),
     )
     return templates.TemplateResponse(
         request,
         "items.html",
         _base_context(
             request,
+            db=db,
             items=result.items,
             filters=result.filters,
             filter_options=list_item_filter_options(db),
@@ -361,6 +381,55 @@ def items_page(
             saved_view_max_name_length=MAX_SAVED_VIEW_NAME_LENGTH,
         ),
     )
+
+
+@router.get(
+    "/settings",
+    response_class=HTMLResponse,
+    dependencies=[Depends(require_page_auth)],
+)
+def settings_page(request: Request, db: Session = Depends(get_db)) -> HTMLResponse:
+    return templates.TemplateResponse(
+        request,
+        "settings.html",
+        _base_context(
+            request,
+            db=db,
+            app_settings=get_app_settings(db),
+            setting_options=SETTING_OPTIONS,
+        ),
+    )
+
+
+@router.post("/settings", dependencies=[Depends(require_page_auth)])
+async def save_settings_page(
+    request: Request,
+    db: Session = Depends(get_db),
+) -> RedirectResponse:
+    form = await request.form()
+    values = {str(key): str(value) for key, value in form.multi_items()}
+    try:
+        save_app_settings(db, values)
+    except AppSettingsError as exc:
+        add_flash(request, "error", f"flash.settings_{exc.code}")
+        return _redirect("/settings")
+    add_flash(request, "success", "flash.settings_saved")
+    return _redirect("/settings")
+
+
+@router.post("/settings/reset", dependencies=[Depends(require_page_auth)])
+def reset_settings_page(
+    request: Request,
+    confirm: str | None = Form(default=None),
+    db: Session = Depends(get_db),
+) -> RedirectResponse:
+    try:
+        reset_app_settings(db, confirm=confirm == "1")
+    except AppSettingsError as exc:
+        add_flash(request, "error", f"flash.settings_{exc.code}")
+        return _redirect("/settings")
+    add_flash(request, "success", "flash.settings_reset")
+    return _redirect("/settings")
 
 
 @router.post("/saved-views", dependencies=[Depends(require_page_auth)])
@@ -448,6 +517,7 @@ def activity_page(request: Request, db: Session = Depends(get_db)) -> HTMLRespon
         "activity.html",
         _base_context(
             request,
+            db=db,
             recent_viewed=list_recently_viewed(db, limit=ACTIVITY_PAGE_LIMIT),
             recent_edited=list_recently_edited(db, limit=ACTIVITY_PAGE_LIMIT),
             activity_total=count_item_activity(db),
@@ -467,6 +537,7 @@ def data_health_page(request: Request, db: Session = Depends(get_db)) -> HTMLRes
         "data_health.html",
         _base_context(
             request,
+            db=db,
             report=report,
             fix_options=build_data_health_fix_options(report),
         ),
@@ -529,7 +600,7 @@ def duplicates_page(request: Request, db: Session = Depends(get_db)) -> HTMLResp
     return templates.TemplateResponse(
         request,
         "duplicates.html",
-        _base_context(request, candidate_groups=find_duplicate_candidates(db)),
+        _base_context(request, db=db, candidate_groups=find_duplicate_candidates(db)),
     )
 
 
@@ -552,7 +623,7 @@ def duplicate_compare_page(
     return templates.TemplateResponse(
         request,
         "duplicate_compare.html",
-        _base_context(request, comparison=comparison),
+        _base_context(request, db=db, comparison=comparison),
     )
 
 
@@ -618,6 +689,7 @@ def cleanup_page(request: Request, db: Session = Depends(get_db)) -> HTMLRespons
         "cleanup.html",
         _base_context(
             request,
+            db=db,
             candidate_sections=sections,
             has_candidates=any(section.groups for section in sections),
         ),
@@ -649,7 +721,7 @@ def cleanup_compare_page(
     return templates.TemplateResponse(
         request,
         "cleanup_compare.html",
-        _base_context(request, comparison=comparison),
+        _base_context(request, db=db, comparison=comparison),
     )
 
 
@@ -750,11 +822,20 @@ def bulk_items_page(
     response_class=HTMLResponse,
     dependencies=[Depends(require_page_auth)],
 )
-def new_item_page(request: Request) -> HTMLResponse:
+def new_item_page(
+    request: Request,
+    db: Session = Depends(get_db),
+) -> HTMLResponse:
     return templates.TemplateResponse(
         request,
         "item_form.html",
-        _base_context(request, item=None, action="/items", mode_key="items.create_title"),
+        _base_context(
+            request,
+            db=db,
+            item=None,
+            action="/items",
+            mode_key="items.create_title",
+        ),
     )
 
 
@@ -812,6 +893,7 @@ def item_detail_page(
         "detail.html",
         _base_context(
             request,
+            db=db,
             item=item,
             item_activity=get_item_activity(db, item.id),
             extra=parse_extra(item.extra),
@@ -843,6 +925,7 @@ def edit_item_page(
         "item_form.html",
         _base_context(
             request,
+            db=db,
             item=item,
             action=_item_edit_url(item.id, return_list_url),
             mode_key="items.edit_title",
@@ -1028,7 +1111,7 @@ def tags_page(request: Request, db: Session = Depends(get_db)) -> HTMLResponse:
     return templates.TemplateResponse(
         request,
         "tags.html",
-        _base_context(request, tags=tags),
+        _base_context(request, db=db, tags=tags),
     )
 
 
@@ -1078,7 +1161,7 @@ def creators_page(request: Request, db: Session = Depends(get_db)) -> HTMLRespon
     return templates.TemplateResponse(
         request,
         "creators.html",
-        _base_context(request, creators=creators),
+        _base_context(request, db=db, creators=creators),
     )
 
 
@@ -1127,7 +1210,7 @@ def creator_detail_page(
     return templates.TemplateResponse(
         request,
         "creator_detail.html",
-        _base_context(request, creator=creator),
+        _base_context(request, db=db, creator=creator),
     )
 
 
@@ -1156,7 +1239,7 @@ def collections_page(request: Request, db: Session = Depends(get_db)) -> HTMLRes
     return templates.TemplateResponse(
         request,
         "collections.html",
-        _base_context(request, collection_rows=list_collection_rows(db)),
+        _base_context(request, db=db, collection_rows=list_collection_rows(db)),
     )
 
 
@@ -1165,12 +1248,16 @@ def collections_page(request: Request, db: Session = Depends(get_db)) -> HTMLRes
     response_class=HTMLResponse,
     dependencies=[Depends(require_page_auth)],
 )
-def new_collection_page(request: Request) -> HTMLResponse:
+def new_collection_page(
+    request: Request,
+    db: Session = Depends(get_db),
+) -> HTMLResponse:
     return templates.TemplateResponse(
         request,
         "collection_form.html",
         _base_context(
             request,
+            db=db,
             collection=None,
             action="/collections",
             mode_key="collections.create_title",
@@ -1213,6 +1300,7 @@ def edit_collection_page(
         "collection_form.html",
         _base_context(
             request,
+            db=db,
             collection=collection,
             action=f"/collections/{collection.id}/edit",
             mode_key="collections.edit_title",
@@ -1277,6 +1365,7 @@ def collection_detail_page(
         "collection_detail.html",
         _base_context(
             request,
+            db=db,
             collection=collection,
             available_items=available_items,
         ),
@@ -1366,7 +1455,7 @@ def stats_page(request: Request, db: Session = Depends(get_db)) -> HTMLResponse:
     return templates.TemplateResponse(
         request,
         "stats.html",
-        _base_context(request, stats=build_stats_dashboard(db)),
+        _base_context(request, db=db, stats=build_stats_dashboard(db)),
     )
 
 
@@ -1375,8 +1464,11 @@ def stats_page(request: Request, db: Session = Depends(get_db)) -> HTMLResponse:
     response_class=HTMLResponse,
     dependencies=[Depends(require_page_auth)],
 )
-def import_page(request: Request) -> HTMLResponse:
-    return _import_template(request)
+def import_page(
+    request: Request,
+    db: Session = Depends(get_db),
+) -> HTMLResponse:
+    return _import_template(request, db=db)
 
 
 def _import_field_specs() -> list[dict[str, Any]]:
@@ -1402,6 +1494,7 @@ def _import_template(
     result: dict[str, Any] | None = None,
     preview: dict[str, Any] | None = None,
     import_error: str | None = None,
+    db: Session | None = None,
 ) -> HTMLResponse:
     raw_rows = preview["raw_rows"] if preview else []
     return templates.TemplateResponse(
@@ -1409,6 +1502,7 @@ def _import_template(
         "import.html",
         _base_context(
             request,
+            db=db,
             result=result,
             preview=preview,
             payload_json=json.dumps(raw_rows, ensure_ascii=False),
@@ -1434,19 +1528,22 @@ async def import_csv_page(
         return _import_template(
             request,
             import_error=_import_error_message(request, "missing_file"),
+            db=db,
         )
     if not (file.filename or "").lower().endswith(".csv"):
         return _import_template(
             request,
             import_error=_import_error_message(request, "unsupported_file_type"),
+            db=db,
         )
     try:
         preview = preview_csv_import(db, await file.read())
-        return _import_template(request, preview=preview)
+        return _import_template(request, preview=preview, db=db)
     except ImportDataError as exc:
         return _import_template(
             request,
             import_error=_import_error_message(request, exc.code),
+            db=db,
         )
 
 
@@ -1464,19 +1561,22 @@ async def import_json_page(
         return _import_template(
             request,
             import_error=_import_error_message(request, "missing_file"),
+            db=db,
         )
     if not (file.filename or "").lower().endswith(".json"):
         return _import_template(
             request,
             import_error=_import_error_message(request, "unsupported_file_type"),
+            db=db,
         )
     try:
         preview = preview_json_import(db, await file.read())
-        return _import_template(request, preview=preview)
+        return _import_template(request, preview=preview, db=db)
     except ImportDataError as exc:
         return _import_template(
             request,
             import_error=_import_error_message(request, exc.code),
+            db=db,
         )
 
 
@@ -1499,6 +1599,7 @@ def import_confirm_page(
         return _import_template(
             request,
             import_error=translate(get_language(request), "import.confirm_error"),
+            db=db,
         )
     rows = payload if isinstance(payload, list) else []
     clean_rows = [row for row in rows if isinstance(row, dict)]
@@ -1516,10 +1617,11 @@ def import_confirm_page(
             request,
             preview=preview,
             import_error=_import_error_message(request, "no_importable_rows"),
+            db=db,
         )
 
     result = import_valid_rows(db, preview["valid_rows"], preview["errors"])
-    return _import_template(request, result=result)
+    return _import_template(request, result=result, db=db)
 
 
 def _backup_error_message(request: Request, code: str) -> str:
@@ -1554,12 +1656,14 @@ def _backup_template(
     preview_error: str | None = None,
     restore_result: dict[str, int] | None = None,
     restore_error: str | None = None,
+    db: Session | None = None,
 ) -> HTMLResponse:
     return templates.TemplateResponse(
         request,
         "backup.html",
         _base_context(
             request,
+            db=db,
             preview_result=preview_result,
             validation_report=validation_report,
             preview_error=preview_error,
@@ -1574,8 +1678,11 @@ def _backup_template(
     response_class=HTMLResponse,
     dependencies=[Depends(require_page_auth)],
 )
-def backup_page(request: Request) -> HTMLResponse:
-    return _backup_template(request)
+def backup_page(
+    request: Request,
+    db: Session = Depends(get_db),
+) -> HTMLResponse:
+    return _backup_template(request, db=db)
 
 
 @router.post(
@@ -1600,16 +1707,19 @@ async def backup_preview_page(
                     request,
                     validation_report=report,
                     preview_error=_backup_error_message(request, exc.code),
+                    db=db,
                 )
         return _backup_template(
             request,
             preview_result=preview_result,
             validation_report=report,
+            db=db,
         )
     except BackupError as exc:
         return _backup_template(
             request,
             preview_error=_backup_error_message(request, exc.code),
+            db=db,
         )
 
 
@@ -1637,4 +1747,5 @@ async def backup_restore_page(
         request,
         restore_result=restore_result,
         restore_error=restore_error,
+        db=db,
     )

@@ -4,11 +4,38 @@ NSFWTrack is a local single-user content record manager / collection tracker.
 
 Current release: `v0.7.0 / Phase 2-F data health and validation`.
 
-Current development: `Phase 2-F4 data maintenance safety prompts are next`.
+Current development: `Phase 2-G1 basic local settings center is in Unreleased`.
 
 NSFWTrack remains intentionally local-only. It is designed for manual records,
 local SQLite persistence, LAN deployment, and simple personal collection
 management.
+
+## Unreleased: Phase 2-G1 Local Settings Center
+
+Phase 2-G1 adds a login-protected local settings page at `/settings`.
+
+- Settings are stored in the local SQLite `app_settings` table.
+- Supported keys are `default_language`, `default_page_size`, `default_sort`,
+  `default_sort_dir`, and `default_home`.
+- Setting keys and values are validated through fixed allowlists. Unknown keys,
+  external URLs, script-like arbitrary values, and unsupported values are
+  rejected without writing to the database.
+- `POST /settings` saves settings, and `POST /settings/reset` restores defaults
+  only with explicit confirmation.
+- Default page size and default sorting apply to `/items` only when the URL does
+  not provide `page_size` or `sort`.
+- Explicit URL parameters and saved view query strings keep priority over local
+  defaults.
+- Default language applies only when the session has no explicit language
+  choice from `/set-language`.
+- The dashboard workbench shows the configured default-home entry and highlights
+  matching local entries such as items, stats, or recent activity.
+- JSON backup export, preview, validation, and restore include `app_settings`.
+  Older JSON backups without `app_settings` remain compatible.
+
+This settings center is local-only. It does not add multi-user preferences,
+cloud sync, external accounts, plugins, AI recommendations, external content
+sources, new dependencies, or changes to existing database fields.
 
 ## Features in v0.7.0
 
@@ -669,11 +696,12 @@ export MAX_BACKUP_UPLOAD_MB=5
 
 ## Language
 
-The default UI language is Chinese.
+The default UI language is Chinese unless changed in local settings.
 
 Use the language switch in the top bar to change between `中文` and `English`.
 The preference is saved in the session, so refreshing the page keeps the chosen
-language.
+language. A session language choice takes priority over the local default
+language stored in `/settings`.
 
 Direct routes are also available:
 

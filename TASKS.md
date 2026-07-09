@@ -518,3 +518,24 @@
 - [x] 更新 README 当前版本状态与 Phase 2-F 数据健康维护发布说明
 - [x] 保持 `v0.1.0`、`v0.2.0`、`v0.3.0`、`v0.4.0`、`v0.5.0` 和 `v0.6.0` tag 不变
 - [x] 本轮仅做 release 文档准备，不新增业务功能、不改数据库结构、不新增依赖、不进入 Phase 3
+
+## Phase 2-G1 基础设置中心
+
+- [x] 新增本地 `app_settings` 表，保存 `key` / `value` / 时间戳，不修改已有表字段
+- [x] 支持 `default_language`、`default_page_size`、`default_sort`、`default_sort_dir` 和 `default_home`
+- [x] 使用服务端白名单校验 setting key / value，拒绝未知 key、外部 URL、脚本内容和非法值
+- [x] 新增 `/settings` 页面，要求登录并只读展示当前设置
+- [x] 新增 `POST /settings` 保存设置，保存失败时 rollback 并显示友好 flash
+- [x] 新增 `POST /settings/reset` 恢复默认设置，要求 `confirm=1`
+- [x] 默认每页数量在 `/items` 没有 `page_size` 参数时生效
+- [x] 默认排序字段 / 方向在 `/items` 没有 `sort` 参数时生效
+- [x] 显式 URL 参数优先于本地默认设置，saved views 已保存 query string 不受影响
+- [x] 默认语言只在 session 没有显式语言选择时生效，不破坏 `/set-language`
+- [x] 首页工作台展示当前默认入口并高亮条目列表、统计或最近活动入口
+- [x] JSON 备份导出 / 预览 / 校验 / 恢复支持 `app_settings`
+- [x] 旧 JSON 备份缺少 `app_settings` 时按空可选表兼容，不失败
+- [x] 新增设置中心中文 / English 文案，并保持 i18n key 覆盖一致
+- [x] 补充设置页登录保护、合法保存、非法 key/value、默认分页、默认排序、显式 URL 覆盖、语言切换优先级、reset、默认首页高亮和备份兼容测试
+- [x] 更新 README / TASKS / REVIEW / CHANGELOG / PLAN，记录 Phase 2-G1 未发布改动
+- [x] 确认本轮未新增依赖，未接入外部内容源、URL 导入、爬虫、adapter、AI 推荐、云同步、多用户设置、外部账号或插件系统
+- [x] 确认本轮未修改已发布 tag，未创建 GitHub Release

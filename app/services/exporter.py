@@ -101,6 +101,16 @@ def _item_activity_row(activity: models.ItemActivity) -> dict[str, Any]:
     }
 
 
+def _app_setting_row(setting: models.AppSetting) -> dict[str, Any]:
+    return {
+        "id": setting.id,
+        "key": setting.key,
+        "value": setting.value,
+        "created_at": _format_datetime(setting.created_at),
+        "updated_at": _format_datetime(setting.updated_at),
+    }
+
+
 def export_backup_data(db: Session) -> dict[str, Any]:
     items = db.scalars(select(models.Item).order_by(models.Item.id.asc())).all()
     tags = db.scalars(select(models.Tag).order_by(models.Tag.id.asc())).all()
@@ -132,6 +142,9 @@ def export_backup_data(db: Session) -> dict[str, Any]:
     item_activity = db.scalars(
         select(models.ItemActivity).order_by(models.ItemActivity.id.asc())
     ).all()
+    app_settings = db.scalars(
+        select(models.AppSetting).order_by(models.AppSetting.key.asc())
+    ).all()
     return {
         "schema": BACKUP_SCHEMA,
         "exported_at": datetime.now(timezone.utc).isoformat(),
@@ -156,6 +169,7 @@ def export_backup_data(db: Session) -> dict[str, Any]:
             "item_activity": [
                 _item_activity_row(activity) for activity in item_activity
             ],
+            "app_settings": [_app_setting_row(setting) for setting in app_settings],
         },
     }
 

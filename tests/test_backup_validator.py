@@ -30,6 +30,7 @@ def _backup_payload() -> dict[str, object]:
                 }
             ],
             "item_activity": [{"item_id": 1, "view_count": 1, "edit_count": 0}],
+            "app_settings": [{"key": "default_language", "value": "zh"}],
         },
     }
 
@@ -102,6 +103,7 @@ def test_backup_validator_accepts_old_backups_without_new_optional_tables() -> N
     assert isinstance(tables, dict)
     tables.pop("saved_views")
     tables.pop("item_activity")
+    tables.pop("app_settings")
 
     report = validate_backup_payload(payload).to_dict()
 
@@ -121,6 +123,9 @@ def test_backup_validator_reports_unknown_fields_required_fields_and_values() ->
     tables["user_item_states"] = [
         {"item_id": 1, "status": "planned", "rating": 9},
     ]
+    tables["app_settings"] = [
+        {"key": "default_home", "value": "https://example.test"},
+    ]
 
     report = validate_backup_payload(payload).to_dict()
     codes = _issue_codes(report)
@@ -133,6 +138,7 @@ def test_backup_validator_reports_unknown_fields_required_fields_and_values() ->
     assert "duplicate_id" in codes
     assert "invalid_status" in codes
     assert "invalid_rating" in codes
+    assert "invalid_setting" in codes
 
 
 def test_backup_validator_reports_orphans_duplicates_and_saved_view_activity() -> None:

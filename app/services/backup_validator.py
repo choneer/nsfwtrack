@@ -14,6 +14,7 @@ from app.services.backup import CORE_TABLE_NAMES, OPTIONAL_TABLE_NAMES, TABLE_NA
 from app.services.exporter import BACKUP_SCHEMA
 from app.services.item_query import STATUS_OPTIONS
 from app.services.saved_views import SAVED_VIEW_ALLOWED_PARAMS
+from app.services.settings import AppSettingsError, validate_setting_value
 
 TOP_LEVEL_FIELDS = {"schema", "exported_at", "tables"}
 BLOCKED_SAVED_VIEW_PARAMS = {"page", "next", "redirect"}
@@ -30,6 +31,7 @@ _TABLE_REQUIRED_FIELDS: dict[str, set[str]] = {
     "item_collections": {"item_id", "collection_id"},
     "saved_views": {"id", "name", "query_string"},
     "item_activity": {"item_id"},
+    "app_settings": {"key", "value"},
 }
 
 _TABLE_KNOWN_FIELDS: dict[str, set[str]] = {
@@ -69,6 +71,7 @@ _TABLE_KNOWN_FIELDS: dict[str, set[str]] = {
         "created_at",
         "updated_at",
     },
+    "app_settings": {"id", "key", "value", "created_at", "updated_at"},
 }
 
 
@@ -314,6 +317,21 @@ def _validate_table_values(
                         detail=str(rating),
                     )
                 )
+    elif table_name == "app_settings":
+        key = str(row.get("key") or "").strip()
+        try:
+            validate_setting_value(key, row.get("value"))
+        except AppSettingsError:
+            issues.append(
+                _issue(
+                    "error",
+                    "invalid_setting",
+                    table_name,
+                    index,
+                    object_id,
+                    detail=key,
+                )
+            )
     return issues
 
 
@@ -549,6 +567,8 @@ def _restore_dry_run_infos(
             "collections": db.scalar(select(models.Collection.id).limit(1)) is not None,
             "saved_views": db.scalar(select(models.SavedView.id).limit(1)) is not None,
             "item_activity": db.scalar(select(models.ItemActivity.id).limit(1))
+            is not None,
+            "app_settings": db.scalar(select(models.AppSetting.id).limit(1))
             is not None,
         }
         touched = ", ".join(

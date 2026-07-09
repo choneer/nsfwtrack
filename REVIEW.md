@@ -278,6 +278,28 @@
 - [ ] **12.200. 数据库和依赖边界是否保持** — 是否未新增数据库表、未修改已有字段、未新增依赖或 Alembic
 - [ ] **12.201. Phase 2-F3 禁止项是否保持** — 是否未引入自动修复全部、自动合并、AI 判断、外部内容源、URL 导入、爬虫、adapter、云同步、多用户系统、tag 或 GitHub Release
 
+## Phase 2-G1 基础设置中心检查
+
+- [ ] **12.202. `app_settings` 表是否本地化** — 是否只新增本地 SQLite `app_settings` 表，未修改已有表字段，未新增依赖或 Alembic
+- [ ] **12.203. 设置 key 是否白名单** — 是否只允许 `default_language`、`default_page_size`、`default_sort`、`default_sort_dir` 和 `default_home`
+- [ ] **12.204. 设置 value 是否白名单** — 是否只允许既定语言、分页大小、排序字段、排序方向和首页入口，不保存外部 URL、脚本内容或任意字符串
+- [ ] **12.205. `/settings` 是否要求登录** — 未登录访问是否跳转登录，登录后是否能稳定渲染当前设置
+- [ ] **12.206. 保存是否只能 POST** — 设置保存是否只通过 `POST /settings`，非法 key/value 是否友好失败、不 500、不半写入
+- [ ] **12.207. reset 是否确认** — 恢复默认设置是否只通过 `POST /settings/reset`，服务端是否要求 `confirm=1`
+- [ ] **12.208. 默认分页是否生效且可覆盖** — `/items` 没有 `page_size` 时使用本地默认值，显式 URL `page_size` 优先
+- [ ] **12.209. 默认排序是否生效且可覆盖** — `/items` 没有 `sort` 时使用默认字段 / 方向，显式 URL `sort` 优先
+- [ ] **12.210. 默认语言优先级是否正确** — session 显式语言选择是否优先于本地默认语言，不破坏 `/set-language`
+- [ ] **12.211. 默认首页入口是否安全** — 首页是否只展示或高亮本地入口，不保存外部 URL，不执行自动跳转或危险操作
+- [ ] **12.212. saved views 是否未被覆盖** — 已保存视图中的 query string 是否保持独立，不被新默认分页 / 排序改写
+- [ ] **12.213. JSON 备份是否包含设置** — 新 JSON 备份是否包含 `app_settings`，且旧备份缺少该表时仍能预览 / 恢复
+- [ ] **12.214. 备份恢复设置是否校验** — 恢复 `app_settings` 时是否复用 key/value 白名单，无效设置是否跳过或报告，不写入未知设置
+- [ ] **12.215. i18n 是否完整** — 设置页、flash、导航、首页默认入口、备份校验中 `app_settings` 文案是否覆盖中文 / English
+- [ ] **12.216. 测试是否覆盖关键路径** — 是否覆盖登录保护、合法保存、非法 key/value、默认分页、默认排序、显式 URL 覆盖、语言切换、reset、首页高亮和备份兼容
+- [ ] **12.217. 回归是否覆盖** — items、saved views、backup、i18n、database 和 Docker 验收是否仍通过
+- [ ] **12.218. 本地单用户边界是否保持** — 是否未加入多用户设置、外部账号、云同步、插件系统、权限矩阵或外部内容源
+- [ ] **12.219. Phase 3 禁止项是否保持** — 是否未引入 URL 导入、爬虫、adapter、推荐系统、AI 助手、自动同步或远程图片拉取
+- [ ] **12.220. 发布边界是否保持** — 是否未修改已发布 tag，未创建 GitHub Release
+
 ## 登录保护检查
 
 - [ ] **13. 密码是否从环境变量读取** — 不是硬编码
@@ -319,10 +341,11 @@
 - [ ] **22.20. Phase 2-F2 发布记录** — 是否只记录到 `Unreleased`，未误写入 `v0.1.0` / `v0.2.0` / `v0.3.0` / `v0.4.0` / `v0.5.0` / `v0.6.0`，且未创建 tag 或 GitHub Release
 - [ ] **22.21. Phase 2-F3 发布记录** — 是否只记录到 `Unreleased`，未误写入 `v0.1.0` / `v0.2.0` / `v0.3.0` / `v0.4.0` / `v0.5.0` / `v0.6.0`，且未创建 tag 或 GitHub Release
 - [ ] **22.22. v0.7.0 发布准备** — 是否确认 Phase 2-F1 / F2 / F3 已在 `main`，只整理 release 文档，未新增业务功能、依赖、数据库结构、旧 tag 迁移或 Phase 3 能力
+- [ ] **22.23. Phase 2-G1 发布记录** — 是否只记录到 `Unreleased`，未误写入 `v0.1.0` / `v0.2.0` / `v0.3.0` / `v0.4.0` / `v0.5.0` / `v0.6.0` / `v0.7.0`，且未创建 tag 或 GitHub Release
 
 ## 备份恢复检查
 
-- [ ] **23. JSON 导出是否完整** — 是否包含 items、tags、creators、collections、item_tags、item_creators、item_collections、user_item_states、saved_views、item_activity
+- [ ] **23. JSON 导出是否完整** — 是否包含 items、tags、creators、collections、item_tags、item_creators、item_collections、user_item_states、saved_views、item_activity、app_settings
 - [ ] **24. CSV 导出是否可读** — 是否包含条目、标签、创作者、合集、状态等本地字段
 - [ ] **25. 恢复格式校验** — 非本项目导出的 JSON 是否拒绝
 - [ ] **26. 恢复事务性** — 非法 JSON 或恢复失败是否不会破坏现有数据库

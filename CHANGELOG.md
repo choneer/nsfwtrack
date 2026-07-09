@@ -2,6 +2,37 @@
 
 ## Unreleased
 
+### Added
+
+- Added Phase 2-G1 basic local settings center at `/settings`.
+- Added a local SQLite `app_settings` table for `default_language`,
+  `default_page_size`, `default_sort`, `default_sort_dir`, and `default_home`.
+- Added whitelist validation for setting keys and values so unknown settings,
+  external URLs, and script-like arbitrary values are rejected without a 500.
+- Added login-protected settings save and reset flows:
+  `POST /settings` and `POST /settings/reset`, with reset requiring explicit
+  `confirm=1`.
+- Added setting application for item-list default page size, item-list default
+  sort field / direction, default language fallback when no explicit session
+  language exists, and dashboard default-home entry highlighting.
+- Added JSON backup export / preview / restore compatibility for
+  `app_settings`, while keeping older backups without `app_settings`
+  compatible as an empty optional table.
+- Added backup validation for `app_settings` key/value validity.
+- Added Chinese / English settings UI and flash text.
+- Added tests for settings login protection, valid save, invalid key/value
+  rejection, default page size, default sorting, explicit URL override,
+  language switching precedence, reset confirmation, default-home highlighting,
+  `app_settings` backup compatibility, database table creation, and i18n
+  coverage.
+
+### Changed
+
+- Kept Phase 2-G1 scoped to local single-user preferences only: no multi-user
+  settings, cloud sync, external accounts, plugin system, AI recommendation,
+  external content source, existing-table field change, dependency change, tag,
+  or GitHub Release is added.
+
 ## v0.7.0 - 2026-07-09
 
 ### Added

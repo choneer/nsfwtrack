@@ -149,6 +149,10 @@
       border-color: #b7ddd8;
       text-decoration: none;
     }
+    .quick-action.is-default {
+      border-color: #0f766e;
+      box-shadow: inset 0 0 0 1px #0f766e;
+    }
     .quick-action strong {
       color: var(--accent-strong);
       line-height: 1.25;
@@ -829,6 +833,7 @@
         <a href="/stats">{{ t("nav.stats") }}</a>
         <a href="/import">{{ t("nav.import") }}</a>
         <a href="/backup">{{ t("nav.backup") }}</a>
+        <a href="/settings">{{ t("nav.settings") }}</a>
         <form class="inline-form" action="/logout" method="post">
           <button class="secondary" type="submit">{{ t("nav.logout") }}</button>
         </form>

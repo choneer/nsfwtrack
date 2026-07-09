@@ -7,7 +7,8 @@ from fastapi.testclient import TestClient
 
 from app.config import get_settings
 from app.database import SessionLocal
-from app.models import Collection, ItemActivity, ItemCollection, SavedView
+from app.models import AppSetting, Collection, ItemActivity, ItemCollection, SavedView
+from app.services.settings import get_app_settings
 
 
 def _create_backup_item(client: TestClient) -> int:
@@ -71,6 +72,11 @@ def _item_activity_count() -> int:
         return db.query(ItemActivity).count()
 
 
+def _app_setting_count() -> int:
+    with SessionLocal() as db:
+        return db.query(AppSetting).count()
+
+
 def _item_activity_for_item(item_id: int) -> ItemActivity | None:
     with SessionLocal() as db:
         return db.query(ItemActivity).filter(ItemActivity.item_id == item_id).one_or_none()
@@ -118,11 +124,13 @@ def test_json_export_contains_core_tables(auth_client: TestClient) -> None:
         "user_item_states",
         "saved_views",
         "item_activity",
+        "app_settings",
     }
     assert payload["tables"]["items"][0]["title"] == "Backup Item"
     assert payload["tables"]["user_item_states"][0]["status"] == "watched"
     assert payload["tables"]["saved_views"] == []
     assert payload["tables"]["item_activity"] == []
+    assert payload["tables"]["app_settings"] == []
 
 
 def test_json_backup_exports_and_previews_collection_tables(
@@ -224,6 +232,7 @@ def test_json_backup_preview_succeeds_without_modifying_database(
     assert preview["item_collections"] == 0
     assert preview["saved_views"] == 0
     assert preview["item_activity"] == 0
+    assert preview["app_settings"] == 0
     assert auth_client.get("/api/items").json()["total"] == 0
 
 
@@ -236,6 +245,7 @@ def test_old_json_backup_without_optional_tables_still_previews_and_restores(
     backup_payload["tables"].pop("item_collections")
     backup_payload["tables"].pop("saved_views")
     backup_payload["tables"].pop("item_activity")
+    backup_payload["tables"].pop("app_settings")
     item_id = backup_payload["tables"]["items"][0]["id"]
     assert auth_client.delete(f"/api/items/{item_id}").status_code == 200
 
@@ -264,8 +274,82 @@ def test_old_json_backup_without_optional_tables_still_previews_and_restores(
     assert preview_response.json()["preview"]["collections"] == 0
     assert preview_response.json()["preview"]["saved_views"] == 0
     assert preview_response.json()["preview"]["item_activity"] == 0
+    assert preview_response.json()["preview"]["app_settings"] == 0
     assert restore_response.status_code == 200
     assert auth_client.get("/api/items").json()["total"] == 1
+
+
+def test_json_backup_exports_previews_and_restores_app_settings(
+    auth_client: TestClient,
+) -> None:
+    save_response = auth_client.post(
+        "/settings",
+        data={
+            "default_language": "en",
+            "default_page_size": "50",
+            "default_sort": "title",
+            "default_sort_dir": "asc",
+            "default_home": "stats",
+        },
+        follow_redirects=False,
+    )
+    assert save_response.status_code == 303
+
+    payload = auth_client.get("/api/backup/export/json").json()
+    setting_rows = payload["tables"]["app_settings"]
+    assert {row["key"] for row in setting_rows} == {
+        "default_language",
+        "default_page_size",
+        "default_sort",
+        "default_sort_dir",
+        "default_home",
+    }
+
+    preview_response = auth_client.post(
+        "/api/backup/preview/json",
+        files={
+            "file": (
+                "backup.json",
+                json.dumps(payload).encode("utf-8"),
+                "application/json",
+            )
+        },
+    )
+    assert preview_response.status_code == 200
+    preview = preview_response.json()["preview"]
+    assert preview["app_settings"] == 5
+    assert preview["app_settings_valid"] == 5
+    assert preview["app_settings_skipped"] == 0
+    assert preview["app_settings_errors"] == 0
+    assert preview_response.json()["report"]["table_counts"]["app_settings"] == 5
+
+    with SessionLocal() as db:
+        db.query(AppSetting).delete()
+        db.commit()
+    assert _app_setting_count() == 0
+
+    restore_response = auth_client.post(
+        "/api/backup/restore/json",
+        files={
+            "file": (
+                "backup.json",
+                json.dumps(payload).encode("utf-8"),
+                "application/json",
+            )
+        },
+    )
+
+    assert restore_response.status_code == 200
+    result = restore_response.json()["result"]
+    assert result["app_settings_created"] == 5
+    assert result["app_settings_errors"] == 0
+    with SessionLocal() as db:
+        settings = get_app_settings(db)
+    assert settings.default_language == "en"
+    assert settings.default_page_size == 50
+    assert settings.default_sort == "title"
+    assert settings.default_sort_dir == "asc"
+    assert settings.default_home == "stats"
 
 
 def test_json_backup_exports_previews_and_restores_saved_views(
