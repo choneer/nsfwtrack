@@ -1,179 +1,176 @@
 # GOAL.md
 
-# 当前目标：Phase 2-I2 查询优化与分页收敛
+# 当前目标：Phase 2-I3 异常处理、日志与错误页面统一
 
-请先读取 `RULE.md`、`PLAN.md`、`PERFORMANCE.md`。
-长期边界以 `RULE.md` 为准，I1 基线以 `PERFORMANCE.md` 为准。
+请先读取 `RULE.md`、`PLAN.md`。
+长期边界以 `RULE.md` 为准。
 
 ---
 
 ## 一、目标
 
-针对 I1 已确认的问题优化现有查询：
+统一页面和 API 的异常处理：
 
-- 降低 items 页查询放大
-- 降低 metadata cleanup 查询放大
-- 消除 collection detail 的 N+1
-- 限制无界列表和明细加载
-- 减少重复 settings 查询
-- 优化 stats 和 data-health 的重复扫描
+- 400 / 403 / 404 / 405 / 409 / 422 / 500
+- 安全错误页面
+- JSON 错误响应
+- 请求标识 `request_id`
+- 本地日志格式
+- 未捕获异常安全回退
 
-本轮只修改查询、加载策略和分页逻辑。
-
----
-
-## 二、禁止项
-
-本轮不得：
-
-- 新增索引
-- 修改表或字段
-- 提升 schema 版本
-- 编写生产迁移
-- 新增依赖
-- 引入缓存、后台任务或外部服务
-- 修改默认 schema 2 数据卷
-
-如果确认必须新增索引才能继续，停止实现并在报告中说明，不要自行修改 schema。
+本轮不修改数据库结构，不新增依赖。
 
 ---
 
-## 三、优先优化范围
+## 二、错误响应
 
-### P0
+页面请求：
 
-#### Items 列表
+- 返回对应状态码
+- 使用统一错误模板
+- 显示简短、可理解的提示
+- 提供返回首页或上一安全页面的入口
 
-- 避免为当前页之外的条目加载关系
-- 避免重复加载 tag / creator / collection / state
-- 保持现有筛选、排序、分页、saved views 和批量编辑行为
-- 不允许为降低查询数而改变返回结果
+JSON/API 请求：
 
-#### Metadata cleanup
-
-- 避免一次性加载全部关系对象
-- 候选页只获取展示所需字段和计数
-- 对比页按需加载具体对象
-- 不改变重复检测和合并逻辑
-
-### P1
-
-#### Collection detail
-
-- 消除逐条查询 collection 的 N+1
-- 合集条目保持分页或明确上限
-- 可选条目列表必须分页、搜索或限制数量
-- 不改变合集成员关系
-
-#### Metadata 页面和 duplicates
-
-- tags / creators / collections 列表增加合理分页
-- duplicates 候选避免无界展示
-- 保持现有筛选、合并和确认逻辑
-
-### P2
-
-- 合并同一请求中的重复 settings 查询
-- 减少 stats 对相同表的重复扫描
-- data-health 明细设置安全上限，并显示截断提示
-- 不隐藏问题总数，只限制页面明细数量
-
----
-
-## 四、兼容要求
-
-必须保持：
-
-- URL 参数兼容
-- saved views 兼容
-- 中英文兼容
-- 现有排序结果
-- 现有分页语义
-- 登录、POST、confirm 和 rollback
-- 备份、导入、清理及合并行为
-- API / CSV / JSON 字段不变
-
----
-
-## 五、性能验收
-
-优化后重新运行 I1 的三档基线：
-
-- 100 items
-- 1,000 items
-- 10,000 items
-
-重点比较：
-
-- items / filtered_items
-- cleanup
-- collection_detail
-- tags / creators / collections
-- duplicates
-- stats
-- data-health
-- settings 查询次数
+- 保持 JSON 响应
+- 至少包含：
+  - `error`
+  - `message`
+  - `request_id`
+- 不破坏现有 API 字段和状态码
 
 要求：
 
-- collection detail 不再出现逐条 N+1
-- items 与 cleanup 查询数明显低于 I1
-- 查询数不能随当前页条目数线性增加
-- workbench / activity / saved views 等原本有界路径不能退化
-- 不使用固定毫秒数作为测试阈值
-- 将新旧结果写入 `PERFORMANCE.md`
+- 404 不得变成 500
+- 405 保留正确的 `Allow` 信息
+- 422 不破坏 FastAPI 校验行为
+- 预期业务错误不得被错误记录为系统崩溃
 
 ---
 
-## 六、测试
+## 三、安全边界
+
+用户响应中不得出现：
+
+- Python traceback
+- SQL 语句或参数
+- 数据库路径
+- 服务器绝对路径
+- 环境变量
+- Cookie / Session
+- Authorization header
+- Token 或凭据
+- 上传文件内容
+- 内部异常细节
+
+500 页面只显示通用提示和 `request_id`。
+
+---
+
+## 四、请求标识与日志
+
+为每个请求生成或接受安全的 `request_id`。
+
+建议：
+
+- 响应头返回 `X-Request-ID`
+- 日志包含：
+  - request_id
+  - method
+  - path
+  - status
+  - duration
+  - exception type，仅异常时
+
+要求：
+
+- 不信任过长或非法的外部 request id
+- 不记录敏感请求头、Cookie、表单密码或文件内容
+- 不接入外部日志、遥测或第三方监控
+- 不把普通 404 大量记录为严重错误
+
+---
+
+## 五、高风险流程
+
+重点统一以下流程的错误提示：
+
+- 备份校验与恢复
+- 导入与 dry-run
+- 条目及元数据合并
+- 数据健康修复
+- 设置保存与重置
+- Schema 预检与显式升级
+
+要求：
+
+- 保留原有 rollback
+- 保留登录、POST、confirm 和 strict `CONFIRM`
+- 不改变操作范围或业务结果
+- 错误发生后不得留下半写入状态
+
+---
+
+## 六、建议实现
+
+可新增：
+
+- `app/errors.py`
+- `app/request_context.py`
+- `app/templates/error.html`
+- `tests/test_error_handling.py`
+
+可以复用现有页面、flash 和日志结构，避免重复实现。
+
+---
+
+## 七、测试
 
 至少覆盖：
 
-- items 结果与优化前一致
-- items 分页只加载当前页所需数据
-- collection detail 无 N+1
-- 合集可选条目有分页或上限
-- cleanup 候选结果保持一致
-- metadata 列表分页正常
-- duplicates 不再无界加载
-- data-health 总数准确且明细可截断
-- settings 不在同一请求中重复查询
-- saved views、筛选、排序、批量编辑不回归
-- 全量测试和性能审计通过
+- 页面 404 返回统一 HTML 和 404
+- JSON 404 返回 JSON
+- 405 状态和 Allow 信息正确
+- 422 保持正常校验响应
+- 模拟未捕获异常返回安全 500
+- 500 响应不泄露 traceback、SQL、路径或凭据
+- 每个响应包含有效 `X-Request-ID`
+- 非法外部 request id 被替换
+- 日志包含 request_id 和状态码
+- 日志不包含 Cookie、Authorization、密码或上传内容
+- 预期业务错误不变成 500
+- 高风险操作失败仍 rollback
+- i18n 和全量回归测试通过
 
 ---
 
-## 七、文档与验收
+## 八、文档与验收
 
 更新：
 
-- `PERFORMANCE.md`
-- `README.md`
-- `TASKS.md`
-- `REVIEW.md`
-- `CHANGELOG.md`
-- `PLAN.md`
+- README.md
+- TASKS.md
+- REVIEW.md
+- CHANGELOG.md
+- PLAN.md
 
 要求：
 
 - CHANGELOG 只写 `Unreleased`
 - 不修改旧 tag
 - 不创建 Release
-- 使用隔离数据库和数据卷
-- 运行全量测试与 Docker 验收
-- 提交并推送到 `origin/main`
+- 运行全量测试和 Docker 验收
+- 通过后提交并推送到 `origin/main`
 
----
-
-## 八、完成后汇报
+完成后汇报：
 
 1. 修改 / 新增文件
-2. 各 P0 / P1 / P2 问题如何处理
-3. collection detail N+1 如何消除
-4. 哪些页面新增分页或上限
-5. 优化前后查询数对比
-6. 是否改变返回结果或业务逻辑
-7. 是否需要新增索引或迁移
+2. 错误处理架构
+3. HTML 与 JSON 如何区分
+4. request_id 如何生成和校验
+5. 日志记录及脱敏方式
+6. 500 如何防止信息泄露
+7. 高风险操作错误边界
 8. 测试与 Docker 结果
-9. `PERFORMANCE.md` 更新
-10. 提交 hash
+9. 提交 hash

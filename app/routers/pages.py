@@ -1103,7 +1103,10 @@ def bulk_items_page(
     dependencies=[Depends(require_page_auth)],
 )
 def bulk_items_get_not_allowed() -> None:
-    raise HTTPException(status_code=status.HTTP_405_METHOD_NOT_ALLOWED)
+    raise HTTPException(
+        status_code=status.HTTP_405_METHOD_NOT_ALLOWED,
+        headers={"Allow": "POST"},
+    )
 
 
 @router.get(

@@ -8,6 +8,8 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from app.config import get_settings
 from app.database import init_db
+from app.errors import install_exception_handlers
+from app.request_context import RequestContextMiddleware, configure_request_logging
 from app.routers import auth, backup, creators, importer, items, pages, search, stats, tags
 
 
@@ -19,6 +21,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 def create_app() -> FastAPI:
     settings = get_settings()
+    configure_request_logging()
     app = FastAPI(
         title="NSFWTrack",
         version="0.1.0",
@@ -33,6 +36,8 @@ def create_app() -> FastAPI:
         same_site="lax",
         https_only=False,
     )
+    app.add_middleware(RequestContextMiddleware)
+    install_exception_handlers(app)
     app.include_router(auth.router)
     app.include_router(items.router)
     app.include_router(tags.router)

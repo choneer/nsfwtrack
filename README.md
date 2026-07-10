@@ -4,11 +4,42 @@ NSFWTrack is a local single-user content record manager / collection tracker.
 
 Current release: `v0.9.0 / Phase 2-H database versioning and migration framework`.
 
-Current development: `Phase 2-I1 baseline and Phase 2-I2 query / pagination optimization are in Unreleased`.
+Current development: `Phase 2-I1 through I3 stability work is in Unreleased`.
 
 NSFWTrack remains intentionally local-only. It is designed for manual records,
 local SQLite persistence, LAN deployment, and simple personal collection
 management.
+
+## Unreleased: Phase 2-I3 Error Handling And Request Logs
+
+Phase 2-I3 provides one safe error boundary for page and API requests without
+changing business operations, transactions, the database schema, or project
+dependencies.
+
+- Page requests use one bilingual error template for 400, 403, 404, 405, 409,
+  422, and 500 responses and retain the original status code.
+- `/api/` requests and explicit JSON clients receive `error`, `message`, and
+  `request_id`. The existing `detail` field remains available for compatible
+  expected errors and validation details.
+- 405 responses preserve `Allow`. FastAPI validation errors retain type,
+  location, and message while submitted values are not echoed.
+- Every HTTP response includes `X-Request-ID`. A client value is accepted only
+  when it is 1-64 characters and uses the safe alphanumeric, `.`, `_`, or `-`
+  character set; other values are replaced with a generated identifier.
+- Local request logs contain request ID, method, sanitized route path, status,
+  duration, and exception type for failures. They do not record query strings,
+  request headers, cookies, authorization values, forms, passwords, or upload
+  bodies.
+- Unhandled exceptions return a generic 500 response and request ID. Exception
+  values, traceback text, SQL, server paths, environment values, and secrets
+  are not returned or written by the application request logger.
+- Expected business errors remain normal 4xx responses or existing page flash
+  results. Backup, import, merge, health repair, settings, and schema upgrade
+  keep their existing transaction and rollback behavior.
+- Login protection, POST-only mutations, browser confirmation, server-side
+  confirmation, and strict `CONFIRM` checks are unchanged.
+- No external logger, telemetry service, monitoring dependency, schema change,
+  tag, or GitHub Release is included.
 
 ## Unreleased: Phase 2-I2 Query And Pagination Optimization
 

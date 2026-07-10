@@ -673,3 +673,22 @@
 - [x] 保持 saved views、筛选、排序、批量编辑、合并、备份、导入、确认和 rollback 行为
 - [x] 未新增索引、表、字段、依赖、生产迁移，未提升 schema 版本
 - [x] 未使用默认 schema 2 数据卷，未修改旧 tag，未创建 GitHub Release
+
+## Phase 2-I3 异常处理、日志与错误页面统一
+
+- [x] 为 400 / 403 / 404 / 405 / 409 / 422 / 500 统一双语 HTML 错误页面
+- [x] `/api/` 和显式 JSON 请求统一返回 `error` / `message` / `request_id`
+- [x] 保留兼容 `detail` 字段、原状态码和 405 `Allow` 响应头
+- [x] 422 保留 FastAPI 校验 type / loc / msg，不回显提交的 input
+- [x] 每个成功、重定向和错误响应都返回 `X-Request-ID`
+- [x] 外部 request id 仅接受 1-64 位安全字符，非法或过长值自动替换
+- [x] 请求日志包含 request_id / method / 安全 route path / status / duration
+- [x] 异常日志只记录 exception type，不记录异常值或 traceback
+- [x] 禁用包含原始 query string 的重复 Uvicorn access log
+- [x] 日志不记录 Authorization、Cookie、query、表单密码或上传内容
+- [x] 500 只返回通用提示和 request_id，不泄露 SQL、路径、环境或凭据
+- [x] 普通 404 / 业务 4xx 不记录为系统崩溃
+- [x] 未捕获异常后的未提交数据库写入由 Session close rollback
+- [x] 备份、导入、合并、健康修复、设置和 schema 升级原 rollback 测试通过
+- [x] 登录、POST、confirm 和 strict `CONFIRM` 行为保持不变
+- [x] 未修改数据库结构、依赖、已发布 tag，未创建 GitHub Release

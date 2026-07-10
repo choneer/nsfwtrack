@@ -25,6 +25,15 @@
 - Added query-regression tests for pagination reachability, collection member
   preservation, bounded collection detail loading, complete data-health counts,
   single-request settings reuse, and I2 query-count ceilings.
+- Added Phase 2-I3 unified bilingual HTML error pages and JSON error envelopes
+  for 400, 403, 404, 405, 409, 422, and 500 responses.
+- Added a request-context middleware that validates or generates a bounded
+  `request_id`, returns it as `X-Request-ID`, and emits one sanitized local log
+  line with method, route path, status, duration, and exception type when
+  applicable.
+- Added error-handling tests for HTML / JSON negotiation, `Allow` preservation,
+  validation compatibility, request-id validation, safe 500 responses, log
+  redaction, expected-error severity, and transaction rollback.
 
 ### Changed
 
@@ -46,6 +55,15 @@
 - Combined data-health orphan checks and limited rendered details to 200 while
   preserving complete totals and manual-fix issue counts.
 - Updated the 100 / 1,000 / 10,000 performance matrix with I1-to-I2 results.
+- API errors now retain the compatible `detail` field and status while also
+  returning `error`, `message`, and `request_id`. Validation errors retain
+  type, location, and message without echoing submitted input.
+- Page errors use one responsive template with the original status code and a
+  generic localized message. Redirects and successful responses also receive
+  `X-Request-ID`; 405 responses retain `Allow`.
+- Replaced Uvicorn's raw request-line access log with the application request
+  log so query strings, headers, cookies, form values, and upload content are
+  not recorded.
 
 ### Security
 
@@ -59,6 +77,13 @@
 - Phase 2-I2 adds no index, table, field, dependency, production migration,
   schema-version change, cache, external service, tag, or GitHub Release. All
   performance acceptance data remains isolated and disposable.
+- Unhandled exceptions now return only a generic message and request ID. The
+  application logs the exception type without traceback text or exception
+  values, and expected 4xx responses remain informational rather than system
+  failures.
+- Phase 2-I3 preserves existing login, POST, browser confirmation, strict
+  `CONFIRM`, transaction, and rollback boundaries. It adds no external logging,
+  telemetry, dependency, schema change, tag, or GitHub Release.
 
 ## v0.9.0 - 2026-07-10
 

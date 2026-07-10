@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}{{ status_code }} - NSFWTrack{% endblock %}
+{% block content %}
+<section class="card stack" role="alert">
+  <div>
+    <p class="muted">{{ status_code }}</p>
+    <h1>{{ t("error." ~ error_code ~ ".title") }}</h1>
+    <p>{{ t("error." ~ error_code ~ ".message") }}</p>
+  </div>
+  <p class="muted">{{ t("error.request_id") }}: <code>{{ request_id }}</code></p>
+  <div class="actions">
+    <a class="button" href="/">{{ t("error.home") }}</a>
+  </div>
+</section>
+{% endblock %}

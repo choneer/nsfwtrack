@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import JSONResponse, RedirectResponse, Response
 
 from app.auth import login_user, logout_user, require_api_auth, verify_password
@@ -25,9 +25,9 @@ async def login(request: Request) -> Response:
         if from_form:
             add_flash(request, "error", "flash.login_failed")
             return RedirectResponse("/login", status_code=status.HTTP_303_SEE_OTHER)
-        return JSONResponse(
-            {"detail": "Invalid password"},
+        raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid password",
         )
     login_user(request)
     if from_form:
