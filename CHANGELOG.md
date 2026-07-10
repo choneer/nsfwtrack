@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+No unreleased changes.
+
+## v0.8.0 - 2026-07-10
+
 ### Added
 
 - Added Phase 2-G6 dangerous-operation preferences by reusing the existing
@@ -58,8 +62,7 @@
   defaults.
 - Kept Phase 2-G1 scoped to local single-user preferences only: no multi-user
   settings, cloud sync, external accounts, plugin system, AI recommendation,
-  external content source, existing-table field change, dependency change, tag,
-  or GitHub Release is added.
+  external content source, existing-table field change, or dependency change.
 
 ## v0.7.0 - 2026-07-09
 

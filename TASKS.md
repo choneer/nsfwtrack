@@ -562,3 +562,14 @@
 - [x] 保持无一键全部删除 / 合并 / 修复，无自动执行或安全绕过
 - [x] 更新 README / TASKS / REVIEW / CHANGELOG / PLAN，仅记录 Unreleased
 - [x] 确认未修改已发布 tag，未创建 GitHub Release
+
+## v0.8.0 发布准备
+
+- [x] 确认 `main` 已包含 Phase 2-G1 基础设置中心
+- [x] 确认 `main` 已包含 Phase 2-G6 危险操作偏好与确认流程统一
+- [x] 再次运行全量测试与 Docker build / compose / `/login` 验收
+- [x] 将 CHANGELOG 的 `Unreleased` 中 Phase 2-G1 / G6 内容整理为 `v0.8.0 - 2026-07-10` 发布段
+- [x] 将 CHANGELOG 的 `Unreleased` 重置为无未发布变更
+- [x] 更新 README / TASKS / REVIEW / PLAN 当前版本与发布状态
+- [x] 保持 `v0.1.0` 到 `v0.7.0` 的发布内容与 tag 不变
+- [x] 本轮仅做 release 文档准备，不新增业务功能、不改数据库结构、不新增依赖

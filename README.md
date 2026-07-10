@@ -2,15 +2,18 @@
 
 NSFWTrack is a local single-user content record manager / collection tracker.
 
-Current release: `v0.7.0 / Phase 2-F data health and validation`.
+Current release: `v0.8.0 / Phase 2-G settings and safer confirmations`.
 
-Current development: `Phase 2-G1 / G6 local settings and dangerous-operation preferences are in Unreleased`.
+Current development: `No unreleased changes`.
 
 NSFWTrack remains intentionally local-only. It is designed for manual records,
 local SQLite persistence, LAN deployment, and simple personal collection
 management.
 
-## Unreleased: Phase 2-G Local Settings Center
+## Features in v0.8.0
+
+`v0.8.0` adds Phase 2-G1 local settings and Phase 2-G6 safer,
+consistent dangerous-operation confirmations on top of `v0.7.0`.
 
 Phase 2-G1 adds a login-protected local settings page at `/settings`.
 
@@ -701,11 +704,12 @@ Available local-only actions:
   use `POST /api/backup/restore/json`
 
 JSON backups include `items`, `tags`, `creators`, `collections`, `item_tags`,
-`item_creators`, `item_collections`, `user_item_states`, `saved_views`, and
-`item_activity`. Restore uses an append / merge strategy; it is not an
-overwrite restore and does not clear the current database. Collection restore
-merges by collection name, saved views merge by name, and recent activity rows
-merge only for existing local items.
+`item_creators`, `item_collections`, `user_item_states`, `saved_views`,
+`item_activity`, and `app_settings`. Restore uses an append / merge strategy;
+it is not an overwrite restore and does not clear the current database.
+Collection restore merges by collection name, saved views merge by name,
+recent activity rows merge only for existing local items, and supported local
+settings are validated before restore.
 
 Backup restore only accepts uploaded local JSON files exported by NSFWTrack. It
 never restores from a URL, cloud sync, or an external data source. Uploaded JSON
