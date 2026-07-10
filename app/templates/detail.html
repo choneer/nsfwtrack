@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_danger_notice.html" import danger_notice %}
 {% block title %}{{ item.title }} - NSFWTrack{% endblock %}
 {% block content %}
 <div class="toolbar">
@@ -230,6 +231,7 @@
 
   <section class="card detail-section detail-actions-panel">
     <h2>{{ t("detail.actions") }}</h2>
+    {{ danger_notice(t, danger_policy, "danger.object_item", "danger.consequence_item_delete", "danger.deletion_item", "danger.recovery_backup", true) }}
     <div class="actions">
       <a class="button secondary" href="{{ return_list_url }}">{{ t("detail.back_to_list") }}</a>
       <a class="button secondary" href="/duplicates">{{ t("duplicates.find_duplicates") }}</a>
@@ -240,22 +242,11 @@
           class="danger"
           type="submit"
           data-confirm-message="{{ t('detail.confirm_delete') }}"
+          {% if danger_policy.is_strict %}data-strict-confirm-message="{{ t('danger.strict_prompt') }}"{% endif %}
         >{{ t("detail.delete_item") }}</button>
       </form>
     </div>
   </section>
 </div>
 
-<script>
-  (() => {
-    document.querySelectorAll("[data-confirm-message]").forEach((button) => {
-      button.addEventListener("click", (event) => {
-        const message = button.dataset.confirmMessage;
-        if (message && !window.confirm(message)) {
-          event.preventDefault();
-        }
-      });
-    });
-  })();
-</script>
 {% endblock %}

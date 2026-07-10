@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 
-from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile, status
 from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
@@ -12,6 +12,11 @@ from app.database import get_db
 from app.i18n import get_language, translate
 from app.services.backup import BackupError, preview_backup_data, restore_backup_data
 from app.services.backup_validator import validate_backup_payload
+from app.services.danger import (
+    DangerConfirmationError,
+    get_danger_policy,
+    require_danger_confirmation,
+)
 from app.services.exporter import (
     export_backup_json,
     export_items_csv,
@@ -118,8 +123,21 @@ async def preview_json_endpoint(
 async def restore_json_endpoint(
     request: Request,
     file: UploadFile | None = File(default=None),
+    confirmation_text: str | None = Form(default=None),
     db: Session = Depends(get_db),
 ) -> dict[str, object]:
+    danger_policy = get_danger_policy(db)
+    db.rollback()
+    try:
+        require_danger_confirmation(
+            danger_policy,
+            confirmation_text=confirmation_text,
+        )
+    except DangerConfirmationError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=translate(get_language(request), f"danger.error_{exc.code}"),
+        ) from exc
     payload = await _read_backup_upload(request, file)
     try:
         preview_backup_data(payload)

@@ -290,6 +290,9 @@ def test_json_backup_exports_previews_and_restores_app_settings(
             "default_sort": "title",
             "default_sort_dir": "asc",
             "default_home": "stats",
+            "danger_confirmation_mode": "strict",
+            "backup_reminder_mode": "always",
+            "danger_result_detail": "summary",
         },
         follow_redirects=False,
     )
@@ -303,6 +306,9 @@ def test_json_backup_exports_previews_and_restores_app_settings(
         "default_sort",
         "default_sort_dir",
         "default_home",
+        "danger_confirmation_mode",
+        "backup_reminder_mode",
+        "danger_result_detail",
     }
 
     preview_response = auth_client.post(
@@ -317,11 +323,11 @@ def test_json_backup_exports_previews_and_restores_app_settings(
     )
     assert preview_response.status_code == 200
     preview = preview_response.json()["preview"]
-    assert preview["app_settings"] == 5
-    assert preview["app_settings_valid"] == 5
+    assert preview["app_settings"] == 8
+    assert preview["app_settings_valid"] == 8
     assert preview["app_settings_skipped"] == 0
     assert preview["app_settings_errors"] == 0
-    assert preview_response.json()["report"]["table_counts"]["app_settings"] == 5
+    assert preview_response.json()["report"]["table_counts"]["app_settings"] == 8
 
     with SessionLocal() as db:
         db.query(AppSetting).delete()
@@ -341,7 +347,7 @@ def test_json_backup_exports_previews_and_restores_app_settings(
 
     assert restore_response.status_code == 200
     result = restore_response.json()["result"]
-    assert result["app_settings_created"] == 5
+    assert result["app_settings_created"] == 8
     assert result["app_settings_errors"] == 0
     with SessionLocal() as db:
         settings = get_app_settings(db)
@@ -350,6 +356,9 @@ def test_json_backup_exports_previews_and_restores_app_settings(
     assert settings.default_sort == "title"
     assert settings.default_sort_dir == "asc"
     assert settings.default_home == "stats"
+    assert settings.danger_confirmation_mode == "strict"
+    assert settings.backup_reminder_mode == "always"
+    assert settings.danger_result_detail == "summary"
 
 
 def test_json_backup_exports_previews_and_restores_saved_views(

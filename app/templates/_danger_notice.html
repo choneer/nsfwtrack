@@ -1,0 +1,31 @@
+{% macro danger_notice(t, policy, object_key, consequence_key, deletion_key, recovery_key, backup_recommended=true) -%}
+<section class="notice danger-notice">
+  <h3>{{ t("danger.title") }}</h3>
+  <dl class="danger-facts">
+    <div>
+      <dt>{{ t("danger.object") }}</dt>
+      <dd>{{ t(object_key) }}</dd>
+    </div>
+    <div>
+      <dt>{{ t("danger.consequence") }}</dt>
+      <dd>{{ t(consequence_key) }}</dd>
+    </div>
+    <div>
+      <dt>{{ t("danger.deletes_data") }}</dt>
+      <dd>{{ t(deletion_key) }}</dd>
+    </div>
+    <div>
+      <dt>{{ t("danger.recoverable") }}</dt>
+      <dd>{{ t(recovery_key) }}</dd>
+    </div>
+    <div>
+      <dt>{{ t("danger.current_mode") }}</dt>
+      <dd>{{ t("danger.mode_" ~ policy.confirmation_mode) }}</dd>
+    </div>
+  </dl>
+  {% if policy.show_backup_reminder(backup_recommended) %}
+    <p><strong>{{ t("danger.backup_title") }}</strong> {{ t("danger.backup_body") }}</p>
+  {% endif %}
+  <p>{{ t("danger.confirmation_" ~ policy.confirmation_mode) }}</p>
+</section>
+{%- endmacro %}

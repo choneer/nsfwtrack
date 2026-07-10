@@ -30,7 +30,12 @@ def _backup_payload() -> dict[str, object]:
                 }
             ],
             "item_activity": [{"item_id": 1, "view_count": 1, "edit_count": 0}],
-            "app_settings": [{"key": "default_language", "value": "zh"}],
+            "app_settings": [
+                {"key": "default_language", "value": "zh"},
+                {"key": "danger_confirmation_mode", "value": "strict"},
+                {"key": "backup_reminder_mode", "value": "always"},
+                {"key": "danger_result_detail", "value": "detailed"},
+            ],
         },
     }
 

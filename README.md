@@ -4,19 +4,19 @@ NSFWTrack is a local single-user content record manager / collection tracker.
 
 Current release: `v0.7.0 / Phase 2-F data health and validation`.
 
-Current development: `Phase 2-G1 basic local settings center is in Unreleased`.
+Current development: `Phase 2-G1 / G6 local settings and dangerous-operation preferences are in Unreleased`.
 
 NSFWTrack remains intentionally local-only. It is designed for manual records,
 local SQLite persistence, LAN deployment, and simple personal collection
 management.
 
-## Unreleased: Phase 2-G1 Local Settings Center
+## Unreleased: Phase 2-G Local Settings Center
 
 Phase 2-G1 adds a login-protected local settings page at `/settings`.
 
 - Settings are stored in the local SQLite `app_settings` table.
-- Supported keys are `default_language`, `default_page_size`, `default_sort`,
-  `default_sort_dir`, and `default_home`.
+- Supported basic keys are `default_language`, `default_page_size`,
+  `default_sort`, `default_sort_dir`, and `default_home`.
 - Setting keys and values are validated through fixed allowlists. Unknown keys,
   external URLs, script-like arbitrary values, and unsupported values are
   rejected without writing to the database.
@@ -32,6 +32,29 @@ Phase 2-G1 adds a login-protected local settings page at `/settings`.
   matching local entries such as items, stats, or recent activity.
 - JSON backup export, preview, validation, and restore include `app_settings`.
   Older JSON backups without `app_settings` remain compatible.
+
+Phase 2-G6 reuses `app_settings` to unify dangerous-operation preferences.
+
+- `danger_confirmation_mode` accepts only `standard` or `strict`.
+- `backup_reminder_mode` accepts only `always` or `dangerous_only`; safety
+  notices cannot be disabled.
+- `danger_result_detail` accepts only `summary` or `detailed` and changes only
+  result presentation.
+- Standard mode preserves the existing login, write-method, browser confirm,
+  server confirmation, and rollback behavior.
+- Strict mode adds an exact server-validated `CONFIRM` text requirement. A
+  missing, wrong, invalid, or unreadable setting never disables confirmation;
+  invalid confirmation settings safely fall back to standard mode.
+- Unified notices show the operation object, consequence, deletion scope,
+  recoverability, applicable JSON backup recommendation, and current mode.
+- Coverage includes item and current-page bulk deletion, tag / creator /
+  collection deletion, item and metadata merge, recent activity clearing,
+  backup restore, data health manual fixes, and settings reset.
+- JSON backup export, preview, validation, and restore include the three G6
+  settings. Older backups without them continue to use safe defaults.
+- No setting can add one-click delete / merge / repair, bypass login, change a
+  mutation into GET, skip browser or server confirmation, widen an operation's
+  data scope, or weaken rollback behavior.
 
 This settings center is local-only. It does not add multi-user preferences,
 cloud sync, external accounts, plugins, AI recommendations, external content

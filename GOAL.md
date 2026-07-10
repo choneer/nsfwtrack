@@ -1,6 +1,6 @@
 # GOAL.md
 
-# 当前目标：Phase 2-G1 基础设置中心
+# 当前目标：Phase 2-G6 危险操作偏好与确认流程统一
 
 请先读取 `RULE.md`、`PLAN.md`，再执行本文件。
 长期边界以 `RULE.md` 为准。
@@ -9,163 +9,144 @@
 
 ## 一、目标
 
-新增本地基础设置中心，让用户配置常用默认行为。
+统一危险操作的提示与确认流程，并允许用户提高确认强度。
 
-本轮实现：
+覆盖：
 
-- 设置页 `/settings`
-- 默认语言
-- 默认每页数量
-- 默认排序字段
-- 默认排序方向
-- 默认首页入口
-- 设置保存 / 更新
-- 设置恢复默认值，可选
+- 删除条目及批量删除
+- 删除标签 / 创作者 / 合集
+- 条目与元数据合并
+- 清空最近活动
+- 恢复备份
+- 数据健康手动修复
+- 设置恢复默认值
 
-本轮不做：
-
-- 多用户设置
-- 复杂权限
-- 云同步
-- 外部账号
-- 主题市场
-- 插件系统
-- AI 推荐
-- 外部内容源
+设置只能增强确认，不能关闭确认。
 
 ---
 
-## 二、数据库
+## 二、设置项
 
-本轮允许新增一个本地表：
+复用现有 `app_settings` 表，不新增表、不改字段、不新增依赖。
 
-- `app_settings`
+新增白名单 key：
 
-建议字段：
-
-- `id`
-- `key`
-- `value`
-- `created_at`
-- `updated_at`
+- `danger_confirmation_mode`
+  - `standard`
+  - `strict`
+- `backup_reminder_mode`
+  - `always`
+  - `dangerous_only`
+- `danger_result_detail`
+  - `summary`
+  - `detailed`
 
 要求：
 
-- `key` 唯一
-- 只允许白名单 setting key
-- 不修改已有表字段
-- 不新增依赖
-- 旧数据库通过 `create_all` 兼容
-- JSON 备份 / 恢复应兼容 `app_settings`
-- 旧备份没有 `app_settings` 时不能失败
+- 不允许 `off`、`disabled`、`never`
+- 不允许未知 key / value
+- 不允许外部 URL 或脚本内容
+- 旧设置与旧备份继续兼容
 
 ---
 
-## 三、允许的设置项
+## 三、确认模式
 
-只允许这些 key：
+### standard
 
-- `default_language`
-- `default_page_size`
-- `default_sort`
-- `default_sort_dir`
-- `default_home`
-
-建议取值：
-
-```text
-default_language: zh / en
-default_page_size: 10 / 20 / 50 / 100
-default_sort: updated_at / created_at / title / rating
-default_sort_dir: asc / desc
-default_home: workbench / items / stats / activity
-```
-
-要求：
-
-- 非法 key 拒绝
-- 非法 value 拒绝
-- 不允许用户传任意 key 写入数据库
-- 不允许保存外部 URL
-- 不允许保存脚本内容
-
----
-
-## 四、页面与路由
-
-建议新增或增强：
-
-- `GET /settings`
-- `POST /settings`
-- `POST /settings/reset`，可选
-
-要求：
+保留现有安全流程：
 
 - 必须登录
-- 保存设置必须 POST
-- reset 必须 POST + confirm
-- GET `/settings` 只读
-- 非法值不 500
-- 保存后显示结果提示
-- 设置页移动端可用
-- 不破坏语言切换
-- 不破坏登录 / 登出
+- 必须 POST
+- 浏览器 confirm
+- 现有服务端确认字段
 
----
+### strict
 
-## 五、设置生效范围
+在 standard 基础上，危险操作还必须提交固定确认文本：
+
+- `CONFIRM`
 
 要求：
 
-- 默认每页数量用于条目列表页没有 `page_size` 参数时
-- 默认排序字段 / 方向用于条目列表页没有排序参数时
-- 默认语言只在用户没有显式选择语言时生效
-- 默认首页入口用于首页工作台展示或入口高亮
-- 显式 URL 参数优先级高于默认设置
-- 不影响 saved views 中已保存的参数
+- 服务端必须验证，不能只靠前端
+- 缺少或错误确认文本时拒绝操作
+- 不得因为设置异常降级为无确认
+- 设置读取失败时安全回退到 `standard`
 
 ---
 
-## 六、安全边界
+## 四、统一安全提示
 
-必须遵守：
+危险操作页面统一展示：
 
-- 不执行任意 SQL
-- 不保存未知设置项
-- 不保存外部 URL
-- 不请求外部网络
-- 不引入第三方依赖
-- 不修改核心业务数据
-- 不自动创建条目 / 标签 / 创作者 / 合集
-- 不影响已发布 tag
+- 操作对象
+- 操作后果
+- 是否会删除数据
+- 是否可恢复
+- JSON 备份建议
+- 当前确认模式
+
+`backup_reminder_mode` 只能控制：
+
+- 所有危险操作都显示备份提示
+- 仅适合备份的危险操作显示提示
+
+不能完全关闭安全提示。
 
 ---
 
-## 七、测试要求
+## 五、结果摘要
+
+`danger_result_detail` 只控制结果展示：
+
+- `summary`：显示成功 / 失败和影响数量
+- `detailed`：额外显示对象、转移、删除、跳过和冲突处理
+
+不能改变业务逻辑或安全校验。
+
+---
+
+## 六、安全要求
+
+必须保证：
+
+- GET 不执行危险操作
+- 设置不能绕过登录、POST、confirm 或服务端确认
+- 不新增一键全部删除 / 合并 / 修复
+- 不改变现有操作的数据范围
+- 不删除额外业务数据
+- 失败时保持原有 rollback
+- 非法设置安全回退
+- 不修改已发布 tag
+
+---
+
+## 七、测试
 
 至少覆盖：
 
-- 未登录访问 `/settings` 跳转登录
-- 登录后设置页正常渲染
-- 可以保存合法设置
-- 非法 key 被拒绝
-- 非法 value 被拒绝
-- 设置保存后能读取
-- 默认 page_size 生效
-- 默认 sort / sort_dir 生效
-- 显式 URL 参数优先于默认设置
-- 默认语言不破坏现有语言切换
-- reset 设置可恢复默认值，如实现 reset
-- 旧备份无 `app_settings` 不失败
-- 新备份包含 `app_settings` 可恢复
-- i18n key 覆盖测试通过
-- 旧功能全量回归通过
+- 合法设置可保存
+- 非法 key / value 被拒绝
+- 不允许关闭确认
+- standard 模式保留现有流程
+- strict 模式缺少 `CONFIRM` 时拒绝
+- strict 模式错误文本时拒绝
+- strict 模式正确文本时执行
+- GET 不能执行危险操作
+- 设置异常时安全回退
+- backup reminder 不能完全关闭
+- 结果详情设置不改变业务数据
+- 旧备份无新设置时兼容
+- 新备份可恢复新设置
+- i18n 通过
+- 全量回归测试通过
 
 ---
 
-## 八、文档更新
+## 八、文档与验收
 
-完成后更新：
+更新：
 
 - README.md
 - TASKS.md
@@ -175,30 +156,22 @@ default_home: workbench / items / stats / activity
 
 要求：
 
-- 写入 Phase 2-G1
-- 说明设置中心只保存本地偏好
-- 说明不涉及多用户 / 云同步
-- CHANGELOG 只写 Unreleased
-- 不修改旧 tag
-- 不创建 GitHub Release
+- CHANGELOG 只写 `Unreleased`
+- 不创建 tag 或 GitHub Release
+- 运行 `RULE.md` 中的测试和 Docker 验收
+- 验收通过后提交并推送到 `origin/main`
 
 ---
 
-## 九、验收与汇报
-
-运行 `RULE.md` 中的验收命令。
-
-完成后汇报：
+## 九、完成后汇报
 
 1. 修改 / 新增文件
-2. 是否新增表 / 字段 / 依赖
-3. `app_settings` 如何设计
-4. 支持哪些 setting key
-5. 如何校验 key / value
-6. 设置如何生效
-7. 备份 / 恢复如何兼容
-8. 测试结果
-9. Docker 结果
-10. 文档更新
-11. 提交 hash
-12. 下一步建议
+2. 新增了哪些 setting key
+3. standard / strict 如何实现
+4. 哪些危险操作已统一
+5. 如何防止关闭或绕过确认
+6. 备份提示如何处理
+7. 结果详情设置如何处理
+8. 备份兼容情况
+9. 测试与 Docker 结果
+10. 提交 hash

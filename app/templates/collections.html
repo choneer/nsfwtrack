@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_danger_notice.html" import danger_notice %}
 {% block title %}{{ t("collections.title") }} - NSFWTrack{% endblock %}
 {% block content %}
 <div class="toolbar">
@@ -11,6 +12,8 @@
     <a class="button" href="/collections/new">{{ t("collections.new") }}</a>
   </div>
 </div>
+
+{{ danger_notice(t, danger_policy, "danger.object_collection", "danger.consequence_collection_delete", "danger.deletion_metadata", "danger.recovery_backup", true) }}
 
 {% if collection_rows %}
   <div class="grid">
@@ -37,6 +40,7 @@
               class="danger"
               type="submit"
               data-confirm-message="{{ t('collections.confirm_delete') }}"
+              {% if danger_policy.is_strict %}data-strict-confirm-message="{{ t('danger.strict_prompt') }}"{% endif %}
             >{{ t("collections.delete") }}</button>
           </form>
         </div>
@@ -50,16 +54,4 @@
   </section>
 {% endif %}
 
-<script>
-  (() => {
-    document.querySelectorAll("[data-confirm-message]").forEach((button) => {
-      button.addEventListener("click", (event) => {
-        const message = button.dataset.confirmMessage;
-        if (message && !window.confirm(message)) {
-          event.preventDefault();
-        }
-      });
-    });
-  })();
-</script>
 {% endblock %}

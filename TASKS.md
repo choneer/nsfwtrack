@@ -539,3 +539,26 @@
 - [x] 更新 README / TASKS / REVIEW / CHANGELOG / PLAN，记录 Phase 2-G1 未发布改动
 - [x] 确认本轮未新增依赖，未接入外部内容源、URL 导入、爬虫、adapter、AI 推荐、云同步、多用户设置、外部账号或插件系统
 - [x] 确认本轮未修改已发布 tag，未创建 GitHub Release
+
+## Phase 2-G6 危险操作偏好与确认流程统一
+
+- [x] 复用现有 `app_settings`，不新增表、不修改已有字段、不新增依赖
+- [x] 新增 `danger_confirmation_mode` 白名单：`standard` / `strict`
+- [x] 新增 `backup_reminder_mode` 白名单：`always` / `dangerous_only`
+- [x] 新增 `danger_result_detail` 白名单：`summary` / `detailed`
+- [x] 拒绝 `off` / `disabled` / `never`、未知 key、外部 URL、脚本和任意值
+- [x] standard 保留登录、写方法、浏览器 confirm、现有服务端确认和 rollback
+- [x] strict 在 standard 基础上由服务端精确验证固定文本 `CONFIRM`
+- [x] 非法或不可读确认设置安全回退到 `standard`，不会回退为无确认
+- [x] 统一条目 / 当前页批量删除、标签 / 创作者 / 合集删除的确认策略
+- [x] 统一条目合并、元数据合并、活动清空和备份恢复的确认策略
+- [x] 统一数据健康手动修复和设置恢复默认值的确认策略
+- [x] 危险页面显示对象、后果、删除范围、可恢复性、备份建议和当前模式
+- [x] 备份提醒只能在 `always` 和 `dangerous_only` 间切换，不能关闭安全提示
+- [x] 结果详情只改变摘要 / 详细展示，不改变业务数据、范围或事务
+- [x] JSON 备份导出 / 预览 / 校验 / 恢复支持三个 G6 设置
+- [x] 旧备份缺少 G6 设置时兼容并使用安全默认值
+- [x] 补充 strict 缺失 / 错误 / 正确文本、GET 安全、异常回退和全入口测试
+- [x] 保持无一键全部删除 / 合并 / 修复，无自动执行或安全绕过
+- [x] 更新 README / TASKS / REVIEW / CHANGELOG / PLAN，仅记录 Unreleased
+- [x] 确认未修改已发布 tag，未创建 GitHub Release

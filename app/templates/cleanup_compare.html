@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_danger_notice.html" import danger_notice %}
 {% block title %}{{ t("cleanup.compare_title") }} - NSFWTrack{% endblock %}
 {% block content %}
 {% set primary = comparison.primary %}
@@ -114,31 +115,17 @@
     </div>
   {% endif %}
 
-  <div class="notice">
-    <strong>{{ t("cleanup.backup_warning_title") }}</strong>
-    <p>{{ t("cleanup.backup_warning_body") }}</p>
-    <p>{{ t("cleanup.manual_only") }}</p>
-  </div>
+  {{ danger_notice(t, danger_policy, "danger.object_duplicate_metadata", "danger.consequence_metadata_merge", "danger.deletion_duplicate", "danger.recovery_backup", true) }}
+  <p class="muted">{{ t("cleanup.manual_only") }}</p>
   <div class="actions">
     <button
       class="danger"
       type="submit"
       data-confirm-message="{{ t('cleanup.confirm_merge') }}"
+      {% if danger_policy.is_strict %}data-strict-confirm-message="{{ t('danger.strict_prompt') }}"{% endif %}
     >{{ t("cleanup.merge_" ~ comparison.metadata_type) }}</button>
     <a class="button secondary" href="/cleanup">{{ t("common.back") }}</a>
   </div>
 </form>
 
-<script>
-  (() => {
-    document.querySelectorAll("[data-confirm-message]").forEach((button) => {
-      button.addEventListener("click", (event) => {
-        const message = button.dataset.confirmMessage;
-        if (message && !window.confirm(message)) {
-          event.preventDefault();
-        }
-      });
-    });
-  })();
-</script>
 {% endblock %}

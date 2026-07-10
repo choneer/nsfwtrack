@@ -17,11 +17,17 @@ SETTING_KEYS = (
     "default_sort",
     "default_sort_dir",
     "default_home",
+    "danger_confirmation_mode",
+    "backup_reminder_mode",
+    "danger_result_detail",
 )
 
 SORT_FIELDS = ("updated_at", "created_at", "title", "rating")
 SORT_DIRECTIONS = ("desc", "asc")
 HOME_OPTIONS = ("workbench", "items", "stats", "activity")
+DANGER_CONFIRMATION_MODES = ("standard", "strict")
+BACKUP_REMINDER_MODES = ("always", "dangerous_only")
+DANGER_RESULT_DETAILS = ("summary", "detailed")
 HOME_URLS = {
     "workbench": "/#workbench",
     "items": "/items",
@@ -35,6 +41,9 @@ DEFAULT_SETTING_VALUES: dict[str, str] = {
     "default_sort": "updated_at",
     "default_sort_dir": "desc",
     "default_home": "workbench",
+    "danger_confirmation_mode": "standard",
+    "backup_reminder_mode": "dangerous_only",
+    "danger_result_detail": "detailed",
 }
 
 SETTING_OPTIONS: dict[str, tuple[str, ...]] = {
@@ -43,6 +52,9 @@ SETTING_OPTIONS: dict[str, tuple[str, ...]] = {
     "default_sort": SORT_FIELDS,
     "default_sort_dir": SORT_DIRECTIONS,
     "default_home": HOME_OPTIONS,
+    "danger_confirmation_mode": DANGER_CONFIRMATION_MODES,
+    "backup_reminder_mode": BACKUP_REMINDER_MODES,
+    "danger_result_detail": DANGER_RESULT_DETAILS,
 }
 
 _SORT_VALUE_BY_SETTING = {
@@ -64,6 +76,9 @@ class AppSettings:
     default_sort: str
     default_sort_dir: str
     default_home: str
+    danger_confirmation_mode: str
+    backup_reminder_mode: str
+    danger_result_detail: str
 
     @property
     def item_list_sort(self) -> str:
@@ -83,6 +98,9 @@ class AppSettings:
             "default_sort": self.default_sort,
             "default_sort_dir": self.default_sort_dir,
             "default_home": self.default_home,
+            "danger_confirmation_mode": self.danger_confirmation_mode,
+            "backup_reminder_mode": self.backup_reminder_mode,
+            "danger_result_detail": self.danger_result_detail,
         }
 
 
@@ -127,6 +145,9 @@ def get_app_settings(db: Session) -> AppSettings:
         default_sort=values["default_sort"],
         default_sort_dir=values["default_sort_dir"],
         default_home=values["default_home"],
+        danger_confirmation_mode=values["danger_confirmation_mode"],
+        backup_reminder_mode=values["backup_reminder_mode"],
+        danger_result_detail=values["danger_result_detail"],
     )
 
 

@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_danger_notice.html" import danger_notice %}
 {% block title %}{{ t("creators.title") }} - NSFWTrack{% endblock %}
 {% block content %}
 <div class="toolbar">
@@ -21,6 +22,7 @@
     <button type="submit">{{ t("creators.add") }}</button>
   </label>
 </form>
+{{ danger_notice(t, danger_policy, "danger.object_creator", "danger.consequence_creator_delete", "danger.deletion_metadata", "danger.recovery_backup", true) }}
 <div class="table-scroll">
   <table>
     <thead>
@@ -37,7 +39,12 @@
           <td>{{ creator.type }}</td>
           <td>
             <form class="inline-form" action="/creators/{{ creator.id }}/delete" method="post">
-              <button class="danger" type="submit">{{ t("common.delete") }}</button>
+              <button
+                class="danger"
+                type="submit"
+                data-confirm-message="{{ t('creators.confirm_delete') }}"
+                {% if danger_policy.is_strict %}data-strict-confirm-message="{{ t('danger.strict_prompt') }}"{% endif %}
+              >{{ t("common.delete") }}</button>
             </form>
           </td>
         </tr>

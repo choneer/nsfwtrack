@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_danger_notice.html" import danger_notice %}
 {% block title %}{{ t("backup.title") }} - NSFWTrack{% endblock %}
 {% block content %}
 <div class="toolbar">
@@ -112,8 +113,13 @@
 {% if restore_result %}
   <section class="card stack">
     <div class="flash success">
-      {{ t("backup.restore_success", created=restore_result.created, updated=restore_result.updated, skipped=restore_result.skipped, collections_created=restore_result.collections_created, collections_skipped=restore_result.collections_skipped, item_collections_created=restore_result.item_collections_created, item_collections_skipped=restore_result.item_collections_skipped, collection_errors=restore_result.collection_errors, saved_views_created=restore_result.saved_views_created, saved_views_updated=restore_result.saved_views_updated, saved_views_skipped=restore_result.saved_views_skipped, saved_view_errors=restore_result.saved_view_errors, item_activity_created=restore_result.item_activity_created, item_activity_updated=restore_result.item_activity_updated, item_activity_skipped=restore_result.item_activity_skipped, item_activity_errors=restore_result.item_activity_errors, app_settings_created=restore_result.app_settings_created, app_settings_updated=restore_result.app_settings_updated, app_settings_skipped=restore_result.app_settings_skipped, app_settings_errors=restore_result.app_settings_errors) }}
+      {% if danger_policy.show_detailed_results %}
+        {{ t("backup.restore_success", created=restore_result.created, updated=restore_result.updated, skipped=restore_result.skipped, collections_created=restore_result.collections_created, collections_skipped=restore_result.collections_skipped, item_collections_created=restore_result.item_collections_created, item_collections_skipped=restore_result.item_collections_skipped, collection_errors=restore_result.collection_errors, saved_views_created=restore_result.saved_views_created, saved_views_updated=restore_result.saved_views_updated, saved_views_skipped=restore_result.saved_views_skipped, saved_view_errors=restore_result.saved_view_errors, item_activity_created=restore_result.item_activity_created, item_activity_updated=restore_result.item_activity_updated, item_activity_skipped=restore_result.item_activity_skipped, item_activity_errors=restore_result.item_activity_errors, app_settings_created=restore_result.app_settings_created, app_settings_updated=restore_result.app_settings_updated, app_settings_skipped=restore_result.app_settings_skipped, app_settings_errors=restore_result.app_settings_errors) }}
+      {% else %}
+        {{ t("backup.restore_summary", created=restore_result.created, updated=restore_result.updated, skipped=restore_result.skipped) }}
+      {% endif %}
     </div>
+    {% if danger_policy.show_detailed_results %}
     <div class="metric-grid">
       <div class="metric"><strong>{{ restore_result.collections_created }}</strong><span>{{ t("backup.collections_restored") }}</span></div>
       <div class="metric"><strong>{{ restore_result.collections_skipped }}</strong><span>{{ t("backup.collections_skipped") }}</span></div>
@@ -133,6 +139,7 @@
       <div class="metric"><strong>{{ restore_result.app_settings_skipped }}</strong><span>{{ t("backup.app_settings_skipped") }}</span></div>
       <div class="metric"><strong>{{ restore_result.app_settings_errors }}</strong><span>{{ t("backup.app_settings_errors") }}</span></div>
     </div>
+    {% endif %}
   </section>
 {% endif %}
 {% if restore_error %}
@@ -168,11 +175,17 @@
   <section class="card stack">
     <h2>{{ t("backup.restore_title") }}</h2>
     <p class="muted">{{ t("backup.restore_hint") }}</p>
+    {{ danger_notice(t, danger_policy, "danger.object_backup", "danger.consequence_backup_restore", "danger.deletion_backup", "danger.recovery_backup_restore", true) }}
     <form class="stack" action="/backup/restore" method="post" enctype="multipart/form-data">
       <label>{{ t("common.file") }}
         <input name="file" type="file" accept=".json,application/json" required>
       </label>
-      <button type="submit">{{ t("backup.restore") }}</button>
+      <button
+        class="danger"
+        type="submit"
+        data-confirm-message="{{ t('backup.confirm_restore') }}"
+        {% if danger_policy.is_strict %}data-strict-confirm-message="{{ t('danger.strict_prompt') }}"{% endif %}
+      >{{ t("backup.restore") }}</button>
     </form>
   </section>
 </div>

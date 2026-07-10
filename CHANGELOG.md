@@ -4,6 +4,27 @@
 
 ### Added
 
+- Added Phase 2-G6 dangerous-operation preferences by reusing the existing
+  `app_settings` table, with allowlisted keys and values:
+  `danger_confirmation_mode` (`standard` / `strict`),
+  `backup_reminder_mode` (`always` / `dangerous_only`), and
+  `danger_result_detail` (`summary` / `detailed`).
+- Added a centralized dangerous-operation policy and server-side strict-mode
+  validation. Strict mode requires the exact text `CONFIRM` in addition to
+  the existing login, HTTP method, browser confirmation, service confirmation,
+  and rollback behavior.
+- Added unified bilingual safety notices that identify the operation object,
+  consequence, deletion scope, recoverability, JSON backup recommendation,
+  and current confirmation mode.
+- Applied strict confirmation to item and current-page bulk deletion, tag /
+  creator / collection deletion, item and metadata merge, recent activity
+  clearing, JSON backup restore, data health manual fixes, and settings reset.
+- Added summary / detailed result presentation without changing mutation
+  logic, data scope, or transaction behavior.
+- Added tests for setting allowlists, rejected disabling values, standard and
+  strict confirmation, every covered dangerous route, GET safety, invalid and
+  unreadable setting fallback, backup reminder behavior, result display
+  independence, backup compatibility, and i18n symmetry.
 - Added Phase 2-G1 basic local settings center at `/settings`.
 - Added a local SQLite `app_settings` table for `default_language`,
   `default_page_size`, `default_sort`, `default_sort_dir`, and `default_home`.
@@ -28,6 +49,13 @@
 
 ### Changed
 
+- Centralized browser confirmation handling in the base template while keeping
+  all dangerous mutations login-protected and write-only. Settings cannot turn
+  confirmation, safety notices, or rollback off, and invalid confirmation
+  settings safely fall back to `standard`.
+- Extended existing JSON backup export, validation, preview, and restore for
+  the three G6 settings. Older backups without those rows continue to use safe
+  defaults.
 - Kept Phase 2-G1 scoped to local single-user preferences only: no multi-user
   settings, cloud sync, external accounts, plugin system, AI recommendation,
   external content source, existing-table field change, dependency change, tag,

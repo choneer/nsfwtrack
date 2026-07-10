@@ -67,6 +67,12 @@ from app.services.data_health_fixes import (
     apply_data_health_fix,
     build_data_health_fix_options,
 )
+from app.services.danger import (
+    DangerConfirmationError,
+    DangerPolicy,
+    get_danger_policy,
+    require_danger_confirmation,
+)
 from app.services.duplicates import (
     DuplicateError,
     find_duplicate_candidates,
@@ -185,10 +191,30 @@ def _base_context(
         "status_label": status_translator(language),
         "status_options": STATUS_OPTIONS,
         "max_backup_upload_mb": get_settings().max_backup_upload_mb,
+        "danger_policy": get_danger_policy(db),
         "flash_messages": pop_flash_messages(request, language),
     }
     context.update(values)
     return context
+
+
+def _danger_confirmation_is_valid(
+    request: Request,
+    policy: DangerPolicy,
+    *,
+    confirmation_text: str | None,
+    base_confirmation_valid: bool = True,
+) -> bool:
+    try:
+        require_danger_confirmation(
+            policy,
+            confirmation_text=confirmation_text,
+            base_confirmation_valid=base_confirmation_valid,
+        )
+    except DangerConfirmationError as exc:
+        add_flash(request, "error", f"flash.danger_{exc.code}")
+        return False
+    return True
 
 
 def _parse_extra_json(value: str | None) -> dict[str, Any] | None:
@@ -421,14 +447,25 @@ async def save_settings_page(
 def reset_settings_page(
     request: Request,
     confirm: str | None = Form(default=None),
+    confirmation_text: str | None = Form(default=None),
     db: Session = Depends(get_db),
 ) -> RedirectResponse:
+    danger_policy = get_danger_policy(db)
+    if not _danger_confirmation_is_valid(
+        request,
+        danger_policy,
+        confirmation_text=confirmation_text,
+        base_confirmation_valid=confirm == "1",
+    ):
+        return _redirect("/settings")
     try:
-        reset_app_settings(db, confirm=confirm == "1")
+        reset_count = reset_app_settings(db, confirm=True)
     except AppSettingsError as exc:
         add_flash(request, "error", f"flash.settings_{exc.code}")
         return _redirect("/settings")
     add_flash(request, "success", "flash.settings_reset")
+    if danger_policy.show_detailed_results:
+        add_flash(request, "info", "flash.settings_reset_detail", count=reset_count)
     return _redirect("/settings")
 
 
@@ -549,38 +586,63 @@ def data_health_fix_page(
     request: Request,
     fix_type: str = Form(...),
     confirm: str | None = Form(default=None),
+    confirmation_text: str | None = Form(default=None),
     db: Session = Depends(get_db),
 ) -> RedirectResponse:
+    danger_policy = get_danger_policy(db)
+    if not _danger_confirmation_is_valid(
+        request,
+        danger_policy,
+        confirmation_text=confirmation_text,
+        base_confirmation_valid=confirm == "1",
+    ):
+        return _redirect("/data-health")
     try:
         result = apply_data_health_fix(
             db,
             fix_type=fix_type,
-            confirm=confirm == "1",
+            confirm=True,
         )
     except DataHealthFixError as exc:
         add_flash(request, "error", f"flash.data_health_fix_{exc.code}")
         return _redirect("/data-health")
 
-    add_flash(
-        request,
-        "success",
-        "flash.data_health_fix_success",
-        fix_type=translate(
-            get_language(request),
-            f"data_health.fix_label_{result.fix_type}",
-        ),
-        deleted=result.deleted_count,
-        updated=result.updated_count,
-        skipped=result.skipped_count,
-    )
+    if danger_policy.show_detailed_results:
+        add_flash(
+            request,
+            "success",
+            "flash.data_health_fix_success",
+            fix_type=translate(
+                get_language(request),
+                f"data_health.fix_label_{result.fix_type}",
+            ),
+            deleted=result.deleted_count,
+            updated=result.updated_count,
+            skipped=result.skipped_count,
+        )
+    else:
+        add_flash(
+            request,
+            "success",
+            "flash.data_health_fix_summary",
+            affected=result.deleted_count + result.updated_count,
+        )
     return _redirect("/data-health")
 
 
 @router.post("/activity/clear", dependencies=[Depends(require_page_auth)])
 def clear_activity_page(
     request: Request,
+    confirmation_text: str | None = Form(default=None),
     db: Session = Depends(get_db),
 ) -> RedirectResponse:
+    danger_policy = get_danger_policy(db)
+    if not _danger_confirmation_is_valid(
+        request,
+        danger_policy,
+        confirmation_text=confirmation_text,
+    ):
+        return _redirect("/activity")
     deleted_count = clear_item_activity(db)
     add_flash(
         request,
@@ -636,8 +698,16 @@ def duplicate_merge_page(
     use_duplicate_status: str | None = Form(default=None),
     use_duplicate_rating: str | None = Form(default=None),
     use_duplicate_review: str | None = Form(default=None),
+    confirmation_text: str | None = Form(default=None),
     db: Session = Depends(get_db),
 ) -> RedirectResponse:
+    danger_policy = get_danger_policy(db)
+    if not _danger_confirmation_is_valid(
+        request,
+        danger_policy,
+        confirmation_text=confirmation_text,
+    ):
+        return _redirect("/duplicates")
     try:
         result = merge_duplicate_items(
             db,
@@ -659,21 +729,22 @@ def duplicate_merge_page(
         primary_title=result.primary_title,
         duplicate_title=result.duplicate_title,
     )
-    add_flash(
-        request,
-        "info",
-        "flash.duplicate_merge_result",
-        tags=result.tags_transferred,
-        creators=result.creators_transferred,
-        collections=result.collections_transferred,
-        summary=_duplicate_action_label(request, result.summary_action),
-        status=_duplicate_action_label(request, result.status_action),
-        rating=_duplicate_action_label(request, result.rating_action),
-        review=_duplicate_action_label(request, result.review_action),
-        extra_keys=result.extra_keys_merged,
-        extra_conflicts=result.extra_conflicts_kept,
-        duplicate_deleted=translate(get_language(request), "duplicates.deleted_yes"),
-    )
+    if danger_policy.show_detailed_results:
+        add_flash(
+            request,
+            "info",
+            "flash.duplicate_merge_result",
+            tags=result.tags_transferred,
+            creators=result.creators_transferred,
+            collections=result.collections_transferred,
+            summary=_duplicate_action_label(request, result.summary_action),
+            status=_duplicate_action_label(request, result.status_action),
+            rating=_duplicate_action_label(request, result.rating_action),
+            review=_duplicate_action_label(request, result.review_action),
+            extra_keys=result.extra_keys_merged,
+            extra_conflicts=result.extra_conflicts_kept,
+            duplicate_deleted=translate(get_language(request), "duplicates.deleted_yes"),
+        )
     return _redirect(f"/items/{result.primary_id}")
 
 
@@ -732,8 +803,16 @@ def cleanup_merge_page(
     primary_id: str = Form(...),
     duplicate_id: str = Form(...),
     use_duplicate_description: str | None = Form(default=None),
+    confirmation_text: str | None = Form(default=None),
     db: Session = Depends(get_db),
 ) -> RedirectResponse:
+    danger_policy = get_danger_policy(db)
+    if not _danger_confirmation_is_valid(
+        request,
+        danger_policy,
+        confirmation_text=confirmation_text,
+    ):
+        return _redirect("/cleanup")
     try:
         result = merge_metadata_objects(
             db,
@@ -754,18 +833,19 @@ def cleanup_merge_page(
         duplicate_name=result.duplicate_name,
         primary_name=result.primary_name,
     )
-    add_flash(
-        request,
-        "info",
-        "flash.cleanup_merge_result",
-        metadata_type=_cleanup_type_label(request, result.metadata_type),
-        primary_name=result.primary_name,
-        duplicate_name=result.duplicate_name,
-        transferred=result.transferred_relations,
-        skipped=result.skipped_relations,
-        description=_cleanup_action_label(request, result.description_action),
-        duplicate_deleted=translate(get_language(request), "cleanup.deleted_yes"),
-    )
+    if danger_policy.show_detailed_results:
+        add_flash(
+            request,
+            "info",
+            "flash.cleanup_merge_result",
+            metadata_type=_cleanup_type_label(request, result.metadata_type),
+            primary_name=result.primary_name,
+            duplicate_name=result.duplicate_name,
+            transferred=result.transferred_relations,
+            skipped=result.skipped_relations,
+            description=_cleanup_action_label(request, result.description_action),
+            duplicate_deleted=translate(get_language(request), "cleanup.deleted_yes"),
+        )
     return _redirect("/cleanup")
 
 
@@ -780,10 +860,18 @@ def bulk_items_page(
     add_collection_id: str | None = Form(default=None),
     remove_collection_id: str | None = Form(default=None),
     rating: str | None = Form(default=None),
+    confirmation_text: str | None = Form(default=None),
     next_url: str = Form(default="/items", alias="next"),
     db: Session = Depends(get_db),
 ) -> RedirectResponse:
     target = _safe_next_url(next_url)
+    danger_policy = get_danger_policy(db)
+    if bulk_action == "delete" and not _danger_confirmation_is_valid(
+        request,
+        danger_policy,
+        confirmation_text=confirmation_text,
+    ):
+        return _redirect(target)
     try:
         if bulk_action == "status":
             result = set_items_status(db, item_ids, status_value)
@@ -815,6 +903,15 @@ def bulk_items_page(
     if bulk_action != "delete":
         safe_record_item_edits(db, result.item_ids)
     return _redirect(target)
+
+
+@router.get(
+    "/items/bulk",
+    include_in_schema=False,
+    dependencies=[Depends(require_page_auth)],
+)
+def bulk_items_get_not_allowed() -> None:
+    raise HTTPException(status_code=status.HTTP_405_METHOD_NOT_ALLOWED)
 
 
 @router.get(
@@ -977,10 +1074,17 @@ def update_item_page(
 def delete_item_page(
     request: Request,
     item_id: int,
+    confirmation_text: str | None = Form(default=None),
     next_url: str = Form(default="/items", alias="next"),
     db: Session = Depends(get_db),
 ) -> RedirectResponse:
     target = _safe_next_url(next_url)
+    if not _danger_confirmation_is_valid(
+        request,
+        get_danger_policy(db),
+        confirmation_text=confirmation_text,
+    ):
+        return _redirect(target)
     item = db.get(Item, item_id)
     if item is None:
         add_flash(request, "error", "flash.item_delete_failed")
@@ -1139,8 +1243,15 @@ def create_tag_page(
 def delete_tag_page(
     request: Request,
     tag_id: int,
+    confirmation_text: str | None = Form(default=None),
     db: Session = Depends(get_db),
 ) -> RedirectResponse:
+    if not _danger_confirmation_is_valid(
+        request,
+        get_danger_policy(db),
+        confirmation_text=confirmation_text,
+    ):
+        return _redirect("/tags")
     tag = db.get(Tag, tag_id)
     if tag is None:
         add_flash(request, "error", "flash.tag_delete_failed")
@@ -1218,8 +1329,15 @@ def creator_detail_page(
 def delete_creator_page(
     request: Request,
     creator_id: int,
+    confirmation_text: str | None = Form(default=None),
     db: Session = Depends(get_db),
 ) -> RedirectResponse:
+    if not _danger_confirmation_is_valid(
+        request,
+        get_danger_policy(db),
+        confirmation_text=confirmation_text,
+    ):
+        return _redirect("/creators")
     creator = db.get(Creator, creator_id)
     if creator is None:
         add_flash(request, "error", "flash.creator_delete_failed")
@@ -1334,8 +1452,15 @@ def update_collection_page(
 def delete_collection_page(
     request: Request,
     collection_id: int,
+    confirmation_text: str | None = Form(default=None),
     db: Session = Depends(get_db),
 ) -> RedirectResponse:
+    if not _danger_confirmation_is_valid(
+        request,
+        get_danger_policy(db),
+        confirmation_text=confirmation_text,
+    ):
+        return _redirect("/collections")
     try:
         delete_collection(db, collection_id)
     except CollectionError as exc:
@@ -1731,16 +1856,28 @@ async def backup_preview_page(
 async def backup_restore_page(
     request: Request,
     file: UploadFile | None = File(default=None),
+    confirmation_text: str | None = Form(default=None),
     db: Session = Depends(get_db),
 ) -> HTMLResponse:
     restore_result: dict[str, int] | None = None
     restore_error: str | None = None
+    danger_policy = get_danger_policy(db)
+    db.rollback()
     try:
+        require_danger_confirmation(
+            danger_policy,
+            confirmation_text=confirmation_text,
+        )
         payload = await _read_backup_upload_for_page(request, file)
         preview_backup_data(payload)
         restore_result = restore_backup_data(db, payload)
     except BackupError as exc:
         restore_error = _backup_error_message(request, exc.code)
+    except DangerConfirmationError as exc:
+        restore_error = translate(
+            get_language(request),
+            f"danger.error_{exc.code}",
+        )
     except ValueError:
         restore_error = _backup_error_message(request, "restore_failed")
     return _backup_template(

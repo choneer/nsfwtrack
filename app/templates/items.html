@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_danger_notice.html" import danger_notice %}
 {% block title %}{{ t("items.title") }} - NSFWTrack{% endblock %}
 {% block content %}
 <div class="toolbar">
@@ -225,6 +226,7 @@
         <span class="pill warning">{{ t("items.dangerous_action") }}</span>
         <span class="muted">{{ t("items.delete_irreversible") }}</span>
       </div>
+      {{ danger_notice(t, danger_policy, "danger.object_selected_items", "danger.consequence_bulk_delete", "danger.deletion_item", "danger.recovery_backup", true) }}
       <div class="bulk-controls">
         <label>{{ t("items.bulk_update_status") }}
           <select name="status_value">
@@ -288,6 +290,7 @@
           name="bulk_action"
           value="delete"
           data-confirm-message="{{ t('items.confirm_bulk_delete') }}"
+          {% if danger_policy.is_strict %}data-strict-confirm-message="{{ t('danger.strict_prompt') }}"{% endif %}
         >{{ t("items.bulk_delete") }}</button>
       </div>
     </section>
@@ -352,13 +355,5 @@
     updateCount();
   })();
 
-  document.querySelectorAll("[data-confirm-message]").forEach((button) => {
-    button.addEventListener("click", (event) => {
-      const message = button.dataset.confirmMessage;
-      if (message && !window.confirm(message)) {
-        event.preventDefault();
-      }
-    });
-  });
 </script>
 {% endblock %}

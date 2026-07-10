@@ -230,6 +230,19 @@
       border-color: #bfdbfe;
       color: var(--info);
     }
+    .danger-facts {
+      display: grid;
+      gap: 10px;
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
+      margin: 0 0 12px;
+    }
+    .danger-facts div { min-width: 0; }
+    .danger-facts dt {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .danger-facts dd { margin: 2px 0 0; }
     form.stack, .stack {
       display: grid;
       gap: 12px;
@@ -851,5 +864,35 @@
     {% endif %}
     {% block content %}{% endblock %}
   </main>
+  <script>
+    document.addEventListener("submit", (event) => {
+      const button = event.submitter;
+      if (!button || !button.matches("[data-confirm-message]")) {
+        return;
+      }
+      const message = button.dataset.confirmMessage;
+      if (message && !window.confirm(message)) {
+        event.preventDefault();
+        return;
+      }
+      const strictMessage = button.dataset.strictConfirmMessage;
+      if (!strictMessage) {
+        return;
+      }
+      const confirmationText = window.prompt(strictMessage, "");
+      if (confirmationText !== "CONFIRM") {
+        event.preventDefault();
+        return;
+      }
+      let field = button.form.elements.namedItem("confirmation_text");
+      if (!field) {
+        field = document.createElement("input");
+        field.type = "hidden";
+        field.name = "confirmation_text";
+        button.form.appendChild(field);
+      }
+      field.value = confirmationText;
+    });
+  </script>
 </body>
 </html>
