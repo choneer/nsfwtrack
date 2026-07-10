@@ -101,15 +101,16 @@ def _name_exists(db: Session, name: str, *, exclude_id: int | None = None) -> bo
     return db.scalar(stmt) is not None
 
 
-def list_saved_views(db: Session) -> list[SavedView]:
-    return list(
-        db.scalars(
-            select(SavedView).order_by(
-                func.lower(SavedView.name).asc(),
-                SavedView.id.asc(),
-            )
-        ).all()
+def list_saved_views(db: Session, *, limit: int | None = None) -> list[SavedView]:
+    stmt = select(SavedView).order_by(
+        func.lower(SavedView.name).asc(),
+        SavedView.id.asc(),
     )
+    if limit is not None:
+        if limit <= 0:
+            return []
+        stmt = stmt.limit(limit)
+    return list(db.scalars(stmt).all())
 
 
 def get_saved_view(db: Session, saved_view_id: int) -> SavedView:

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 from typing import Any
-from urllib.parse import quote
+from urllib.parse import quote, urlencode
 
 from fastapi import (
     APIRouter,
@@ -19,7 +19,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session, selectinload
+from sqlalchemy.orm import Session, noload, selectinload
 
 from app.auth import is_authenticated, logout_user, require_page_auth
 from app.config import get_settings
@@ -55,8 +55,8 @@ from app.services.collections import (
     create_collection,
     delete_collection,
     get_collection,
+    get_collection_detail_page,
     list_available_collections_for_item,
-    list_available_items_for_collection,
     list_collection_rows,
     remove_item_from_collection,
     update_collection,
@@ -70,6 +70,7 @@ from app.services.data_health_fixes import (
 from app.services.danger import (
     DangerConfirmationError,
     DangerPolicy,
+    danger_policy_from_settings,
     get_danger_policy,
     require_danger_confirmation,
 )
@@ -112,6 +113,8 @@ from app.services.metadata_cleanup import (
     get_metadata_comparison,
     merge_metadata_objects,
 )
+from app.services.metadata_lists import list_creator_page, list_tag_page
+from app.services.pagination import PageInfo
 from app.services.migrations import (
     MIGRATION_REGISTRY,
     MigrationError,
@@ -133,10 +136,10 @@ from app.services.saved_views import (
 )
 from app.services.schema_version import get_schema_status
 from app.services.settings import (
+    AppSettings,
     AppSettingsError,
     SETTING_OPTIONS,
     get_app_settings,
-    get_default_language,
     reset_app_settings,
     save_app_settings,
 )
@@ -184,9 +187,20 @@ def _item_edit_url(item_id: int, next_url: str | None = None) -> str:
 def _base_context(
     request: Request,
     db: Session | None = None,
+    settings: AppSettings | None = None,
     **values: Any,
 ) -> dict[str, Any]:
-    language = get_language(request, default_language=get_default_language(db))
+    resolved_settings = settings
+    if resolved_settings is None:
+        value_settings = values.get("app_settings")
+        if isinstance(value_settings, AppSettings):
+            resolved_settings = value_settings
+        elif db is not None:
+            resolved_settings = get_app_settings(db)
+    default_language = (
+        resolved_settings.default_language if resolved_settings is not None else None
+    )
+    language = get_language(request, default_language=default_language)
     current_path = request.url.path
     if request.url.query:
         current_path = f"{current_path}?{request.url.query}"
@@ -200,7 +214,11 @@ def _base_context(
         "status_label": status_translator(language),
         "status_options": STATUS_OPTIONS,
         "max_backup_upload_mb": get_settings().max_backup_upload_mb,
-        "danger_policy": get_danger_policy(db),
+        "danger_policy": (
+            danger_policy_from_settings(resolved_settings)
+            if resolved_settings is not None
+            else DangerPolicy()
+        ),
         "flash_messages": pop_flash_messages(request, language),
     }
     context.update(values)
@@ -294,9 +312,11 @@ def index_page(request: Request, db: Session = Depends(get_db)) -> HTMLResponse:
     recent_items = db.scalars(
         select(Item)
         .options(
-            selectinload(Item.tags),
-            selectinload(Item.creators),
+            selectinload(Item.tags).noload(Tag.items),
+            selectinload(Item.creators).noload(Creator.items),
             selectinload(Item.state),
+            noload(Item.collections),
+            noload(Item.activity),
         )
         .order_by(Item.created_at.desc(), Item.id.desc())
         .limit(8)
@@ -315,8 +335,9 @@ def index_page(request: Request, db: Session = Depends(get_db)) -> HTMLResponse:
             recent_items=recent_items,
             recent_viewed=list_recently_viewed(db, limit=4),
             recent_edited=list_recently_edited(db, limit=4),
-            saved_views=list_saved_views(db)[:4],
+            saved_views=list_saved_views(db, limit=4),
             totals=totals,
+            settings=app_settings,
             default_home=app_settings.default_home,
             default_home_url=app_settings.default_home_url,
         ),
@@ -342,6 +363,41 @@ def _pagination_context(result: Any) -> dict[str, Any]:
         "page_urls": [
             {"page": page_number, "url": build_item_list_url(filters, page=page_number)}
             for page_number in result.page_numbers
+        ],
+    }
+
+
+def _page_context(
+    page_info: PageInfo,
+    base_path: str,
+    *,
+    page_param: str = "page",
+    params: dict[str, str | int | None] | None = None,
+) -> dict[str, Any]:
+    base_params = {
+        key: str(value)
+        for key, value in (params or {}).items()
+        if value not in {None, ""}
+    }
+
+    def page_url(page_number: int) -> str:
+        query = {**base_params, page_param: str(page_number)}
+        return f"{base_path}?{urlencode(query)}"
+
+    return {
+        "page": page_info.page,
+        "page_size": page_info.page_size,
+        "total": page_info.total,
+        "total_pages": page_info.total_pages,
+        "start": page_info.start,
+        "end": page_info.end,
+        "has_prev": page_info.has_prev,
+        "has_next": page_info.has_next,
+        "prev_url": page_url(page_info.page - 1),
+        "next_url": page_url(page_info.page + 1),
+        "page_urls": [
+            {"page": page_number, "url": page_url(page_number)}
+            for page_number in page_info.page_numbers
         ],
     }
 
@@ -405,6 +461,7 @@ def items_page(
         _base_context(
             request,
             db=db,
+            settings=app_settings,
             items=result.items,
             filters=result.filters,
             filter_options=list_item_filter_options(db),
@@ -778,11 +835,21 @@ def clear_activity_page(
     response_class=HTMLResponse,
     dependencies=[Depends(require_page_auth)],
 )
-def duplicates_page(request: Request, db: Session = Depends(get_db)) -> HTMLResponse:
+def duplicates_page(
+    request: Request,
+    page: str | None = None,
+    db: Session = Depends(get_db),
+) -> HTMLResponse:
+    candidate_page = find_duplicate_candidates(db, page=page)
     return templates.TemplateResponse(
         request,
         "duplicates.html",
-        _base_context(request, db=db, candidate_groups=find_duplicate_candidates(db)),
+        _base_context(
+            request,
+            db=db,
+            candidate_groups=candidate_page.groups,
+            pagination=_page_context(candidate_page.page_info, "/duplicates"),
+        ),
     )
 
 
@@ -873,16 +940,21 @@ def duplicate_merge_page(
     response_class=HTMLResponse,
     dependencies=[Depends(require_page_auth)],
 )
-def cleanup_page(request: Request, db: Session = Depends(get_db)) -> HTMLResponse:
-    sections = find_metadata_cleanup_candidates(db)
+def cleanup_page(
+    request: Request,
+    page: str | None = None,
+    db: Session = Depends(get_db),
+) -> HTMLResponse:
+    candidate_page = find_metadata_cleanup_candidates(db, page=page)
     return templates.TemplateResponse(
         request,
         "cleanup.html",
         _base_context(
             request,
             db=db,
-            candidate_sections=sections,
-            has_candidates=any(section.groups for section in sections),
+            candidate_sections=candidate_page.sections,
+            has_candidates=candidate_page.page_info.total > 0,
+            pagination=_page_context(candidate_page.page_info, "/cleanup"),
         ),
     )
 
@@ -1330,12 +1402,21 @@ def remove_item_creator_page(
 
 
 @router.get("/tags", response_class=HTMLResponse, dependencies=[Depends(require_page_auth)])
-def tags_page(request: Request, db: Session = Depends(get_db)) -> HTMLResponse:
-    tags = db.scalars(select(Tag).order_by(Tag.name.asc())).all()
+def tags_page(
+    request: Request,
+    page: str | None = None,
+    db: Session = Depends(get_db),
+) -> HTMLResponse:
+    tag_page = list_tag_page(db, page=page)
     return templates.TemplateResponse(
         request,
         "tags.html",
-        _base_context(request, db=db, tags=tags),
+        _base_context(
+            request,
+            db=db,
+            tags=tag_page.rows,
+            pagination=_page_context(tag_page.page_info, "/tags"),
+        ),
     )
 
 
@@ -1387,12 +1468,21 @@ def delete_tag_page(
     response_class=HTMLResponse,
     dependencies=[Depends(require_page_auth)],
 )
-def creators_page(request: Request, db: Session = Depends(get_db)) -> HTMLResponse:
-    creators = db.scalars(select(Creator).order_by(Creator.name.asc())).all()
+def creators_page(
+    request: Request,
+    page: str | None = None,
+    db: Session = Depends(get_db),
+) -> HTMLResponse:
+    creator_page = list_creator_page(db, page=page)
     return templates.TemplateResponse(
         request,
         "creators.html",
-        _base_context(request, db=db, creators=creators),
+        _base_context(
+            request,
+            db=db,
+            creators=creator_page.rows,
+            pagination=_page_context(creator_page.page_info, "/creators"),
+        ),
     )
 
 
@@ -1473,11 +1563,21 @@ def delete_creator_page(
     response_class=HTMLResponse,
     dependencies=[Depends(require_page_auth)],
 )
-def collections_page(request: Request, db: Session = Depends(get_db)) -> HTMLResponse:
+def collections_page(
+    request: Request,
+    page: str | None = None,
+    db: Session = Depends(get_db),
+) -> HTMLResponse:
+    collection_page = list_collection_rows(db, page=page)
     return templates.TemplateResponse(
         request,
         "collections.html",
-        _base_context(request, db=db, collection_rows=list_collection_rows(db)),
+        _base_context(
+            request,
+            db=db,
+            collection_rows=collection_page.rows,
+            pagination=_page_context(collection_page.page_info, "/collections"),
+        ),
     )
 
 
@@ -1598,11 +1698,19 @@ def delete_collection_page(
 def collection_detail_page(
     request: Request,
     collection_id: int,
+    item_page: str | None = None,
+    available_page: str | None = None,
+    available_q: str | None = None,
     db: Session = Depends(get_db),
 ) -> HTMLResponse:
     try:
-        collection = get_collection(db, collection_id)
-        available_items = list_available_items_for_collection(db, collection_id)
+        detail = get_collection_detail_page(
+            db,
+            collection_id,
+            item_page=item_page,
+            available_page=available_page,
+            available_query=available_q,
+        )
     except CollectionError as exc:
         raise HTTPException(status_code=404, detail="Collection not found") from exc
     return templates.TemplateResponse(
@@ -1611,8 +1719,29 @@ def collection_detail_page(
         _base_context(
             request,
             db=db,
-            collection=collection,
-            available_items=available_items,
+            collection=detail.collection,
+            collection_items=detail.items,
+            collection_item_total=detail.items_page_info.total,
+            available_items=detail.available_items,
+            available_query=detail.available_query,
+            item_pagination=_page_context(
+                detail.items_page_info,
+                f"/collections/{collection_id}",
+                page_param="item_page",
+                params={
+                    "available_page": detail.available_page_info.page,
+                    "available_q": detail.available_query,
+                },
+            ),
+            available_pagination=_page_context(
+                detail.available_page_info,
+                f"/collections/{collection_id}",
+                page_param="available_page",
+                params={
+                    "item_page": detail.items_page_info.page,
+                    "available_q": detail.available_query,
+                },
+            ),
         ),
     )
 

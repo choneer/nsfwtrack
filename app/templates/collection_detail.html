@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% from "_danger_notice.html" import danger_notice %}
+{% from "_pagination.html" import pagination_nav %}
 {% block title %}{{ collection.name }} - NSFWTrack{% endblock %}
 {% block content %}
 <div class="toolbar">
@@ -20,7 +21,7 @@
 
 <section class="card stack">
   <div class="metric-grid">
-    <div class="metric"><strong>{{ collection.items|length }}</strong><span>{{ t("collections.items") }}</span></div>
+    <div class="metric"><strong>{{ collection_item_total }}</strong><span>{{ t("collections.items") }}</span></div>
     <div class="metric"><strong>{{ collection.created_at }}</strong><span>{{ t("detail.created_at") }}</span></div>
     <div class="metric"><strong>{{ collection.updated_at }}</strong><span>{{ t("detail.updated_at") }}</span></div>
   </div>
@@ -40,6 +41,13 @@
 
 <section class="card stack">
   <h2>{{ t("collections.add_item") }}</h2>
+  <form class="relation-form" action="/collections/{{ collection.id }}" method="get">
+    <input type="hidden" name="item_page" value="{{ item_pagination.page }}">
+    <label>{{ t("common.search") }}
+      <input name="available_q" value="{{ available_query }}">
+    </label>
+    <button type="submit">{{ t("common.search") }}</button>
+  </form>
   {% if available_items %}
     <form class="relation-form" action="/collections/{{ collection.id }}/items" method="post">
       <label>{{ t("collections.select_item") }}
@@ -55,13 +63,14 @@
   {% else %}
     <p class="muted">{{ t("collections.no_available_items") }}</p>
   {% endif %}
+  {{ pagination_nav(t, available_pagination) }}
 </section>
 
 <section class="stack">
   <h2>{{ t("collections.items") }}</h2>
-  {% if collection.items %}
+  {% if collection_items %}
     <div class="item-grid">
-      {% for item in collection.items|sort(attribute="title") %}
+      {% for item in collection_items %}
         <article class="card">
           <a href="/items/{{ item.id }}">
             <div class="cover">
@@ -101,6 +110,7 @@
       <p class="muted">{{ t("collections.empty_items") }}</p>
     </section>
   {% endif %}
+  {{ pagination_nav(t, item_pagination) }}
 </section>
 
 {% endblock %}

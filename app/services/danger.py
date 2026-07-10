@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 from sqlalchemy.orm import Session
 
-from app.services.settings import get_app_settings
+from app.services.settings import AppSettings, get_app_settings
 
 STRICT_CONFIRMATION_TEXT = "CONFIRM"
 
@@ -33,6 +33,14 @@ class DangerConfirmationError(ValueError):
         self.code = code
 
 
+def danger_policy_from_settings(settings: AppSettings) -> DangerPolicy:
+    return DangerPolicy(
+        confirmation_mode=settings.danger_confirmation_mode,
+        backup_reminder_mode=settings.backup_reminder_mode,
+        result_detail=settings.danger_result_detail,
+    )
+
+
 def get_danger_policy(db: Session | None) -> DangerPolicy:
     if db is None:
         return DangerPolicy()
@@ -44,11 +52,7 @@ def get_danger_policy(db: Session | None) -> DangerPolicy:
         except Exception:
             pass
         return DangerPolicy()
-    return DangerPolicy(
-        confirmation_mode=settings.danger_confirmation_mode,
-        backup_reminder_mode=settings.backup_reminder_mode,
-        result_detail=settings.danger_result_detail,
-    )
+    return danger_policy_from_settings(settings)
 
 
 def require_danger_confirmation(

@@ -46,6 +46,16 @@ def test_audit_suite_is_read_only_and_covers_required_operations(tmp_path: Path)
         not result.plans or all(plan.statement for plan in result.plans)
         for result in results
     )
+    by_operation = {result.operation: result for result in results}
+    assert by_operation["items_page"].query_count <= 11
+    assert by_operation["cleanup"].query_count <= 4
+    assert by_operation["collection_detail"].query_count <= 10
+    assert by_operation["tags"].query_count <= 3
+    assert by_operation["creators"].query_count <= 3
+    assert by_operation["collections"].query_count <= 3
+    assert by_operation["duplicates"].query_count <= 7
+    assert by_operation["stats"].query_count <= 11
+    assert by_operation["data_health"].query_count <= 11
     with Session(engine) as db:
         after = int(db.scalar(select(func.count(models.Item.id))) or 0)
     assert after == before == 30
@@ -90,7 +100,7 @@ def test_paginated_item_query_count_does_not_grow_per_row(tmp_path: Path) -> Non
     assert query_counts[1] - query_counts[0] <= 2
 
 
-def test_collection_detail_reports_confirmed_n_plus_one(tmp_path: Path) -> None:
+def test_collection_detail_eliminates_n_plus_one_and_bounds_rows(tmp_path: Path) -> None:
     engine = _engine(tmp_path / "collection-detail.db")
     create_performance_fixture(engine, 100)
     artifacts = build_audit_artifacts(engine, 100)
@@ -101,10 +111,8 @@ def test_collection_detail_reports_confirmed_n_plus_one(tmp_path: Path) -> None:
     result = run_read_only_operation(engine, operation, artifacts, dataset_size=100)
 
     assert result.metrics["collection_items"] == 50
-    assert result.n_plus_one_detected is True
-    assert any(
-        plan.executions == result.metrics["collection_items"]
-        and "? = item_collections.item_id" in plan.statement
-        for plan in result.plans
-    )
+    assert result.metrics["collection_items_loaded"] == 20
+    assert result.metrics["available_items_loaded"] == 20
+    assert result.n_plus_one_detected is False
+    assert result.query_count <= 10
     engine.dispose()

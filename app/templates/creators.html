@@ -54,4 +54,6 @@
     </tbody>
   </table>
 </div>
+{% from "_pagination.html" import pagination_nav %}
+{{ pagination_nav(t, pagination) }}
 {% endblock %}

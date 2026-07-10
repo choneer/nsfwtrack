@@ -378,6 +378,23 @@
 - [ ] **12.285. 功能边界是否保持** — 是否未直接优化业务查询、改页面行为、新增依赖、缓存、后台任务、外部监控或前端框架
 - [ ] **12.286. 文档与回归是否完整** — README / TASKS / REVIEW / CHANGELOG / PLAN / PERFORMANCE 是否记录 Unreleased，且全量测试和隔离 Docker 验收通过
 
+## Phase 2-I2 查询优化与分页收敛检查
+
+- [ ] **12.287. Items 加载范围是否正确** — 是否只为当前分页结果加载模板需要的 tags / creators / collections / state，且筛选、排序、分页结果与优化前一致
+- [ ] **12.288. Filter metadata 是否保持完整** — tag / creator / collection 选项是否仍完整可用，同时不再递归加载关联 item graph
+- [ ] **12.289. Cleanup 候选是否轻量且等价** — 候选页是否只取 id / name / relation count，exact / normalized 分组、primary 顺序和 compare URL 是否不变
+- [ ] **12.290. Collection N+1 是否消失** — 是否没有按成员逐条加载 collection 的 SQL，且性能审计明确报告无 N+1
+- [ ] **12.291. Collection 双分页是否安全** — members 和 available items 是否各限 20 条、显示完整总数、支持 available title 搜索且 GET 不修改成员关系
+- [ ] **12.292. Metadata 分页是否完整** — tags / creators / collections 是否各限 50 条，非法 / 越界 page 是否安全回退且后续行可访问
+- [ ] **12.293. Candidate 分页是否完整** — duplicates / cleanup 是否按 comparison pair 分页，每个 duplicate 均可访问且 compare / merge 语义不变
+- [ ] **12.294. Data-health 总数是否准确** — 页面明细是否最多 200 条，同时 total、分类、code 和 fix option 数量仍基于完整问题集合
+- [ ] **12.295. Settings 是否单次读取** — items / workbench 及共享 context 是否复用同一 AppSettings，单请求不重复查询
+- [ ] **12.296. Stats 是否等价收敛** — overview、分布、排行、活动日桶和完整性结果是否保持，查询数是否由 28 降至不高于 11
+- [ ] **12.297. 原有行为是否回归** — saved views、筛选、排序、批量编辑、合并、备份、导入、登录、POST、confirm 和 rollback 是否全量通过
+- [ ] **12.298. 性能矩阵是否重跑** — 是否实际运行 100 / 1,000 / 10,000 三档，并在 PERFORMANCE.md 保留 I1 / I2 可审计对照
+- [ ] **12.299. Schema 边界是否保持** — 是否无索引、表、字段、生产迁移、schema 版本、依赖、缓存或外部服务变化
+- [ ] **12.300. 发布边界是否保持** — 是否只写 Unreleased，未修改旧 tag，未创建 GitHub Release，并使用隔离数据与 Docker volume
+
 ## 登录保护检查
 
 - [ ] **13. 密码是否从环境变量读取** — 不是硬编码
@@ -428,6 +445,7 @@
 - [ ] **22.29. v0.9.0 迁移真实性** — 是否保持 `CURRENT_SCHEMA_VERSION = 1` 和空生产迁移注册表，未虚构 `1 -> 2` 生产迁移
 - [ ] **22.30. 下一阶段状态** — 是否将下一阶段指向 Phase 2-I 稳定性收尾，并将 `Unreleased` 重置为无未发布变更
 - [ ] **22.31. Phase 2-I1 记录边界** — 是否只写入 `Unreleased`，未修改 v0.9.0 或更早发布段、旧 tag 或 GitHub Release
+- [ ] **22.32. Phase 2-I2 记录边界** — 是否只写入 `Unreleased`，未修改 v0.9.0 或更早发布段、旧 tag 或 GitHub Release
 
 ## 备份恢复检查
 

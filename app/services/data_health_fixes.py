@@ -71,11 +71,10 @@ _FixHandler = Callable[[Session], DataHealthFixResult]
 def build_data_health_fix_options(
     report: DataHealthReport,
 ) -> list[DataHealthFixOption]:
-    issue_counts: dict[str, int] = {}
-    for issue in report.issues:
-        for fix_type, issue_codes in FIX_ISSUE_CODES.items():
-            if issue.code in issue_codes:
-                issue_counts[fix_type] = issue_counts.get(fix_type, 0) + 1
+    issue_counts = {
+        fix_type: sum(report.issue_code_counts.get(code, 0) for code in issue_codes)
+        for fix_type, issue_codes in FIX_ISSUE_CODES.items()
+    }
 
     return [
         DataHealthFixOption(fix_type=fix_type, issue_count=issue_counts[fix_type])

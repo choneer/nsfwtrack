@@ -9,7 +9,7 @@ from time import perf_counter
 from typing import Any
 
 from sqlalchemy import Engine, event, func, insert, select
-from sqlalchemy.orm import Session, selectinload
+from sqlalchemy.orm import Session, noload, selectinload
 
 from app import models
 from app.database import Base
@@ -22,19 +22,18 @@ from app.services.activity import (
 from app.services.backup import preview_backup_data
 from app.services.backup_validator import validate_backup_payload
 from app.services.collections import (
-    get_collection,
-    list_available_items_for_collection,
+    get_collection_detail_page,
     list_collection_rows,
 )
-from app.services.danger import get_danger_policy
 from app.services.data_health import build_data_health_report
 from app.services.duplicates import find_duplicate_candidates
 from app.services.exporter import export_backup_data
 from app.services.importer import preview_json_import
 from app.services.item_query import list_item_filter_options, query_items
 from app.services.metadata_cleanup import find_metadata_cleanup_candidates
+from app.services.metadata_lists import list_creator_page, list_tag_page
 from app.services.saved_views import list_saved_views
-from app.services.settings import get_app_settings, get_default_language
+from app.services.settings import get_app_settings
 from app.services.stats import build_stats_dashboard
 
 _SPACE_RE = re.compile(r"\s+")
@@ -226,8 +225,7 @@ def run_read_only_operation(
 
 
 def _base_context_reads(db: Session) -> None:
-    get_default_language(db)
-    get_danger_policy(db)
+    get_app_settings(db)
 
 
 def _touch_items(items: Iterable[models.Item]) -> int:
@@ -264,7 +262,6 @@ def _items_page(
     result = query_items(db, **kwargs)
     options = list_item_filter_options(db)
     views = list_saved_views(db)
-    _base_context_reads(db)
     return {
         "result_rows": len(result.items),
         "total_matches": result.total,
@@ -290,9 +287,11 @@ def _workbench(db: Session, artifacts: AuditArtifacts) -> dict[str, int | str | 
         db.scalars(
             select(models.Item)
             .options(
-                selectinload(models.Item.tags),
-                selectinload(models.Item.creators),
+                selectinload(models.Item.tags).noload(models.Tag.items),
+                selectinload(models.Item.creators).noload(models.Creator.items),
                 selectinload(models.Item.state),
+                noload(models.Item.collections),
+                noload(models.Item.activity),
             )
             .order_by(models.Item.created_at.desc(), models.Item.id.desc())
             .limit(8)
@@ -305,15 +304,13 @@ def _workbench(db: Session, artifacts: AuditArtifacts) -> dict[str, int | str | 
     )
     recent_viewed = list_recently_viewed(db, limit=4)
     recent_edited = list_recently_edited(db, limit=4)
-    views = list_saved_views(db)
-    _base_context_reads(db)
-    activity_items = [row.item for row in [*recent_viewed, *recent_edited]]
+    views = list_saved_views(db, limit=4)
     return {
         "recent_items": len(recent_items),
-        "activity_rows": len(activity_items),
+        "activity_rows": len(recent_viewed) + len(recent_edited),
         "saved_views_loaded": len(views),
         "total_entities": totals,
-        "relations_touched": _touch_items([*recent_items, *activity_items]),
+        "relations_touched": _touch_items(recent_items),
     }
 
 
@@ -333,36 +330,35 @@ def _stats(db: Session, artifacts: AuditArtifacts) -> dict[str, int | str | bool
 
 def _tags(db: Session, artifacts: AuditArtifacts) -> dict[str, int | str | bool]:
     del artifacts
-    rows = list(db.scalars(select(models.Tag).order_by(models.Tag.name.asc())).all())
+    page = list_tag_page(db)
     _base_context_reads(db)
-    return {"result_rows": len(rows)}
+    return {"result_rows": len(page.rows), "total_rows": page.page_info.total}
 
 
 def _creators(db: Session, artifacts: AuditArtifacts) -> dict[str, int | str | bool]:
     del artifacts
-    rows = list(
-        db.scalars(select(models.Creator).order_by(models.Creator.name.asc())).all()
-    )
+    page = list_creator_page(db)
     _base_context_reads(db)
-    return {"result_rows": len(rows)}
+    return {"result_rows": len(page.rows), "total_rows": page.page_info.total}
 
 
 def _collections(db: Session, artifacts: AuditArtifacts) -> dict[str, int | str | bool]:
     del artifacts
-    rows = list_collection_rows(db)
+    page = list_collection_rows(db)
     _base_context_reads(db)
-    return {"result_rows": len(rows)}
+    return {"result_rows": len(page.rows), "total_rows": page.page_info.total}
 
 
 def _collection_detail(db: Session, artifacts: AuditArtifacts) -> dict[str, int | str | bool]:
     del artifacts
-    collection = get_collection(db, 1)
-    available = list_available_items_for_collection(db, 1)
+    page = get_collection_detail_page(db, 1)
     _base_context_reads(db)
     return {
-        "collection_items": len(collection.items),
-        "available_items_loaded": len(available),
-        "relations_touched": _touch_items([*collection.items, *available]),
+        "collection_items": page.items_page_info.total,
+        "collection_items_loaded": len(page.items),
+        "available_items_loaded": len(page.available_items),
+        "available_items_total": page.available_page_info.total,
+        "relations_touched": _touch_items(page.items),
     }
 
 
@@ -379,21 +375,21 @@ def _activity(db: Session, artifacts: AuditArtifacts) -> dict[str, int | str | b
     edited = list_recently_edited(db, limit=ACTIVITY_PAGE_LIMIT)
     total = count_item_activity(db)
     _base_context_reads(db)
-    activity_items = [row.item for row in [*viewed, *edited]]
     return {
-        "result_rows": len(activity_items),
+        "result_rows": len(viewed) + len(edited),
         "activity_total": total,
-        "relations_touched": _touch_items(activity_items),
+        "relations_touched": 0,
     }
 
 
 def _duplicates(db: Session, artifacts: AuditArtifacts) -> dict[str, int | str | bool]:
     del artifacts
-    groups = find_duplicate_candidates(db)
-    items = [item for group in groups for item in group.items]
+    page = find_duplicate_candidates(db)
+    items = [item for group in page.groups for item in group.items]
     _base_context_reads(db)
     return {
-        "candidate_groups": len(groups),
+        "candidate_groups": len(page.groups),
+        "candidate_pairs_total": page.page_info.total,
         "candidate_items": len(items),
         "relations_touched": _touch_items(items),
     }
@@ -401,13 +397,19 @@ def _duplicates(db: Session, artifacts: AuditArtifacts) -> dict[str, int | str |
 
 def _cleanup(db: Session, artifacts: AuditArtifacts) -> dict[str, int | str | bool]:
     del artifacts
-    sections = find_metadata_cleanup_candidates(db)
-    objects = [obj for section in sections for group in section.groups for obj in group.objects]
+    page = find_metadata_cleanup_candidates(db)
+    objects = [
+        obj
+        for section in page.sections
+        for group in section.groups
+        for obj in group.objects
+    ]
     _base_context_reads(db)
     return {
-        "candidate_groups": sum(len(section.groups) for section in sections),
+        "candidate_groups": sum(len(section.groups) for section in page.sections),
+        "candidate_pairs_total": page.page_info.total,
         "candidate_objects": len(objects),
-        "related_items": sum(len(obj.items) for obj in objects),
+        "related_items": sum(obj.item_count for obj in objects),
     }
 
 
@@ -415,7 +417,11 @@ def _data_health(db: Session, artifacts: AuditArtifacts) -> dict[str, int | str 
     del artifacts
     report = build_data_health_report(db)
     _base_context_reads(db)
-    return {"issues": report.total_issues, "status": report.status}
+    return {
+        "issues": report.total_issues,
+        "displayed_issues": report.displayed_issue_count,
+        "status": report.status,
+    }
 
 
 def _backup_validation(db: Session, artifacts: AuditArtifacts) -> dict[str, int | str | bool]:
@@ -444,15 +450,15 @@ AUDIT_OPERATIONS: tuple[AuditOperation, ...] = (
     AuditOperation("items_filtered_sorted", False, _filtered_items_page),
     AuditOperation("workbench", False, _workbench),
     AuditOperation("stats", True, _stats),
-    AuditOperation("tags", False, _tags),
-    AuditOperation("creators", False, _creators),
-    AuditOperation("collections", False, _collections),
-    AuditOperation("collection_detail", False, _collection_detail),
+    AuditOperation("tags", True, _tags),
+    AuditOperation("creators", True, _creators),
+    AuditOperation("collections", True, _collections),
+    AuditOperation("collection_detail", True, _collection_detail),
     AuditOperation("saved_views", False, _saved_views),
     AuditOperation("activity", True, _activity),
-    AuditOperation("duplicates", False, _duplicates),
-    AuditOperation("cleanup", False, _cleanup),
-    AuditOperation("data_health", False, _data_health),
+    AuditOperation("duplicates", True, _duplicates),
+    AuditOperation("cleanup", True, _cleanup),
+    AuditOperation("data_health", True, _data_health),
     AuditOperation("backup_validation", False, _backup_validation),
     AuditOperation("import_dry_run", False, _import_dry_run),
 )

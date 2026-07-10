@@ -1,0 +1,22 @@
+{% macro pagination_nav(t, pagination) -%}
+  {% if pagination and pagination.total > 0 %}
+    <nav class="pagination" aria-label="{{ t('common.pagination') }}">
+      <span class="muted">{{ t("common.showing_count", start=pagination.start, end=pagination.end, total=pagination.total) }}</span>
+      <div class="page-links">
+        {% if pagination.has_prev %}
+          <a class="button secondary page-link" href="{{ pagination.prev_url }}">{{ t("common.previous_page") }}</a>
+        {% else %}
+          <span class="button secondary page-link disabled">{{ t("common.previous_page") }}</span>
+        {% endif %}
+        {% for page_link in pagination.page_urls %}
+          <a class="button secondary page-link {% if page_link.page == pagination.page %}active{% endif %}" href="{{ page_link.url }}">{{ page_link.page }}</a>
+        {% endfor %}
+        {% if pagination.has_next %}
+          <a class="button secondary page-link" href="{{ pagination.next_url }}">{{ t("common.next_page") }}</a>
+        {% else %}
+          <span class="button secondary page-link disabled">{{ t("common.next_page") }}</span>
+        {% endif %}
+      </div>
+    </nav>
+  {% endif %}
+{%- endmacro %}

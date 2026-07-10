@@ -86,7 +86,80 @@ loads needed by the corresponding template data.
 | Backup preview / validation | 9 / 3.775 | 9 / 11.499 | 9 / 96.487 | 0 | No |
 | JSON import dry-run | 4 / 1.558 | 4 / 7.270 | 4 / 118.232 | 0 | No |
 
-## Confirmed Issues
+## Phase 2-I2 Results
+
+Phase 2-I2 changed query loading and pagination only. It added no index,
+table, field, dependency, schema version, or production migration. The same
+fixture generator and read-only audit were rerun after the changes.
+
+Each cell is `SQL queries / milliseconds` from the I2 run.
+
+| Operation | 100 | 1,000 | 10,000 | Full scans at 10k | N+1 |
+| --- | ---: | ---: | ---: | ---: | --- |
+| Items page | 11 / 10.877 | 11 / 46.633 | 11 / 142.483 | 5 | No |
+| Filtered / rating-sorted items | 11 / 7.555 | 11 / 12.409 | 11 / 33.954 | 4 | No |
+| Workbench | 13 / 10.700 | 13 / 12.999 | 13 / 20.789 | 4 | No |
+| Stats | 11 / 12.837 | 11 / 15.280 | 11 / 42.462 | 8 | No |
+| Tags | 3 / 1.363 | 3 / 1.697 | 3 / 2.456 | 1 | No |
+| Creators | 3 / 1.039 | 3 / 2.064 | 3 / 1.748 | 1 | No |
+| Collections | 3 / 1.664 | 3 / 2.150 | 3 / 6.683 | 1 | No |
+| Collection detail | 9 / 8.188 | 9 / 12.692 | 9 / 13.305 | 0 | No |
+| Saved views | 2 / 0.622 | 2 / 0.867 | 2 / 2.469 | 1 | No |
+| Activity | 6 / 3.895 | 6 / 6.655 | 6 / 15.543 | 2 | No |
+| Duplicate items | 7 / 4.357 | 7 / 6.889 | 7 / 55.890 | 0 | No |
+| Metadata cleanup | 4 / 2.440 | 4 / 4.614 | 4 / 20.899 | 0 | No |
+| Data health | 11 / 3.240 | 11 / 12.760 | 11 / 132.865 | 4 | No |
+| Backup preview / validation | 9 / 3.894 | 9 / 14.170 | 9 / 101.029 | 0 | No |
+| JSON import dry-run | 4 / 1.670 | 4 / 7.646 | 4 / 108.491 | 0 | No |
+
+Timings are still single-run observations and not test thresholds. Query
+counts and bounded row counts are the stable regression gates.
+
+### 10,000 Item Comparison
+
+| Operation | I1 queries | I2 queries | I1 ms | I2 ms | Result |
+| --- | ---: | ---: | ---: | ---: | --- |
+| Items page | 258 | 11 | 1,791.543 | 142.483 | relationship amplification removed |
+| Filtered items | 258 | 11 | 1,828.384 | 33.954 | relationship amplification removed |
+| Workbench | 25 | 13 | 29.688 | 20.789 | settings reused; saved views limited to 4 |
+| Stats | 28 | 11 | 57.885 | 42.462 | repeated aggregates consolidated |
+| Tags | 85 | 3 | 852.061 | 2.456 | 50-row page, no item graph load |
+| Creators | 84 | 3 | 927.002 | 1.748 | 50-row page, no item graph load |
+| Collections | 84 | 3 | 900.360 | 6.683 | 50-row page, count projection only |
+| Collection detail | 165 | 9 | 937.068 | 13.305 | N+1 removed; two 20-row pages |
+| Activity | 15 | 6 | 22.062 | 15.543 | title-only item loading |
+| Duplicate items | 103 | 7 | 978.750 | 55.890 | candidate pairs paged, current details only |
+| Metadata cleanup | 249 | 4 | 2,796.679 | 20.899 | scalar candidates and relation counts |
+| Data health | 15 | 11 | 133.031 | 132.865 | relation checks consolidated; detail capped |
+
+### Resolved In I2
+
+- Item result relationships are loaded only for the current page. Metadata
+  filter rows explicitly suppress reverse `items` loading, so query count
+  stays at 11 from 100 through 10,000 items.
+- Metadata cleanup now selects object id, name, and relation count. Candidate
+  comparison pairs are paged at 20; compare and merge still load concrete
+  objects on demand.
+- Collection detail no longer calls the full collection loader twice. Current
+  members and searchable available items use separate 20-row pages. The 50
+  singleton collection queries disappeared and the audit reports no N+1.
+- Tags, creators, and collections use 50-row pages. Duplicate and cleanup
+  candidates page comparison pairs so every candidate remains reachable.
+- Shared page context reuses one validated settings object. Items and
+  workbench do not issue additional settings queries, and workbench applies
+  `LIMIT 4` before loading saved views.
+- Stats combines metadata totals, item metrics, state metrics, relation totals,
+  and seven-day buckets. Query count fell from 28 to 11 while existing stats
+  output tests remained unchanged.
+- Data-health orphan checks combine missing item and missing target detection.
+  Total issue counts remain complete while rendered details are limited to the
+  first 200. Manual-fix option counts use the complete issue-code totals.
+
+## Confirmed Issues In The I1 Baseline
+
+The following sections describe the pre-I2 measurements above. Their I2 status
+is recorded in the comparison and resolved lists; they are retained so the
+optimization evidence remains auditable.
 
 ### P0: Item Page Query Amplification
 
@@ -203,7 +276,7 @@ N+1 was observed.
 - No audit operation wrote data, accepted arbitrary SQL, or used an external
   service.
 
-## I2 Priorities
+## I2 Priority Record
 
 1. Stop metadata list / filter queries from recursively eager-loading item
    graphs. Use operation-specific loader options or column projections.
@@ -222,6 +295,29 @@ N+1 was observed.
 
 Items 1, 2, 3, 4, 5, 6, and 7 can begin as query / service changes without a
 schema migration. They must preserve current behavior and safety tests.
+
+All seven query/service items were implemented without a schema change. Backup
+preview / validation traversal was measured again but intentionally left for a
+later file-processing phase because I2 prioritized database query and
+pagination convergence.
+
+## Remaining Verified Limits
+
+- Items page query count is fixed, but the controls still load all tag,
+  creator, collection, and saved-view option rows to preserve current filter
+  and saved-view behavior. At the 10,000-item fixture this was 1,700 metadata
+  options and 500 saved views.
+- Duplicate detection must still read all item ids and titles to preserve the
+  current Unicode NFKC / casefold / whitespace normalization semantics. It no
+  longer loads every relationship graph; only the current 20 comparison pairs
+  receive detailed relationships.
+- Cleanup must still read all metadata names and aggregate relation counts to
+  identify normalized duplicates, but it no longer loads related item objects.
+- Data health still scans source rows to produce exact total issue counts. The
+  output is bounded, but the 10,000 clean-row runtime remained about 133 ms.
+- Activity ordering, item sorting, and several stats/data-health plans still
+  report full scans or temporary B-trees. Reducing those scans further requires
+  reviewed indexes rather than another loader-only change.
 
 ## Suggestions Requiring A Real Schema Migration
 

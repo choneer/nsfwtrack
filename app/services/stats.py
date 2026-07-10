@@ -1,9 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, time, timedelta, timezone
-from typing import Any
-
-from sqlalchemy import func, or_, select
+from sqlalchemy import case, func, or_, select
 from sqlalchemy.orm import Session
 
 from app.models import (
@@ -26,10 +24,6 @@ def _now() -> datetime:
     return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
-def _count(db: Session, stmt: Any) -> int:
-    return int(db.scalar(stmt) or 0)
-
-
 def _percent(count: int, total: int) -> float:
     if total <= 0:
         return 0.0
@@ -40,16 +34,6 @@ def _average(value: object) -> float | None:
     if value is None:
         return None
     return round(float(value), 2)
-
-
-def _coerce_datetime(value: datetime | str) -> datetime:
-    if isinstance(value, datetime):
-        return value.replace(tzinfo=None)
-    return datetime.fromisoformat(value).replace(tzinfo=None)
-
-
-def _items_since(db: Session, column: Any, days: int, now: datetime) -> int:
-    return _count(db, select(func.count(Item.id)).where(column >= now - timedelta(days=days)))
 
 
 def _status_distribution(db: Session) -> list[dict[str, object]]:
@@ -88,14 +72,18 @@ def _rating_distribution(db: Session, total_rated: int) -> list[dict[str, object
 
 
 def _tag_ranking(db: Session) -> dict[str, object]:
-    total_links = _count(db, select(func.count()).select_from(ItemTag))
     rows = db.execute(
-        select(Tag.name, func.count(ItemTag.item_id).label("item_count"))
+        select(
+            Tag.name,
+            func.count(ItemTag.item_id).label("item_count"),
+            func.sum(func.count(ItemTag.item_id)).over().label("total_links"),
+        )
         .join(ItemTag, ItemTag.tag_id == Tag.id)
         .group_by(Tag.id)
         .order_by(func.count(ItemTag.item_id).desc(), func.lower(Tag.name).asc())
         .limit(RANKING_LIMIT)
     ).all()
+    total_links = int(rows[0].total_links) if rows else 0
     return {
         "total_links": total_links,
         "rows": [
@@ -104,20 +92,24 @@ def _tag_ranking(db: Session) -> dict[str, object]:
                 "count": int(count),
                 "percent": _percent(int(count), total_links),
             }
-            for name, count in rows
+            for name, count, _ in rows
         ],
     }
 
 
 def _creator_ranking(db: Session) -> dict[str, object]:
-    total_links = _count(db, select(func.count()).select_from(ItemCreator))
     rows = db.execute(
-        select(Creator.name, func.count(ItemCreator.item_id).label("item_count"))
+        select(
+            Creator.name,
+            func.count(ItemCreator.item_id).label("item_count"),
+            func.sum(func.count(ItemCreator.item_id)).over().label("total_links"),
+        )
         .join(ItemCreator, ItemCreator.creator_id == Creator.id)
         .group_by(Creator.id)
         .order_by(func.count(ItemCreator.item_id).desc(), func.lower(Creator.name).asc())
         .limit(RANKING_LIMIT)
     ).all()
+    total_links = int(rows[0].total_links) if rows else 0
     return {
         "total_links": total_links,
         "rows": [
@@ -126,20 +118,24 @@ def _creator_ranking(db: Session) -> dict[str, object]:
                 "count": int(count),
                 "percent": _percent(int(count), total_links),
             }
-            for name, count in rows
+            for name, count, _ in rows
         ],
     }
 
 
 def _collection_ranking(db: Session) -> dict[str, object]:
-    total_links = _count(db, select(func.count()).select_from(ItemCollection))
     rows = db.execute(
-        select(Collection.name, func.count(ItemCollection.item_id).label("item_count"))
+        select(
+            Collection.name,
+            func.count(ItemCollection.item_id).label("item_count"),
+            func.sum(func.count(ItemCollection.item_id)).over().label("total_links"),
+        )
         .join(ItemCollection, ItemCollection.collection_id == Collection.id)
         .group_by(Collection.id)
         .order_by(func.count(ItemCollection.item_id).desc(), func.lower(Collection.name).asc())
         .limit(RANKING_LIMIT)
     ).all()
+    total_links = int(rows[0].total_links) if rows else 0
     return {
         "total_links": total_links,
         "rows": [
@@ -148,17 +144,20 @@ def _collection_ranking(db: Session) -> dict[str, object]:
                 "count": int(count),
                 "percent": _percent(int(count), total_links),
             }
-            for name, count in rows
+            for name, count, _ in rows
         ],
     }
 
 
-def _activity(db: Session, now: datetime) -> dict[str, object]:
-    created_7d = _items_since(db, Item.created_at, 7, now)
-    created_30d = _items_since(db, Item.created_at, 30, now)
-    updated_7d = _items_since(db, Item.updated_at, 7, now)
-    updated_30d = _items_since(db, Item.updated_at, 30, now)
-
+def _activity(
+    db: Session,
+    now: datetime,
+    *,
+    created_7d: int,
+    created_30d: int,
+    updated_7d: int,
+    updated_30d: int,
+) -> dict[str, object]:
     today = now.date()
     start_date = today - timedelta(days=6)
     start_at = datetime.combine(start_date, time.min)
@@ -170,18 +169,24 @@ def _activity(db: Session, now: datetime) -> dict[str, object]:
         }
         for offset in range(7)
     }
-    rows = db.execute(
-        select(Item.created_at, Item.updated_at).where(
-            or_(Item.created_at >= start_at, Item.updated_at >= start_at)
-        )
+    created_rows = db.execute(
+        select(func.date(Item.created_at), func.count(Item.id))
+        .where(Item.created_at >= start_at)
+        .group_by(func.date(Item.created_at))
     ).all()
-    for created_at, updated_at in rows:
-        created_date = _coerce_datetime(created_at).date()
-        updated_date = _coerce_datetime(updated_at).date()
-        if created_date in buckets:
-            buckets[created_date]["created_count"] += 1
-        if updated_date in buckets:
-            buckets[updated_date]["updated_count"] += 1
+    updated_rows = db.execute(
+        select(func.date(Item.updated_at), func.count(Item.id))
+        .where(Item.updated_at >= start_at)
+        .group_by(func.date(Item.updated_at))
+    ).all()
+    for date_value, count in created_rows:
+        parsed_date = datetime.fromisoformat(str(date_value)).date()
+        if parsed_date in buckets:
+            buckets[parsed_date]["created_count"] = int(count)
+    for date_value, count in updated_rows:
+        parsed_date = datetime.fromisoformat(str(date_value)).date()
+        if parsed_date in buckets:
+            buckets[parsed_date]["updated_count"] = int(count)
 
     daily_rows = list(buckets.values())
     max_daily_count = max(
@@ -209,22 +214,14 @@ def _activity(db: Session, now: datetime) -> dict[str, object]:
 
 
 def _integrity_overview(
-    db: Session,
     *,
     total_items: int,
     state_items: int,
     rated_items: int,
+    missing_tags: int,
+    missing_creators: int,
+    missing_summary: int,
 ) -> list[dict[str, object]]:
-    missing_tags = _count(db, select(func.count(Item.id)).where(~Item.tags.any()))
-    missing_creators = _count(
-        db, select(func.count(Item.id)).where(~Item.creators.any())
-    )
-    missing_summary = _count(
-        db,
-        select(func.count(Item.id)).where(
-            or_(Item.summary.is_(None), func.trim(Item.summary) == "")
-        ),
-    )
     return [
         {"key": "missing_tags", "count": missing_tags},
         {"key": "missing_creators", "count": missing_creators},
@@ -234,34 +231,87 @@ def _integrity_overview(
     ]
 
 
+def _metadata_totals(db: Session) -> tuple[int, int, int]:
+    row = db.execute(
+        select(
+            select(func.count(Tag.id)).scalar_subquery(),
+            select(func.count(Creator.id)).scalar_subquery(),
+            select(func.count(Collection.id)).scalar_subquery(),
+        )
+    ).one()
+    return int(row[0]), int(row[1]), int(row[2])
+
+
+def _item_metrics(db: Session, now: datetime) -> dict[str, int]:
+    row = db.execute(
+        select(
+            func.count(Item.id),
+            func.sum(case((Item.collections.any(), 1), else_=0)),
+            func.sum(case((~Item.tags.any(), 1), else_=0)),
+            func.sum(case((~Item.creators.any(), 1), else_=0)),
+            func.sum(
+                case(
+                    (or_(Item.summary.is_(None), func.trim(Item.summary) == ""), 1),
+                    else_=0,
+                )
+            ),
+            func.sum(case((Item.created_at >= now - timedelta(days=7), 1), else_=0)),
+            func.sum(case((Item.created_at >= now - timedelta(days=30), 1), else_=0)),
+            func.sum(case((Item.updated_at >= now - timedelta(days=7), 1), else_=0)),
+            func.sum(case((Item.updated_at >= now - timedelta(days=30), 1), else_=0)),
+        )
+    ).one()
+    keys = (
+        "total_items",
+        "items_with_collections",
+        "missing_tags",
+        "missing_creators",
+        "missing_summary",
+        "created_7d",
+        "created_30d",
+        "updated_7d",
+        "updated_30d",
+    )
+    return {key: int(value or 0) for key, value in zip(keys, row, strict=True)}
+
+
+def _state_metrics(db: Session) -> dict[str, int | float | None]:
+    row = db.execute(
+        select(
+            func.count(UserItemState.id),
+            func.sum(case((UserItemState.rating.is_not(None), 1), else_=0)),
+            func.avg(UserItemState.rating),
+            func.max(UserItemState.rating),
+            func.min(UserItemState.rating),
+        )
+    ).one()
+    return {
+        "state_items": int(row[0] or 0),
+        "rated_items": int(row[1] or 0),
+        "average_rating": _average(row[2]),
+        "highest_rating": int(row[3]) if row[3] is not None else None,
+        "lowest_rating": int(row[4]) if row[4] is not None else None,
+    }
+
+
 def build_stats_dashboard(db: Session) -> dict[str, object]:
     now = _now()
-    total_items = _count(db, select(func.count(Item.id)))
-    total_tags = _count(db, select(func.count(Tag.id)))
-    total_creators = _count(db, select(func.count(Creator.id)))
-    total_collections = _count(db, select(func.count(Collection.id)))
-    items_with_collections = _count(
-        db, select(func.count(Item.id)).where(Item.collections.any())
-    )
-    state_items = _count(db, select(func.count(UserItemState.id)))
-    rated_items = _count(
+    total_tags, total_creators, total_collections = _metadata_totals(db)
+    item_metrics = _item_metrics(db, now)
+    state_metrics = _state_metrics(db)
+    total_items = int(item_metrics["total_items"])
+    items_with_collections = int(item_metrics["items_with_collections"])
+    state_items = int(state_metrics["state_items"] or 0)
+    rated_items = int(state_metrics["rated_items"] or 0)
+    average_rating = state_metrics["average_rating"]
+    activity = _activity(
         db,
-        select(func.count(UserItemState.id)).where(UserItemState.rating.is_not(None)),
+        now,
+        created_7d=int(item_metrics["created_7d"]),
+        created_30d=int(item_metrics["created_30d"]),
+        updated_7d=int(item_metrics["updated_7d"]),
+        updated_30d=int(item_metrics["updated_30d"]),
     )
-    average_rating = _average(
-        db.scalar(
-            select(func.avg(UserItemState.rating)).where(
-                UserItemState.rating.is_not(None)
-            )
-        )
-    )
-    highest_rating = db.scalar(
-        select(func.max(UserItemState.rating)).where(UserItemState.rating.is_not(None))
-    )
-    lowest_rating = db.scalar(
-        select(func.min(UserItemState.rating)).where(UserItemState.rating.is_not(None))
-    )
-    activity = _activity(db, now)
 
     return {
         "overview": {
@@ -284,8 +334,8 @@ def build_stats_dashboard(db: Session) -> dict[str, object]:
         "rating_distribution": {
             "total": rated_items,
             "average_rating": average_rating,
-            "highest_rating": int(highest_rating) if highest_rating is not None else None,
-            "lowest_rating": int(lowest_rating) if lowest_rating is not None else None,
+            "highest_rating": state_metrics["highest_rating"],
+            "lowest_rating": state_metrics["lowest_rating"],
             "rows": _rating_distribution(db, rated_items),
         },
         "tag_ranking": _tag_ranking(db),
@@ -293,10 +343,12 @@ def build_stats_dashboard(db: Session) -> dict[str, object]:
         "collection_ranking": _collection_ranking(db),
         "activity": activity,
         "integrity": _integrity_overview(
-            db,
             total_items=total_items,
             state_items=state_items,
             rated_items=rated_items,
+            missing_tags=int(item_metrics["missing_tags"]),
+            missing_creators=int(item_metrics["missing_creators"]),
+            missing_summary=int(item_metrics["missing_summary"]),
         ),
         "local_only": True,
     }

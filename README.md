@@ -4,11 +4,38 @@ NSFWTrack is a local single-user content record manager / collection tracker.
 
 Current release: `v0.9.0 / Phase 2-H database versioning and migration framework`.
 
-Current development: `Phase 2-I1 performance baseline and database query audit are in Unreleased`.
+Current development: `Phase 2-I1 baseline and Phase 2-I2 query / pagination optimization are in Unreleased`.
 
 NSFWTrack remains intentionally local-only. It is designed for manual records,
 local SQLite persistence, LAN deployment, and simple personal collection
 management.
+
+## Unreleased: Phase 2-I2 Query And Pagination Optimization
+
+Phase 2-I2 applies the verified I1 findings without adding indexes, changing
+the schema, increasing the schema version, or adding dependencies.
+
+- Item pages load tag, creator, collection, and state relationships only for
+  the current result page. Filter metadata no longer recursively loads related
+  item graphs.
+- Cleanup candidates use scalar metadata fields and relation counts. Duplicate
+  and cleanup comparison pairs are paged while compare / merge behavior stays
+  manual and unchanged.
+- Tags, creators, and collections use 50-row pages.
+- Collection detail uses separate 20-row pages for members and available
+  items. Available items support local title search, and the previous N+1 is
+  removed.
+- Data-health keeps exact total and fix counts while rendering at most 200
+  issue details.
+- Shared page context reads settings once per request. Workbench saved views
+  are limited in SQL before rendering.
+- Stats uses consolidated aggregates and SQL date buckets while preserving the
+  existing dashboard and API structures.
+- At 10,000 fixture items, measured queries fell from 258 to 11 for items, 249
+  to 4 for cleanup, 165 to 9 for collection detail, and 28 to 11 for stats.
+
+See [PERFORMANCE.md](PERFORMANCE.md) for the complete I1 / I2 comparison and
+remaining scan paths that require a separately approved real migration.
 
 ## Unreleased: Phase 2-I1 Performance Baseline
 

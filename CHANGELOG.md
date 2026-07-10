@@ -19,6 +19,33 @@
 - Added performance-audit tests for read-only enforcement, connection-state
   cleanup, required operation coverage, stable paginated query counts, and the
   confirmed collection-detail N+1.
+- Added Phase 2-I2 shared pagination for tags, creators, collections, duplicate
+  comparison pairs, cleanup comparison pairs, collection members, and the
+  searchable collection available-item selector.
+- Added query-regression tests for pagination reachability, collection member
+  preservation, bounded collection detail loading, complete data-health counts,
+  single-request settings reuse, and I2 query-count ceilings.
+
+### Changed
+
+- Replaced recursive model-default relationship loading on item, metadata,
+  activity, duplicate, and cleanup list paths with operation-specific
+  `selectinload` / `noload` strategies. Current item-page relationships still
+  load for rendering, while unrelated reverse graphs no longer load.
+- Metadata cleanup candidates now select id, name, and relation count; compare
+  and merge continue loading concrete objects only when explicitly opened.
+- Collection detail now uses separate 20-row pages for current members and
+  searchable available items. The confirmed per-member collection N+1 is
+  removed without changing collection membership mutations.
+- Metadata pages use 50-row pages. Duplicate and cleanup pages paginate 20
+  comparison pairs while keeping every candidate reachable.
+- Shared page context reuses one validated settings object, and workbench saved
+  views apply `LIMIT 4` in SQL instead of slicing an unbounded result.
+- Consolidated stats aggregates and seven-day buckets from 28 to 11 measured
+  queries while preserving the existing response structure.
+- Combined data-health orphan checks and limited rendered details to 200 while
+  preserving complete totals and manual-fix issue counts.
+- Updated the 100 / 1,000 / 10,000 performance matrix with I1-to-I2 results.
 
 ### Security
 
@@ -29,6 +56,9 @@
 - Added no index, table, field, dependency, cache, background task, production
   migration, schema-version change, business-logic optimization, tag, or
   GitHub Release.
+- Phase 2-I2 adds no index, table, field, dependency, production migration,
+  schema-version change, cache, external service, tag, or GitHub Release. All
+  performance acceptance data remains isolated and disposable.
 
 ## v0.9.0 - 2026-07-10
 

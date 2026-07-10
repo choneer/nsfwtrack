@@ -103,6 +103,11 @@
         <h2>{{ t("data_health.issue_details") }}</h2>
       </div>
     </div>
+    {% if report.details_truncated %}
+      <div class="notice">
+        {{ t("data_health.details_truncated", shown=report.displayed_issue_count, total=report.total_issues) }}
+      </div>
+    {% endif %}
     <div class="table-scroll">
       <table>
         <thead>

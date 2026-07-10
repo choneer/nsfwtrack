@@ -14,6 +14,7 @@ from app.services.item_query import STATUS_OPTIONS
 from app.services.saved_views import SAVED_VIEW_ALLOWED_PARAMS
 
 CATEGORY_ORDER = ("items", "relations", "duplicates", "saved_views", "activity")
+DATA_HEALTH_DETAIL_LIMIT = 200
 BLOCKED_SAVED_VIEW_PARAMS = {"page", "next", "redirect"}
 _BAD_PERCENT_RE = re.compile(r"%(?![0-9A-Fa-f]{2})")
 
@@ -42,28 +43,44 @@ class DataHealthReport:
     problem_count: int
     category_summaries: list[DataHealthCategorySummary]
     issues: list[DataHealthIssue]
+    displayed_issue_count: int
+    details_truncated: bool
+    detail_limit: int
+    issue_code_counts: dict[str, int]
 
     @property
     def has_issues(self) -> bool:
         return self.total_issues > 0
 
 
-def build_data_health_report(db: Session) -> DataHealthReport:
+def build_data_health_report(
+    db: Session,
+    *,
+    detail_limit: int = DATA_HEALTH_DETAIL_LIMIT,
+) -> DataHealthReport:
+    if detail_limit <= 0:
+        raise ValueError("detail_limit must be positive")
     issues: list[DataHealthIssue] = []
     issues.extend(_check_items(db))
     issues.extend(_check_relations(db))
     issues.extend(_check_duplicate_relations(db))
     issues.extend(_check_saved_views(db))
     issues.extend(_check_item_activity(db))
-    return _build_report(issues)
+    return _build_report(issues, detail_limit=detail_limit)
 
 
-def _build_report(issues: list[DataHealthIssue]) -> DataHealthReport:
+def _build_report(
+    issues: list[DataHealthIssue],
+    *,
+    detail_limit: int,
+) -> DataHealthReport:
     counts = {category: 0 for category in CATEGORY_ORDER}
+    issue_code_counts: dict[str, int] = {}
     warning_count = 0
     problem_count = 0
     for issue in issues:
         counts[issue.category] = counts.get(issue.category, 0) + 1
+        issue_code_counts[issue.code] = issue_code_counts.get(issue.code, 0) + 1
         if issue.severity == "problem":
             problem_count += 1
         else:
@@ -84,7 +101,11 @@ def _build_report(issues: list[DataHealthIssue]) -> DataHealthReport:
             DataHealthCategorySummary(category=category, count=counts.get(category, 0))
             for category in CATEGORY_ORDER
         ],
-        issues=issues,
+        issues=issues[:detail_limit],
+        displayed_issue_count=min(len(issues), detail_limit),
+        details_truncated=len(issues) > detail_limit,
+        detail_limit=detail_limit,
+        issue_code_counts=issue_code_counts,
     )
 
 
@@ -276,42 +297,53 @@ def _check_relations(db: Session) -> list[DataHealthIssue]:
     )
 
     issues: list[DataHealthIssue] = []
-    for relation_table, object_name, object_column, target_table, item_code, target_code in relation_checks:
-        missing_items_sql = f"""
-            SELECT relation.item_id, relation.{object_column} AS target_id
+    for (
+        relation_table,
+        object_name,
+        object_column,
+        target_table,
+        item_code,
+        target_code,
+    ) in relation_checks:
+        missing_relations_sql = f"""
+            SELECT
+                relation.item_id,
+                relation.{object_column} AS target_id,
+                items.id AS existing_item_id,
+                target.id AS existing_target_id
             FROM {relation_table} AS relation
             LEFT JOIN items ON items.id = relation.item_id
-            WHERE items.id IS NULL
+            LEFT JOIN {target_table} AS target
+                ON target.id = relation.{object_column}
+            WHERE items.id IS NULL OR target.id IS NULL
             ORDER BY relation.item_id ASC, relation.{object_column} ASC
         """
-        for row in _rows(db, missing_items_sql):
-            issues.append(
-                _issue(
-                    "relations",
-                    item_code,
-                    relation_table[:-1],
-                    _relation_id(row.get("item_id"), row.get("target_id")),
-                    detail=f"item_id={row.get('item_id')} {object_name}_id={row.get('target_id')}",
-                )
+        for row in _rows(db, missing_relations_sql):
+            object_id = _relation_id(row.get("item_id"), row.get("target_id"))
+            detail = (
+                f"item_id={row.get('item_id')} "
+                f"{object_name}_id={row.get('target_id')}"
             )
-
-        missing_targets_sql = f"""
-            SELECT relation.item_id, relation.{object_column} AS target_id
-            FROM {relation_table} AS relation
-            LEFT JOIN {target_table} AS target ON target.id = relation.{object_column}
-            WHERE target.id IS NULL
-            ORDER BY relation.item_id ASC, relation.{object_column} ASC
-        """
-        for row in _rows(db, missing_targets_sql):
-            issues.append(
-                _issue(
-                    "relations",
-                    target_code,
-                    relation_table[:-1],
-                    _relation_id(row.get("item_id"), row.get("target_id")),
-                    detail=f"item_id={row.get('item_id')} {object_name}_id={row.get('target_id')}",
+            if row.get("existing_item_id") is None:
+                issues.append(
+                    _issue(
+                        "relations",
+                        item_code,
+                        relation_table[:-1],
+                        object_id,
+                        detail=detail,
+                    )
                 )
-            )
+            if row.get("existing_target_id") is None:
+                issues.append(
+                    _issue(
+                        "relations",
+                        target_code,
+                        relation_table[:-1],
+                        object_id,
+                        detail=detail,
+                    )
+                )
 
     return issues
 

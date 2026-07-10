@@ -652,3 +652,24 @@
 - [x] 未使用或修改默认 schema 2 数据卷，临时数据已清理
 - [x] 更新 README / TASKS / REVIEW / CHANGELOG / PLAN，仅记录 Unreleased
 - [x] 未修改已发布 tag，未创建 GitHub Release
+
+## Phase 2-I2 查询优化与分页收敛
+
+- [x] items 当前页按需加载 tags / creators / collections / state，并阻止无关反向关系递归加载
+- [x] filter metadata 保持完整选项和现有筛选语义，不再加载关联 item graph
+- [x] cleanup 候选改为 id / name / relation count 标量查询，对比和合并继续按需加载完整对象
+- [x] collection detail 消除逐成员 collection N+1，不再重复加载完整合集
+- [x] collection members 使用 20 条分页，显示完整成员总数
+- [x] available items 使用 20 条分页和本地标题搜索，不改变成员关系
+- [x] tags / creators / collections 使用 50 条分页，旧 URL 默认第一页
+- [x] duplicates / cleanup 按 20 个 comparison pair 分页，每个候选仍可通过翻页访问
+- [x] data-health 孤立关系查询由 6 次合并为 3 次
+- [x] data-health 保持完整总数和 fix count，仅限制页面明细为前 200 条
+- [x] 同一页面请求复用一次 settings 读取，workbench saved views 在 SQL 中限制为 4 条
+- [x] stats 聚合与日桶查询从基线 28 次收敛为 11 次，返回结构和数值测试不变
+- [x] activity 只加载页面实际使用的 item 标题，保持 50 + 50 上限
+- [x] 性能测试使用查询数和行数上限，不使用固定毫秒阈值
+- [x] 重跑 100 / 1,000 / 10,000 隔离性能矩阵并更新 PERFORMANCE.md
+- [x] 保持 saved views、筛选、排序、批量编辑、合并、备份、导入、确认和 rollback 行为
+- [x] 未新增索引、表、字段、依赖、生产迁移，未提升 schema 版本
+- [x] 未使用默认 schema 2 数据卷，未修改旧 tag，未创建 GitHub Release

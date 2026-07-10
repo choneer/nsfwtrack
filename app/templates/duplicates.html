@@ -26,7 +26,7 @@
             <p class="muted">{{ t("duplicates.match_type") }}</p>
             <h2>{{ t("duplicates." ~ group.match_type) }}</h2>
           </div>
-          <span class="pill">{{ t("duplicates.item_count", count=group.items|length) }}</span>
+          <span class="pill">{{ t("duplicates.item_count", count=group.total_items) }}</span>
         </div>
         <div class="metric-grid compact-metrics">
           <div class="metric">
@@ -34,7 +34,7 @@
             <span>{{ t("duplicates.match_type") }}</span>
           </div>
           <div class="metric">
-            <strong>{{ group.items|length }}</strong>
+            <strong>{{ group.total_items }}</strong>
             <span>{{ t("common.count") }}</span>
           </div>
         </div>
@@ -83,4 +83,6 @@
     <p class="muted">{{ t("duplicates.empty_body") }}</p>
   </section>
 {% endif %}
+{% from "_pagination.html" import pagination_nav %}
+{{ pagination_nav(t, pagination) }}
 {% endblock %}

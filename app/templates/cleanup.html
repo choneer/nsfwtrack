@@ -40,7 +40,7 @@
                   <span>{{ t("cleanup.match_type") }}</span>
                 </div>
                 <div class="metric">
-                  <strong>{{ group.objects|length }}</strong>
+                  <strong>{{ group.total_objects }}</strong>
                   <span>{{ t("common.count") }}</span>
                 </div>
               </div>
@@ -54,7 +54,7 @@
                     <div class="stack">
                       <strong>{{ metadata_object.name }}</strong>
                       <div class="tag-row">
-                        <span class="pill">{{ t("cleanup.item_relation_count", count=metadata_object.items|length) }}</span>
+                        <span class="pill">{{ t("cleanup.item_relation_count", count=metadata_object.item_count) }}</span>
                         {% if metadata_object.id == primary.id %}
                           <span class="pill">{{ t("cleanup.default_primary") }}</span>
                         {% endif %}
@@ -85,4 +85,6 @@
     <p class="muted">{{ t("cleanup.empty_body") }}</p>
   </section>
 {% endif %}
+{% from "_pagination.html" import pagination_nav %}
+{{ pagination_nav(t, pagination) }}
 {% endblock %}

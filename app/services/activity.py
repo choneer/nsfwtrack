@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from typing import Iterable
 
 from sqlalchemy import delete, func, select
-from sqlalchemy.orm import Session, selectinload
+from sqlalchemy.orm import Session, noload, selectinload
 
 from app import models
 
@@ -174,10 +174,13 @@ def count_item_activity(db: Session) -> int:
 
 def _activity_items_options() -> tuple[object, ...]:
     return (
-        selectinload(models.ItemActivity.item).selectinload(models.Item.tags),
-        selectinload(models.ItemActivity.item).selectinload(models.Item.creators),
-        selectinload(models.ItemActivity.item).selectinload(models.Item.collections),
-        selectinload(models.ItemActivity.item).selectinload(models.Item.state),
+        selectinload(models.ItemActivity.item).options(
+            noload(models.Item.tags),
+            noload(models.Item.creators),
+            noload(models.Item.collections),
+            noload(models.Item.state),
+            noload(models.Item.activity),
+        ),
     )
 
 

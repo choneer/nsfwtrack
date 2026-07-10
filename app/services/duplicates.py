@@ -7,10 +7,13 @@ from dataclasses import dataclass
 from typing import Any
 
 from sqlalchemy import select
-from sqlalchemy.orm import Session, selectinload
+from sqlalchemy.orm import Session, noload, selectinload
 
 from app import models
 from app.services.catalog import serialize_extra
+from app.services.pagination import PageInfo, build_page_info
+
+DUPLICATE_CANDIDATE_PAGE_SIZE = 20
 
 
 class DuplicateError(ValueError):
@@ -20,10 +23,23 @@ class DuplicateError(ValueError):
 
 
 @dataclass(frozen=True)
+class DuplicateCandidateRow:
+    id: int
+    title: str
+
+
+@dataclass(frozen=True)
 class DuplicateCandidateGroup:
     match_type: str
     match_key: str
     items: list[models.Item]
+    total_items: int
+
+
+@dataclass(frozen=True)
+class DuplicateCandidatePage:
+    groups: list[DuplicateCandidateGroup]
+    page_info: PageInfo
 
 
 @dataclass(frozen=True)
@@ -67,61 +83,107 @@ def normalized_title_key(title: str) -> str:
     return normalized.casefold()
 
 
-def _load_items(db: Session) -> list[models.Item]:
-    return list(
-        db.scalars(
-            select(models.Item)
-            .options(
-                selectinload(models.Item.tags),
-                selectinload(models.Item.creators),
-                selectinload(models.Item.collections),
-                selectinload(models.Item.state),
-            )
-            .order_by(models.Item.title.asc(), models.Item.id.asc())
-        ).all()
-    )
+def _load_candidate_rows(db: Session) -> list[DuplicateCandidateRow]:
+    rows = db.execute(
+        select(models.Item.id, models.Item.title).order_by(
+            models.Item.title.asc(), models.Item.id.asc()
+        )
+    ).all()
+    return [
+        DuplicateCandidateRow(id=int(item_id), title=str(title))
+        for item_id, title in rows
+    ]
 
 
 def _candidate_groups(
-    items: list[models.Item],
+    items: list[DuplicateCandidateRow],
     *,
     match_type: str,
     key_func: Any,
-) -> list[DuplicateCandidateGroup]:
-    buckets: dict[str, list[models.Item]] = {}
+) -> list[tuple[str, str, list[DuplicateCandidateRow]]]:
+    buckets: dict[str, list[DuplicateCandidateRow]] = {}
     for item in items:
         key = key_func(item.title)
         if key:
             buckets.setdefault(key, []).append(item)
     groups = [
-        DuplicateCandidateGroup(
-            match_type=match_type,
-            match_key=key,
-            items=sorted(bucket, key=lambda row: row.id),
-        )
+        (match_type, key, sorted(bucket, key=lambda row: row.id))
         for key, bucket in buckets.items()
         if len(bucket) > 1
     ]
-    return sorted(groups, key=lambda group: (group.match_key, group.items[0].id))
+    return sorted(groups, key=lambda group: (group[1], group[2][0].id))
 
 
-def find_duplicate_candidates(db: Session) -> list[DuplicateCandidateGroup]:
-    items = _load_items(db)
+def find_duplicate_candidates(
+    db: Session,
+    *,
+    page: str | int | None = None,
+) -> DuplicateCandidatePage:
+    items = _load_candidate_rows(db)
     groups = _candidate_groups(
         items,
         match_type="exact_title",
         key_func=exact_title_key,
     )
-    exact_sets = {frozenset(item.id for item in group.items) for group in groups}
+    exact_sets = {frozenset(item.id for item in group[2]) for group in groups}
     for group in _candidate_groups(
         items,
         match_type="normalized_title",
         key_func=normalized_title_key,
     ):
-        item_ids = frozenset(item.id for item in group.items)
+        item_ids = frozenset(item.id for item in group[2])
         if item_ids not in exact_sets:
             groups.append(group)
-    return groups
+
+    candidate_pairs = [
+        (match_type, match_key, rows, duplicate)
+        for match_type, match_key, rows in groups
+        for duplicate in rows[1:]
+    ]
+    page_info = build_page_info(
+        page=page,
+        page_size=DUPLICATE_CANDIDATE_PAGE_SIZE,
+        total=len(candidate_pairs),
+    )
+    start = (page_info.page - 1) * page_info.page_size
+    selected_pairs = candidate_pairs[start : start + page_info.page_size]
+    selected_ids = {
+        row.id
+        for _, _, rows, duplicate in selected_pairs
+        for row in (rows[0], duplicate)
+    }
+    loaded_items = db.scalars(
+        select(models.Item)
+        .where(models.Item.id.in_(selected_ids))
+        .options(
+            selectinload(models.Item.tags).noload(models.Tag.items),
+            selectinload(models.Item.creators).noload(models.Creator.items),
+            selectinload(models.Item.collections).noload(models.Collection.items),
+            selectinload(models.Item.state),
+            noload(models.Item.activity),
+        )
+    ).all()
+    item_by_id = {item.id: item for item in loaded_items}
+    display_groups: dict[tuple[str, str, int], DuplicateCandidateGroup] = {}
+    ordered_keys: list[tuple[str, str, int]] = []
+    for match_type, match_key, rows, duplicate in selected_pairs:
+        primary = rows[0]
+        key = (match_type, match_key, primary.id)
+        display_group = display_groups.get(key)
+        if display_group is None:
+            display_group = DuplicateCandidateGroup(
+                match_type=match_type,
+                match_key=match_key,
+                items=[item_by_id[primary.id]],
+                total_items=len(rows),
+            )
+            display_groups[key] = display_group
+            ordered_keys.append(key)
+        display_group.items.append(item_by_id[duplicate.id])
+    return DuplicateCandidatePage(
+        groups=[display_groups[key] for key in ordered_keys],
+        page_info=page_info,
+    )
 
 
 def _parse_item_id(value: str | int | None) -> int:
@@ -139,10 +201,11 @@ def _get_item(db: Session, item_id: int) -> models.Item:
         select(models.Item)
         .where(models.Item.id == item_id)
         .options(
-            selectinload(models.Item.tags),
-            selectinload(models.Item.creators),
-            selectinload(models.Item.collections),
+            selectinload(models.Item.tags).noload(models.Tag.items),
+            selectinload(models.Item.creators).noload(models.Creator.items),
+            selectinload(models.Item.collections).noload(models.Collection.items),
             selectinload(models.Item.state),
+            noload(models.Item.activity),
         )
     )
     if item is None:

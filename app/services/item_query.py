@@ -7,7 +7,7 @@ from typing import Any
 from urllib.parse import urlencode
 
 from sqlalchemy import case, func, select
-from sqlalchemy.orm import Session, selectinload
+from sqlalchemy.orm import Session, noload, selectinload
 
 from app.models import Collection, Creator, Item, Tag, UserItemState
 
@@ -263,10 +263,11 @@ def query_items(
     stmt = _apply_sort(_apply_filters(select(Item), filters), filters.sort)
     items = db.scalars(
         stmt.options(
-            selectinload(Item.tags),
-            selectinload(Item.creators),
-            selectinload(Item.collections),
+            selectinload(Item.tags).noload(Tag.items),
+            selectinload(Item.creators).noload(Creator.items),
+            selectinload(Item.collections).noload(Collection.items),
             selectinload(Item.state),
+            noload(Item.activity),
         )
         .offset((filters.page - 1) * filters.page_size)
         .limit(filters.page_size)
@@ -282,10 +283,18 @@ def query_items(
 
 
 def list_item_filter_options(db: Session) -> ItemFilterOptions:
-    tags = db.scalars(select(Tag).order_by(func.lower(Tag.name).asc())).all()
-    creators = db.scalars(select(Creator).order_by(func.lower(Creator.name).asc())).all()
+    tags = db.scalars(
+        select(Tag).options(noload(Tag.items)).order_by(func.lower(Tag.name).asc())
+    ).all()
+    creators = db.scalars(
+        select(Creator)
+        .options(noload(Creator.items))
+        .order_by(func.lower(Creator.name).asc())
+    ).all()
     collections = db.scalars(
-        select(Collection).order_by(func.lower(Collection.name).asc())
+        select(Collection)
+        .options(noload(Collection.items))
+        .order_by(func.lower(Collection.name).asc())
     ).all()
     return ItemFilterOptions(
         tags=list(tags),
