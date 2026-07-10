@@ -4,11 +4,41 @@ NSFWTrack is a local single-user content record manager / collection tracker.
 
 Current release: `v0.9.0 / Phase 2-H database versioning and migration framework`.
 
-Current development: `Phase 2-I stability closeout is next; there are no unreleased changes`.
+Current development: `Phase 2-I1 performance baseline and database query audit are in Unreleased`.
 
 NSFWTrack remains intentionally local-only. It is designed for manual records,
 local SQLite persistence, LAN deployment, and simple personal collection
 management.
+
+## Unreleased: Phase 2-I1 Performance Baseline
+
+Phase 2-I1 adds analysis and test tooling only. It does not change existing
+queries, business behavior, database structure, indexes, or dependencies.
+
+- `scripts/profile_queries.py` creates disposable SQLite fixtures with 100,
+  1,000, and 10,000 items and removes them after the audit.
+- `app/services/performance_audit.py` runs fixed project operations through a
+  SQLite `query_only` connection, blocks writes, counts SQL statements, records
+  repeated fingerprints and elapsed time, and captures
+  `EXPLAIN QUERY PLAN` summaries.
+- Coverage includes item list pagination / filters / sorting, workbench, stats,
+  metadata pages, collection detail, saved views, activity, duplicates,
+  cleanup, data health, backup preview / validation, and import dry-run.
+- The baseline confirms item-page and cleanup query amplification, one
+  collection-detail N+1, unpaginated metadata / candidate paths, and repeated
+  stats scans. These findings are documented but intentionally not fixed in
+  I1.
+- [PERFORMANCE.md](PERFORMANCE.md) contains the measured matrix, verified
+  findings, unaffected paths, I2 priorities, and migration-required index
+  suggestions.
+
+Run the complete isolated audit with:
+
+```bash
+.venv/bin/python scripts/profile_queries.py \
+  --sizes 100 1000 10000 \
+  --output /tmp/nsfwtrack-performance-i1.json
+```
 
 ## Features in v0.9.0
 

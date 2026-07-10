@@ -631,3 +631,24 @@
 - [x] 保持 `CURRENT_SCHEMA_VERSION = 1` 和空生产迁移注册表，不虚构 `1 -> 2` 生产迁移
 - [x] 保持 `v0.1.0` 到 `v0.8.0` 的发布内容与 tag 不变
 - [x] 本轮仅做 release 文档准备，不新增业务功能、不改数据库结构、不新增依赖
+
+## Phase 2-I1 性能基线与数据库查询审查
+
+- [x] 新增可重复执行的 SQLite 性能审查服务和命令行工具
+- [x] 审查连接启用 `PRAGMA query_only`，并在成功 / 失败后恢复连接状态
+- [x] 拦截写语句，不接受用户 SQL、表名或目标数据库路径
+- [x] 使用临时数据库生成 100 / 1,000 / 10,000 条条目和配套关系数据
+- [x] 审查列表分页 / 筛选 / 排序、工作台、统计、标签、创作者和合集
+- [x] 审查 saved views、activity、duplicates、cleanup 和 data-health
+- [x] 审查备份 preview / validation 和 JSON 导入 dry-run
+- [x] 记录查询数量、重复 SQL 指纹、耗时、`EXPLAIN QUERY PLAN`、全表扫描和 N+1
+- [x] 确认列表结果保持分页，但筛选元数据加载触发批量查询放大
+- [x] 确认合集详情存在 N+1，并无界加载全部可选条目
+- [x] 确认 cleanup、duplicates 和元数据列表随数据量明显退化
+- [x] 确认工作台、activity、备份校验和导入 dry-run 未出现 SQL N+1
+- [x] 新增 `PERFORMANCE.md`，区分已验证问题、暂未发现问题和 I2 建议
+- [x] 性能测试不依赖固定毫秒阈值，覆盖只读、分页查询上限和 N+1 判定
+- [x] 未新增索引、表、字段、依赖、真实迁移、缓存、后台任务或业务优化
+- [x] 未使用或修改默认 schema 2 数据卷，临时数据已清理
+- [x] 更新 README / TASKS / REVIEW / CHANGELOG / PLAN，仅记录 Unreleased
+- [x] 未修改已发布 tag，未创建 GitHub Release

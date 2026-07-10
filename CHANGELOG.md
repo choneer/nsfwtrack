@@ -2,7 +2,33 @@
 
 ## Unreleased
 
-No unreleased changes.
+### Added
+
+- Added Phase 2-I1 reproducible read-only SQLite performance auditing with
+  disposable 100 / 1,000 / 10,000 item fixtures, SQL query counting,
+  fingerprint repetition counts, elapsed-time observations, and
+  `EXPLAIN QUERY PLAN` summaries.
+- Added coverage for item list filtering / sorting / pagination, workbench,
+  stats, tags, creators, collections, saved views, activity, duplicate items,
+  metadata cleanup, data health, backup preview / validation, and JSON import
+  dry-run.
+- Added `PERFORMANCE.md` with the measured baseline, confirmed N+1 and query
+  amplification findings, paths without a confirmed major issue, I2 priority
+  order, and a separate list of index suggestions that require a real schema
+  migration.
+- Added performance-audit tests for read-only enforcement, connection-state
+  cleanup, required operation coverage, stable paginated query counts, and the
+  confirmed collection-detail N+1.
+
+### Security
+
+- Performance fixtures are created only in disposable SQLite databases and
+  removed after each run. The audit connection uses SQLite `query_only`,
+  blocks write statements before execution, accepts no arbitrary SQL or table
+  name, and does not access the default local data volume.
+- Added no index, table, field, dependency, cache, background task, production
+  migration, schema-version change, business-logic optimization, tag, or
+  GitHub Release.
 
 ## v0.9.0 - 2026-07-10
 
