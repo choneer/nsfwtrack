@@ -594,3 +594,27 @@
 - [x] 补充新旧库、高低版本、结构异常、失败回滚、只读页面、备份隔离和 i18n 测试
 - [x] 更新 README / TASKS / REVIEW / CHANGELOG / PLAN，仅记录 Unreleased
 - [x] 确认未修改现有业务表字段、未新增依赖、未修改已发布 tag、未创建 GitHub Release
+
+## Phase 2-H2 显式迁移框架与升级 dry-run
+
+- [x] 新增代码内 `MigrationStep` 和 `MigrationRegistry`，生产注册表保持为空
+- [x] 每步包含源 / 目标版本、名称、preview、apply、pre-check 和 post-check
+- [x] 注册表拒绝重复、断层、跳级、倒序、循环、非法版本和无效 callback
+- [x] 先读取数据库版本，再从代码注册表解析连续升级路径
+- [x] 低版本启动不再提前要求数据库符合最新模型结构
+- [x] 当前版本显示无需升级，缺少路径 / 高版本 / 无法确认时拒绝升级
+- [x] 新增登录保护的 `GET /schema-upgrade` 只读状态页
+- [x] 新增 `POST /schema-upgrade/preview`，不接受 SQL、表名或目标版本
+- [x] dry-run 展示版本、步骤顺序、预计变化、warning / error 和 pre-check 状态
+- [x] 使用 SQLite `query_only`、只读 authorizer 和 rollback 阻止 preview 数据 / DDL / 版本写入
+- [x] 后续步骤 pre-check 在 dry-run 标记 deferred，apply 时按链顺序重新执行
+- [x] 新增 `POST /schema-upgrade/apply`，要求登录、POST、浏览器和服务端危险确认
+- [x] apply 要求明确确认升级前 JSON 备份，strict 模式精确验证 `CONFIRM`
+- [x] apply 在同一事务内重读版本、解析路径、执行步骤、post-check 和写版本记录
+- [x] 任一步失败、post-check 失败或版本记录异常时回滚整条迁移链
+- [x] 不支持降级、跳过检查、手动版本修改或用户自定义迁移参数
+- [x] `schema_migrations` 继续与 JSON 备份导出 / 恢复隔离
+- [x] 当前 `CURRENT_SCHEMA_VERSION` 保持 `1`，不添加测试用生产迁移
+- [x] 未修改任何现有业务表或字段，未新增依赖、Alembic、tag 或 GitHub Release
+- [x] 补充框架、只读、确认、两步回滚、post-check、路由安全和 i18n 测试
+- [x] 更新 README / TASKS / REVIEW / CHANGELOG / PLAN，仅记录 Unreleased

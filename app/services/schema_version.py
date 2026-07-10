@@ -219,6 +219,8 @@ def initialize_database(bind: Engine) -> SchemaStatus:
         raise SchemaVersionError("version_unknown", status=status)
     if status.state == SCHEMA_STATUS_APPLICATION_OUTDATED:
         raise SchemaVersionError("application_outdated", status=status)
+    if status.state == SCHEMA_STATUS_UPGRADE_REQUIRED:
+        return status
 
     try:
         problems = _structure_problems(bind)

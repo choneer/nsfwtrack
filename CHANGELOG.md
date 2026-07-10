@@ -4,6 +4,21 @@
 
 ### Added
 
+- Added Phase 2-H2 explicit SQLite migration framework with code-only migration
+  steps, strict registry validation, continuous path resolution, source-version
+  pre-checks, target-version post-checks, and per-step version records.
+- Added login-protected `GET /schema-upgrade`, read-only
+  `POST /schema-upgrade/preview`, and explicit
+  `POST /schema-upgrade/apply` flows. Apply requires browser confirmation,
+  existing server-side dangerous-operation confirmation, explicit backup
+  acknowledgement, and exact `CONFIRM` text in strict mode.
+- Added protected upgrade dry-run reports with current / target versions,
+  ordered migration steps, expected changes, warnings, errors, first-step
+  pre-check results, and deferred later-step checks that are rerun during apply.
+- Added test-only migration registries covering duplicate, gap, jump, reverse,
+  and cyclic path rejection; continuous path resolution; read-only data and DDL
+  enforcement; authentication and confirmation; missing paths; downgrades;
+  two-step rollback; post-check rollback; and version-record atomicity.
 - Added Phase 2-H1 internal database schema version tracking with a local
   `schema_migrations` table containing unique `version`, descriptive `name`,
   and `applied_at` fields. The current application schema baseline is version
@@ -22,6 +37,13 @@
 
 ### Changed
 
+- Lower-version startup now reads and reports the recorded database version
+  without requiring the old database to match the latest application structure.
+  The migration step pre-checks own source-version requirements, and target
+  structure is checked only after each step applies.
+- Migration apply rereads the database version and resolves the code registry
+  inside one transaction. All migration steps, post-checks, and version inserts
+  commit together or roll back together.
 - Replaced unconditional startup `create_all` with a schema-aware initializer.
   Empty databases create the current schema and baseline in one transaction;
   unversioned legacy databases must already contain every required business
@@ -32,6 +54,13 @@
 
 ### Security
 
+- Enforced dry-run read-only behavior with SQLite `query_only`, an authorizer
+  that denies data / schema writes, and unconditional rollback. Preview never
+  calls apply or writes `schema_migrations`.
+- Kept the production migration registry empty and
+  `CURRENT_SCHEMA_VERSION = 1`: no test-only production migration, schema bump,
+  existing business-table change, dependency, automatic migration, downgrade,
+  user SQL, table-name input, or target-version input was added.
 - Kept `schema_migrations` outside JSON backup export, preview, validation, and
   restore data. Uploaded backup rows using that table name are ignored and
   cannot replace the local schema version.

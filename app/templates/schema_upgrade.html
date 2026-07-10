@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+{% from "_danger_notice.html" import danger_notice %}
+{% block title %}{{ t("schema_upgrade.title") }} - NSFWTrack{% endblock %}
+{% block content %}
+<div class="toolbar">
+  <div>
+    <p class="muted">{{ t("schema_upgrade.local_only") }}</p>
+    <h1>{{ t("schema_upgrade.title") }}</h1>
+    <p class="muted">{{ t("schema_upgrade.description") }}</p>
+  </div>
+  <div class="actions">
+    <a class="button secondary" href="/settings">{{ t("common.back") }}</a>
+  </div>
+</div>
+
+<section class="notice">
+  <p>{{ t("schema_upgrade.explicit_only") }}</p>
+  <p>{{ t("schema_upgrade.no_user_input") }}</p>
+</section>
+
+<section class="card stack stats-section">
+  <h2>{{ t("schema_upgrade.status_title") }}</h2>
+  <dl class="danger-facts">
+    <div>
+      <dt>{{ t("schema_upgrade.current_version") }}</dt>
+      <dd>{{ upgrade_plan.current_version if upgrade_plan.current_version is not none else t("schema_upgrade.not_available") }}</dd>
+    </div>
+    <div>
+      <dt>{{ t("schema_upgrade.target_version") }}</dt>
+      <dd>{{ upgrade_plan.target_version }}</dd>
+    </div>
+    <div>
+      <dt>{{ t("schema_upgrade.status") }}</dt>
+      <dd><span class="pill validation-severity-{% if upgrade_plan.state == 'current' %}info{% else %}warning{% endif %}">{{ t("schema_upgrade.state_" ~ upgrade_plan.state) }}</span></dd>
+    </div>
+    <div>
+      <dt>{{ t("schema_upgrade.step_count") }}</dt>
+      <dd>{{ upgrade_plan.steps | length }}</dd>
+    </div>
+  </dl>
+
+  {% if upgrade_plan.error_code %}
+    <p class="flash error">{{ t("schema_upgrade.error_" ~ upgrade_plan.error_code) }}</p>
+  {% endif %}
+
+  {% if upgrade_plan.can_preview %}
+    <form action="/schema-upgrade/preview" method="post">
+      <button type="submit">{{ t("schema_upgrade.preview") }}</button>
+    </form>
+  {% elif upgrade_plan.state == "current" %}
+    <p>{{ t("schema_upgrade.no_upgrade_needed") }}</p>
+  {% endif %}
+</section>
+
+{% if dry_run %}
+<section class="stack stats-section">
+  <div>
+    <h2>{{ t("schema_upgrade.dry_run_title") }}</h2>
+    <p class="muted">{{ t("schema_upgrade.dry_run_read_only") }}</p>
+  </div>
+
+  {% if dry_run.errors %}
+    <div class="flash error">
+      <strong>{{ t("schema_upgrade.errors") }}</strong>
+      <ul>
+        {% for error in dry_run.errors %}
+          <li>{{ t("schema_upgrade.error_" ~ error) }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+  {% endif %}
+
+  {% if dry_run.warnings %}
+    <div class="notice">
+      <strong>{{ t("schema_upgrade.warnings") }}</strong>
+      <ul>
+        {% for warning in dry_run.warnings %}
+          <li>{{ warning }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+  {% endif %}
+
+  {% for step in dry_run.steps %}
+    <article class="card stack">
+      <div>
+        <p class="muted">{{ t("schema_upgrade.step_versions", from_version=step.from_version, to_version=step.to_version) }}</p>
+        <h3>{{ step.name }}</h3>
+      </div>
+      <div>
+        <strong>{{ t("schema_upgrade.expected_changes") }}</strong>
+        <ul>
+          {% for change in step.changes %}
+            <li>{{ change }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+      <p>
+        <strong>{{ t("schema_upgrade.precheck") }}:</strong>
+        {{ t("schema_upgrade.precheck_" ~ step.precheck_state) }}
+        {% if step.precheck_state == "deferred" %}
+          — {{ t("schema_upgrade.precheck_deferred_detail") }}
+        {% elif step.precheck_message %}
+          — {{ step.precheck_message }}
+        {% endif %}
+      </p>
+    </article>
+  {% endfor %}
+</section>
+
+{% if dry_run.can_upgrade %}
+<section class="card stack stats-section">
+  <div>
+    <h2>{{ t("schema_upgrade.apply_title") }}</h2>
+    <p class="muted">{{ t("schema_upgrade.apply_description") }}</p>
+  </div>
+  {{ danger_notice(t, danger_policy, "danger.object_schema_upgrade", "danger.consequence_schema_upgrade", "danger.deletion_schema_upgrade", "danger.recovery_schema_upgrade", true) }}
+  <form class="stack" action="/schema-upgrade/apply" method="post">
+    <label class="bulk-card-select">
+      <input type="checkbox" name="backup_confirmed" value="1" required>
+      <span>{{ t("schema_upgrade.backup_confirm") }}</span>
+    </label>
+    <label class="bulk-card-select">
+      <input type="checkbox" name="confirm" value="1" required>
+      <span>{{ t("schema_upgrade.apply_confirm") }}</span>
+    </label>
+    <div class="actions">
+      <a class="button secondary" href="/backup">{{ t("schema_upgrade.open_backup") }}</a>
+      <button
+        class="danger"
+        type="submit"
+        data-confirm-message="{{ t('schema_upgrade.browser_confirm') }}"
+        {% if danger_policy.is_strict %}data-strict-confirm-message="{{ t('danger.strict_prompt') }}"{% endif %}
+      >{{ t("schema_upgrade.apply") }}</button>
+    </div>
+  </form>
+</section>
+{% endif %}
+{% endif %}
+{% endblock %}

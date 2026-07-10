@@ -112,6 +112,14 @@ from app.services.metadata_cleanup import (
     get_metadata_comparison,
     merge_metadata_objects,
 )
+from app.services.migrations import (
+    MIGRATION_REGISTRY,
+    MigrationError,
+    UpgradeDryRun,
+    apply_upgrade,
+    build_upgrade_plan,
+    preview_upgrade,
+)
 from app.services.saved_views import (
     MAX_SAVED_VIEW_NAME_LENGTH,
     SavedViewError,
@@ -427,6 +435,116 @@ def settings_page(request: Request, db: Session = Depends(get_db)) -> HTMLRespon
             setting_options=SETTING_OPTIONS,
         ),
     )
+
+
+def _schema_upgrade_response(
+    request: Request,
+    db: Session,
+    *,
+    dry_run: UpgradeDryRun | None = None,
+) -> HTMLResponse:
+    danger_policy = get_danger_policy(db)
+    return templates.TemplateResponse(
+        request,
+        "schema_upgrade.html",
+        _base_context(
+            request,
+            db=None,
+            danger_policy=danger_policy,
+            upgrade_plan=build_upgrade_plan(db.get_bind(), MIGRATION_REGISTRY),
+            dry_run=dry_run,
+        ),
+    )
+
+
+@router.get(
+    "/schema-upgrade",
+    response_class=HTMLResponse,
+    dependencies=[Depends(require_page_auth)],
+)
+def schema_upgrade_page(
+    request: Request,
+    db: Session = Depends(get_db),
+) -> HTMLResponse:
+    return _schema_upgrade_response(request, db)
+
+
+@router.post(
+    "/schema-upgrade/preview",
+    response_class=HTMLResponse,
+    dependencies=[Depends(require_page_auth)],
+)
+def schema_upgrade_preview_page(
+    request: Request,
+    db: Session = Depends(get_db),
+) -> HTMLResponse:
+    dry_run = preview_upgrade(db.get_bind(), MIGRATION_REGISTRY)
+    return _schema_upgrade_response(request, db, dry_run=dry_run)
+
+
+_SCHEMA_UPGRADE_FLASH_CODES = {
+    "apply_failed",
+    "backup_confirmation_required",
+    "downgrade_not_supported",
+    "invalid_postcheck",
+    "invalid_precheck",
+    "missing_path",
+    "no_upgrade_needed",
+    "postcheck_failed",
+    "precheck_failed",
+    "version_record_failed",
+    "version_unknown",
+}
+
+
+@router.post(
+    "/schema-upgrade/apply",
+    dependencies=[Depends(require_page_auth)],
+)
+def schema_upgrade_apply_page(
+    request: Request,
+    confirm: str | None = Form(default=None),
+    backup_confirmed: str | None = Form(default=None),
+    confirmation_text: str | None = Form(default=None),
+    db: Session = Depends(get_db),
+) -> RedirectResponse:
+    danger_policy = get_danger_policy(db)
+    if not _danger_confirmation_is_valid(
+        request,
+        danger_policy,
+        confirmation_text=confirmation_text,
+        base_confirmation_valid=confirm == "1",
+    ):
+        return _redirect("/schema-upgrade")
+    if backup_confirmed != "1":
+        add_flash(
+            request,
+            "error",
+            "flash.schema_upgrade_backup_confirmation_required",
+        )
+        return _redirect("/schema-upgrade")
+
+    db.rollback()
+    try:
+        result = apply_upgrade(
+            db.get_bind(),
+            MIGRATION_REGISTRY,
+            backup_confirmed=True,
+        )
+    except MigrationError as exc:
+        code = exc.code if exc.code in _SCHEMA_UPGRADE_FLASH_CODES else "apply_failed"
+        add_flash(request, "error", f"flash.schema_upgrade_{code}")
+        return _redirect("/schema-upgrade")
+
+    add_flash(
+        request,
+        "success",
+        "flash.schema_upgrade_applied",
+        from_version=result.from_version,
+        to_version=result.to_version,
+        count=len(result.applied_steps),
+    )
+    return _redirect("/schema-upgrade")
 
 
 @router.post("/settings", dependencies=[Depends(require_page_auth)])

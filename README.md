@@ -4,11 +4,45 @@ NSFWTrack is a local single-user content record manager / collection tracker.
 
 Current release: `v0.8.0 / Phase 2-G settings and safer confirmations`.
 
-Current development: `Phase 2-H1 database schema version tracking and upgrade preflight are in Unreleased`.
+Current development: `Phase 2-H1 / H2 schema version tracking and explicit migration preflight are in Unreleased`.
 
 NSFWTrack remains intentionally local-only. It is designed for manual records,
 local SQLite persistence, LAN deployment, and simple personal collection
 management.
+
+## Unreleased: Phase 2-H2 Explicit Migration Framework
+
+Phase 2-H2 adds a lightweight, code-only SQLite migration framework. The
+production migration registry is currently empty and
+`CURRENT_SCHEMA_VERSION` remains `1`; this phase does not invent a production
+migration or change an existing business table.
+
+- Every code migration declares `from_version`, `to_version`, `name`, a
+  read-only preview, an apply function, a source-version pre-check, and a
+  target-version post-check.
+- Registry construction rejects duplicate, disconnected, skipped, reversed,
+  or cyclic paths. Upgrade planning reads the database version before resolving
+  the continuous path to the application-owned target version.
+- A recorded lower-version database may start in upgrade-required mode without
+  first matching the newest structure. Each migration owns its old-structure
+  pre-check, and each target structure is checked after apply.
+- `GET /schema-upgrade` shows the current state without migrating.
+- `POST /schema-upgrade/preview` runs a protected read-only dry-run. SQLite
+  `query_only`, a read-only authorizer, and rollback prevent table, business
+  data, and version-record writes, including accidental writes in preview code.
+- Dry-run lists current / target versions, ordered steps, expected changes,
+  warnings, errors, and pre-check status. Later-step checks are marked deferred
+  because preview never applies earlier steps; apply runs every check in order.
+- `POST /schema-upgrade/apply` rereads the current version and resolves the path
+  inside one transaction. Each step, post-check, and `schema_migrations` insert
+  commits atomically; any exception or failed post-check rolls back the chain.
+- Apply requires login, POST, browser confirmation, existing server-side danger
+  confirmation, and explicit acknowledgement of the pre-upgrade JSON backup.
+  Strict mode still requires the exact text `CONFIRM` on the server.
+- The routes accept no SQL, table name, target version, downgrade, check bypass,
+  or arbitrary migration operation from the user.
+- Startup never runs the migration registry. Upgrades are always explicit.
+- `schema_migrations` remains outside JSON backup and restore.
 
 ## Unreleased: Phase 2-H1 Database Version Preflight
 
