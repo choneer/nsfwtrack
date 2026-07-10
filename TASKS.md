@@ -618,3 +618,16 @@
 - [x] 未修改任何现有业务表或字段，未新增依赖、Alembic、tag 或 GitHub Release
 - [x] 补充框架、只读、确认、两步回滚、post-check、路由安全和 i18n 测试
 - [x] 更新 README / TASKS / REVIEW / CHANGELOG / PLAN，仅记录 Unreleased
+
+## v0.9.0 发布准备
+
+- [x] 确认 `main` 已包含 Phase 2-H1 数据库版本记录与升级预检
+- [x] 确认 `main` 已包含 Phase 2-H2 显式迁移框架与升级 dry-run
+- [x] 再次运行全量测试与 Docker build / compose / `/login` 验收
+- [x] 将 CHANGELOG 的 `Unreleased` 中 Phase 2-H1 / H2 内容整理为 `v0.9.0 - 2026-07-10` 发布段
+- [x] 将 CHANGELOG 的 `Unreleased` 重置为无未发布变更
+- [x] 更新 README / TASKS / REVIEW / PLAN 当前版本与发布状态
+- [x] 明确启动时只做预检、不自动迁移，升级必须显式触发并建议先做 JSON 备份
+- [x] 保持 `CURRENT_SCHEMA_VERSION = 1` 和空生产迁移注册表，不虚构 `1 -> 2` 生产迁移
+- [x] 保持 `v0.1.0` 到 `v0.8.0` 的发布内容与 tag 不变
+- [x] 本轮仅做 release 文档准备，不新增业务功能、不改数据库结构、不新增依赖

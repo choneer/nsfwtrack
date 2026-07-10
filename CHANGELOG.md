@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+No unreleased changes.
+
+## v0.9.0 - 2026-07-10
+
 ### Added
 
 - Added Phase 2-H2 explicit SQLite migration framework with code-only migration

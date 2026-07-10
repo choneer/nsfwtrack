@@ -2,15 +2,20 @@
 
 NSFWTrack is a local single-user content record manager / collection tracker.
 
-Current release: `v0.8.0 / Phase 2-G settings and safer confirmations`.
+Current release: `v0.9.0 / Phase 2-H database versioning and migration framework`.
 
-Current development: `Phase 2-H1 / H2 schema version tracking and explicit migration preflight are in Unreleased`.
+Current development: `Phase 2-I stability closeout is next; there are no unreleased changes`.
 
 NSFWTrack remains intentionally local-only. It is designed for manual records,
 local SQLite persistence, LAN deployment, and simple personal collection
 management.
 
-## Unreleased: Phase 2-H2 Explicit Migration Framework
+## Features in v0.9.0
+
+`v0.9.0` adds Phase 2-H1 database version preflight and Phase 2-H2 explicit
+migration planning, dry-run, and apply flows on top of `v0.8.0`.
+
+### Phase 2-H2 Explicit Migration Framework
 
 Phase 2-H2 adds a lightweight, code-only SQLite migration framework. The
 production migration registry is currently empty and
@@ -44,7 +49,7 @@ migration or change an existing business table.
 - Startup never runs the migration registry. Upgrades are always explicit.
 - `schema_migrations` remains outside JSON backup and restore.
 
-## Unreleased: Phase 2-H1 Database Version Preflight
+### Phase 2-H1 Database Version Preflight
 
 Phase 2-H1 adds an internal schema version record and startup compatibility
 check. The current application schema version is `1`.
@@ -72,6 +77,12 @@ check. The current application schema version is `1`.
 Phase 2-H1 does not modify, delete, or rebuild existing business tables or
 fields. It does not run a real migration, add Alembic, add a dependency,
 automatically upgrade or downgrade data, or restore a backup.
+
+The v0.9.0 application keeps `CURRENT_SCHEMA_VERSION = 1` and an empty
+production migration registry. There is no invented `1 -> 2` production
+migration. Startup performs compatibility checks only and never runs an
+upgrade; any future upgrade must be explicitly triggered after reviewing the
+dry-run and creating a fresh JSON backup.
 
 ## Features in v0.8.0
 
