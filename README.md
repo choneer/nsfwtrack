@@ -4,11 +4,40 @@ NSFWTrack is a local single-user content record manager / collection tracker.
 
 Current release: `v0.8.0 / Phase 2-G settings and safer confirmations`.
 
-Current development: `No unreleased changes`.
+Current development: `Phase 2-H1 database schema version tracking and upgrade preflight are in Unreleased`.
 
 NSFWTrack remains intentionally local-only. It is designed for manual records,
 local SQLite persistence, LAN deployment, and simple personal collection
 management.
+
+## Unreleased: Phase 2-H1 Database Version Preflight
+
+Phase 2-H1 adds an internal schema version record and startup compatibility
+check. The current application schema version is `1`.
+
+- `schema_migrations` is an internal SQLite table with unique `version`,
+  descriptive `name`, and `applied_at` fields.
+- A new empty database creates all current tables and registers baseline
+  version `1` in the same initialization transaction.
+- A legacy database without `schema_migrations` must already contain every
+  required current business table and column before baseline registration.
+  Missing structure stops initialization and does not create a version record.
+- A database at the current version starts normally.
+- A lower database version is reported as requiring an upgrade. NSFWTrack does
+  not change the recorded version or execute a migration in this phase.
+- A database version higher than the application refuses startup and gives a
+  safe compatibility and backup message.
+- The login-protected `/settings` page shows the application version, database
+  version, status, latest registration time, and a JSON backup reminder.
+- The status area is read-only. There is no page, URL, form, downgrade action,
+  or bypass action that can change a schema version.
+- `schema_migrations` is not exported, previewed, validated as restorable data,
+  or restored from JSON backups. A backup cannot overwrite the local schema
+  version.
+
+Phase 2-H1 does not modify, delete, or rebuild existing business tables or
+fields. It does not run a real migration, add Alembic, add a dependency,
+automatically upgrade or downgrade data, or restore a backup.
 
 ## Features in v0.8.0
 

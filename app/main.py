@@ -13,8 +13,7 @@ from app.routers import auth, backup, creators, importer, items, pages, search, 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    del app
-    init_db()
+    app.state.schema_status = init_db()
     yield
 
 

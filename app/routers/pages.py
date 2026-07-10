@@ -123,6 +123,7 @@ from app.services.saved_views import (
     saved_view_items_url,
     update_saved_view,
 )
+from app.services.schema_version import get_schema_status
 from app.services.settings import (
     AppSettingsError,
     SETTING_OPTIONS,
@@ -422,6 +423,7 @@ def settings_page(request: Request, db: Session = Depends(get_db)) -> HTMLRespon
             request,
             db=db,
             app_settings=get_app_settings(db),
+            schema_status=get_schema_status(db.get_bind()),
             setting_options=SETTING_OPTIONS,
         ),
     )

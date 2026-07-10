@@ -2,7 +2,42 @@
 
 ## Unreleased
 
-No unreleased changes.
+### Added
+
+- Added Phase 2-H1 internal database schema version tracking with a local
+  `schema_migrations` table containing unique `version`, descriptive `name`,
+  and `applied_at` fields. The current application schema baseline is version
+  `1`.
+- Added startup schema preflight handling for empty databases, compatible
+  legacy databases without a version record, matching versions, lower database
+  versions, higher database versions, missing required tables / columns, and
+  unreadable version records.
+- Added a login-protected, read-only database schema status area on `/settings`
+  showing the application version, database version, compatibility status,
+  latest registration time, and a pre-upgrade JSON backup recommendation.
+- Added tests for new and legacy database registration, structure validation,
+  initialization rollback safety, matching / lower / higher versions, real
+  application lifespan refusal, status-page access and read-only behavior,
+  backup isolation, version uniqueness, and Chinese / English copy.
+
+### Changed
+
+- Replaced unconditional startup `create_all` with a schema-aware initializer.
+  Empty databases create the current schema and baseline in one transaction;
+  unversioned legacy databases must already contain every required business
+  table and column before the internal baseline is registered.
+- Database versions lower than the application are reported as requiring an
+  upgrade without changing the recorded version or running migrations.
+  Versions higher than the application refuse startup with a safe backup hint.
+
+### Security
+
+- Kept `schema_migrations` outside JSON backup export, preview, validation, and
+  restore data. Uploaded backup rows using that table name are ignored and
+  cannot replace the local schema version.
+- Added no page, URL parameter, form field, downgrade control, bypass control,
+  automatic migration, automatic repair, Alembic integration, dependency, or
+  change to an existing business table or field.
 
 ## v0.8.0 - 2026-07-10
 

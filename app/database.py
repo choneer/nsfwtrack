@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Generator
 from pathlib import Path
+from typing import TYPE_CHECKING
 from urllib.parse import unquote
 
 from sqlalchemy import create_engine, event
@@ -9,6 +10,9 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
 from app.config import get_settings
+
+if TYPE_CHECKING:
+    from app.services.schema_version import SchemaStatus
 
 
 class Base(DeclarativeBase):
@@ -49,10 +53,10 @@ def _enable_sqlite_foreign_keys(dbapi_connection: object, connection_record: obj
     cursor.close()
 
 
-def init_db() -> None:
-    import app.models  # noqa: F401
+def init_db() -> SchemaStatus:
+    from app.services.schema_version import initialize_database
 
-    Base.metadata.create_all(bind=engine)
+    return initialize_database(engine)
 
 
 def get_db() -> Generator[Session, None, None]:

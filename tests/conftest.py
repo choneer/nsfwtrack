@@ -10,14 +10,14 @@ os.environ["APP_PASSWORD"] = "test-password"
 os.environ["SECRET_KEY"] = "test-secret-key"
 os.environ["DATABASE_URL"] = "sqlite:///data/test.db"
 
-from app.database import Base, engine  # noqa: E402
+from app.database import Base, engine, init_db  # noqa: E402
 from app.main import app  # noqa: E402
 
 
 @pytest.fixture(autouse=True)
 def reset_database() -> Generator[None, None, None]:
     Base.metadata.drop_all(bind=engine)
-    Base.metadata.create_all(bind=engine)
+    init_db()
     yield
     Base.metadata.drop_all(bind=engine)
 

@@ -118,6 +118,16 @@ class AppSetting(Base):
     )
 
 
+class SchemaMigration(Base):
+    __tablename__ = "schema_migrations"
+
+    version: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(128), nullable=False)
+    applied_at: Mapped[datetime] = mapped_column(
+        nullable=False, server_default=func.current_timestamp()
+    )
+
+
 class Item(Base):
     __tablename__ = "items"
 

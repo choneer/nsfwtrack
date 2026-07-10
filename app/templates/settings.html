@@ -19,6 +19,39 @@
   <p>{{ t("settings.only_local") }}</p>
 </section>
 
+<section class="card stack stats-section">
+  <div>
+    <h2>{{ t("settings.schema_title") }}</h2>
+    <p class="muted">{{ t("settings.schema_description") }}</p>
+  </div>
+  <dl class="danger-facts">
+    <div>
+      <dt>{{ t("settings.schema_application_version") }}</dt>
+      <dd>{{ schema_status.application_version }}</dd>
+    </div>
+    <div>
+      <dt>{{ t("settings.schema_database_version") }}</dt>
+      <dd>{{ schema_status.database_version if schema_status.database_version is not none else t("settings.schema_not_available") }}</dd>
+    </div>
+    <div>
+      <dt>{{ t("settings.schema_status") }}</dt>
+      <dd><span class="pill validation-severity-{% if schema_status.state == 'current' %}info{% else %}warning{% endif %}">{{ t("settings.schema_status_" ~ schema_status.state) }}</span></dd>
+    </div>
+    <div>
+      <dt>{{ t("settings.schema_last_applied") }}</dt>
+      <dd>{{ schema_status.last_applied_at.strftime("%Y-%m-%d %H:%M:%S") if schema_status.last_applied_at else t("settings.schema_not_available") }}</dd>
+    </div>
+  </dl>
+  <div class="notice">
+    <strong>{{ t("settings.schema_backup_title") }}</strong>
+    <p>{{ t("settings.schema_backup_hint") }}</p>
+    <p class="muted">{{ t("settings.schema_read_only") }}</p>
+  </div>
+  <div class="actions">
+    <a class="button secondary" href="/backup">{{ t("settings.schema_backup_action") }}</a>
+  </div>
+</section>
+
 <form class="card stack" action="/settings" method="post">
   <h2>{{ t("settings.preferences") }}</h2>
   <div class="form-grid">

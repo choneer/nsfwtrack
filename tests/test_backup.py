@@ -7,7 +7,14 @@ from fastapi.testclient import TestClient
 
 from app.config import get_settings
 from app.database import SessionLocal
-from app.models import AppSetting, Collection, ItemActivity, ItemCollection, SavedView
+from app.models import (
+    AppSetting,
+    Collection,
+    ItemActivity,
+    ItemCollection,
+    SavedView,
+    SchemaMigration,
+)
 from app.services.settings import get_app_settings
 
 
@@ -77,6 +84,12 @@ def _app_setting_count() -> int:
         return db.query(AppSetting).count()
 
 
+def _schema_version() -> int:
+    with SessionLocal() as db:
+        row = db.query(SchemaMigration).one()
+        return row.version
+
+
 def _item_activity_for_item(item_id: int) -> ItemActivity | None:
     with SessionLocal() as db:
         return db.query(ItemActivity).filter(ItemActivity.item_id == item_id).one_or_none()
@@ -131,6 +144,36 @@ def test_json_export_contains_core_tables(auth_client: TestClient) -> None:
     assert payload["tables"]["saved_views"] == []
     assert payload["tables"]["item_activity"] == []
     assert payload["tables"]["app_settings"] == []
+    assert "schema_migrations" not in payload["tables"]
+
+
+def test_backup_restore_ignores_internal_schema_version_rows(
+    auth_client: TestClient,
+) -> None:
+    _create_backup_item(auth_client)
+    payload = auth_client.get("/api/backup/export/json").json()
+    original_version = _schema_version()
+    payload["tables"]["schema_migrations"] = [
+        {
+            "version": original_version + 100,
+            "name": "untrusted-backup-version",
+            "applied_at": "2099-01-01T00:00:00",
+        }
+    ]
+
+    response = auth_client.post(
+        "/api/backup/restore/json",
+        files={
+            "file": (
+                "backup.json",
+                json.dumps(payload).encode("utf-8"),
+                "application/json",
+            )
+        },
+    )
+
+    assert response.status_code == 200
+    assert _schema_version() == original_version
 
 
 def test_json_backup_exports_and_previews_collection_tables(
