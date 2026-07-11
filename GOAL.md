@@ -1,63 +1,44 @@
 # GOAL.md
 
-# 当前目标：Phase 2-J — 发布 v1.0.0
+# 当前目标：Phase 2-K1 — 开发完成度审计
 
-请先读取 `RULE.md`、`PLAN.md` 和 `TASKS.md`。
+请先读取 `RULE.md`、`PLAN.md`、`TASKS.md`、`README.md` 和 `REVIEW.md`。
 
 ## 目标
 
-完成 NSFWTrack `v1.0.0` 正式发布。
+确认项目在投入使用前还缺少哪些工作，并形成最终开发清单。
 
-## 任务
+## 审查范围
 
-- 将应用版本更新为 `1.0.0`
-- 将 `CHANGELOG.md` 中已完成内容整理为：
+- 搜索 TODO、FIXME、占位实现、未完成分支和失效入口
+- 对照文档检查已承诺但未实现的能力
+- 检查关键功能是否存在明显测试缺口
+- 复核 F4 数据维护前安全提示
+- 区分：
+  - 使用前必须完成
+  - 可延后优化
+  - 超出项目边界
 
-  `## [1.0.0] - 2026-07-11`
+## 输出
 
-- 保留新的空白 `Unreleased`
-- 同步更新 `README.md`、`PLAN.md`、`TASKS.md`、`REVIEW.md`
-- 运行全量测试和隔离 Docker 验收
-- 创建并推送发布提交
-- 创建 annotated tag `v1.0.0`
-- 创建正式 GitHub Release：`NSFWTrack v1.0.0`
+新增 `COMPLETION_AUDIT.md`，列出问题、证据、优先级和建议阶段。
+
+同步更新 `PLAN.md`、`TASKS.md`，将剩余开发路线收敛为有限步骤。
 
 ## 边界
 
-- 不修改业务逻辑
-- 不修改数据库结构、索引、Schema 版本或迁移
-- 不新增依赖
-- 不修改旧 tag 或 Release
-- 不使用或修改默认 schema 2 数据卷
-- 不创建 draft 或 prerelease
+- 本轮不修改业务代码
+- 不新增功能、依赖或数据库迁移
+- 不扩大 `RULE.md` 的项目范围
+- 不创建新版本或 Release
 
-## 完成标准
+完成后提交推送，并汇报最终剩余阶段。
 
-确认：
+## 审计结果
 
-- 测试与 Docker 验收通过
-- `origin/main` 指向发布提交
-- `v1.0.0` tag 指向同一提交
-- GitHub Release 已发布
-- 工作区干净
-
-完成后汇报：
-
-1. 测试结果
-2. 发布提交 hash
-3. tag 对象及目标提交 hash
-4. Release 地址
-5. 最终仓库状态
-
-## 发布记录
-
-- 版本：`v1.0.0`
-- 发布日期：`2026-07-11`
-- CHANGELOG：Phase 2-I1 / I2 / I3 / I4 已归档到 `## [1.0.0] - 2026-07-11`
-- 测试：`309 passed`
-- Docker：全新隔离数据目录 build / up / `/login` 连续 200 / down 通过
-- 应用版本：`1.0.0`
-- 数据库边界：`CURRENT_SCHEMA_VERSION = 1`，生产迁移注册表为空
-- Release：https://github.com/choneer/nsfwtrack/releases/tag/v1.0.0
-- 范围：未修改业务逻辑、数据库结构、索引、Schema 版本、生产迁移或依赖
-- 发布：annotated `v1.0.0` tag 与正式 GitHub Release
+- 新增 `COMPLETION_AUDIT.md`，记录证据、优先级和边界
+- 未发现真实 TODO / FIXME、占位路由、501 或失效导航入口
+- F4 提示行为已实现，保留 K2 专项测试收口，不再新增 F4 产品阶段
+- 投入真实数据前仅剩 Phase 2-K2 边界收口和 Phase 2-K3 目标部署验收
+- 全量测试 309 passed，隔离 Docker build / up / `/login` 200 / down 通过
+- 本轮不修改业务代码、依赖、数据库结构、Schema、迁移、tag 或 Release

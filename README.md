@@ -6,11 +6,28 @@ Current release: `v1.0.0 / stable local single-user release`.
 
 Release: [NSFWTrack v1.0.0](https://github.com/choneer/nsfwtrack/releases/tag/v1.0.0).
 
-Current development: `No unreleased changes`.
+Current development: `Phase 2-K1 completion audit is in Unreleased`.
 
 NSFWTrack remains intentionally local-only. It is designed for manual records,
 local SQLite persistence, LAN deployment, and simple personal collection
 management.
+
+## Completion Audit
+
+Phase 2-K1 found no genuine TODO / FIXME marker, stub route, 501 response, or
+dead navigation entry. Core local single-user workflows remain implemented and
+covered by the current 309-test suite.
+
+Before entrusting irreplaceable real data to a new deployment, complete the two
+bounded stages documented in [COMPLETION_AUDIT.md](COMPLETION_AUDIT.md):
+
+- Phase 2-K2 closes the local media-path, bulk / clear confirmation, deployment
+  placeholder-secret, focused F4 test, and upgrade-runbook gaps.
+- Phase 2-K3 performs the actual N100 / LAN browser and isolated backup/restore
+  acceptance run.
+
+These stages do not add external content, URL import, crawlers, recommendations,
+AI, cloud sync, multi-user support, dependencies, or invented migrations.
 
 ## Features in v1.0.0
 

@@ -2,6 +2,27 @@
 
 ## Unreleased
 
+### Added
+
+- Added `COMPLETION_AUDIT.md` with the Phase 2-K1 implementation, documentation,
+  test-gap, dead-entry, and F4 safety-prompt audit.
+
+### Changed
+
+- Reduced the pre-use roadmap to Phase 2-K2 boundary closure and Phase 2-K3
+  target deployment acceptance. Historical completed phases remain archived.
+- Corrected current planning language to describe the existing Jinja2 and
+  lightweight vanilla JavaScript frontend rather than claiming active HTMX
+  behavior.
+
+### Security
+
+- Documented unresolved local media-path, bulk / clear confirmation, and
+  shipped placeholder-secret gates without changing application behavior.
+- Confirmed the F4 data-health warning flow already provides backup guidance,
+  impact and deletion scope, manual single-fix limits, server confirmation,
+  strict confirmation, and rollback coverage.
+
 ## [1.0.0] - 2026-07-11
 
 ### Added
