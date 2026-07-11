@@ -780,3 +780,18 @@
 - [x] 未修改业务逻辑、数据库结构、索引、依赖或旧 tag / Release
 - [x] 创建发布提交、annotated `v1.0.0` tag 和正式 GitHub Release
 - [x] 未使用或修改默认 schema 2 数据卷
+
+## v1.0.1 正式发布
+
+- [x] 确认 `main` 已包含 Phase 2-K1 开发完成度审计和 Phase 2-K2 边界收口
+- [x] 将 FastAPI 应用版本元数据更新为 `1.0.1`
+- [x] 将 K1 / K2 从 `Unreleased` 整理为 `## [1.0.1] - 2026-07-11`
+- [x] 保留空白 `Unreleased`，未修改 v1.0.0 或更早发布段
+- [x] 更新 README / PLAN / TASKS / REVIEW / GOAL / COMPLETION_AUDIT 发布状态
+- [x] 全量测试通过：347 passed
+- [x] 使用全新隔离 Docker 数据目录完成 build / up / `/login` 连续 200 / down
+- [x] 容器内应用版本为 `1.0.1`，隔离数据库基线仍为 Schema 1
+- [x] 保持 `CURRENT_SCHEMA_VERSION = 1` 和空生产迁移注册表
+- [x] 未修改业务逻辑、依赖、数据库结构、Schema、迁移或旧 tag / Release
+- [x] 创建发布提交、annotated `v1.0.1` tag 和正式 GitHub Release
+- [x] 未使用或修改默认 schema 2 数据卷

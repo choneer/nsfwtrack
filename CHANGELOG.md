@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## [1.0.1] - 2026-07-11
+
 ### Added
 
 - Added `COMPLETION_AUDIT.md` with the Phase 2-K1 implementation, documentation,
@@ -23,6 +25,7 @@
 - All current-page bulk writes, state clearing, and item relationship detach
   actions now require browser and server confirmation. Strict mode requires
   exact `CONFIRM` before these writes.
+- Updated the FastAPI application version metadata from `1.0.0` to `1.0.1`.
 
 ### Security
 
@@ -35,6 +38,8 @@
   impact and deletion scope, manual single-fix limits, server confirmation,
   strict confirmation, and rollback coverage; focused bilingual and policy
   tests now close the remaining acceptance gap.
+- Kept `CURRENT_SCHEMA_VERSION = 1`, the production migration registry empty,
+  and all previously published tags unchanged.
 
 ## [1.0.0] - 2026-07-11
 

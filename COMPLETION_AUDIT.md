@@ -4,6 +4,8 @@ Audit date: `2026-07-11`
 
 Audit baseline: `v1.0.0` / commit `0d0de73`
 
+Release status: K1 and K2 are published in `v1.0.1`.
+
 The original K1 review was a read-only product-completion audit. The K2 closure
 addendum below records the bounded fixes it requested; neither stage changes
 dependencies, database structure, schema version, migrations, tags, or
@@ -45,8 +47,9 @@ either optional maintenance or outside the project boundary.
 - Full pytest passed: 347 tests. Isolated Docker build, startup, stable
   `/login` 200, authenticated mounted-media 200, shutdown, and cleanup passed.
 - No dependency, database structure, schema version, production migration,
-  external request, tag, or GitHub Release was added. No current P0 / P1
-  completion finding remains; K3 is an operator acceptance run.
+  or external request was added by K2. The completed K1 / K2 work is published
+  as the `v1.0.1` patch release. No current P0 / P1 completion finding remains;
+  K3 is an operator acceptance run.
 
 ## Evidence Collected
 

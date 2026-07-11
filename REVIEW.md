@@ -526,6 +526,13 @@
 - [ ] **22.39. v1.0.0 Schema 边界** — 是否保持 Schema 1、空生产迁移注册表、无索引 / 表 / 字段 / 依赖变化
 - [ ] **22.40. v1.0.0 引用一致性** — annotated tag 的 peeled commit、`origin/main` 和发布提交是否完全一致
 - [ ] **22.41. v1.0.0 正式 Release** — GitHub Release 是否非 draft、非 prerelease，标题和 tag 是否均正确，且未移动旧 tag
+- [ ] **22.42. v1.0.1 范围** — 是否只发布 K1 / K2 审计与边界收口，未新增业务功能、依赖、数据库结构、Schema 或迁移
+- [ ] **22.43. v1.0.1 版本一致性** — FastAPI 元数据、README、PLAN、TASKS、GOAL、CHANGELOG、tag 和 Release 是否均为 `1.0.1`
+- [ ] **22.44. v1.0.1 CHANGELOG** — 是否保留空白 Unreleased，并将 K1 / K2 归档为 `## [1.0.1] - 2026-07-11`
+- [ ] **22.45. v1.0.1 验收** — 是否运行 347 项完整 pytest 和全新隔离 Docker build / up / `/login` / version / down，且清理临时数据
+- [ ] **22.46. v1.0.1 Schema 边界** — 是否保持 Schema 1、空生产迁移注册表，未接触默认 schema 2 数据卷
+- [ ] **22.47. v1.0.1 引用一致性** — annotated tag 的 peeled commit、`origin/main`、Release target 和发布提交是否完全一致
+- [ ] **22.48. v1.0.1 正式 Release** — GitHub Release 是否非 draft、非 prerelease，标题和 tag 是否正确，且旧 tag / Release 未移动
 
 ## 备份恢复检查
 

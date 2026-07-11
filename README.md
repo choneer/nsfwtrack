@@ -2,11 +2,11 @@
 
 NSFWTrack is a local single-user content record manager / collection tracker.
 
-Current release: `v1.0.0 / stable local single-user release`.
+Current release: `v1.0.1 / completion audit and boundary closure`.
 
-Release: [NSFWTrack v1.0.0](https://github.com/choneer/nsfwtrack/releases/tag/v1.0.0).
+Release: [NSFWTrack v1.0.1](https://github.com/choneer/nsfwtrack/releases/tag/v1.0.1).
 
-Current development: `Phase 2-K2 use-before boundary closure is complete in Unreleased`.
+Current development: `Phase 2-K3 target deployment acceptance remains`.
 
 NSFWTrack remains intentionally local-only. It is designed for manual records,
 local SQLite persistence, LAN deployment, and simple personal collection
@@ -30,7 +30,13 @@ remaining target-host stage documented in
 These stages do not add external content, URL import, crawlers, recommendations,
 AI, cloud sync, multi-user support, dependencies, or invented migrations.
 
-## Phase 2-K2 Use-Before Boundary Closure
+## Features in v1.0.1
+
+`v1.0.1` publishes the Phase 2-K1 completion audit and Phase 2-K2 use-before
+boundary closure. It adds no product feature, dependency, database structure,
+schema-version change, production migration, or external request.
+
+### Phase 2-K2 Use-Before Boundary Closure
 
 - `cover_path` and `avatar_path` accept only app-owned `/media/...` raster
   image paths. External URLs, protocol-relative paths, data URLs, traversal,
