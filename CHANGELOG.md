@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## [1.0.0] - 2026-07-11
+
 ### Added
 
 - Added Phase 2-I1 reproducible read-only SQLite performance auditing with
@@ -91,8 +93,7 @@
 - Item detail GET is now read-only. Its existing local view activity is
   recorded by a login-protected, same-origin POST after the page loads.
 - Corrected the internal FastAPI application metadata from the historical
-  `0.1.0` value to the current published version `0.9.0`; no `v1.0.0` release
-  is declared by this audit.
+  `0.1.0` value through the current published `1.0.0` release.
 - Reran the isolated 100 / 1,000 / 10,000 matrix. Query counts remained 11 for
   items and filtered items, 9 for collection detail, 7 for duplicates, 4 for
   cleanup, 3 for metadata lists, and 11 for stats, with no N+1 regression.

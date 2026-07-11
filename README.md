@@ -2,20 +2,25 @@
 
 NSFWTrack is a local single-user content record manager / collection tracker.
 
-Current release: `v0.9.0 / Phase 2-H database versioning and migration framework`.
+Current release: `v1.0.0 / stable local single-user release`.
 
-Current development: `Phase 2-I1 through I4 stability and release-freeze work is
-in Unreleased`.
+Release: [NSFWTrack v1.0.0](https://github.com/choneer/nsfwtrack/releases/tag/v1.0.0).
+
+Current development: `No unreleased changes`.
 
 NSFWTrack remains intentionally local-only. It is designed for manual records,
 local SQLite persistence, LAN deployment, and simple personal collection
 management.
 
-## Unreleased: Phase 2-I4 Release-Freeze Audit
+## Features in v1.0.0
 
-Phase 2-I4 audits the complete local application before `v1.0.0`. It adds no
-product feature, dependency, index, database structure, schema-version change,
+`v1.0.0` publishes Phase 2-I1 through I4: reproducible performance auditing,
+bounded query and pagination improvements, unified safe errors and request
+logs, and the final security and compatibility audit. It adds no external
+content source, dependency, index, database structure, schema-version change,
 or production migration.
+
+### Phase 2-I4 Release-Freeze Audit
 
 - Every non-public page and API route is covered by the existing session
   authentication boundary. Public access remains limited to login and local
@@ -41,9 +46,9 @@ or production migration.
   behavior, safe errors and logs, and the 100 / 1,000 / 10,000 performance
   matrix were rerun without touching the default data volume.
 - `CURRENT_SCHEMA_VERSION` remains `1`, and the production migration registry
-  remains empty. No tag or GitHub Release is created by this audit.
+  remains empty. No production migration is invented for the release.
 
-## Unreleased: Phase 2-I3 Error Handling And Request Logs
+### Phase 2-I3 Error Handling And Request Logs
 
 Phase 2-I3 provides one safe error boundary for page and API requests without
 changing business operations, transactions, the database schema, or project
@@ -77,7 +82,7 @@ dependencies.
 - No external logger, telemetry service, monitoring dependency, schema change,
   tag, or GitHub Release is included.
 
-## Unreleased: Phase 2-I2 Query And Pagination Optimization
+### Phase 2-I2 Query And Pagination Optimization
 
 Phase 2-I2 applies the verified I1 findings without adding indexes, changing
 the schema, increasing the schema version, or adding dependencies.
@@ -104,7 +109,7 @@ the schema, increasing the schema version, or adding dependencies.
 See [PERFORMANCE.md](PERFORMANCE.md) for the complete I1 / I2 comparison and
 remaining scan paths that require a separately approved real migration.
 
-## Unreleased: Phase 2-I1 Performance Baseline
+### Phase 2-I1 Performance Baseline
 
 Phase 2-I1 adds analysis and test tooling only. It does not change existing
 queries, business behavior, database structure, indexes, or dependencies.

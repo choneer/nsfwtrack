@@ -715,3 +715,17 @@
 - [x] 重跑 100 / 1,000 / 10,000 隔离性能矩阵，查询上限保持且无 N+1
 - [x] 保持 CURRENT_SCHEMA_VERSION=1、空生产迁移注册表和默认 schema 2 数据卷不变
 - [x] 未新增产品功能、依赖、索引、表、字段、生产迁移、tag 或 GitHub Release
+
+## v1.0.0 正式发布
+
+- [x] 将 FastAPI 应用版本元数据更新为 `1.0.0`
+- [x] 将 Phase 2-I1 / I2 / I3 / I4 从 `Unreleased` 整理为 `## [1.0.0] - 2026-07-11`
+- [x] 保留空白 `Unreleased`，未修改 v0.9.0 或更早发布段
+- [x] 更新 README / PLAN / TASKS / REVIEW / GOAL 当前版本与发布状态
+- [x] 全量测试通过：309 passed
+- [x] 使用全新隔离 Docker 数据目录完成 build / up / `/login` 连续 200 / down
+- [x] 容器内应用版本为 `1.0.0`，隔离数据库基线仍为 Schema 1
+- [x] 保持 `CURRENT_SCHEMA_VERSION = 1` 和空生产迁移注册表
+- [x] 未修改业务逻辑、数据库结构、索引、依赖或旧 tag / Release
+- [x] 创建发布提交、annotated `v1.0.0` tag 和正式 GitHub Release
+- [x] 未使用或修改默认 schema 2 数据卷

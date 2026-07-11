@@ -493,6 +493,12 @@
 - [ ] **22.33. Phase 2-I3 记录边界** — 是否只写入 `Unreleased`，未修改 v0.9.0 或更早发布段、旧 tag 或 GitHub Release
 - [ ] **22.34. Phase 2-I4 记录边界** — 是否只写入 `Unreleased`，未修改 v0.9.0 或更早发布段、旧 tag 或 GitHub Release
 - [ ] **22.35. v1.0.0 冻结结论** — 是否完成安全、兼容、数据库、性能和 Docker 总审查，并明确列出仍存在的非阻塞限制
+- [ ] **22.36. v1.0.0 版本一致性** — FastAPI 元数据、README、PLAN、TASKS、GOAL、CHANGELOG、tag 和 Release 是否均为 `1.0.0`
+- [ ] **22.37. v1.0.0 CHANGELOG** — 是否保留空白 Unreleased，并将 I1-I4 归档为 `## [1.0.0] - 2026-07-11`
+- [ ] **22.38. v1.0.0 验收** — 是否运行完整 pytest 和全新隔离 Docker build / up / `/login` / down，且清理临时数据
+- [ ] **22.39. v1.0.0 Schema 边界** — 是否保持 Schema 1、空生产迁移注册表、无索引 / 表 / 字段 / 依赖变化
+- [ ] **22.40. v1.0.0 引用一致性** — annotated tag 的 peeled commit、`origin/main` 和发布提交是否完全一致
+- [ ] **22.41. v1.0.0 正式 Release** — GitHub Release 是否非 draft、非 prerelease，标题和 tag 是否均正确，且未移动旧 tag
 
 ## 备份恢复检查
 
