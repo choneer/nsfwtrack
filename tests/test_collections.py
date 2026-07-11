@@ -67,9 +67,11 @@ def _bulk_data(
     item_ids: list[int] | None = None,
     **values: str,
 ) -> dict[str, object]:
-    data: dict[str, object] = {"bulk_action": action, "next": "/items"}
-    if action == "delete":
-        data["confirm"] = "1"
+    data: dict[str, object] = {
+        "bulk_action": action,
+        "next": "/items",
+        "confirm": "1",
+    }
     if item_ids is not None:
         data["item_ids"] = [str(item_id) for item_id in item_ids]
     data.update(values)
@@ -176,6 +178,7 @@ def test_collection_detail_adds_removes_items_and_handles_duplicates(
 
     remove_response = auth_client.post(
         f"/collections/{collection_id}/items/{item_id}/delete",
+        data={"confirm": "1"},
         follow_redirects=True,
     )
     assert remove_response.status_code == 200
@@ -184,6 +187,7 @@ def test_collection_detail_adds_removes_items_and_handles_duplicates(
 
     repeat_remove_response = auth_client.post(
         f"/collections/{collection_id}/items/{item_id}/delete",
+        data={"confirm": "1"},
         follow_redirects=True,
     )
     assert repeat_remove_response.status_code == 200
@@ -220,6 +224,7 @@ def test_item_detail_shows_and_manages_collections(auth_client: TestClient) -> N
 
     remove_response = auth_client.post(
         f"/items/{item_id}/collections/{collection_id}/delete",
+        data={"confirm": "1"},
         follow_redirects=True,
     )
     assert remove_response.status_code == 200

@@ -5,6 +5,8 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from app.services.local_media import normalize_local_media_path
+
 
 StatusValue = Literal["wish", "watching", "watched", "like", "dislike", "ignore"]
 
@@ -55,13 +57,18 @@ class CreatorBase(BaseModel):
     type: str = Field(default="other", max_length=64)
     avatar_path: str | None = Field(default=None, max_length=500)
 
-    @field_validator("name", "type", "avatar_path")
+    @field_validator("name", "type")
     @classmethod
     def strip_text(cls, value: str | None) -> str | None:
         if value is None:
             return None
         stripped = value.strip()
         return stripped or None
+
+    @field_validator("avatar_path")
+    @classmethod
+    def validate_avatar_path(cls, value: str | None) -> str | None:
+        return normalize_local_media_path(value)
 
 
 class CreatorCreate(CreatorBase):
@@ -73,13 +80,18 @@ class CreatorUpdate(BaseModel):
     type: str | None = Field(default=None, max_length=64)
     avatar_path: str | None = Field(default=None, max_length=500)
 
-    @field_validator("name", "type", "avatar_path")
+    @field_validator("name", "type")
     @classmethod
     def strip_text(cls, value: str | None) -> str | None:
         if value is None:
             return None
         stripped = value.strip()
         return stripped or None
+
+    @field_validator("avatar_path")
+    @classmethod
+    def validate_avatar_path(cls, value: str | None) -> str | None:
+        return normalize_local_media_path(value)
 
 
 class CreatorRead(CreatorBase):
@@ -121,13 +133,18 @@ class ItemBase(BaseModel):
     release_date: str | None = Field(default=None, max_length=32)
     extra: dict[str, Any] | None = None
 
-    @field_validator("title", "cover_path", "summary", "release_date")
+    @field_validator("title", "summary", "release_date")
     @classmethod
     def strip_item_text(cls, value: str | None) -> str | None:
         if value is None:
             return None
         stripped = value.strip()
         return stripped or None
+
+    @field_validator("cover_path")
+    @classmethod
+    def validate_cover_path(cls, value: str | None) -> str | None:
+        return normalize_local_media_path(value)
 
 
 class ItemCreate(ItemBase):
@@ -144,13 +161,18 @@ class ItemUpdate(BaseModel):
     tags: list[str] | None = None
     creators: list[str] | None = None
 
-    @field_validator("title", "cover_path", "summary", "release_date")
+    @field_validator("title", "summary", "release_date")
     @classmethod
     def strip_item_text(cls, value: str | None) -> str | None:
         if value is None:
             return None
         stripped = value.strip()
         return stripped or None
+
+    @field_validator("cover_path")
+    @classmethod
+    def validate_cover_path(cls, value: str | None) -> str | None:
+        return normalize_local_media_path(value)
 
 
 class ItemRead(ItemBase):

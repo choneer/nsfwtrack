@@ -14,6 +14,7 @@ from app.services.data_health_fixes import (
     DataHealthFixError,
     apply_data_health_fix,
 )
+from app.services.settings import save_app_settings
 
 
 def _execute(sql: str, params: dict[str, Any] | None = None) -> None:
@@ -73,6 +74,11 @@ def _create_core_entities() -> None:
         VALUES (1, 'Collection', '', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
         """
     )
+
+
+def _save_policy(**values: str) -> None:
+    with SessionLocal() as db:
+        save_app_settings(db, values)
 
 
 def test_data_health_fix_requires_login(client: TestClient) -> None:
@@ -152,6 +158,97 @@ def test_data_health_fix_route_cleans_orphan_item_tags_and_shows_summary(
     assert "删除 2 条" in fix_response.text
     assert _scalar("SELECT COUNT(*) FROM item_tags") == 0
     assert _core_counts() == before_core_counts
+
+
+def test_data_health_fix_warning_and_backup_link_are_complete_in_both_languages(
+    auth_client: TestClient,
+) -> None:
+    _execute("INSERT INTO tags (id, name, created_at) VALUES (1, 'Tag', CURRENT_TIMESTAMP)")
+    _execute_with_pragmas(
+        ("INSERT INTO item_tags (item_id, tag_id) VALUES (999, 1)",),
+        foreign_keys=False,
+    )
+    _save_policy(backup_reminder_mode="dangerous_only")
+
+    zh_response = auth_client.get("/data-health")
+    assert "低风险手动修复" in zh_response.text
+    assert "危险操作确认" in zh_response.text
+    assert "所选数据健康问题记录" in zh_response.text
+    assert "仅执行所选低风险修复，不删除条目、标签、创作者或合集" in zh_response.text
+    assert "可能删除无效关系或辅助记录，不删除核心对象" in zh_response.text
+    assert "不能自动撤销；可使用执行前 JSON 备份恢复" in zh_response.text
+    assert "JSON 备份建议" in zh_response.text
+    assert "执行前先导出本地 JSON 备份，并确认备份文件可用" in zh_response.text
+    assert "这些操作不会删除条目 / 标签 / 创作者 / 合集" in zh_response.text
+    assert "每次只允许手动修复一种问题" in zh_response.text
+    assert 'href="/backup"' in zh_response.text
+
+    en_response = auth_client.get(
+        "/set-language",
+        params={"lang": "en", "next": "/data-health"},
+    )
+    assert "Low-Risk Manual Fixes" in en_response.text
+    assert "Dangerous Operation Confirmation" in en_response.text
+    assert "Selected data health issue records" in en_response.text
+    assert "Runs only the selected low-risk fix" in en_response.text
+    assert "May delete invalid relations or helper records, not core objects" in en_response.text
+    assert "No automatic undo; restore from the pre-operation JSON backup" in en_response.text
+    assert "JSON backup recommendation" in en_response.text
+    assert "Export a local JSON backup first" in en_response.text
+    assert (
+        "These operations do not delete items, tags, creators, or collections"
+        in en_response.text
+    )
+    assert "Only one issue type can be fixed manually at a time" in en_response.text
+    assert 'href="/backup"' in en_response.text
+
+
+def test_always_backup_reminder_does_not_weaken_strict_health_fix_confirmation(
+    auth_client: TestClient,
+) -> None:
+    _execute("INSERT INTO tags (id, name, created_at) VALUES (1, 'Tag', CURRENT_TIMESTAMP)")
+    _execute_with_pragmas(
+        ("INSERT INTO item_tags (item_id, tag_id) VALUES (999, 1)",),
+        foreign_keys=False,
+    )
+    _save_policy(
+        backup_reminder_mode="always",
+        danger_confirmation_mode="strict",
+    )
+
+    page = auth_client.get("/data-health")
+    missing = auth_client.post(
+        "/data-health/fix",
+        data={"fix_type": "orphan_item_tags", "confirm": "1"},
+        follow_redirects=False,
+    )
+    wrong = auth_client.post(
+        "/data-health/fix",
+        data={
+            "fix_type": "orphan_item_tags",
+            "confirm": "1",
+            "confirmation_text": "confirm",
+        },
+        follow_redirects=False,
+    )
+
+    assert "JSON 备份建议" in page.text
+    assert "data-strict-confirm-message" in page.text
+    assert missing.status_code == 303
+    assert wrong.status_code == 303
+    assert _scalar("SELECT COUNT(*) FROM item_tags") == 1
+
+    accepted = auth_client.post(
+        "/data-health/fix",
+        data={
+            "fix_type": "orphan_item_tags",
+            "confirm": "1",
+            "confirmation_text": "CONFIRM",
+        },
+        follow_redirects=False,
+    )
+    assert accepted.status_code == 303
+    assert _scalar("SELECT COUNT(*) FROM item_tags") == 0
 
 
 def test_data_health_fixes_clean_orphan_relations_without_deleting_core_entities() -> None:

@@ -5,6 +5,12 @@ from dataclasses import dataclass
 from functools import lru_cache
 
 
+_EXAMPLE_PLACEHOLDERS = {
+    "APP_PASSWORD": "your_secure_password_here",
+    "SECRET_KEY": "change_this_to_a_random_secret_key",
+}
+
+
 @dataclass(frozen=True)
 class Settings:
     database_url: str
@@ -19,6 +25,8 @@ def _read_required_env(name: str) -> str:
     value = os.getenv(name, "").strip()
     if not value:
         raise RuntimeError(f"{name} must be set and cannot be empty")
+    if value == _EXAMPLE_PLACEHOLDERS.get(name):
+        raise RuntimeError(f"{name} must not use the shipped example placeholder")
     return value
 
 

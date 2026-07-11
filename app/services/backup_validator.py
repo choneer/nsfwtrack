@@ -13,6 +13,7 @@ from app import models
 from app.services.backup import CORE_TABLE_NAMES, OPTIONAL_TABLE_NAMES, TABLE_NAMES
 from app.services.exporter import BACKUP_SCHEMA
 from app.services.item_query import STATUS_OPTIONS
+from app.services.local_media import LocalMediaPathError, normalize_local_media_path
 from app.services.saved_views import SAVED_VIEW_ALLOWED_PARAMS
 from app.services.settings import AppSettingsError, validate_setting_value
 
@@ -287,9 +288,36 @@ def _validate_table_values(
                             detail=type(parsed_extra).__name__,
                         )
                     )
+        try:
+            normalize_local_media_path(row.get("cover_path"))
+        except LocalMediaPathError:
+            issues.append(
+                _issue(
+                    "error",
+                    "invalid_local_media_path",
+                    table_name,
+                    index,
+                    object_id,
+                    detail="cover_path",
+                )
+            )
     elif table_name in {"tags", "creators", "collections"}:
         if _is_blank(row.get("name")):
             issues.append(_issue("error", "empty_name", table_name, index, object_id))
+        if table_name == "creators":
+            try:
+                normalize_local_media_path(row.get("avatar_path"))
+            except LocalMediaPathError:
+                issues.append(
+                    _issue(
+                        "error",
+                        "invalid_local_media_path",
+                        table_name,
+                        index,
+                        object_id,
+                        detail="avatar_path",
+                    )
+                )
     elif table_name == "user_item_states":
         status = str(row.get("status") or "").strip()
         if status and status not in STATUS_OPTIONS:

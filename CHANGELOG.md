@@ -6,6 +6,12 @@
 
 - Added `COMPLETION_AUDIT.md` with the Phase 2-K1 implementation, documentation,
   test-gap, dead-entry, and F4 safety-prompt audit.
+- Added an authenticated app-owned `/media/...` contract backed by
+  `data/media`, with one shared validator for item covers, creator avatars,
+  page forms, APIs, backup validation, preview, restore, and template rendering.
+- Added focused configuration, local-media, confirmation-boundary, and F4
+  safety-prompt regression coverage.
+- Added a single first-install, v0.9/v1.0 upgrade, backup, and rollback checklist.
 
 ### Changed
 
@@ -14,14 +20,21 @@
 - Corrected current planning language to describe the existing Jinja2 and
   lightweight vanilla JavaScript frontend rather than claiming active HTMX
   behavior.
+- All current-page bulk writes, state clearing, and item relationship detach
+  actions now require browser and server confirmation. Strict mode requires
+  exact `CONFIRM` before these writes.
 
 ### Security
 
-- Documented unresolved local media-path, bulk / clear confirmation, and
-  shipped placeholder-secret gates without changing application behavior.
+- Closed the K1 local media-path, bulk / clear / detach confirmation, and
+  shipped placeholder-secret findings without adding external media, upload,
+  proxy, URL import, dependencies, schema changes, or migrations.
+- Startup now rejects the exact `APP_PASSWORD` and `SECRET_KEY` placeholders
+  shipped in `.env.example` without echoing either credential.
 - Confirmed the F4 data-health warning flow already provides backup guidance,
   impact and deletion scope, manual single-fix limits, server confirmation,
-  strict confirmation, and rollback coverage.
+  strict confirmation, and rollback coverage; focused bilingual and policy
+  tests now close the remaining acceptance gap.
 
 ## [1.0.0] - 2026-07-11
 

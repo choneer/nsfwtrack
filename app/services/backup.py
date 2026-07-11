@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from app import models
 from app.services.exporter import BACKUP_SCHEMA
+from app.services.local_media import LocalMediaPathError, normalize_local_media_path
 from app.services.saved_views import (
     MAX_SAVED_VIEW_NAME_LENGTH,
     normalize_saved_view_query_string,
@@ -93,6 +94,16 @@ def _validate_preview_rows(rows: dict[str, list[dict[str, Any]]]) -> None:
     for row in rows["user_item_states"]:
         if str(row.get("status", "")).strip() not in VALID_STATUSES:
             _raise("invalid_rows", "user_item_states.status")
+    for row in rows["items"]:
+        try:
+            normalize_local_media_path(row.get("cover_path"))
+        except LocalMediaPathError:
+            _raise("invalid_local_media_path", "items.cover_path")
+    for row in rows["creators"]:
+        try:
+            normalize_local_media_path(row.get("avatar_path"))
+        except LocalMediaPathError:
+            _raise("invalid_local_media_path", "creators.avatar_path")
 
 
 def _safe_int_or_none(value: Any) -> int | None:
@@ -761,6 +772,7 @@ def _merge_app_settings(
 
 def restore_backup_data(db: Session, payload: dict[str, Any]) -> dict[str, int]:
     rows = _rows_from_payload(payload)
+    _validate_preview_rows(rows)
     result = {
         "created": 0,
         "updated": 0,

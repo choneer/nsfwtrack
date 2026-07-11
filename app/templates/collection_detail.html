@@ -74,8 +74,9 @@
         <article class="card">
           <a href="/items/{{ item.id }}">
             <div class="cover">
-              {% if item.cover_path %}
-                <img src="{{ item.cover_path }}" alt="">
+              {% set cover_url = local_media_url(item.cover_path) %}
+              {% if cover_url %}
+                <img src="{{ cover_url }}" alt="">
               {% else %}
                 {{ t("common.no_cover") }}
               {% endif %}
@@ -99,7 +100,12 @@
           <div class="actions">
             <a class="button secondary" href="/items/{{ item.id }}">{{ t("collections.view") }}</a>
             <form class="inline-form" action="/collections/{{ collection.id }}/items/{{ item.id }}/delete" method="post">
-              <button class="secondary" type="submit">{{ t("collections.remove_item") }}</button>
+              <button
+                class="secondary"
+                type="submit"
+                data-confirm-message="{{ t('collections.confirm_remove_item') }}"
+                {% if danger_policy.is_strict %}data-strict-confirm-message="{{ t('danger.strict_prompt') }}"{% endif %}
+              >{{ t("collections.remove_item") }}</button>
             </form>
           </div>
         </article>

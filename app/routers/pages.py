@@ -15,7 +15,7 @@ from fastapi import (
     UploadFile,
     status,
 )
-from fastapi.responses import HTMLResponse, RedirectResponse, Response
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
@@ -107,6 +107,11 @@ from app.services.item_query import (
     build_item_list_url,
     list_item_filter_options,
     query_items,
+)
+from app.services.local_media import (
+    LocalMediaPathError,
+    local_media_url,
+    resolve_local_media_file,
 )
 from app.services.metadata_cleanup import (
     MetadataCleanupError,
@@ -213,6 +218,7 @@ def _base_context(
         "t": translator(language),
         "status_label": status_translator(language),
         "status_options": STATUS_OPTIONS,
+        "local_media_url": local_media_url,
         "max_backup_upload_mb": get_settings().max_backup_upload_mb,
         "max_import_upload_mb": get_settings().max_import_upload_mb,
         "danger_policy": (
@@ -252,6 +258,19 @@ def _parse_extra_json(value: str | None) -> dict[str, Any] | None:
     if not isinstance(payload, dict):
         raise ValueError("extra must be a JSON object")
     return payload
+
+
+@router.get(
+    "/media/{media_path:path}",
+    response_class=FileResponse,
+    dependencies=[Depends(require_page_auth)],
+)
+def local_media_file_page(media_path: str) -> FileResponse:
+    try:
+        path = resolve_local_media_file(media_path)
+    except LocalMediaPathError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND) from exc
+    return FileResponse(path)
 
 
 def _item_form_payload(
@@ -1073,8 +1092,20 @@ def bulk_items_page(
     db: Session = Depends(get_db),
 ) -> RedirectResponse:
     target = _safe_next_url(next_url)
+    supported_actions = {
+        "status",
+        "add_tag",
+        "remove_tag",
+        "add_collection",
+        "remove_collection",
+        "rating",
+        "delete",
+    }
+    if bulk_action not in supported_actions:
+        add_flash(request, "error", "flash.bulk_invalid_action")
+        return _redirect(target)
     danger_policy = get_danger_policy(db)
-    if bulk_action == "delete" and not _danger_confirmation_is_valid(
+    if not _danger_confirmation_is_valid(
         request,
         danger_policy,
         confirmation_text=confirmation_text,
@@ -1096,8 +1127,6 @@ def bulk_items_page(
             result = set_items_rating(db, item_ids, rating)
         elif bulk_action == "delete":
             result = delete_items(db, item_ids)
-        else:
-            raise BulkActionError("invalid_action")
     except BulkActionError as exc:
         add_flash(request, "error", f"flash.bulk_{exc.code}")
         return _redirect(target)
@@ -1345,14 +1374,24 @@ def set_item_state_page(
 def delete_item_state_page(
     request: Request,
     item_id: int,
+    confirm: str | None = Form(default=None),
+    confirmation_text: str | None = Form(default=None),
     next_url: str = Form(default="/items", alias="next"),
     db: Session = Depends(get_db),
 ) -> RedirectResponse:
+    target = _item_detail_url(item_id, next_url)
+    if not _danger_confirmation_is_valid(
+        request,
+        get_danger_policy(db),
+        confirmation_text=confirmation_text,
+        base_confirmation_valid=confirm == "1",
+    ):
+        return _redirect(target)
     item = get_item_or_404(db, item_id)
     delete_state(db, item)
     safe_record_item_edit(db, item_id)
     add_flash(request, "info", "flash.state_cleared")
-    return _redirect(_item_detail_url(item_id, next_url))
+    return _redirect(target)
 
 
 @router.post("/items/{item_id}/tags", dependencies=[Depends(require_page_auth)])
@@ -1379,10 +1418,19 @@ def remove_item_tag_page(
     request: Request,
     item_id: int,
     tag_id: int,
+    confirm: str | None = Form(default=None),
+    confirmation_text: str | None = Form(default=None),
     next_url: str = Form(default="/items", alias="next"),
     db: Session = Depends(get_db),
 ) -> RedirectResponse:
     target = _item_detail_url(item_id, next_url)
+    if not _danger_confirmation_is_valid(
+        request,
+        get_danger_policy(db),
+        confirmation_text=confirmation_text,
+        base_confirmation_valid=confirm == "1",
+    ):
+        return _redirect(target)
     try:
         remove_existing_tag(db, item_id, tag_id)
     except ItemDetailError as exc:
@@ -1420,10 +1468,19 @@ def remove_item_creator_page(
     request: Request,
     item_id: int,
     creator_id: int,
+    confirm: str | None = Form(default=None),
+    confirmation_text: str | None = Form(default=None),
     next_url: str = Form(default="/items", alias="next"),
     db: Session = Depends(get_db),
 ) -> RedirectResponse:
     target = _item_detail_url(item_id, next_url)
+    if not _danger_confirmation_is_valid(
+        request,
+        get_danger_policy(db),
+        confirmation_text=confirmation_text,
+        base_confirmation_valid=confirm == "1",
+    ):
+        return _redirect(target)
     try:
         remove_existing_creator(db, item_id, creator_id)
     except ItemDetailError as exc:
@@ -1529,7 +1586,11 @@ def create_creator_page(
     avatar_path: str | None = Form(default=None),
     db: Session = Depends(get_db),
 ) -> RedirectResponse:
-    payload = CreatorCreate(name=name, type=type_value, avatar_path=avatar_path)
+    try:
+        payload = CreatorCreate(name=name, type=type_value, avatar_path=avatar_path)
+    except ValueError:
+        add_flash(request, "error", "flash.creator_create_failed")
+        return _redirect("/creators")
     creator = Creator(
         name=payload.name,
         type=payload.type or "other",
@@ -1810,8 +1871,18 @@ def remove_collection_item_page(
     request: Request,
     collection_id: int,
     item_id: int,
+    confirm: str | None = Form(default=None),
+    confirmation_text: str | None = Form(default=None),
     db: Session = Depends(get_db),
 ) -> RedirectResponse:
+    target = f"/collections/{collection_id}"
+    if not _danger_confirmation_is_valid(
+        request,
+        get_danger_policy(db),
+        confirmation_text=confirmation_text,
+        base_confirmation_valid=confirm == "1",
+    ):
+        return _redirect(target)
     try:
         remove_item_from_collection(db, item_id=item_id, collection_id=collection_id)
     except CollectionError as exc:
@@ -1819,7 +1890,7 @@ def remove_collection_item_page(
     else:
         safe_record_item_edit(db, item_id)
         add_flash(request, "success", "flash.collection_item_removed")
-    return _redirect(f"/collections/{collection_id}")
+    return _redirect(target)
 
 
 @router.post("/items/{item_id}/collections", dependencies=[Depends(require_page_auth)])
@@ -1849,10 +1920,19 @@ def remove_item_collection_page(
     request: Request,
     item_id: int,
     collection_id: int,
+    confirm: str | None = Form(default=None),
+    confirmation_text: str | None = Form(default=None),
     next_url: str = Form(default="/items", alias="next"),
     db: Session = Depends(get_db),
 ) -> RedirectResponse:
     target = _item_detail_url(item_id, next_url)
+    if not _danger_confirmation_is_valid(
+        request,
+        get_danger_policy(db),
+        confirmation_text=confirmation_text,
+        base_confirmation_valid=confirm == "1",
+    ):
+        return _redirect(target)
     try:
         remove_item_from_collection(db, item_id=item_id, collection_id=collection_id)
     except CollectionError as exc:

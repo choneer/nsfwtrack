@@ -6,6 +6,7 @@ env/
 venv/
 data/*.db
 data/*.sqlite
+data/media/
 .env
 *.egg
 dist/

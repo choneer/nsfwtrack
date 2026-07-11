@@ -2,7 +2,7 @@
 
 按顺序执行，每完成一项打个 [x]。
 
-## 当前有限任务（Phase 2-K1 审计结论）
+## 当前有限任务（Phase 2-K2 已完成）
 
 完整证据与优先级见 `COMPLETION_AUDIT.md`。历史任务保留在本文后半部分，
 不再作为新增开发路线。
@@ -20,15 +20,15 @@
 
 ### Phase 2-K2 投入使用前边界收口
 
-- [ ] 定义唯一的本地素材路径契约；禁止 `cover_path` / `avatar_path` 外部 URL、协议相对路径、data URL、路径穿越和歧义分隔符
-- [ ] 让合法本地封面在 Docker 挂载下真实可读，或在本地素材契约完成前停止暴露 / 渲染该字段
-- [ ] 在 API、页面表单、备份恢复和模板渲染边界补齐本地素材路径测试
-- [ ] 为 status / rating / tag / collection 的全部批量写入增加浏览器和服务端确认
-- [ ] 为状态清除及关系解除建立一致的低风险 / 危险确认规则并补齐 strict 测试
-- [ ] 拒绝 `.env.example` 的已知 APP_PASSWORD / SECRET_KEY 占位值，错误不得回显凭据
-- [ ] 补齐 F4 中英文完整提示、备份链接、dangerous_only / always 和无问题空状态测试
-- [ ] 增加首次安装、v0.9/v1.0 升级、备份和回滚的单一操作清单
-- [ ] 运行完整 pytest 与隔离 Docker 验收，确认无剩余 P0 / P1 项
+- [x] 定义唯一的本地素材路径契约；禁止 `cover_path` / `avatar_path` 外部 URL、协议相对路径、data URL、路径穿越和歧义分隔符
+- [x] 让合法本地封面在 Docker 挂载下真实可读，或在本地素材契约完成前停止暴露 / 渲染该字段
+- [x] 在 API、页面表单、备份恢复和模板渲染边界补齐本地素材路径测试
+- [x] 为 status / rating / tag / collection 的全部批量写入增加浏览器和服务端确认
+- [x] 为状态清除及关系解除建立一致的低风险 / 危险确认规则并补齐 strict 测试
+- [x] 拒绝 `.env.example` 的已知 APP_PASSWORD / SECRET_KEY 占位值，错误不得回显凭据
+- [x] 补齐 F4 中英文完整提示、备份链接、dangerous_only / always 和无问题空状态测试
+- [x] 增加首次安装、v0.9/v1.0 升级、备份和回滚的单一操作清单
+- [x] 运行完整 pytest 与隔离 Docker 验收，确认无剩余 P0 / P1 项
 
 ### Phase 2-K3 目标部署验收
 

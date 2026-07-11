@@ -235,7 +235,13 @@
               <option value="{{ option }}">{{ status_label(option) }}</option>
             {% endfor %}
           </select>
-          <button type="submit" name="bulk_action" value="status">{{ t("items.bulk_update_status") }}</button>
+          <button
+            type="submit"
+            name="bulk_action"
+            value="status"
+            data-confirm-message="{{ t('items.confirm_bulk_status') }}"
+            {% if danger_policy.is_strict %}data-strict-confirm-message="{{ t('danger.strict_prompt') }}"{% endif %}
+          >{{ t("items.bulk_update_status") }}</button>
         </label>
         <label>{{ t("items.bulk_add_tag") }}
           <select name="add_tag_id">
@@ -244,7 +250,13 @@
               <option value="{{ tag_option.id }}">{{ tag_option.name }}</option>
             {% endfor %}
           </select>
-          <button type="submit" name="bulk_action" value="add_tag">{{ t("items.bulk_add_tag") }}</button>
+          <button
+            type="submit"
+            name="bulk_action"
+            value="add_tag"
+            data-confirm-message="{{ t('items.confirm_bulk_add_tag') }}"
+            {% if danger_policy.is_strict %}data-strict-confirm-message="{{ t('danger.strict_prompt') }}"{% endif %}
+          >{{ t("items.bulk_add_tag") }}</button>
         </label>
         <label>{{ t("items.bulk_remove_tag") }}
           <select name="remove_tag_id">
@@ -253,7 +265,13 @@
               <option value="{{ tag_option.id }}">{{ tag_option.name }}</option>
             {% endfor %}
           </select>
-          <button type="submit" name="bulk_action" value="remove_tag">{{ t("items.bulk_remove_tag") }}</button>
+          <button
+            type="submit"
+            name="bulk_action"
+            value="remove_tag"
+            data-confirm-message="{{ t('items.confirm_bulk_remove_tag') }}"
+            {% if danger_policy.is_strict %}data-strict-confirm-message="{{ t('danger.strict_prompt') }}"{% endif %}
+          >{{ t("items.bulk_remove_tag") }}</button>
         </label>
         <label>{{ t("items.bulk_add_collection") }}
           <select name="add_collection_id">
@@ -262,7 +280,13 @@
               <option value="{{ collection_option.id }}">{{ collection_option.name }}</option>
             {% endfor %}
           </select>
-          <button type="submit" name="bulk_action" value="add_collection">{{ t("items.bulk_add_collection") }}</button>
+          <button
+            type="submit"
+            name="bulk_action"
+            value="add_collection"
+            data-confirm-message="{{ t('items.confirm_bulk_add_collection') }}"
+            {% if danger_policy.is_strict %}data-strict-confirm-message="{{ t('danger.strict_prompt') }}"{% endif %}
+          >{{ t("items.bulk_add_collection") }}</button>
         </label>
         <label>{{ t("items.bulk_remove_collection") }}
           <select name="remove_collection_id">
@@ -271,7 +295,13 @@
               <option value="{{ collection_option.id }}">{{ collection_option.name }}</option>
             {% endfor %}
           </select>
-          <button type="submit" name="bulk_action" value="remove_collection">{{ t("items.bulk_remove_collection") }}</button>
+          <button
+            type="submit"
+            name="bulk_action"
+            value="remove_collection"
+            data-confirm-message="{{ t('items.confirm_bulk_remove_collection') }}"
+            {% if danger_policy.is_strict %}data-strict-confirm-message="{{ t('danger.strict_prompt') }}"{% endif %}
+          >{{ t("items.bulk_remove_collection") }}</button>
         </label>
         <label>{{ t("items.bulk_set_rating") }}
           <select name="rating">
@@ -280,7 +310,13 @@
               <option value="{{ rating }}">{{ rating }}</option>
             {% endfor %}
           </select>
-          <button type="submit" name="bulk_action" value="rating">{{ t("items.bulk_set_rating") }}</button>
+          <button
+            type="submit"
+            name="bulk_action"
+            value="rating"
+            data-confirm-message="{{ t('items.confirm_bulk_rating') }}"
+            {% if danger_policy.is_strict %}data-strict-confirm-message="{{ t('danger.strict_prompt') }}"{% endif %}
+          >{{ t("items.bulk_set_rating") }}</button>
         </label>
       </div>
       <div class="actions">

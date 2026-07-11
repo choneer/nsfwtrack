@@ -95,6 +95,9 @@ def test_data_health_page_renders_healthy_state_and_navigation(
     assert dashboard_response.status_code == 200
     assert 'href="/data-health"' in dashboard_response.text
     assert "数据健康检查" in dashboard_response.text
+    assert 'action="/data-health/fix"' not in response.text
+    assert "修复此项" not in response.text
+    assert "所选数据健康问题记录" not in response.text
 
 
 def test_data_health_page_renders_in_english(auth_client: TestClient) -> None:

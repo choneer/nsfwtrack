@@ -4,9 +4,10 @@ Audit date: `2026-07-11`
 
 Audit baseline: `v1.0.0` / commit `0d0de73`
 
-This is a read-only product-completion audit. It does not change application
-behavior, dependencies, database structure, schema version, migrations, tags,
-or releases.
+The original K1 review was a read-only product-completion audit. The K2 closure
+addendum below records the bounded fixes it requested; neither stage changes
+dependencies, database structure, schema version, migrations, tags, or
+releases.
 
 ## Executive Conclusion
 
@@ -14,16 +15,38 @@ The core local single-user workflow is implemented and broadly covered by the
 current test suite. The repository contains no genuine TODO / FIXME marker,
 stub route, 501 response, `NotImplementedError`, or dead navigation entry.
 
-The project is not yet ready for an unqualified first real-data deployment.
-Two bounded stages remain:
+Phase 2-K2 has now closed every P0 / P1 use-before finding from this audit.
+One bounded operator stage remains before an unqualified first real-data
+deployment:
 
-1. **Phase 2-K2: use-before boundary closure** — close local media-path,
-   confirmation, secret-preflight, and focused regression gaps.
-2. **Phase 2-K3: target deployment acceptance** — perform the real target-host,
+1. **Phase 2-K2: use-before boundary closure (complete)** — closed local
+   media-path, confirmation, secret-preflight, and focused regression gaps.
+2. **Phase 2-K3: target deployment acceptance (remaining)** — perform the real target-host,
    browser, and backup/restore drill before importing irreplaceable data.
 
 No additional product feature phase is required. Work outside K2 and K3 is
 either optional maintenance or outside the project boundary.
+
+## Phase 2-K2 Closure - 2026-07-11
+
+- Added one local-only `/media/...` contract backed by `data/media`, protected
+  by login and reused by API, page, backup validation / preview / restore, and
+  rendering boundaries. External and ambiguous paths are rejected; legacy
+  invalid covers are not rendered.
+- Added browser and server confirmation to every current-page bulk write,
+  state clear, and item relationship detach. Missing confirmation and wrong
+  strict text fail before writes; exact `CONFIRM` succeeds in strict mode.
+- Added startup rejection for the two exact `.env.example` credential
+  placeholders without value disclosure.
+- Closed focused F4 coverage for complete bilingual warnings, backup links,
+  `dangerous_only`, `always`, strict confirmation, and clean reports.
+- Added the single install / v0.9-v1.0 upgrade / rollback checklist requested by
+  K1-03.
+- Full pytest passed: 347 tests. Isolated Docker build, startup, stable
+  `/login` 200, authenticated mounted-media 200, shutdown, and cleanup passed.
+- No dependency, database structure, schema version, production migration,
+  external request, tag, or GitHub Release was added. No current P0 / P1
+  completion finding remains; K3 is an operator acceptance run.
 
 ## Evidence Collected
 
@@ -104,9 +127,13 @@ future maintenance pass; do not create a feature stage for them.
 
 ## Findings Requiring Completion Before Real Data
 
-### K1-01: Cover Paths Can Trigger External Browser Requests
+### K1-01: Cover Paths Can Trigger External Browser Requests (Closed In K2)
 
 Priority: **P0 / use-before blocker**
+
+K2 status: **Closed.** The sole accepted prefix is authenticated `/media/...`
+backed by `data/media`; all specified input, restore, and rendering boundaries
+share the local validator.
 
 Evidence:
 
@@ -140,9 +167,12 @@ K2 acceptance:
 - Add API/page/restore/rendering regression tests. Do not fetch or proxy remote
   media and do not add URL import.
 
-### K1-02: Confirmation Coverage Does Not Match RULE.md
+### K1-02: Confirmation Coverage Does Not Match RULE.md (Closed In K2)
 
 Priority: **P0 / use-before blocker**
+
+K2 status: **Closed.** Every bulk write, state clear, and relationship detach
+now requires browser and server confirmation and honors strict `CONFIRM`.
 
 Evidence:
 
@@ -172,9 +202,12 @@ K2 acceptance:
 - Add missing-confirm, wrong-strict-text, exact-confirm, no-partial-write, and
   bilingual prompt tests without widening operation scope.
 
-### K1-03: Shipped Placeholder Secrets Are Accepted
+### K1-03: Shipped Placeholder Secrets Are Accepted (Closed In K2)
 
 Priority: **P1 / mandatory deployment gate**
+
+K2 status: **Closed.** Exact shipped placeholders fail startup without value
+disclosure, with empty, valid, malformed upload, and cookie settings covered.
 
 Evidence:
 
@@ -194,7 +227,7 @@ K2 acceptance:
 
 ## F4 Safety-Prompt Review
 
-Status: **Functionally complete; focused acceptance coverage remains in K2.**
+Status: **Complete, including focused K2 acceptance coverage.**
 
 Evidence:
 
@@ -208,7 +241,7 @@ Evidence:
   configured; rollback and core-entity preservation are tested.
 - The focused health / fix / danger suite passes 44 tests.
 
-Remaining test closure:
+K2 test closure:
 
 - Assert the complete F4 warning copy and backup link in both languages.
 - Assert that `dangerous_only` still shows the backup recommendation for a
@@ -260,6 +293,8 @@ Do not turn completion work into any of the following:
 ## Finite Remaining Stages
 
 ### Phase 2-K2: Use-Before Boundary Closure
+
+Status: **Complete.**
 
 Scope is limited to K1-01, K1-02, K1-03, focused F4 tests, and the matching
 README / REVIEW / CHANGELOG updates. It may not add product features,

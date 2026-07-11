@@ -221,14 +221,17 @@ def test_tag_creator_and_collection_changes_record_recent_edit(
         ),
         auth_client.post(
             f"/items/{item_id}/collections/{collection_id}/delete",
+            data={"confirm": "1"},
             follow_redirects=False,
         ),
         auth_client.post(
             f"/items/{item_id}/creators/{creator_id}/delete",
+            data={"confirm": "1"},
             follow_redirects=False,
         ),
         auth_client.post(
             f"/items/{item_id}/tags/{tag_id}/delete",
+            data={"confirm": "1"},
             follow_redirects=False,
         ),
     ]
@@ -252,6 +255,7 @@ def test_collection_detail_item_changes_record_recent_edit(
     )
     remove_response = auth_client.post(
         f"/collections/{collection_id}/items/{item_id}/delete",
+        data={"confirm": "1"},
         follow_redirects=False,
     )
 
@@ -275,6 +279,7 @@ def test_bulk_edit_records_activity_for_affected_items(
             "item_ids": [str(first_id), str(second_id), "999999"],
             "status_value": "like",
             "next": "/items",
+            "confirm": "1",
         },
         follow_redirects=False,
     )

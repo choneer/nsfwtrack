@@ -6,7 +6,7 @@ Current release: `v1.0.0 / stable local single-user release`.
 
 Release: [NSFWTrack v1.0.0](https://github.com/choneer/nsfwtrack/releases/tag/v1.0.0).
 
-Current development: `Phase 2-K1 completion audit is in Unreleased`.
+Current development: `Phase 2-K2 use-before boundary closure is complete in Unreleased`.
 
 NSFWTrack remains intentionally local-only. It is designed for manual records,
 local SQLite persistence, LAN deployment, and simple personal collection
@@ -15,19 +15,41 @@ management.
 ## Completion Audit
 
 Phase 2-K1 found no genuine TODO / FIXME marker, stub route, 501 response, or
-dead navigation entry. Core local single-user workflows remain implemented and
-covered by the current 309-test suite.
+dead navigation entry. Phase 2-K2 closed the three pre-use findings and the
+current 347-test suite passes.
 
-Before entrusting irreplaceable real data to a new deployment, complete the two
-bounded stages documented in [COMPLETION_AUDIT.md](COMPLETION_AUDIT.md):
+Before entrusting irreplaceable real data to a new deployment, complete the
+remaining target-host stage documented in
+[COMPLETION_AUDIT.md](COMPLETION_AUDIT.md):
 
-- Phase 2-K2 closes the local media-path, bulk / clear confirmation, deployment
+- Phase 2-K2 closed the local media-path, bulk / clear confirmation, deployment
   placeholder-secret, focused F4 test, and upgrade-runbook gaps.
 - Phase 2-K3 performs the actual N100 / LAN browser and isolated backup/restore
   acceptance run.
 
 These stages do not add external content, URL import, crawlers, recommendations,
 AI, cloud sync, multi-user support, dependencies, or invented migrations.
+
+## Phase 2-K2 Use-Before Boundary Closure
+
+- `cover_path` and `avatar_path` accept only app-owned `/media/...` raster
+  image paths. External URLs, protocol-relative paths, data URLs, traversal,
+  encoded or backslash separators, query strings, fragments, and unsupported
+  file types are rejected by API, page, and backup-restore boundaries.
+- Item templates revalidate stored cover paths before rendering, so legacy
+  external values cannot trigger a browser request.
+- Every current-page bulk write, state clear, and relationship detach requires
+  browser confirmation plus a server `confirm=1` marker. Strict mode also
+  requires exact `CONFIRM` before any write.
+- Bulk writes and state clearing are guarded modifications that may affect
+  multiple records or erase state fields. Single relationship detach is a
+  lower-impact guarded modification because both entities remain and can be
+  linked again. Both classes honor strict mode; entity deletion and merge keep
+  their existing destructive notices and backup guidance.
+- Startup rejects the exact password and secret placeholders shipped in
+  `.env.example` without echoing their values.
+- Focused F4 tests cover complete Chinese / English warnings, backup links,
+  `dangerous_only`, `always`, strict confirmation, and the clean-report state.
 
 ## Features in v1.0.0
 
@@ -814,6 +836,30 @@ variables before running `uvicorn` locally.
 
 Do not commit `.env`. It is intentionally ignored by git.
 
+The exact placeholder `APP_PASSWORD` and `SECRET_KEY` values from
+`.env.example` are startup errors. Replace both before starting the app.
+
+## Local Media
+
+Create `./data/media` and place local raster images there. The Docker Compose
+data mount makes that directory available inside the container without another
+volume or dependency.
+
+```bash
+mkdir -p data/media/covers
+```
+
+For `./data/media/covers/example.webp`, store this value in `cover_path`:
+
+```text
+/media/covers/example.webp
+```
+
+The accepted extensions are `.avif`, `.gif`, `.jpeg`, `.jpg`, `.png`, and
+`.webp`. Media is served only after login. NSFWTrack does not upload, fetch,
+proxy, or import images from URLs. `avatar_path` follows the same storage rule,
+although avatars are not currently rendered.
+
 ## Docker Compose
 
 ```bash
@@ -833,6 +879,50 @@ Stop it with:
 ```bash
 docker compose down
 ```
+
+## Install, Upgrade, And Rollback Checklist
+
+Use this single checklist for the current local deployment line.
+
+### First Install
+
+1. Copy `.env.example` to `.env`, replace both shipped credential placeholders
+   with a unique strong password and a long random secret, and keep `.env`
+   outside version control.
+2. Run `mkdir -p data/media`, then `docker compose build` and
+   `docker compose up -d`.
+3. Confirm
+   `curl -s -o /dev/null -w "%{http_code}\n" http://localhost:8000/login`
+   returns `200`, log in from the intended LAN device, and keep the service off
+   the public internet.
+4. Export and validate a JSON backup after entering important data; also copy
+   `data/nsfwtrack.db` only while the container is stopped.
+
+### Upgrade From v0.9.x Or v1.0.x
+
+1. Export a fresh JSON backup from `/backup`, run its preview / validation, and
+   retain the verified file outside the deployment directory.
+2. Run `docker compose down`, then copy the stopped `data/nsfwtrack.db` to a
+   dated rollback file before changing code or images.
+3. Fetch the reviewed target tag or commit, verify its release notes, then run
+   `docker compose build` and `docker compose up -d`.
+4. Confirm `/login` returns `200`, log in, and inspect the schema status in
+   `/settings`. Startup never applies migrations automatically; any future
+   lower-version database must use the explicit preview and apply flow after a
+   backup.
+5. The current schema remains version `1`; there is no invented `1 -> 2`
+   production migration. v0.9.x and v1.0.x therefore require no schema step.
+
+### Rollback
+
+1. Run `docker compose down` before replacing code or SQLite data.
+2. Return to the previous reviewed tag or commit and restore the matching
+   stopped SQLite copy. Do not mix a newer database with older code unless its
+   schema status is explicitly compatible.
+3. Rebuild, start, verify `/login`, and inspect the data before resuming use.
+4. Never edit `schema_migrations` by hand. There is no automatic downgrade; a
+   future schema-changing release must provide its own explicit rollback or
+   backup-restore instructions.
 
 ## N100 LAN Deployment
 
@@ -876,11 +966,12 @@ NSFWTrack does not need third-party cookies, tokens, crawlers, or external
 content source credentials in this release.
 
 All authenticated browser writes use session authentication, same-origin
-checking, and `SameSite=Lax`. Dangerous page actions also require a
-server-validated confirmation; strict mode adds exact `CONFIRM`. These controls
-do not make the application suitable for direct public-internet exposure. When
-using HTTPS directly, enable `SESSION_COOKIE_SECURE=true`; with a reverse proxy,
-verify its scheme and host forwarding before enabling that setting.
+checking, and `SameSite=Lax`. Dangerous operations and guarded bulk / clear /
+detach writes also require server-validated confirmation; strict mode adds
+exact `CONFIRM`. These controls do not make the application suitable for direct
+public-internet exposure. When using HTTPS directly, enable
+`SESSION_COOKIE_SECURE=true`; with a reverse proxy, verify its scheme and host
+forwarding before enabling that setting.
 
 ## Import
 

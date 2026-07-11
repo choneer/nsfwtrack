@@ -38,9 +38,11 @@ def _bulk_data(
     item_ids: list[int] | None = None,
     **values: str,
 ) -> dict[str, object]:
-    data: dict[str, object] = {"bulk_action": action, "next": "/items"}
-    if action == "delete":
-        data["confirm"] = "1"
+    data: dict[str, object] = {
+        "bulk_action": action,
+        "next": "/items",
+        "confirm": "1",
+    }
     if item_ids is not None:
         data["item_ids"] = [str(item_id) for item_id in item_ids]
     data.update(values)
@@ -94,6 +96,7 @@ def test_bulk_status_success_invalid_status_and_preserved_next(
             "item_ids": [str(first_id), str(second_id), "999999"],
             "status_value": "like",
             "next": next_url,
+            "confirm": "1",
         },
         follow_redirects=True,
     )

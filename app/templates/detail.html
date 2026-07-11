@@ -20,8 +20,9 @@
     <h2>{{ t("detail.basic_info") }}</h2>
     <div class="detail-overview">
       <div class="cover">
-        {% if item.cover_path %}
-          <img src="{{ item.cover_path }}" alt="">
+        {% set cover_url = local_media_url(item.cover_path) %}
+        {% if cover_url %}
+          <img src="{{ cover_url }}" alt="">
         {% else %}
           {{ t("common.no_cover") }}
         {% endif %}
@@ -109,7 +110,12 @@
     {% if item.state %}
       <form class="inline-form" action="/items/{{ item.id }}/state/delete" method="post">
         <input type="hidden" name="next" value="{{ return_list_url }}">
-        <button class="danger" type="submit">{{ t("detail.clear_state") }}</button>
+        <button
+          class="danger"
+          type="submit"
+          data-confirm-message="{{ t('detail.confirm_clear_state') }}"
+          {% if danger_policy.is_strict %}data-strict-confirm-message="{{ t('danger.strict_prompt') }}"{% endif %}
+        >{{ t("detail.clear_state") }}</button>
       </form>
     {% endif %}
   </section>
@@ -122,7 +128,12 @@
         <form class="relation-row" action="/items/{{ item.id }}/tags/{{ tag.id }}/delete" method="post">
           <input type="hidden" name="next" value="{{ return_list_url }}">
           <span class="pill">{{ tag.name }}</span>
-          <button class="secondary compact" type="submit">{{ t("detail.remove_tag") }}</button>
+          <button
+            class="secondary compact"
+            type="submit"
+            data-confirm-message="{{ t('detail.confirm_remove_tag') }}"
+            {% if danger_policy.is_strict %}data-strict-confirm-message="{{ t('danger.strict_prompt') }}"{% endif %}
+          >{{ t("detail.remove_tag") }}</button>
         </form>
       {% else %}
         <p class="muted">{{ t("detail.no_tags") }}</p>
@@ -153,7 +164,12 @@
         <form class="relation-row" action="/items/{{ item.id }}/creators/{{ creator.id }}/delete" method="post">
           <input type="hidden" name="next" value="{{ return_list_url }}">
           <a class="pill" href="/creators/{{ creator.id }}">{{ creator.name }}</a>
-          <button class="secondary compact" type="submit">{{ t("detail.remove_creator") }}</button>
+          <button
+            class="secondary compact"
+            type="submit"
+            data-confirm-message="{{ t('detail.confirm_remove_creator') }}"
+            {% if danger_policy.is_strict %}data-strict-confirm-message="{{ t('danger.strict_prompt') }}"{% endif %}
+          >{{ t("detail.remove_creator") }}</button>
         </form>
       {% else %}
         <p class="muted">{{ t("detail.no_creators") }}</p>
@@ -184,7 +200,12 @@
         <form class="relation-row" action="/items/{{ item.id }}/collections/{{ collection.id }}/delete" method="post">
           <input type="hidden" name="next" value="{{ return_list_url }}">
           <a class="pill" href="/collections/{{ collection.id }}">{{ collection.name }}</a>
-          <button class="secondary compact" type="submit">{{ t("detail.remove_collection") }}</button>
+          <button
+            class="secondary compact"
+            type="submit"
+            data-confirm-message="{{ t('detail.confirm_remove_collection') }}"
+            {% if danger_policy.is_strict %}data-strict-confirm-message="{{ t('danger.strict_prompt') }}"{% endif %}
+          >{{ t("detail.remove_collection") }}</button>
         </form>
       {% else %}
         <p class="muted">{{ t("detail.no_collections") }}</p>

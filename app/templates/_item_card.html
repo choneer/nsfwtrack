@@ -7,8 +7,9 @@
   {% endif %}
   <a href="/items/{{ item.id }}{% if preserve_list_context %}?next={{ current_path }}{% endif %}">
     <div class="cover">
-      {% if item.cover_path %}
-        <img src="{{ item.cover_path }}" alt="">
+      {% set cover_url = local_media_url(item.cover_path) %}
+      {% if cover_url %}
+        <img src="{{ cover_url }}" alt="">
       {% else %}
         {{ t("common.no_cover") }}
       {% endif %}

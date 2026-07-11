@@ -206,6 +206,7 @@ def test_item_detail_adds_and_removes_existing_tag(auth_client: TestClient) -> N
 
     remove_response = auth_client.post(
         f"/items/{item_id}/tags/{tag_id}/delete",
+        data={"confirm": "1"},
         follow_redirects=True,
     )
 
@@ -248,6 +249,7 @@ def test_item_detail_adds_and_removes_existing_creator(auth_client: TestClient) 
 
     remove_response = auth_client.post(
         f"/items/{item_id}/creators/{creator_id}/delete",
+        data={"confirm": "1"},
         follow_redirects=True,
     )
 
