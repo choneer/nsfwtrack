@@ -80,15 +80,22 @@ def test_danger_settings_reject_unknown_or_disabling_values(
         assert db.query(AppSetting).count() == 0
 
 
-def test_standard_mode_preserves_existing_delete_flow(auth_client: TestClient) -> None:
+def test_standard_mode_requires_server_confirmation(auth_client: TestClient) -> None:
     item_id = _create_item("Standard Delete")
 
-    response = auth_client.post(
+    rejected = auth_client.post(
         f"/items/{item_id}/delete",
         follow_redirects=False,
     )
+    assert rejected.status_code == 303
+    assert _object_exists(Item, item_id)
 
-    assert response.status_code == 303
+    accepted = auth_client.post(
+        f"/items/{item_id}/delete",
+        data={"confirm": "1"},
+        follow_redirects=False,
+    )
+    assert accepted.status_code == 303
     assert not _object_exists(Item, item_id)
 
 
@@ -100,16 +107,17 @@ def test_strict_mode_rejects_missing_and_wrong_text_then_accepts_confirm(
 
     missing = auth_client.post(
         f"/items/{item_id}/delete",
+        data={"confirm": "1"},
         follow_redirects=True,
     )
     wrong = auth_client.post(
         f"/items/{item_id}/delete",
-        data={"confirmation_text": "confirm"},
+        data={"confirm": "1", "confirmation_text": "confirm"},
         follow_redirects=True,
     )
     padded = auth_client.post(
         f"/items/{item_id}/delete",
-        data={"confirmation_text": " CONFIRM "},
+        data={"confirm": "1", "confirmation_text": " CONFIRM "},
         follow_redirects=True,
     )
 
@@ -120,7 +128,7 @@ def test_strict_mode_rejects_missing_and_wrong_text_then_accepts_confirm(
 
     accepted = auth_client.post(
         f"/items/{item_id}/delete",
-        data={"confirmation_text": "CONFIRM"},
+        data={"confirm": "1", "confirmation_text": "CONFIRM"},
         follow_redirects=False,
     )
 
@@ -177,23 +185,31 @@ def test_strict_mode_guards_every_named_dangerous_page_flow(
     guarded_requests = [
         auth_client.post(
             f"/items/{ids['item_delete']}/delete",
+            data={"confirm": "1"},
             follow_redirects=False,
         ),
         auth_client.post(
             "/items/bulk",
-            data={"bulk_action": "delete", "item_ids": str(ids["item_bulk"])},
+            data={
+                "bulk_action": "delete",
+                "item_ids": str(ids["item_bulk"]),
+                "confirm": "1",
+            },
             follow_redirects=False,
         ),
         auth_client.post(
             f"/tags/{ids['tag_delete']}/delete",
+            data={"confirm": "1"},
             follow_redirects=False,
         ),
         auth_client.post(
             f"/creators/{ids['creator_delete']}/delete",
+            data={"confirm": "1"},
             follow_redirects=False,
         ),
         auth_client.post(
             f"/collections/{ids['collection_delete']}/delete",
+            data={"confirm": "1"},
             follow_redirects=False,
         ),
         auth_client.post(
@@ -201,6 +217,7 @@ def test_strict_mode_guards_every_named_dangerous_page_flow(
             data={
                 "primary_id": str(ids["item_primary"]),
                 "duplicate_id": str(ids["item_duplicate"]),
+                "confirm": "1",
             },
             follow_redirects=False,
         ),
@@ -210,10 +227,15 @@ def test_strict_mode_guards_every_named_dangerous_page_flow(
                 "type": "tag",
                 "primary_id": str(ids["tag_primary"]),
                 "duplicate_id": str(ids["tag_duplicate"]),
+                "confirm": "1",
             },
             follow_redirects=False,
         ),
-        auth_client.post("/activity/clear", follow_redirects=False),
+        auth_client.post(
+            "/activity/clear",
+            data={"confirm": "1"},
+            follow_redirects=False,
+        ),
         auth_client.post(
             "/data-health/fix",
             data={"fix_type": "orphan_item_tags", "confirm": "1"},
@@ -227,6 +249,7 @@ def test_strict_mode_guards_every_named_dangerous_page_flow(
     ]
     restore_page = auth_client.post(
         "/backup/restore",
+        data={"confirm": "1"},
         files={
             "file": (
                 "backup.json",
@@ -237,6 +260,7 @@ def test_strict_mode_guards_every_named_dangerous_page_flow(
     )
     restore_api = auth_client.post(
         "/api/backup/restore/json",
+        data={"confirm": "1"},
         files={
             "file": (
                 "backup.json",
@@ -296,6 +320,7 @@ def test_invalid_or_unreadable_confirmation_setting_falls_back_to_standard(
     item_id = _create_item("Invalid Setting Fallback")
     response = auth_client.post(
         f"/items/{item_id}/delete",
+        data={"confirm": "1"},
         follow_redirects=False,
     )
     assert response.status_code == 303
@@ -357,14 +382,24 @@ def test_result_detail_changes_display_without_changing_merge_behavior(
     _save_policy(danger_result_detail="summary")
     summary_response = auth_client.post(
         "/cleanup/merge",
-        data={"type": "tag", "primary_id": ids[0], "duplicate_id": ids[1]},
+        data={
+            "type": "tag",
+            "primary_id": ids[0],
+            "duplicate_id": ids[1],
+            "confirm": "1",
+        },
         follow_redirects=True,
     )
 
     _save_policy(danger_result_detail="detailed")
     detailed_response = auth_client.post(
         "/cleanup/merge",
-        data={"type": "tag", "primary_id": ids[2], "duplicate_id": ids[3]},
+        data={
+            "type": "tag",
+            "primary_id": ids[2],
+            "duplicate_id": ids[3],
+            "confirm": "1",
+        },
         follow_redirects=True,
     )
 

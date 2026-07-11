@@ -123,6 +123,7 @@ async def preview_json_endpoint(
 async def restore_json_endpoint(
     request: Request,
     file: UploadFile | None = File(default=None),
+    confirm: str | None = Form(default=None),
     confirmation_text: str | None = Form(default=None),
     db: Session = Depends(get_db),
 ) -> dict[str, object]:
@@ -132,6 +133,7 @@ async def restore_json_endpoint(
         require_danger_confirmation(
             danger_policy,
             confirmation_text=confirmation_text,
+            base_confirmation_valid=confirm == "1",
         )
     except DangerConfirmationError as exc:
         raise HTTPException(

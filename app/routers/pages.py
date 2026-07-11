@@ -90,6 +90,7 @@ from app.services.importer import (
     preview_csv_rows,
     preview_json_import,
     preview_json_rows,
+    read_import_upload,
 )
 from app.services.item_detail import (
     ItemDetailError,
@@ -155,6 +156,7 @@ from app.services.activity import (
     safe_record_item_view,
 )
 from app.services.stats import build_stats_dashboard
+from app.security import safe_local_path
 
 router = APIRouter(tags=["pages"])
 templates = Jinja2Templates(directory="app/templates")
@@ -165,9 +167,7 @@ def _redirect(url: str) -> RedirectResponse:
 
 
 def _safe_next_url(next_url: str | None) -> str:
-    if not next_url or not next_url.startswith("/") or next_url.startswith("//"):
-        return "/items"
-    return next_url
+    return safe_local_path(next_url, fallback="/items")
 
 
 def _item_detail_url(item_id: int, next_url: str | None = None) -> str:
@@ -214,6 +214,7 @@ def _base_context(
         "status_label": status_translator(language),
         "status_options": STATUS_OPTIONS,
         "max_backup_upload_mb": get_settings().max_backup_upload_mb,
+        "max_import_upload_mb": get_settings().max_import_upload_mb,
         "danger_policy": (
             danger_policy_from_settings(resolved_settings)
             if resolved_settings is not None
@@ -230,7 +231,7 @@ def _danger_confirmation_is_valid(
     policy: DangerPolicy,
     *,
     confirmation_text: str | None,
-    base_confirmation_valid: bool = True,
+    base_confirmation_valid: bool,
 ) -> bool:
     try:
         require_danger_confirmation(
@@ -302,7 +303,7 @@ def set_language_page(
     next: str = "/",
 ) -> RedirectResponse:
     set_language(request, lang)
-    target = next if next.startswith("/") and not next.startswith("//") else "/"
+    target = safe_local_path(next, fallback="/")
     return _redirect(target)
 
 
@@ -691,9 +692,17 @@ def delete_saved_view_page(
     request: Request,
     saved_view_id: int,
     query_string: str = Form(default=""),
+    confirm: str | None = Form(default=None),
     db: Session = Depends(get_db),
 ) -> RedirectResponse:
     target = saved_view_items_url(query_string)
+    if not _danger_confirmation_is_valid(
+        request,
+        DangerPolicy(),
+        confirmation_text=None,
+        base_confirmation_valid=confirm == "1",
+    ):
+        return _redirect(target)
     try:
         delete_saved_view(db, saved_view_id)
     except SavedViewError as exc:
@@ -810,6 +819,7 @@ def data_health_fix_page(
 @router.post("/activity/clear", dependencies=[Depends(require_page_auth)])
 def clear_activity_page(
     request: Request,
+    confirm: str | None = Form(default=None),
     confirmation_text: str | None = Form(default=None),
     db: Session = Depends(get_db),
 ) -> RedirectResponse:
@@ -818,6 +828,7 @@ def clear_activity_page(
         request,
         danger_policy,
         confirmation_text=confirmation_text,
+        base_confirmation_valid=confirm == "1",
     ):
         return _redirect("/activity")
     deleted_count = clear_item_activity(db)
@@ -885,6 +896,7 @@ def duplicate_merge_page(
     use_duplicate_status: str | None = Form(default=None),
     use_duplicate_rating: str | None = Form(default=None),
     use_duplicate_review: str | None = Form(default=None),
+    confirm: str | None = Form(default=None),
     confirmation_text: str | None = Form(default=None),
     db: Session = Depends(get_db),
 ) -> RedirectResponse:
@@ -893,6 +905,7 @@ def duplicate_merge_page(
         request,
         danger_policy,
         confirmation_text=confirmation_text,
+        base_confirmation_valid=confirm == "1",
     ):
         return _redirect("/duplicates")
     try:
@@ -995,6 +1008,7 @@ def cleanup_merge_page(
     primary_id: str = Form(...),
     duplicate_id: str = Form(...),
     use_duplicate_description: str | None = Form(default=None),
+    confirm: str | None = Form(default=None),
     confirmation_text: str | None = Form(default=None),
     db: Session = Depends(get_db),
 ) -> RedirectResponse:
@@ -1003,6 +1017,7 @@ def cleanup_merge_page(
         request,
         danger_policy,
         confirmation_text=confirmation_text,
+        base_confirmation_valid=confirm == "1",
     ):
         return _redirect("/cleanup")
     try:
@@ -1052,6 +1067,7 @@ def bulk_items_page(
     add_collection_id: str | None = Form(default=None),
     remove_collection_id: str | None = Form(default=None),
     rating: str | None = Form(default=None),
+    confirm: str | None = Form(default=None),
     confirmation_text: str | None = Form(default=None),
     next_url: str = Form(default="/items", alias="next"),
     db: Session = Depends(get_db),
@@ -1062,6 +1078,7 @@ def bulk_items_page(
         request,
         danger_policy,
         confirmation_text=confirmation_text,
+        base_confirmation_valid=confirm == "1",
     ):
         return _redirect(target)
     try:
@@ -1177,8 +1194,6 @@ def item_detail_page(
     db: Session = Depends(get_db),
 ) -> HTMLResponse:
     item = get_item_or_404(db, item_id)
-    safe_record_item_view(db, item.id)
-    item = get_item_or_404(db, item_id)
     return_list_url = _safe_next_url(request.query_params.get("next"))
     return templates.TemplateResponse(
         request,
@@ -1198,6 +1213,19 @@ def item_detail_page(
             edit_url=_item_edit_url(item.id, return_list_url),
         ),
     )
+
+
+@router.post(
+    "/items/{item_id}/view",
+    dependencies=[Depends(require_page_auth)],
+)
+def record_item_view_page(
+    item_id: int,
+    db: Session = Depends(get_db),
+) -> Response:
+    get_item_or_404(db, item_id)
+    safe_record_item_view(db, item_id)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.get(
@@ -1269,6 +1297,7 @@ def update_item_page(
 def delete_item_page(
     request: Request,
     item_id: int,
+    confirm: str | None = Form(default=None),
     confirmation_text: str | None = Form(default=None),
     next_url: str = Form(default="/items", alias="next"),
     db: Session = Depends(get_db),
@@ -1278,6 +1307,7 @@ def delete_item_page(
         request,
         get_danger_policy(db),
         confirmation_text=confirmation_text,
+        base_confirmation_valid=confirm == "1",
     ):
         return _redirect(target)
     item = db.get(Item, item_id)
@@ -1447,6 +1477,7 @@ def create_tag_page(
 def delete_tag_page(
     request: Request,
     tag_id: int,
+    confirm: str | None = Form(default=None),
     confirmation_text: str | None = Form(default=None),
     db: Session = Depends(get_db),
 ) -> RedirectResponse:
@@ -1454,6 +1485,7 @@ def delete_tag_page(
         request,
         get_danger_policy(db),
         confirmation_text=confirmation_text,
+        base_confirmation_valid=confirm == "1",
     ):
         return _redirect("/tags")
     tag = db.get(Tag, tag_id)
@@ -1542,6 +1574,7 @@ def creator_detail_page(
 def delete_creator_page(
     request: Request,
     creator_id: int,
+    confirm: str | None = Form(default=None),
     confirmation_text: str | None = Form(default=None),
     db: Session = Depends(get_db),
 ) -> RedirectResponse:
@@ -1549,6 +1582,7 @@ def delete_creator_page(
         request,
         get_danger_policy(db),
         confirmation_text=confirmation_text,
+        base_confirmation_valid=confirm == "1",
     ):
         return _redirect("/creators")
     creator = db.get(Creator, creator_id)
@@ -1675,6 +1709,7 @@ def update_collection_page(
 def delete_collection_page(
     request: Request,
     collection_id: int,
+    confirm: str | None = Form(default=None),
     confirmation_text: str | None = Form(default=None),
     db: Session = Depends(get_db),
 ) -> RedirectResponse:
@@ -1682,6 +1717,7 @@ def delete_collection_page(
         request,
         get_danger_policy(db),
         confirmation_text=confirmation_text,
+        base_confirmation_valid=confirm == "1",
     ):
         return _redirect("/collections")
     try:
@@ -1914,7 +1950,7 @@ async def import_csv_page(
             db=db,
         )
     try:
-        preview = preview_csv_import(db, await file.read())
+        preview = preview_csv_import(db, await read_import_upload(file))
         return _import_template(request, preview=preview, db=db)
     except ImportDataError as exc:
         return _import_template(
@@ -1947,7 +1983,7 @@ async def import_json_page(
             db=db,
         )
     try:
-        preview = preview_json_import(db, await file.read())
+        preview = preview_json_import(db, await read_import_upload(file))
         return _import_template(request, preview=preview, db=db)
     except ImportDataError as exc:
         return _import_template(
@@ -2108,6 +2144,7 @@ async def backup_preview_page(
 async def backup_restore_page(
     request: Request,
     file: UploadFile | None = File(default=None),
+    confirm: str | None = Form(default=None),
     confirmation_text: str | None = Form(default=None),
     db: Session = Depends(get_db),
 ) -> HTMLResponse:
@@ -2119,6 +2156,7 @@ async def backup_restore_page(
         require_danger_confirmation(
             danger_policy,
             confirmation_text=confirmation_text,
+            base_confirmation_valid=confirm == "1",
         )
         payload = await _read_backup_upload_for_page(request, file)
         preview_backup_data(payload)

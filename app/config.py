@@ -11,6 +11,8 @@ class Settings:
     app_password: str
     secret_key: str
     max_backup_upload_mb: int
+    max_import_upload_mb: int
+    session_cookie_secure: bool
 
 
 def _read_required_env(name: str) -> str:
@@ -33,6 +35,17 @@ def _read_positive_int_env(name: str, default: int) -> int:
     return value
 
 
+def _read_bool_env(name: str, default: bool) -> bool:
+    raw_value = os.getenv(name, "").strip().casefold()
+    if not raw_value:
+        return default
+    if raw_value in {"1", "true", "yes", "on"}:
+        return True
+    if raw_value in {"0", "false", "no", "off"}:
+        return False
+    raise RuntimeError(f"{name} must be a boolean")
+
+
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
     return Settings(
@@ -41,4 +54,6 @@ def get_settings() -> Settings:
         app_password=_read_required_env("APP_PASSWORD"),
         secret_key=_read_required_env("SECRET_KEY"),
         max_backup_upload_mb=_read_positive_int_env("MAX_BACKUP_UPLOAD_MB", 5),
+        max_import_upload_mb=_read_positive_int_env("MAX_IMPORT_UPLOAD_MB", 5),
+        session_cookie_secure=_read_bool_env("SESSION_COOKIE_SECURE", False),
     )

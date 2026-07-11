@@ -335,3 +335,34 @@ must not be added through startup `create_all` or an invented schema version:
 Any accepted index change requires an explicit production migration, a schema
 version increase, upgrade dry-run coverage, rollback tests, and a backup-first
 upgrade path. Phase 2-I1 intentionally does none of those things.
+
+## Phase 2-I4 Release-Freeze Verification
+
+The same isolated matrix was rerun on 2026-07-11 after the I4 security and
+compatibility audit. Each cell is `SQL queries / milliseconds`. Timings remain
+single-run observations rather than thresholds; query counts, bounded result
+sizes, and N+1 detection are the regression gates.
+
+| Operation | 100 | 1,000 | 10,000 | N+1 |
+| --- | ---: | ---: | ---: | --- |
+| Items page | 11 / 10.537 | 11 / 40.006 | 11 / 132.469 | No |
+| Filtered / rating-sorted items | 11 / 7.146 | 11 / 10.053 | 11 / 32.083 | No |
+| Workbench | 13 / 9.946 | 13 / 9.878 | 13 / 19.095 | No |
+| Stats | 11 / 13.134 | 11 / 12.060 | 11 / 41.056 | No |
+| Tags | 3 / 1.196 | 3 / 1.380 | 3 / 2.399 | No |
+| Creators | 3 / 1.035 | 3 / 1.396 | 3 / 1.494 | No |
+| Collections | 3 / 1.728 | 3 / 1.755 | 3 / 6.635 | No |
+| Collection detail | 9 / 7.764 | 9 / 8.721 | 9 / 12.372 | No |
+| Saved views | 2 / 0.485 | 2 / 0.943 | 2 / 2.364 | No |
+| Activity | 6 / 3.853 | 6 / 4.551 | 6 / 14.555 | No |
+| Duplicate items | 7 / 4.002 | 7 / 6.228 | 7 / 52.769 | No |
+| Metadata cleanup | 4 / 2.106 | 4 / 3.621 | 4 / 19.627 | No |
+| Data health | 11 / 2.584 | 11 / 11.025 | 11 / 123.552 | No |
+| Backup preview / validation | 9 / 3.486 | 9 / 11.822 | 9 / 94.288 | No |
+| JSON import dry-run | 4 / 1.608 | 4 / 7.198 | 4 / 95.787 | No |
+
+All fixture databases were disposable and removed by the audit command. The
+default data volume was not opened or modified. The I2 query ceilings remain
+stable through 10,000 items, and no N+1 regression was detected. Remaining
+full scans and sort B-trees are known non-blocking limits for local use; any
+future index still requires a separately approved real migration.

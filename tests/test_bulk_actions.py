@@ -39,6 +39,8 @@ def _bulk_data(
     **values: str,
 ) -> dict[str, object]:
     data: dict[str, object] = {"bulk_action": action, "next": "/items"}
+    if action == "delete":
+        data["confirm"] = "1"
     if item_ids is not None:
         data["item_ids"] = [str(item_id) for item_id in item_ids]
     data.update(values)

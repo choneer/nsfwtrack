@@ -103,22 +103,26 @@ def test_activity_page_renders_empty_state(auth_client: TestClient) -> None:
     assert "没有最近编辑记录" in response.text
 
 
-def test_item_detail_records_recent_view_and_repeated_views(
+def test_item_detail_get_is_read_only_and_post_records_repeated_views(
     auth_client: TestClient,
 ) -> None:
     item_id = _create_item(auth_client, "Viewed Item")
 
-    first_response = auth_client.get(f"/items/{item_id}")
-    second_response = auth_client.get(f"/items/{item_id}")
+    detail_response = auth_client.get(f"/items/{item_id}")
+    assert detail_response.status_code == 200
+    assert _activity(item_id) is None
+    assert f'fetch("/items/{item_id}/view"' in detail_response.text
 
-    assert first_response.status_code == 200
-    assert second_response.status_code == 200
+    first_response = auth_client.post(f"/items/{item_id}/view")
+    second_response = auth_client.post(f"/items/{item_id}/view")
+
+    assert first_response.status_code == 204
+    assert second_response.status_code == 204
     activity = _activity(item_id)
     assert activity is not None
     assert activity.last_viewed_at is not None
     assert activity.view_count == 2
     assert activity.edit_count == 0
-    assert "访问次数" in second_response.text
 
 
 def test_missing_detail_does_not_create_activity(auth_client: TestClient) -> None:
@@ -349,7 +353,11 @@ def test_clear_activity_requires_post_and_keeps_business_data(
     assert before_activity.edit_count == 3
 
     get_response = auth_client.get("/activity/clear", follow_redirects=False)
-    clear_response = auth_client.post("/activity/clear", follow_redirects=True)
+    clear_response = auth_client.post(
+        "/activity/clear",
+        data={"confirm": "1"},
+        follow_redirects=True,
+    )
 
     assert get_response.status_code == 405
     assert clear_response.status_code == 200

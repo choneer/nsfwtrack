@@ -37,6 +37,11 @@
 - Added static-review regression coverage proving `ghp_` / `github_pat_`
   request IDs are replaced, unmatched credential-shaped paths are never
   logged, and matched routes continue using route templates.
+- Added Phase 2-I4 release-freeze coverage for authentication dependencies,
+  same-origin enforcement, session renewal and invalidation, cookie flags,
+  local redirects, HTML escaping, malformed login JSON, and bounded imports.
+- Added configurable `MAX_IMPORT_UPLOAD_MB` and `SESSION_COOKIE_SECURE`
+  deployment settings with safe local defaults.
 
 ### Changed
 
@@ -72,6 +77,25 @@
   hex before it can reach a response or log.
 - Unmatched routes now use the fixed log path `/[unmatched]`; only matched
   routes may contribute their application-owned route template to logs.
+- Login now clears pre-authentication session state except the selected
+  language. Authenticated sessions carry an application generation, so logout
+  and application restart invalidate previously signed authenticated cookies.
+- Dangerous page operations now require a server-validated confirmation marker
+  in standard and strict modes. Strict mode continues to require exact
+  `CONFIRM`; existing transaction and rollback boundaries are unchanged.
+- Local redirect validation now rejects external, protocol-relative,
+  backslash, encoded-backslash, and control-character targets. Malformed or
+  non-object login JSON returns a safe 400 response.
+- CSV and JSON import uploads now stop after the configured byte limit and are
+  rejected before parsing or writing.
+- Item detail GET is now read-only. Its existing local view activity is
+  recorded by a login-protected, same-origin POST after the page loads.
+- Corrected the internal FastAPI application metadata from the historical
+  `0.1.0` value to the current published version `0.9.0`; no `v1.0.0` release
+  is declared by this audit.
+- Reran the isolated 100 / 1,000 / 10,000 matrix. Query counts remained 11 for
+  items and filtered items, 9 for collection detail, 7 for duplicates, 4 for
+  cleanup, 3 for metadata lists, and 11 for stats, with no N+1 regression.
 
 ### Security
 
@@ -95,6 +119,14 @@
 - Credential-shaped request IDs and raw unmatched paths are no longer trusted
   log fields. Query strings, headers, bodies, exception values, and raw
   unmatched paths remain excluded from the application request log.
+- Unsafe requests that provide `Origin` or `Referer` must match the local
+  request origin. Headerless local API clients remain compatible, with the
+  `HttpOnly`, `SameSite=Lax` session cookie providing the browser boundary;
+  HTTPS deployments can explicitly enable the `Secure` cookie flag.
+- Phase 2-I4 verified protected route coverage, XSS escaping, upload and error
+  boundaries, rollback behavior, and five isolated database compatibility
+  scenarios. It adds no product feature, dependency, index, table, field,
+  schema-version change, production migration, tag, or GitHub Release.
 
 ## v0.9.0 - 2026-07-10
 

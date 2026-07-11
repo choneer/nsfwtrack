@@ -163,6 +163,7 @@ def test_backup_restore_ignores_internal_schema_version_rows(
 
     response = auth_client.post(
         "/api/backup/restore/json",
+        data={"confirm": "1"},
         files={
             "file": (
                 "backup.json",
@@ -304,6 +305,7 @@ def test_old_json_backup_without_optional_tables_still_previews_and_restores(
     )
     restore_response = auth_client.post(
         "/api/backup/restore/json",
+        data={"confirm": "1"},
         files={
             "file": (
                 "backup.json",
@@ -379,6 +381,7 @@ def test_json_backup_exports_previews_and_restores_app_settings(
 
     restore_response = auth_client.post(
         "/api/backup/restore/json",
+        data={"confirm": "1"},
         files={
             "file": (
                 "backup.json",
@@ -444,6 +447,7 @@ def test_json_backup_exports_previews_and_restores_saved_views(
     saved_view_id = payload["tables"]["saved_views"][0]["id"]
     delete_response = auth_client.post(
         f"/saved-views/{saved_view_id}/delete",
+        data={"confirm": "1"},
         follow_redirects=False,
     )
     assert delete_response.status_code == 303
@@ -451,6 +455,7 @@ def test_json_backup_exports_previews_and_restores_saved_views(
 
     restore_response = auth_client.post(
         "/api/backup/restore/json",
+        data={"confirm": "1"},
         files={
             "file": (
                 "backup.json",
@@ -473,6 +478,8 @@ def test_json_backup_exports_previews_and_restores_item_activity(
     item_id = _create_backup_item(auth_client)
     view_response = auth_client.get(f"/items/{item_id}")
     assert view_response.status_code == 200
+    record_view_response = auth_client.post(f"/items/{item_id}/view")
+    assert record_view_response.status_code == 204
     edit_response = auth_client.post(
         f"/items/{item_id}/state",
         data={"status_value": "like", "rating": "4", "review": "activity"},
@@ -516,6 +523,7 @@ def test_json_backup_exports_previews_and_restores_item_activity(
     assert _item_activity_count() == 0
     restore_response = auth_client.post(
         "/api/backup/restore/json",
+        data={"confirm": "1"},
         files={
             "file": (
                 "backup.json",
@@ -631,6 +639,7 @@ def test_backup_restore_rejects_oversized_file_before_modifying_database(
     try:
         response = auth_client.post(
             "/api/backup/restore/json",
+            data={"confirm": "1"},
             files={
                 "file": (
                     "backup.json",
@@ -656,6 +665,7 @@ def test_json_backup_restore_merges_data(auth_client: TestClient) -> None:
 
     restore_response = auth_client.post(
         "/api/backup/restore/json",
+        data={"confirm": "1"},
         files={
             "file": (
                 "backup.json",
@@ -705,6 +715,7 @@ def test_json_backup_restore_collections_deduplicates_and_skips_bad_links(
 
     response = auth_client.post(
         "/api/backup/restore/json",
+        data={"confirm": "1"},
         files={
             "file": (
                 "backup.json",
@@ -729,6 +740,7 @@ def test_json_backup_restore_collections_deduplicates_and_skips_bad_links(
 
     repeat_response = auth_client.post(
         "/api/backup/restore/json",
+        data={"confirm": "1"},
         files={
             "file": (
                 "backup.json",
@@ -747,6 +759,7 @@ def test_invalid_json_backup_does_not_modify_database(auth_client: TestClient) -
 
     response = auth_client.post(
         "/api/backup/restore/json",
+        data={"confirm": "1"},
         files={"file": ("backup.json", b'{"schema":"wrong"}', "application/json")},
     )
 
@@ -779,6 +792,7 @@ def test_restore_failure_rolls_back_partial_changes(auth_client: TestClient) -> 
 
     response = auth_client.post(
         "/api/backup/restore/json",
+        data={"confirm": "1"},
         files={
             "file": (
                 "backup.json",

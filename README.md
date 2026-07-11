@@ -4,11 +4,44 @@ NSFWTrack is a local single-user content record manager / collection tracker.
 
 Current release: `v0.9.0 / Phase 2-H database versioning and migration framework`.
 
-Current development: `Phase 2-I1 through I3 stability work is in Unreleased`.
+Current development: `Phase 2-I1 through I4 stability and release-freeze work is
+in Unreleased`.
 
 NSFWTrack remains intentionally local-only. It is designed for manual records,
 local SQLite persistence, LAN deployment, and simple personal collection
 management.
+
+## Unreleased: Phase 2-I4 Release-Freeze Audit
+
+Phase 2-I4 audits the complete local application before `v1.0.0`. It adds no
+product feature, dependency, index, database structure, schema-version change,
+or production migration.
+
+- Every non-public page and API route is covered by the existing session
+  authentication boundary. Public access remains limited to login and local
+  language selection.
+- Unsafe browser requests with an `Origin` or `Referer` header must match the
+  request origin. Headerless local API clients remain compatible, while the
+  session cookie keeps `SameSite=Lax` as a second browser-side boundary.
+- Login clears pre-authentication session state except the selected language.
+  Logout invalidates previously signed authenticated cookies for the running
+  application instance, and an application restart also invalidates them.
+- Dangerous page operations require a server-validated confirmation marker in
+  addition to browser confirmation. Strict mode still requires the exact text
+  `CONFIRM`.
+- Item detail GET is read-only; its existing local activity count is recorded
+  by an authenticated same-origin POST after the page loads.
+- Session cookies are `HttpOnly` and `SameSite=Lax`. Deployments that terminate
+  HTTPS at the application can set `SESSION_COOKIE_SECURE=true`.
+- Local redirect targets reject external, protocol-relative, backslash, and
+  control-character forms. Malformed login JSON returns a bounded 400 response.
+- CSV / JSON imports have a configurable upload limit and fail before parsing
+  or writing when the limit is exceeded.
+- Five isolated database compatibility scenarios, rollback paths, bilingual
+  behavior, safe errors and logs, and the 100 / 1,000 / 10,000 performance
+  matrix were rerun without touching the default data volume.
+- `CURRENT_SCHEMA_VERSION` remains `1`, and the production migration registry
+  remains empty. No tag or GitHub Release is created by this audit.
 
 ## Unreleased: Phase 2-I3 Error Handling And Request Logs
 
@@ -752,6 +785,10 @@ variables before running `uvicorn` locally.
   if it leaks.
 - `DATABASE_URL`: defaults to the SQLite database under `data/nsfwtrack.db`.
 - `MAX_BACKUP_UPLOAD_MB`: maximum uploaded JSON backup size. The default is `5`.
+- `MAX_IMPORT_UPLOAD_MB`: maximum uploaded CSV / JSON import size. The default
+  is `5`.
+- `SESSION_COOKIE_SECURE`: set to `true` only when the application receives
+  HTTPS requests directly. It defaults to `false` for local HTTP and LAN use.
 
 Do not commit `.env`. It is intentionally ignored by git.
 
@@ -815,6 +852,13 @@ layer protected as well.
 
 NSFWTrack does not need third-party cookies, tokens, crawlers, or external
 content source credentials in this release.
+
+All authenticated browser writes use session authentication, same-origin
+checking, and `SameSite=Lax`. Dangerous page actions also require a
+server-validated confirmation; strict mode adds exact `CONFIRM`. These controls
+do not make the application suitable for direct public-internet exposure. When
+using HTTPS directly, enable `SESSION_COOKIE_SECURE=true`; with a reverse proxy,
+verify its scheme and host forwarding before enabling that setting.
 
 ## Import
 
@@ -880,10 +924,14 @@ Backup restore only accepts uploaded local JSON files exported by NSFWTrack. It
 never restores from a URL, cloud sync, or an external data source. Uploaded JSON
 backup files are limited to 5 MB by default.
 
+CSV and JSON import files are also limited to 5 MB by default. Oversized files
+are rejected before parsing or database writes.
+
 Configure the upload limit with:
 
 ```bash
 export MAX_BACKUP_UPLOAD_MB=5
+export MAX_IMPORT_UPLOAD_MB=5
 ```
 
 ## Language

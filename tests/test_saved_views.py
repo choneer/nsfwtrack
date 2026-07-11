@@ -185,7 +185,7 @@ def test_saved_view_delete_requires_post_and_removes_view(
 
     delete_response = auth_client.post(
         f"/saved-views/{view.id}/delete",
-        data={"query_string": "state=wish"},
+        data={"query_string": "state=wish", "confirm": "1"},
         follow_redirects=False,
     )
 

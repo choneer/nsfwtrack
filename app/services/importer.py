@@ -5,10 +5,12 @@ import json
 from io import StringIO
 from typing import Any
 
+from fastapi import UploadFile
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app import models
+from app.config import get_settings
 from app.services.catalog import serialize_extra, split_names
 from app.services.item_query import STATUS_OPTIONS
 
@@ -41,6 +43,14 @@ class ImportDataError(Exception):
 
 class ImportResult(dict[str, Any]):
     pass
+
+
+async def read_import_upload(file: UploadFile) -> bytes:
+    max_bytes = get_settings().max_import_upload_mb * 1024 * 1024
+    content = await file.read(max_bytes + 1)
+    if len(content) > max_bytes:
+        raise ImportDataError("file_too_large")
+    return content
 
 
 def csv_template_content() -> str:

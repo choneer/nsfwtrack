@@ -216,6 +216,7 @@ def test_cleanup_compare_page_validation_and_content(
             "type": "tag",
             "primary_id": str(primary_id),
             "duplicate_id": str(duplicate_id),
+            "confirm": "1",
         },
     )
 
@@ -234,6 +235,7 @@ def test_cleanup_compare_page_validation_and_content(
             "type": "bad",
             "primary_id": str(primary_id),
             "duplicate_id": str(duplicate_id),
+            "confirm": "1",
         },
         follow_redirects=True,
     )
@@ -268,6 +270,8 @@ def test_cleanup_compare_page_validation_and_content(
             "type": "tag",
             "primary_id": str(primary_id),
             "duplicate_id": str(primary_id),
+            "confirm": "1",
+            "confirm": "1",
         },
         follow_redirects=True,
     )
@@ -343,6 +347,7 @@ def test_cleanup_merge_invalid_requests_fail_without_deleting_objects(
             "type": "bad",
             "primary_id": str(primary_id),
             "duplicate_id": str(duplicate_id),
+            "confirm": "1",
         },
         follow_redirects=True,
     )
@@ -352,6 +357,7 @@ def test_cleanup_merge_invalid_requests_fail_without_deleting_objects(
             "type": "tag",
             "primary_id": str(primary_id),
             "duplicate_id": str(primary_id),
+            "confirm": "1",
         },
         follow_redirects=True,
     )
@@ -361,6 +367,7 @@ def test_cleanup_merge_invalid_requests_fail_without_deleting_objects(
             "type": "tag",
             "primary_id": str(primary_id),
             "duplicate_id": "9999",
+            "confirm": "1",
         },
         follow_redirects=True,
     )
@@ -387,6 +394,7 @@ def test_tag_merge_transfers_relations_skips_duplicates_and_deletes_duplicate(
             "type": "tag",
             "primary_id": str(primary_id),
             "duplicate_id": str(duplicate_id),
+            "confirm": "1",
         },
         follow_redirects=True,
     )
@@ -420,6 +428,7 @@ def test_creator_merge_transfers_relations_skips_duplicates_and_deletes_duplicat
             "type": "creator",
             "primary_id": str(primary_id),
             "duplicate_id": str(duplicate_id),
+            "confirm": "1",
         },
         follow_redirects=True,
     )
@@ -463,6 +472,7 @@ def test_collection_merge_keeps_primary_description_and_deletes_no_items(
             "type": "collection",
             "primary_id": str(primary_id),
             "duplicate_id": str(duplicate_id),
+            "confirm": "1",
         },
         follow_redirects=True,
     )
@@ -496,6 +506,7 @@ def test_collection_merge_can_copy_or_overwrite_description(
             "type": "collection",
             "primary_id": str(copy_primary_id),
             "duplicate_id": str(copy_duplicate_id),
+            "confirm": "1",
         },
         follow_redirects=True,
     )
@@ -521,6 +532,7 @@ def test_collection_merge_can_copy_or_overwrite_description(
             "primary_id": str(overwrite_primary_id),
             "duplicate_id": str(overwrite_duplicate_id),
             "use_duplicate_description": "1",
+            "confirm": "1",
         },
         follow_redirects=True,
     )

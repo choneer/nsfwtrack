@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+import secrets
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from starlette.middleware.sessions import SessionMiddleware
 
 from app.config import get_settings
@@ -11,6 +12,7 @@ from app.database import init_db
 from app.errors import install_exception_handlers
 from app.request_context import RequestContextMiddleware, configure_request_logging
 from app.routers import auth, backup, creators, importer, items, pages, search, stats, tags
+from app.security import require_same_origin
 
 
 @asynccontextmanager
@@ -24,17 +26,19 @@ def create_app() -> FastAPI:
     configure_request_logging()
     app = FastAPI(
         title="NSFWTrack",
-        version="0.1.0",
+        version="0.9.0",
         lifespan=lifespan,
         docs_url=None,
         redoc_url=None,
         openapi_url=None,
+        dependencies=[Depends(require_same_origin)],
     )
+    app.state.session_generation = secrets.token_hex(32)
     app.add_middleware(
         SessionMiddleware,
         secret_key=settings.secret_key,
         same_site="lax",
-        https_only=False,
+        https_only=settings.session_cookie_secure,
     )
     app.add_middleware(RequestContextMiddleware)
     install_exception_handlers(app)

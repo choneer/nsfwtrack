@@ -212,7 +212,11 @@ def test_duplicate_merge_requires_login_and_post(client: TestClient) -> None:
 
     post_response = client.post(
         "/duplicates/merge",
-        data={"primary_id": str(primary_id), "duplicate_id": str(duplicate_id)},
+        data={
+            "primary_id": str(primary_id),
+            "duplicate_id": str(duplicate_id),
+            "confirm": "1",
+        },
         follow_redirects=False,
     )
     get_response = client.get(
@@ -253,7 +257,11 @@ def test_duplicate_merge_transfers_relations_and_deletes_duplicate(
 
     response = auth_client.post(
         "/duplicates/merge",
-        data={"primary_id": str(primary_id), "duplicate_id": str(duplicate_id)},
+        data={
+            "primary_id": str(primary_id),
+            "duplicate_id": str(duplicate_id),
+            "confirm": "1",
+        },
         follow_redirects=True,
     )
 
@@ -308,7 +316,11 @@ def test_duplicate_merge_defaults_keep_primary_conflicts_and_merges_extra(
 
     response = auth_client.post(
         "/duplicates/merge",
-        data={"primary_id": str(primary_id), "duplicate_id": str(duplicate_id)},
+        data={
+            "primary_id": str(primary_id),
+            "duplicate_id": str(duplicate_id),
+            "confirm": "1",
+        },
         follow_redirects=True,
     )
 
@@ -354,6 +366,7 @@ def test_duplicate_merge_can_overwrite_selected_text_and_state_fields(
             "use_duplicate_status": "1",
             "use_duplicate_rating": "1",
             "use_duplicate_review": "1",
+            "confirm": "1",
         },
         follow_redirects=True,
     )
@@ -384,7 +397,11 @@ def test_duplicate_merge_copies_state_when_primary_missing_and_repairs_bad_extra
 
     response = auth_client.post(
         "/duplicates/merge",
-        data={"primary_id": str(primary_id), "duplicate_id": str(duplicate_id)},
+        data={
+            "primary_id": str(primary_id),
+            "duplicate_id": str(duplicate_id),
+            "confirm": "1",
+        },
         follow_redirects=True,
     )
 

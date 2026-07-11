@@ -14,6 +14,7 @@ from app.services.importer import (
     import_csv,
     import_json,
     json_template_content,
+    read_import_upload,
 )
 
 router = APIRouter(
@@ -58,9 +59,14 @@ async def import_csv_endpoint(
             detail="unsupported_file_type",
         )
     try:
-        return import_csv(db, await file.read())
+        return import_csv(db, await read_import_upload(file))
     except ImportDataError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=exc.code) from exc
+        status_code = (
+            status.HTTP_413_CONTENT_TOO_LARGE
+            if exc.code == "file_too_large"
+            else status.HTTP_400_BAD_REQUEST
+        )
+        raise HTTPException(status_code=status_code, detail=exc.code) from exc
 
 
 @router.post("/json")
@@ -76,6 +82,11 @@ async def import_json_endpoint(
             detail="unsupported_file_type",
         )
     try:
-        return import_json(db, await file.read())
+        return import_json(db, await read_import_upload(file))
     except ImportDataError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=exc.code) from exc
+        status_code = (
+            status.HTTP_413_CONTENT_TOO_LARGE
+            if exc.code == "file_too_large"
+            else status.HTTP_400_BAD_REQUEST
+        )
+        raise HTTPException(status_code=status_code, detail=exc.code) from exc

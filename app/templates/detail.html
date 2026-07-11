@@ -224,10 +224,18 @@
           <span>{{ item_activity.last_edited_at or t("common.none") }}</span>
         </div>
       </div>
-    {% else %}
+{% else %}
       <p class="muted">{{ t("activity.empty_item") }}</p>
     {% endif %}
   </section>
+
+  <script>
+    fetch("/items/{{ item.id }}/view", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: {"Accept": "application/json"}
+    }).catch(() => {});
+  </script>
 
   <section class="card detail-section detail-actions-panel">
     <h2>{{ t("detail.actions") }}</h2>
