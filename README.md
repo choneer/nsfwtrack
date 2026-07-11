@@ -24,12 +24,15 @@ dependencies.
 - 405 responses preserve `Allow`. FastAPI validation errors retain type,
   location, and message while submitted values are not echoed.
 - Every HTTP response includes `X-Request-ID`. A client value is accepted only
-  when it is 1-64 characters and uses the safe alphanumeric, `.`, `_`, or `-`
-  character set; other values are replaced with a generated identifier.
+  when it is a canonical UUID or 32-character UUID hex value; every other
+  value, including credential-shaped strings, is replaced with generated UUID
+  hex before the response or log is written.
 - Local request logs contain request ID, method, sanitized route path, status,
   duration, and exception type for failures. They do not record query strings,
   request headers, cookies, authorization values, forms, passwords, or upload
   bodies.
+- Matched requests log only their application-owned route template. Unmatched
+  routes use the fixed value `/[unmatched]` instead of the raw request path.
 - Unhandled exceptions return a generic 500 response and request ID. Exception
   values, traceback text, SQL, server paths, environment values, and secrets
   are not returned or written by the application request logger.

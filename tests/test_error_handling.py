@@ -256,9 +256,15 @@ def test_unhandled_500_is_generic_and_contains_only_safe_request_context(
 def test_valid_request_id_is_returned_and_invalid_values_are_replaced(
     error_client: TestClient,
 ) -> None:
-    accepted = error_client.get(
+    canonical_id = "123e4567-e89b-12d3-a456-426614174000"
+    hex_id = "123e4567e89b12d3a456426614174000"
+    accepted_canonical = error_client.get(
         "/api/missing-resource",
-        headers={REQUEST_ID_HEADER: "client-request_123"},
+        headers={REQUEST_ID_HEADER: canonical_id},
+    )
+    accepted_hex = error_client.get(
+        "/api/missing-resource",
+        headers={REQUEST_ID_HEADER: hex_id},
     )
     rejected = error_client.get(
         "/api/missing-resource",
@@ -269,11 +275,79 @@ def test_valid_request_id_is_returned_and_invalid_values_are_replaced(
         headers={REQUEST_ID_HEADER: "a" * 65},
     )
 
-    assert accepted.headers[REQUEST_ID_HEADER] == "client-request_123"
+    assert accepted_canonical.headers[REQUEST_ID_HEADER] == canonical_id
+    assert accepted_hex.headers[REQUEST_ID_HEADER] == hex_id
     assert rejected.headers[REQUEST_ID_HEADER] != "invalid request id"
     assert oversized.headers[REQUEST_ID_HEADER] != "a" * 65
     assert is_valid_request_id(rejected.headers[REQUEST_ID_HEADER])
     assert is_valid_request_id(oversized.headers[REQUEST_ID_HEADER])
+
+
+@pytest.mark.parametrize(
+    "credential_id",
+    [
+        "ghp_" + ("A" * 36),
+        "github_pat_" + ("B" * 48),
+    ],
+)
+def test_credential_shaped_request_id_is_replaced_and_not_logged(
+    error_client: TestClient,
+    caplog: pytest.LogCaptureFixture,
+    credential_id: str,
+) -> None:
+    caplog.set_level(logging.INFO, logger="uvicorn.error.nsfwtrack.request")
+    response = error_client.get(
+        "/api/missing-resource",
+        headers={REQUEST_ID_HEADER: credential_id},
+    )
+    request_logs = [
+        record.getMessage()
+        for record in caplog.records
+        if record.name == "uvicorn.error.nsfwtrack.request"
+    ]
+
+    assert response.headers[REQUEST_ID_HEADER] != credential_id
+    assert response.json()["request_id"] == response.headers[REQUEST_ID_HEADER]
+    assert is_valid_request_id(response.headers[REQUEST_ID_HEADER])
+    assert credential_id not in response.text
+    assert all(credential_id not in message for message in request_logs)
+
+
+def test_unmatched_path_uses_fixed_log_value_without_token(
+    error_client: TestClient,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    path_token = "ghp_" + ("C" * 36)
+    caplog.set_level(logging.INFO, logger="uvicorn.error.nsfwtrack.request")
+    response = error_client.get(f"/missing/{path_token}")
+    request_logs = [
+        record.getMessage()
+        for record in caplog.records
+        if record.name == "uvicorn.error.nsfwtrack.request"
+    ]
+
+    assert response.status_code == 404
+    assert request_logs
+    assert "path=/[unmatched]" in request_logs[-1]
+    assert path_token not in request_logs[-1]
+
+
+def test_matched_route_logs_route_template_instead_of_concrete_path(
+    error_client: TestClient,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    caplog.set_level(logging.INFO, logger="uvicorn.error.nsfwtrack.request")
+    response = error_client.get("/testing-errors/http/400")
+    request_logs = [
+        record.getMessage()
+        for record in caplog.records
+        if record.name == "uvicorn.error.nsfwtrack.request"
+    ]
+
+    assert response.status_code == 400
+    assert request_logs
+    assert "path=/testing-errors/http/{status_code}" in request_logs[-1]
+    assert "path=/testing-errors/http/400" not in request_logs[-1]
 
 
 def test_success_and_redirect_responses_also_include_request_id(
@@ -340,6 +414,7 @@ def test_expected_404_is_not_logged_as_system_exception(
     assert records
     assert records[-1].levelno == logging.INFO
     assert "status=404" in records[-1].getMessage()
+    assert "path=/[unmatched]" in records[-1].getMessage()
     assert "exception_type=" not in records[-1].getMessage()
 
 

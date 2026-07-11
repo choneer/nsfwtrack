@@ -34,6 +34,9 @@
 - Added error-handling tests for HTML / JSON negotiation, `Allow` preservation,
   validation compatibility, request-id validation, safe 500 responses, log
   redaction, expected-error severity, and transaction rollback.
+- Added static-review regression coverage proving `ghp_` / `github_pat_`
+  request IDs are replaced, unmatched credential-shaped paths are never
+  logged, and matched routes continue using route templates.
 
 ### Changed
 
@@ -64,6 +67,11 @@
 - Replaced Uvicorn's raw request-line access log with the application request
   log so query strings, headers, cookies, form values, and upload content are
   not recorded.
+- Tightened accepted external request IDs to canonical UUID or 32-character
+  UUID hex values. Every other value is replaced with server-generated UUID
+  hex before it can reach a response or log.
+- Unmatched routes now use the fixed log path `/[unmatched]`; only matched
+  routes may contribute their application-owned route template to logs.
 
 ### Security
 
@@ -84,6 +92,9 @@
 - Phase 2-I3 preserves existing login, POST, browser confirmation, strict
   `CONFIRM`, transaction, and rollback boundaries. It adds no external logging,
   telemetry, dependency, schema change, tag, or GitHub Release.
+- Credential-shaped request IDs and raw unmatched paths are no longer trusted
+  log fields. Query strings, headers, bodies, exception values, and raw
+  unmatched paths remain excluded from the application request log.
 
 ## v0.9.0 - 2026-07-10
 

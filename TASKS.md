@@ -681,7 +681,7 @@
 - [x] 保留兼容 `detail` 字段、原状态码和 405 `Allow` 响应头
 - [x] 422 保留 FastAPI 校验 type / loc / msg，不回显提交的 input
 - [x] 每个成功、重定向和错误响应都返回 `X-Request-ID`
-- [x] 外部 request id 仅接受 1-64 位安全字符，非法或过长值自动替换
+- [x] 外部 request id 仅接受标准 UUID 或 32 位 UUID hex，其他值自动替换
 - [x] 请求日志包含 request_id / method / 安全 route path / status / duration
 - [x] 异常日志只记录 exception type，不记录异常值或 traceback
 - [x] 禁用包含原始 query string 的重复 Uvicorn access log
@@ -692,3 +692,6 @@
 - [x] 备份、导入、合并、健康修复、设置和 schema 升级原 rollback 测试通过
 - [x] 登录、POST、confirm 和 strict `CONFIRM` 行为保持不变
 - [x] 未修改数据库结构、依赖、已发布 tag，未创建 GitHub Release
+- [x] `ghp_` / `github_pat_` 凭据外形 request id 不进入响应或日志
+- [x] 未匹配路由固定记录 `/[unmatched]`，不记录包含 token 的原始路径
+- [x] 已匹配路由继续记录应用拥有的模板路径，不记录具体路径参数

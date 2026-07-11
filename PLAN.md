@@ -544,6 +544,7 @@ Phase 2-I4：筛选组合性能与剩余扫描审查
 - Phase 2-I2 已完成按需关系加载、metadata / candidate 分页、合集双分页、settings 复用、stats 聚合和 data-health 明细上限
 - I2 在 10,000 条基线中将 items / cleanup / collection detail / stats 查询数分别从 258 / 249 / 165 / 28 降至 11 / 4 / 9 / 11
 - Phase 2-I3 已统一页面 / API 错误、request_id 和脱敏请求日志，并保持高风险事务与确认边界
+- I3 静态审查收紧外部 request_id 为 UUID / UUID hex，未匹配路由日志固定为 `/[unmatched]`
 - 下一步应继续审查筛选组合和剩余全扫描；任何索引仍需单独审批真实迁移
 - Phase 2-I 仍应保持本地、只读审查优先和数据安全边界
 - 范围可控

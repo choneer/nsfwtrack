@@ -11,20 +11,15 @@ from starlette.requests import Request
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 REQUEST_ID_HEADER = "X-Request-ID"
-MAX_REQUEST_ID_LENGTH = 64
+MAX_REQUEST_ID_LENGTH = 36
 
-_REQUEST_ID_PATTERN = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,63}")
+_REQUEST_ID_PATTERN = re.compile(
+    r"(?:[0-9A-Fa-f]{32}|"
+    r"[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-"
+    r"[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12})"
+)
 _CONTROL_CHARACTER_PATTERN = re.compile(r"[\x00-\x1f\x7f]")
 _SAFE_METHOD_PATTERN = re.compile(r"[A-Z]{1,16}")
-_SENSITIVE_PATH_MARKERS = {
-    "authorization",
-    "cookie",
-    "passwd",
-    "password",
-    "secret",
-    "session",
-    "token",
-}
 
 request_id_context: ContextVar[str | None] = ContextVar(
     "nsfwtrack_request_id",
@@ -46,7 +41,7 @@ def is_valid_request_id(value: str | None) -> bool:
 
 
 def resolve_request_id(value: str | None) -> str:
-    candidate = (value or "").strip()
+    candidate = value or ""
     if is_valid_request_id(candidate):
         return candidate
     return uuid.uuid4().hex
@@ -68,33 +63,13 @@ def _safe_method(scope: Scope) -> str:
     return "UNKNOWN"
 
 
-def _redact_path(path: str) -> str:
-    segments = path.split("/")
-    redact_next = False
-    safe_segments: list[str] = []
-    for segment in segments:
-        if redact_next:
-            safe_segments.append("[redacted]")
-            redact_next = False
-            continue
-        marker, separator, _ = segment.partition("=")
-        if marker.casefold() in _SENSITIVE_PATH_MARKERS:
-            safe_segments.append(f"{marker}=[redacted]" if separator else marker)
-            redact_next = not separator
-            continue
-        if len(segment) > 128:
-            safe_segments.append("[redacted]")
-            continue
-        safe_segments.append(segment)
-    return "/".join(safe_segments)
-
-
 def _safe_log_path(scope: Scope) -> str:
     route = scope.get("route")
     route_path = getattr(route, "path", None)
-    path = route_path if isinstance(route_path, str) else str(scope.get("path", "/"))
-    cleaned = _CONTROL_CHARACTER_PATTERN.sub("_", path)
-    return _redact_path(cleaned)[:512] or "/"
+    if not isinstance(route_path, str):
+        return "/[unmatched]"
+    cleaned = _CONTROL_CHARACTER_PATTERN.sub("_", route_path)
+    return cleaned[:512] or "/[unmatched]"
 
 
 class RequestContextMiddleware:
