@@ -19,13 +19,23 @@
   <section class="card detail-section">
     <h2>{{ t("detail.basic_info") }}</h2>
     <div class="detail-overview">
-      <div class="cover">
-        {% set cover_url = local_media_url(item.cover_path) %}
-        {% if cover_url %}
-          <img src="{{ cover_url }}" alt="">
-        {% else %}
-          {{ t("common.no_cover") }}
-        {% endif %}
+      <div class="stack">
+        <div class="cover">
+          {% set cover_url = local_media_url(item.cover_path) %}
+          {% if cover_url %}
+            <img src="{{ cover_url }}" alt="">
+          {% else %}
+            {{ t("common.no_cover") }}
+          {% endif %}
+        </div>
+        <div class="actions">
+          <a class="button secondary compact" href="/media-library">{{ t("media.choose_cover") }}</a>
+          {% if item.cover_path %}
+            <form action="/items/{{ item.id }}/cover/clear" method="post">
+              <button class="secondary compact" type="submit" data-confirm-message="{{ t('media.confirm_clear_cover') }}" {% if danger_policy.is_strict %}data-strict-confirm-message="{{ t('danger.strict_prompt') }}"{% endif %}>{{ t("media.clear_cover") }}</button>
+            </form>
+          {% endif %}
+        </div>
       </div>
       <div class="stack">
         <div class="detail-field">

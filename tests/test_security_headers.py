@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 from collections.abc import Generator
 from pathlib import Path
 
@@ -111,7 +112,10 @@ def test_local_media_response_includes_security_headers(
     media_root = tmp_path / "media"
     cover = media_root / "covers" / "header.png"
     cover.parent.mkdir(parents=True)
-    cover.write_bytes(b"security-header-image")
+    image = base64.b64decode(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="
+    )
+    cover.write_bytes(image)
     monkeypatch.setattr(local_media, "LOCAL_MEDIA_ROOT", media_root)
 
     created = auth_client.post(
@@ -125,7 +129,7 @@ def test_local_media_response_includes_security_headers(
     response = auth_client.get("/media/covers/header.png")
 
     assert response.status_code == 200
-    assert response.content == b"security-header-image"
+    assert response.content == image
     _assert_security_headers(response)
 
 

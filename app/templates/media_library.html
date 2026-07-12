@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block title %}{{ t("media.title") }} - NSFWTrack{% endblock %}
+{% block content %}
+<div class="toolbar">
+  <div>
+    <h1>{{ t("media.title") }}</h1>
+    <p class="muted">{{ t("media.description") }}</p>
+  </div>
+</div>
+
+{% if error_key %}<div class="flash error">{{ t(error_key) }}</div>{% endif %}
+
+<section class="card stack">
+  <h2>{{ t("media.upload_title") }}</h2>
+  <p class="muted">{{ t("media.upload_hint", count=max_media_upload_files, size=max_media_upload_mb) }}</p>
+  <form action="/media-library/upload" method="post" enctype="multipart/form-data" class="stack">
+    <label>{{ t("media.files") }}
+      <input name="files" type="file" accept="image/avif,image/gif,image/jpeg,image/png,image/webp" multiple required>
+    </label>
+    <button type="submit">{{ t("media.upload") }}</button>
+  </form>
+</section>
+
+<section class="stats-section">
+  <div class="metric-grid compact-metrics">
+    <div class="metric"><strong>{{ scan.entries|length }}</strong><span>{{ t("media.scanned") }}</span></div>
+    <div class="metric"><strong>{{ scan.invalid }}</strong><span>{{ t("media.invalid") }}</span></div>
+    <div class="metric"><strong>{{ scan.skipped_symlinks }}</strong><span>{{ t("media.symlinks_skipped") }}</span></div>
+    <div class="metric"><strong>{{ scan.skipped_unsupported }}</strong><span>{{ t("media.unsupported_skipped") }}</span></div>
+  </div>
+</section>
+
+<div class="item-grid">
+  {% for entry in scan.entries %}
+    <article class="card stack">
+      <div class="cover">
+        {% if entry.available %}
+          <img src="{{ entry.media_path }}" alt="">
+        {% else %}
+          {{ t("media.invalid_image") }}
+        {% endif %}
+      </div>
+      <strong>{{ entry.filename }}</strong>
+      <small class="muted">{{ entry.mime_type or t("media.unavailable") }} · {{ entry.size }} B</small>
+      {% if entry.sha256 %}<code>{{ entry.sha256 }}</code>{% endif %}
+      <div>
+        <strong>{{ t("media.references") }}</strong>
+        {% set item_refs = item_references.get(entry.media_path, []) %}
+        {% set creator_refs = creator_references.get(entry.media_path, []) %}
+        {% if item_refs or creator_refs %}
+          <ul>
+            {% for item in item_refs %}<li><a href="/items/{{ item.id }}">{{ t("media.item_cover_reference", title=item.title) }}</a></li>{% endfor %}
+            {% for creator in creator_refs %}<li><a href="/creators/{{ creator.id }}">{{ t("media.creator_avatar_reference", name=creator.name) }}</a></li>{% endfor %}
+          </ul>
+        {% else %}
+          <p class="muted">{{ t("media.unreferenced") }}</p>
+        {% endif %}
+      </div>
+      {% if entry.available %}
+        <form action="/media-library/set-item-cover" method="post" class="stack">
+          <input type="hidden" name="media_path" value="{{ entry.media_path }}">
+          <label>{{ t("media.set_item_cover") }}
+            <select name="item_id" required>
+              <option value="">{{ t("common.none") }}</option>
+              {% for item in items %}<option value="{{ item.id }}">{{ item.title }}</option>{% endfor %}
+            </select>
+          </label>
+          <button type="submit" {% if not items %}disabled{% endif %}>{{ t("media.set_cover") }}</button>
+        </form>
+        <form action="/media-library/set-creator-avatar" method="post" class="stack">
+          <input type="hidden" name="media_path" value="{{ entry.media_path }}">
+          <label>{{ t("media.set_creator_avatar") }}
+            <select name="creator_id" required>
+              <option value="">{{ t("common.none") }}</option>
+              {% for creator in creators %}<option value="{{ creator.id }}">{{ creator.name }}</option>{% endfor %}
+            </select>
+          </label>
+          <button type="submit" {% if not creators %}disabled{% endif %}>{{ t("media.set_avatar") }}</button>
+        </form>
+      {% endif %}
+    </article>
+  {% else %}
+    <section class="card"><p class="muted">{{ t("media.empty") }}</p></section>
+  {% endfor %}
+</div>
+
+<section class="card">
+  <h2>{{ t("media.boundary_title") }}</h2>
+  <p>{{ t("media.boundary") }}</p>
+</section>
+{% endblock %}

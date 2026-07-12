@@ -8,8 +8,8 @@ Release: [NSFWTrack v1.0.4](https://github.com/choneer/nsfwtrack/releases/tag/v1
 
 Current status: `stable v1.0.4 — code development and WSL acceptance complete`.
 
-Current development: `Phase 3-A1 source links and local bookmark import is
-complete on main and not yet released; application Schema is 2`.
+Current development: `Phase 3-A2 local media library is complete on main and
+not yet released; application Schema remains 2`.
 
 N100 deployment: `not started; waits for explicit user authorization`.
 
@@ -32,7 +32,32 @@ Code development and WSL acceptance through `v1.0.4` are complete. See
   task. It must wait for explicit user authorization.
 
 Product feature development has explicitly reopened for the bounded Phase 3-A1
-scope below. Any expansion beyond it still requires separate approval.
+and A2 scopes below. Any expansion beyond them still requires separate approval.
+
+## Unreleased: Phase 3-A2 Local Media Library
+
+`/media-library` scans app-owned images under `data/media`, shows whether each
+image is used by an item cover or creator avatar, and accepts one or multiple
+local uploads. Each batch is limited to 20 files and each file to 10 MB.
+
+- AVIF, GIF, JPEG, PNG, and WebP are accepted only when extension, declared
+  MIME type, and file structure agree. SVG, HTML, disguised, truncated, and
+  unsupported files are rejected.
+- Uploaded bytes are named and deduplicated by SHA-256 under
+  `data/media/library`; repeated content is not saved twice.
+- Directory scanning never follows symbolic links. Serving and assignment also
+  reject symlinked, missing, oversized, invalid, or escaping paths.
+- A valid library image can set or replace an item cover or creator avatar.
+  Clearing either association uses a confirmed authenticated POST and leaves
+  the media file intact; strict mode also requires `CONFIRM`.
+- Missing or damaged assigned files render as the existing safe empty state and
+  return 404 from `/media/...` instead of causing a page error.
+
+The feature uses the existing `cover_path` and `avatar_path` columns and the
+existing `./data:/app/data` mount. It adds no table, Schema change, dependency,
+external request, image recognition, recommendation, or AI capability.
+JSON/CSV backups preserve media path references but do not embed image bytes;
+back up the stopped `data` directory to preserve both SQLite and media files.
 
 ## Unreleased: Phase 3-A1 Source Links and Local Bookmark Import
 
@@ -937,7 +962,7 @@ UID/GID `10001:10001`, and the data mount makes this directory available inside
 the container without another volume or dependency.
 
 ```bash
-sudo install -d -m 0700 -o 10001 -g 10001 data/media/covers
+sudo install -d -m 0700 -o 10001 -g 10001 data/media
 ```
 
 For `./data/media/covers/example.webp`, store this value in `cover_path`:
@@ -947,9 +972,10 @@ For `./data/media/covers/example.webp`, store this value in `cover_path`:
 ```
 
 The accepted extensions are `.avif`, `.gif`, `.jpeg`, `.jpg`, `.png`, and
-`.webp`. Media is served only after login. NSFWTrack does not upload, fetch,
-proxy, or import images from URLs. `avatar_path` follows the same storage rule,
-although avatars are not currently rendered.
+`.webp`. Media is served only after login. Use `/media-library` to upload,
+scan, deduplicate, and associate local images. NSFWTrack never fetches, proxies,
+or imports images from URLs; creator avatars follow the same local storage and
+authenticated-serving rule as item covers.
 
 ## Docker Compose
 
@@ -960,7 +986,7 @@ verified-backup migration procedure below before changing ownership.
 ```bash
 cp .env.example .env
 sudo install -d -m 0700 -o 10001 -g 10001 data
-sudo install -d -m 0700 -o 10001 -g 10001 data/media/covers
+sudo install -d -m 0700 -o 10001 -g 10001 data/media
 docker compose build
 docker compose up -d
 ```
@@ -1004,7 +1030,7 @@ Use this single checklist for the current local deployment line.
 
    ```bash
    sudo install -d -m 0700 -o 10001 -g 10001 data
-   sudo install -d -m 0700 -o 10001 -g 10001 data/media/covers
+   sudo install -d -m 0700 -o 10001 -g 10001 data/media
    ```
 
 3. Only after that preparation, run `docker compose build` and
@@ -1051,7 +1077,7 @@ sudo cmp -s data/nsfwtrack.db "${backup_dir}/nsfwtrack.db"
 sudo chown -R 10001:10001 data
 sudo chmod -R u+rwX,go-rwx data
 sudo chmod 0700 data
-sudo install -d -m 0700 -o 10001 -g 10001 data/media/covers
+sudo install -d -m 0700 -o 10001 -g 10001 data/media
 docker compose build
 docker compose up -d
 ```

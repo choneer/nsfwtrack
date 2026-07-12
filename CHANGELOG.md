@@ -10,6 +10,13 @@
 
 ### Added
 
+- Added the authenticated Phase 3-A2 `/media-library` for safe local scanning,
+  multi-image uploads, reference visibility, and item-cover / creator-avatar
+  assignment using the existing media path fields and data mount.
+- Added 20-file batch and 10 MiB per-file limits, extension/MIME/structure
+  validation, SHA-256 content deduplication, and safe missing/corrupt-image
+  fallback without adding a dependency or database object.
+
 - Added Phase 3-A1 `item_sources` with one-to-many item sources, original and
   globally unique normalized HTTP/HTTPS URLs, optional titles, timestamps, and
   item-delete cascading.
@@ -25,6 +32,9 @@
 
 ### Changed
 
+- Item covers and creator avatars can now be set, replaced, or cleared from the
+  local media library. Clearing an association never deletes its media file.
+
 - JSON backup export, validation, preview, merge restore, CSV item export, and
   CSV/JSON item import now include sources. `item_sources` remains optional in
   old backup/import payloads for backward compatibility.
@@ -33,6 +43,11 @@
   prohibition.
 
 ### Security
+
+- Media scanning and serving reject symlinks, path escape, unsupported and
+  non-regular files. Only validated AVIF, GIF, JPEG, PNG, and WebP uploads are
+  accepted; SVG, HTML, disguised files, remote fetching, recognition,
+  recommendations, and AI remain out of scope.
 
 - Source URL normalization accepts only credential-free HTTP/HTTPS URLs,
   canonicalizes scheme/IDNA host/default ports/percent escapes/root paths,

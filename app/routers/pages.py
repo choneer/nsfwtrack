@@ -109,9 +109,16 @@ from app.services.item_query import (
     query_items,
 )
 from app.services.local_media import (
+    MAX_MEDIA_UPLOAD_BYTES,
+    MAX_MEDIA_UPLOAD_FILES,
     LocalMediaPathError,
+    LocalMediaScan,
+    LocalMediaUploadError,
     local_media_url,
+    normalize_local_media_path,
     resolve_local_media_file,
+    scan_local_media,
+    store_media_uploads,
 )
 from app.services.metadata_cleanup import (
     MetadataCleanupError,
@@ -282,6 +289,180 @@ def local_media_file_page(media_path: str) -> FileResponse:
     except LocalMediaPathError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND) from exc
     return FileResponse(path)
+
+
+@router.get(
+    "/media-library",
+    response_class=HTMLResponse,
+    dependencies=[Depends(require_page_auth)],
+)
+def media_library_page(
+    request: Request,
+    db: Session = Depends(get_db),
+) -> HTMLResponse:
+    error_key = None
+    try:
+        scan = scan_local_media()
+    except LocalMediaPathError:
+        scan = LocalMediaScan((), 0, 0, 0)
+        error_key = "media.error_storage_unavailable"
+    items = list(db.scalars(select(Item).order_by(Item.title, Item.id)).all())
+    creators = list(db.scalars(select(Creator).order_by(Creator.name, Creator.id)).all())
+    item_references: dict[str, list[Item]] = {}
+    creator_references: dict[str, list[Creator]] = {}
+    for item in items:
+        if item.cover_path:
+            item_references.setdefault(item.cover_path, []).append(item)
+    for creator in creators:
+        if creator.avatar_path:
+            creator_references.setdefault(creator.avatar_path, []).append(creator)
+    return templates.TemplateResponse(
+        request,
+        "media_library.html",
+        _base_context(
+            request,
+            db=db,
+            scan=scan,
+            items=items,
+            creators=creators,
+            item_references=item_references,
+            creator_references=creator_references,
+            max_media_upload_mb=MAX_MEDIA_UPLOAD_BYTES // (1024 * 1024),
+            max_media_upload_files=MAX_MEDIA_UPLOAD_FILES,
+            error_key=error_key,
+        ),
+    )
+
+
+@router.post("/media-library/upload", dependencies=[Depends(require_page_auth)])
+async def media_library_upload_page(
+    request: Request,
+    files: list[UploadFile] | None = File(default=None),
+) -> RedirectResponse:
+    try:
+        result = await store_media_uploads(files or [])
+    except LocalMediaUploadError as exc:
+        add_flash(request, "error", f"flash.media_{exc.code}")
+    else:
+        add_flash(
+            request,
+            "success",
+            "flash.media_uploaded",
+            uploaded=result.uploaded,
+            duplicate=result.duplicate,
+        )
+    return _redirect("/media-library")
+
+
+def _validated_library_media_path(media_path: str) -> str:
+    normalized = normalize_local_media_path(media_path)
+    if normalized is None:
+        raise LocalMediaPathError("invalid local media path")
+    resolve_local_media_file(normalized.removeprefix("/media/"))
+    return normalized
+
+
+@router.post(
+    "/media-library/set-item-cover",
+    dependencies=[Depends(require_page_auth)],
+)
+def media_library_set_item_cover_page(
+    request: Request,
+    item_id: int = Form(...),
+    media_path: str = Form(...),
+    db: Session = Depends(get_db),
+) -> RedirectResponse:
+    item = db.get(Item, item_id)
+    try:
+        normalized = _validated_library_media_path(media_path)
+        if item is None:
+            raise LocalMediaPathError("item not found")
+        item.cover_path = normalized
+        db.commit()
+    except (LocalMediaPathError, OSError):
+        db.rollback()
+        add_flash(request, "error", "flash.media_assignment_failed")
+    else:
+        add_flash(request, "success", "flash.media_cover_set")
+    return _redirect("/media-library")
+
+
+@router.post(
+    "/media-library/set-creator-avatar",
+    dependencies=[Depends(require_page_auth)],
+)
+def media_library_set_creator_avatar_page(
+    request: Request,
+    creator_id: int = Form(...),
+    media_path: str = Form(...),
+    db: Session = Depends(get_db),
+) -> RedirectResponse:
+    creator = db.get(Creator, creator_id)
+    try:
+        normalized = _validated_library_media_path(media_path)
+        if creator is None:
+            raise LocalMediaPathError("creator not found")
+        creator.avatar_path = normalized
+        db.commit()
+    except (LocalMediaPathError, OSError):
+        db.rollback()
+        add_flash(request, "error", "flash.media_assignment_failed")
+    else:
+        add_flash(request, "success", "flash.media_avatar_set")
+    return _redirect("/media-library")
+
+
+@router.post("/items/{item_id}/cover/clear", dependencies=[Depends(require_page_auth)])
+def clear_item_cover_page(
+    request: Request,
+    item_id: int,
+    confirm: str | None = Form(default=None),
+    confirmation_text: str | None = Form(default=None),
+    db: Session = Depends(get_db),
+) -> RedirectResponse:
+    item = db.get(Item, item_id)
+    if item is None:
+        add_flash(request, "error", "flash.media_assignment_failed")
+        return _redirect("/items")
+    if not _danger_confirmation_is_valid(
+        request,
+        get_danger_policy(db),
+        confirmation_text=confirmation_text,
+        base_confirmation_valid=confirm == "1",
+    ):
+        return _redirect(f"/items/{item_id}")
+    item.cover_path = None
+    db.commit()
+    add_flash(request, "success", "flash.media_cover_cleared")
+    return _redirect(f"/items/{item_id}")
+
+
+@router.post(
+    "/creators/{creator_id}/avatar/clear",
+    dependencies=[Depends(require_page_auth)],
+)
+def clear_creator_avatar_page(
+    request: Request,
+    creator_id: int,
+    confirm: str | None = Form(default=None),
+    confirmation_text: str | None = Form(default=None),
+    db: Session = Depends(get_db),
+) -> RedirectResponse:
+    creator = db.get(Creator, creator_id)
+    if creator is None:
+        add_flash(request, "error", "flash.media_assignment_failed")
+        return _redirect("/creators")
+    if not _danger_confirmation_is_valid(
+        request,
+        get_danger_policy(db),
+        confirmation_text=confirmation_text,
+        base_confirmation_valid=confirm == "1",
+    ):
+        return _redirect(f"/creators/{creator_id}")
+    creator.avatar_path = None
+    db.commit()
+    add_flash(request, "success", "flash.media_avatar_cleared")
+    return _redirect(f"/creators/{creator_id}")
 
 
 def _item_form_payload(

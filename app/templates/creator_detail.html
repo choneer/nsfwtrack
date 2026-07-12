@@ -8,6 +8,27 @@
   </div>
   <a class="button secondary" href="/creators">{{ t("common.back") }}</a>
 </div>
+<section class="card detail-section">
+  <h2>{{ t("media.avatar") }}</h2>
+  <div class="detail-overview">
+    <div class="cover">
+      {% set avatar_url = local_media_url(creator.avatar_path) %}
+      {% if avatar_url %}
+        <img src="{{ avatar_url }}" alt="">
+      {% else %}
+        {{ t("media.no_avatar") }}
+      {% endif %}
+    </div>
+    <div class="actions">
+      <a class="button secondary compact" href="/media-library">{{ t("media.choose_avatar") }}</a>
+      {% if creator.avatar_path %}
+        <form action="/creators/{{ creator.id }}/avatar/clear" method="post">
+          <button class="secondary compact" type="submit" data-confirm-message="{{ t('media.confirm_clear_avatar') }}" {% if danger_policy.is_strict %}data-strict-confirm-message="{{ t('danger.strict_prompt') }}"{% endif %}>{{ t("media.clear_avatar") }}</button>
+        </form>
+      {% endif %}
+    </div>
+  </div>
+</section>
 <section>
   <h2>{{ t("creators.items") }}</h2>
   <div class="item-grid">
