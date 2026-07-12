@@ -15,7 +15,12 @@
   target-host deployment has not started and waits for explicit user
   authorization. K3 is no longer listed as an active development task.
 - Development / CI test dependencies now declare `httpx2==2.5.0` instead of
-  unpinned `httpx`. Runtime `requirements.txt` is unchanged.
+  unpinned `httpx`.
+- Phase 2-L2 pins direct runtime and development dependency versions that
+  were already verified on Python 3.12. This is a direct-dependency baseline
+  only; a full transitive lockfile is still not generated.
+- CI now runs `pip check` after installing `requirements-dev.txt` and before
+  pytest.
 
 ## [1.0.1] - 2026-07-11
 

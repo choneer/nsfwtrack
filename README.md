@@ -823,7 +823,8 @@ Open `http://localhost:8000` and log in with `APP_PASSWORD`.
 
 For a runtime-only environment, `pip install -r requirements.txt` is enough.
 For development and CI, use `requirements-dev.txt` to install `pytest` and the
-Starlette TestClient dependency (`httpx2`).
+Starlette TestClient dependency (`httpx2`). Direct dependency versions are
+pinned; this is not a full transitive lockfile.
 
 ## Configuration
 
@@ -1074,16 +1075,18 @@ Direct routes are also available:
 
 ```bash
 pip install -r requirements-dev.txt
+python -m pip check
 python -m pytest
 ```
 
-GitHub Actions runs on Python 3.12, installs `requirements-dev.txt`, and runs
-`python -m pytest`.
+GitHub Actions runs on Python 3.12, installs `requirements-dev.txt`, runs
+`python -m pip check`, and then `python -m pytest`.
 
 Phase 2-L1 installs `httpx2` for the Starlette TestClient path used by
-`fastapi.testclient`. Full local and CI pytest runs should no longer emit the
-previous `httpx` deprecation warning. Runtime production dependencies remain
-unchanged.
+`fastapi.testclient`. Phase 2-L2 pins the verified direct runtime and test
+dependency versions used by development, CI, and Docker. Full local and CI
+pytest runs should no longer emit the previous `httpx` deprecation warning.
+A complete transitive lockfile is still not generated.
 
 ## Known Limitations
 

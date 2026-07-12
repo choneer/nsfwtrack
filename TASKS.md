@@ -9,6 +9,16 @@ N100 / 目标主机部署尚未开始，**不是当前开发任务**，必须等
 完整证据见 `COMPLETION_AUDIT.md`。历史任务保留在本文后半部分，
 不再作为新增开发路线。
 
+### Phase 2-L2 直接依赖版本基线
+
+- [x] 在全新 Python 3.12 环境确认当前已验证兼容版本
+- [x] 固定 `requirements.txt` 直接运行时依赖版本（不生成完整传递锁）
+- [x] 固定 `requirements-dev.txt` 直接测试依赖版本（`httpx2` / `pytest`）
+- [x] CI 在安装后增加 `pip check`
+- [x] 全新 venv 安装、`pip check`、全量 `347 passed` 无弃用警告
+- [x] 隔离 Docker build / up / `/login` 200 / version 1.0.1 / down 清理通过
+- [x] 更新 README / TASKS / REVIEW / CHANGELOG / GOAL / PLAN
+
 ### Phase 2-L1 测试依赖兼容性收口
 
 - [x] 复现并确认 TestClient / HTTPX 弃用警告来自 Starlette `testclient` 在仅安装 `httpx` 时的兼容分支
@@ -56,7 +66,7 @@ N100 / 目标主机部署尚未开始，**不是当前开发任务**，必须等
 
 ### 可延后优化
 
-- [ ] 仅在实际需要时固定运行时依赖或增加 constraints，提高未来镜像重建可重复性
+- [x] 直接运行时 / 测试依赖版本基线已在 Phase 2-L2 固定；完整传递依赖锁文件仍未实施
 - [x] TestClient / `httpx` 弃用警告已在 Phase 2-L1 通过 `httpx2` 解决
 - [ ] 仅在新性能数据证明必要时审批索引和真实迁移
 
