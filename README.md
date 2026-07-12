@@ -822,8 +822,8 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000
 Open `http://localhost:8000` and log in with `APP_PASSWORD`.
 
 For a runtime-only environment, `pip install -r requirements.txt` is enough.
-For development and CI, use `requirements-dev.txt` so `pytest` and the
-Starlette TestClient dependency (`httpx2`) are installed.
+For development and CI, use `requirements-dev.txt` to install `pytest` and the
+Starlette TestClient dependency (`httpx2`).
 
 ## Configuration
 

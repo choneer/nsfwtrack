@@ -6,7 +6,7 @@
 
 ## 目标
 
-消除现有 TestClient / HTTPX 弃用警告，并让测试依赖版本可重复安装。
+消除现有 TestClient / HTTPX 弃用警告，并固定 TestClient 兼容依赖。完整依赖锁定仍未实施。
 
 ## 边界
 
@@ -26,7 +26,7 @@
 ## 执行结果
 
 - [x] 根因确认：Starlette 1.3.1 `testclient` 在仅有 `httpx` 时发出 `StarletteDeprecationWarning`，要求安装 `httpx2`
-- [x] 最小修复：`requirements-dev.txt` 将 `httpx` 替换为 `httpx2==2.5.0`（仅测试依赖，不进运行时镜像）
+- [x] 最小修复：`requirements-dev.txt` 将 `httpx` 替换为 `httpx2==2.5.0`（仅固定 TestClient 兼容依赖；完整依赖锁定仍未实施，不进运行时镜像）
 - [x] 全量测试 `347 passed`，弃用警告消失
 - [x] 隔离 Docker build / up / `/login` 200 / down 与清理通过
 - [x] 文档与 CHANGELOG Unreleased 已更新
