@@ -1088,6 +1088,13 @@ dependency versions used by development, CI, and Docker. Full local and CI
 pytest runs should no longer emit the previous `httpx` deprecation warning.
 A complete transitive lockfile is still not generated.
 
+Phase 2-L3 adds a minimal browser security-header baseline to every HTTP
+response: `X-Content-Type-Options: nosniff`,
+`Referrer-Policy: strict-origin-when-cross-origin`, `X-Frame-Options: DENY`,
+and a restricted `Permissions-Policy`. HSTS and aggressive CSP are not
+enabled, so existing local HTTP, forms, and inline scripts remain intact.
+`X-Request-ID` and 405 `Allow` behavior are unchanged.
+
 ## Known Limitations
 
 - Only one local user is supported.

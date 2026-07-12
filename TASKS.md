@@ -9,6 +9,16 @@ N100 / 目标主机部署尚未开始，**不是当前开发任务**，必须等
 完整证据见 `COMPLETION_AUDIT.md`。历史任务保留在本文后半部分，
 不再作为新增开发路线。
 
+### Phase 2-L3 浏览器安全响应头基线
+
+- [x] 增加统一 `SecurityHeadersMiddleware`，覆盖成功 / 重定向 / 错误 / JSON / 媒体响应
+- [x] 设置 `X-Content-Type-Options`、`Referrer-Policy`、`X-Frame-Options` 和受限 `Permissions-Policy`
+- [x] 不启用 HSTS，不加入会破坏现有表单或内联脚本的激进 CSP
+- [x] 保持 `X-Request-ID`、405 `Allow` 与现有登录 / 确认 / 媒体行为
+- [x] 专项测试 9 passed；全量 `356 passed`；`pip check` 通过
+- [x] 隔离 Docker build / up / `/login` 200 含安全头 / down 清理通过
+- [x] 更新 README / TASKS / REVIEW / CHANGELOG / GOAL / PLAN
+
 ### Phase 2-L2 直接依赖版本基线
 
 - [x] 在全新 Python 3.12 环境确认当前已验证兼容版本

@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+### Added
+
+- Added a minimal `SecurityHeadersMiddleware` that applies consistent browser
+  hardening headers to successful HTML, redirects, JSON, error, and local
+  media responses without enabling HSTS or an aggressive CSP.
+- Added focused security-header regression coverage for login, API JSON,
+  redirects, 404 / 422 / 405, and authenticated media responses while
+  preserving `X-Request-ID` and 405 `Allow`.
+
 ### Fixed
 
 - Resolved the Starlette TestClient deprecation warning by installing the

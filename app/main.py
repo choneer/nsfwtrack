@@ -13,6 +13,7 @@ from app.errors import install_exception_handlers
 from app.request_context import RequestContextMiddleware, configure_request_logging
 from app.routers import auth, backup, creators, importer, items, pages, search, stats, tags
 from app.security import require_same_origin
+from app.security_headers import SecurityHeadersMiddleware
 
 
 @asynccontextmanager
@@ -41,6 +42,9 @@ def create_app() -> FastAPI:
         https_only=settings.session_cookie_secure,
     )
     app.add_middleware(RequestContextMiddleware)
+    # Outer middleware so security headers apply to success, redirects, errors,
+    # JSON, and media responses, including those produced by request context.
+    app.add_middleware(SecurityHeadersMiddleware)
     install_exception_handlers(app)
     app.include_router(auth.router)
     app.include_router(items.router)
