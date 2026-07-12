@@ -909,6 +909,16 @@ Linux capabilities, enables `no-new-privileges`, and mounts a 64 MiB tmpfs at
 for SQLite and local media; other image paths remain read-only. This hardening
 does not change the image user, application endpoints, or health check.
 
+With rootful Docker, the default container UID `0` must own `./data` and its
+existing contents because all capabilities, including `DAC_OVERRIDE`, are
+dropped. Back up an existing data directory, stop the service, then prepare it
+without making it world-writable:
+
+```bash
+sudo chown -R 0:0 data
+sudo chmod -R u+rwX,go-rwx data
+```
+
 ## Install, Upgrade, And Rollback Checklist
 
 Use this single checklist for the current local deployment line.

@@ -50,7 +50,9 @@ jobs:
       - name: Prepare isolated CI data and temporary credentials
         run: |
           set -euo pipefail
-          mkdir -p "${SMOKE_DIR}/data"
+          # With every capability dropped, container UID 0 must own the bind
+          # directory instead of relying on DAC_OVERRIDE for SQLite writes.
+          sudo install -d -m 0700 -o 0 -g 0 "${SMOKE_DIR}/data"
           APP_PASSWORD="$(python3 -c 'import secrets; print(secrets.token_urlsafe(24))')"
           SECRET_KEY="$(python3 -c 'import secrets; print(secrets.token_hex(32))')"
           # Temporary CI-only credentials. Never use .env.example placeholders.
