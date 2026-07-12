@@ -1,41 +1,30 @@
 # GOAL.md
 
-# 当前目标：Phase 2-L4 — CI Docker 冒烟验收
+# 当前目标：Phase 2-L5 — CI 最小权限与重复运行控制
 
 请先读取 `RULE.md`、`PLAN.md` 和 `TASKS.md`。
 
 ## 目标
 
-让 GitHub Actions 自动验证生产 Docker 镜像可以构建、启动并正常响应。
+收紧 GitHub Actions 权限，并取消同一分支上的过时 CI 运行。
 
 ## 任务
 
-- [x] 在 CI 中增加独立 Docker 验收任务
-- [x] 使用临时测试凭据和隔离数据目录启动容器
-- [x] 等待 `/login` 返回 200，并检查基础安全响应头
-- [x] 失败时输出容器日志，结束后始终清理资源
-- [x] 保留现有 pytest 与 `pip check`
+- 为 CI 明确设置最小只读权限
+- 增加 workflow concurrency 和 `cancel-in-progress`
+- 保持 pytest 与 Docker smoke 行为不变
+- 修正 PLAN、TASKS 中过时的开发者角色和测试数量
+- 在 CHANGELOG 的 Unreleased 记录 L4 收口及 L5 变更
 
 ## 边界
 
-- 不修改业务逻辑、数据库、Schema、依赖或版本
-- 不提交 `.env` 或真实凭据
-- 不使用 `.env.example` 的占位值
+- 不修改业务代码、依赖、数据库、Schema 或版本
+- 不使用额外密钥或写权限
 - 不创建 Release
 
 ## 完成标准
 
-- CI 的测试任务和 Docker 任务均通过
-- 本地全量测试与隔离 Docker 验收通过
-- 更新文档和 `CHANGELOG.md`
-- 提交并推送
-
-## 执行结果
-
-- [x] 新增独立 `docker-smoke` job，与 pytest job 并行
-- [x] 临时随机凭据 + 隔离数据目录 + 独立 compose project
-- [x] 等待 `/login` 200，并校验 nosniff / Referrer-Policy / X-Frame-Options / Permissions-Policy / X-Request-ID
-- [x] `if: failure()` 输出 compose logs；`if: always()` 执行 down 与临时目录清理
-- [x] 保留原有 test job 的 pip check + pytest
-- [x] 本地全量测试通过；本地按 CI 设计的 Docker 冒烟通过并清理
-- [x] 未改业务代码、依赖、数据库、Schema 或版本
+- test 与 docker-smoke 均通过
+- 过时的同分支运行可以自动取消
+- 工作流权限为只读最小范围
+- 文档状态一致并提交推送
