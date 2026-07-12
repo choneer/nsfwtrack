@@ -278,8 +278,8 @@ Not a current development task. N100 deployment has not started.
 ### Optional Later
 
 - Pin or constrain dependencies for reproducible future rebuilds.
-- Revisit the existing TestClient deprecation warning when the supported
-  FastAPI/Starlette dependency path stabilizes.
+- Phase 2-L1 resolved the TestClient deprecation warning with `httpx2==2.5.0`
+  in development / CI dependencies.
 - Add Docker health checks or CI Docker smoke only if operational experience
   shows a need.
 - Add indexes only after new measurements justify a real schema migration.

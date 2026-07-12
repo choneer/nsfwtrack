@@ -2,12 +2,20 @@
 
 ## Unreleased
 
+### Fixed
+
+- Resolved the Starlette TestClient deprecation warning by installing the
+  supported `httpx2` test client dependency instead of filtering warnings.
+  Full pytest now runs without the `httpx` / `httpx2` deprecation message.
+
 ### Changed
 
 - Clarified post-`v1.0.1` project status in planning docs: stable release is
   `v1.0.1`, code development and WSL acceptance are complete, and N100 /
   target-host deployment has not started and waits for explicit user
   authorization. K3 is no longer listed as an active development task.
+- Development / CI test dependencies now declare `httpx2==2.5.0` instead of
+  unpinned `httpx`. Runtime `requirements.txt` is unchanged.
 
 ## [1.0.1] - 2026-07-11
 

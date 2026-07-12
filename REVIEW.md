@@ -466,6 +466,15 @@
 - [ ] **12.358. 运维清单是否可执行** — README 是否包含首次安装、v0.9/v1.0 升级、停机 SQLite 备份、显式迁移和回滚步骤
 - [ ] **12.359. 范围与验收是否保持** — 是否无新依赖、Schema、迁移、tag、Release 或外部请求，且 347 tests 与隔离 Docker 验收通过并清理
 
+## Phase 2-L1 测试依赖兼容性收口检查
+
+- [ ] **12.360. 警告根因是否确认** — 是否复现为 Starlette TestClient 在缺少 `httpx2` 时的 `StarletteDeprecationWarning`
+- [ ] **12.361. 是否最小依赖修复** — 是否仅将开发 / CI 依赖改为 `httpx2`，未改业务代码、Schema、迁移或运行时 `requirements.txt`
+- [ ] **12.362. 是否未掩盖警告** — 是否未使用 pytest filter / warnings ignore 隐藏弃用信息
+- [ ] **12.363. 全量测试是否清洁** — `pytest` 是否 347 passed 且不再出现 httpx / httpx2 弃用警告
+- [ ] **12.364. Docker 验收是否通过** — 隔离 build / up / `/login` 200 / down 与清理是否完成
+- [ ] **12.365. 文档是否更新** — README / TASKS / REVIEW / CHANGELOG Unreleased / GOAL 是否记录 L1
+
 ## 登录保护检查
 
 - [ ] **13. 密码是否从环境变量读取** — 不是硬编码

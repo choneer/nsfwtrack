@@ -9,6 +9,15 @@ N100 / 目标主机部署尚未开始，**不是当前开发任务**，必须等
 完整证据见 `COMPLETION_AUDIT.md`。历史任务保留在本文后半部分，
 不再作为新增开发路线。
 
+### Phase 2-L1 测试依赖兼容性收口
+
+- [x] 复现并确认 TestClient / HTTPX 弃用警告来自 Starlette `testclient` 在仅安装 `httpx` 时的兼容分支
+- [x] 以最小依赖调整安装 `httpx2==2.5.0`，不使用 warning filter 掩盖
+- [x] 仅更新 `requirements-dev.txt`；运行时 `requirements.txt`、业务代码、数据库与 Schema 不变
+- [x] 全量测试 `347 passed` 且该弃用警告消失
+- [x] 隔离 Docker build / up / `/login` 200 / down 通过并清理
+- [x] 更新 README / TASKS / REVIEW / CHANGELOG / GOAL
+
 ### Phase 2-K1 开发完成度审计
 
 - [x] 搜索 TODO / FIXME / 占位实现 / 501 / 未完成分支
@@ -47,8 +56,8 @@ N100 / 目标主机部署尚未开始，**不是当前开发任务**，必须等
 
 ### 可延后优化
 
-- [ ] 仅在实际需要时固定依赖或增加 constraints，提高未来镜像重建可重复性
-- [ ] 等 FastAPI / Starlette 支持路径稳定后处理 TestClient 弃用警告
+- [ ] 仅在实际需要时固定运行时依赖或增加 constraints，提高未来镜像重建可重复性
+- [x] TestClient / `httpx` 弃用警告已在 Phase 2-L1 通过 `httpx2` 解决
 - [ ] 仅在新性能数据证明必要时审批索引和真实迁移
 
 ### 明确不做

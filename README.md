@@ -823,7 +823,7 @@ Open `http://localhost:8000` and log in with `APP_PASSWORD`.
 
 For a runtime-only environment, `pip install -r requirements.txt` is enough.
 For development and CI, use `requirements-dev.txt` so `pytest` and the
-TestClient dependency are installed.
+Starlette TestClient dependency (`httpx2`) are installed.
 
 ## Configuration
 
@@ -1080,11 +1080,10 @@ python -m pytest
 GitHub Actions runs on Python 3.12, installs `requirements-dev.txt`, and runs
 `python -m pytest`.
 
-Current local test runs may show a FastAPI / Starlette TestClient deprecation
-warning from `fastapi.testclient` about `httpx` and `httpx2`. The warning does
-not affect current NSFWTrack functionality. It is intentionally not hidden or
-worked around with a broad test rewrite; revisit it after the FastAPI /
-Starlette TestClient dependency path stabilizes.
+Phase 2-L1 installs `httpx2` for the Starlette TestClient path used by
+`fastapi.testclient`. Full local and CI pytest runs should no longer emit the
+previous `httpx` deprecation warning. Runtime production dependencies remain
+unchanged.
 
 ## Known Limitations
 
@@ -1094,5 +1093,3 @@ Starlette TestClient dependency path stabilizes.
 - Backup restore is append / merge based, not an overwrite restore.
 - There are no external content sources, crawlers, recommendation systems, or
   AI assistants.
-- The current TestClient warning does not affect functionality and can be
-  revisited after dependencies stabilize.
