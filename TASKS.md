@@ -2,9 +2,9 @@
 
 按顺序执行，每完成一项打个 [x]。
 
-## 当前状态（v1.0.2 稳定）
+## 当前状态（v1.0.3 稳定）
 
-当前稳定版本：`v1.0.2`。代码开发与 WSL 验收已完成。
+当前稳定版本：`v1.0.3`。代码开发与 WSL 验收已完成。
 N100 / 目标主机部署尚未开始，**不是当前开发任务**，必须等待用户明确授权。
 完整证据见 `COMPLETION_AUDIT.md`。历史任务保留在本文后半部分，
 不再作为新增开发路线。
@@ -875,5 +875,18 @@ N100 / 目标主机部署尚未开始，**不是当前开发任务**，必须等
 - [x] 容器内应用版本为 `1.0.2`，隔离数据库基线仍为 Schema 1
 - [x] 未修改业务逻辑、依赖、数据库、Schema、迁移或旧 tag / Release
 - [x] 创建发布提交、annotated `v1.0.2` tag 和正式 GitHub Release
+- [x] `main`、tag peeled commit 和 Release target 指向同一发布提交
+- [x] 未部署到 N100，临时容器、镜像和数据已清理
+
+## v1.0.3 正式发布
+
+- [x] 确认 `main` 已包含 Phase 2-L7 与 README 数据目录权限准备修复
+- [x] 将 FastAPI 应用版本元数据和回归断言更新为 `1.0.3`
+- [x] 将 L7 从 `Unreleased` 整理为 `## [1.0.3] - 2026-07-12`，并保留新的空白 `Unreleased`
+- [x] 同步 README / PLAN / TASKS / REVIEW / GOAL 发布状态与 rootful Docker 权限说明
+- [x] 全量测试通过：358 passed；`pip check` 通过
+- [x] 隔离 Docker 验证安全配置、healthy、写入边界、SQLite 持久化、版本与 Schema 1
+- [x] 未修改业务逻辑、依赖、数据库、Schema、迁移、容器用户或旧 tag / Release
+- [x] 创建发布提交、annotated `v1.0.3` tag 和正式 GitHub Release
 - [x] `main`、tag peeled commit 和 Release target 指向同一发布提交
 - [x] 未部署到 N100，临时容器、镜像和数据已清理

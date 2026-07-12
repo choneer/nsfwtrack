@@ -2,11 +2,11 @@
 
 NSFWTrack is a local single-user content record manager / collection tracker.
 
-Current release: `v1.0.2 / maintenance and CI hardening`.
+Current release: `v1.0.3 / Docker runtime hardening`.
 
-Release: [NSFWTrack v1.0.2](https://github.com/choneer/nsfwtrack/releases/tag/v1.0.2).
+Release: [NSFWTrack v1.0.3](https://github.com/choneer/nsfwtrack/releases/tag/v1.0.3).
 
-Current status: `stable v1.0.2 — code development and WSL acceptance complete`.
+Current status: `stable v1.0.3 — code development and WSL acceptance complete`.
 
 N100 deployment: `not started; waits for explicit user authorization`.
 
@@ -18,9 +18,9 @@ management.
 
 Phase 2-K1 found no genuine TODO / FIXME marker, stub route, 501 response, or
 dead navigation entry. Phase 2-K2 closed the three pre-use findings and the
-current `v1.0.2` suite contains 358 passing tests.
+current `v1.0.3` suite contains 358 passing tests.
 
-Code development and WSL acceptance through `v1.0.2` are complete. See
+Code development and WSL acceptance through `v1.0.3` are complete. See
 [COMPLETION_AUDIT.md](COMPLETION_AUDIT.md) for the archived K1 / K2 evidence.
 
 - Phase 2-K2 closed the local media-path, bulk / clear confirmation, deployment
@@ -30,6 +30,20 @@ Code development and WSL acceptance through `v1.0.2` are complete. See
 
 No further product feature phase is open. Optional maintenance remains outside
 the stable release scope unless separately approved.
+
+## Features in v1.0.3
+
+`v1.0.3` publishes the Phase 2-L7 Docker runtime security baseline and the
+matching deployment-permission guidance. It adds no product feature,
+dependency, database change, schema migration, or container-user change.
+
+- Production and CI Compose run with a read-only root filesystem, drop all
+  Linux capabilities with `cap_drop: ALL`, and enable `no-new-privileges`.
+- `/tmp` is a bounded tmpfs while `/app/data` remains the only persistent
+  writable application mount; CI verifies both writable and read-only paths.
+- Rootful Docker deployments must prepare the host data directory ownership
+  and permissions before startup. Existing installations should stop the
+  service and take a verified backup before changing that ownership.
 
 ## Features in v1.0.2
 

@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## [1.0.3] - 2026-07-12
+
 ### Security
 
 - Phase 2-L7 runs production Compose and CI Docker smoke with a read-only root

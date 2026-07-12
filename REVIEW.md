@@ -450,7 +450,7 @@
 - [ ] **12.345. 凭据部署门禁是否识别** — 是否记录 `.env.example` 已知占位密码 / Secret 可启动的问题
 - [ ] **12.346. F4 结论是否准确** — 是否确认数据健康备份提示、影响范围、单项修复、confirm / strict / rollback 已实现，并仅保留专项测试收口
 - [ ] **12.347. 测试缺口是否分级** — 是否区分已完成的 K2 自动回归、授权后才可做的 K3 / N100 操作验收和可延后维护
-- [ ] **12.348. 当前状态是否收敛** — PLAN / TASKS 是否标明 v1.0.2 稳定、代码 / WSL 已完成，且不把未授权的 N100 部署列为当前开发任务
+- [ ] **12.348. 当前状态是否收敛** — PLAN / TASKS 是否标明 v1.0.3 稳定、代码 / WSL 已完成，且不把未授权的 N100 部署列为当前开发任务
 - [ ] **12.349. 禁止项是否保持** — 是否未引入外部内容、URL 导入、远程图片代理、AI、云同步、多用户、前端重写或虚构迁移
 
 ## Phase 2-K2 投入使用前边界收口检查
@@ -514,6 +514,16 @@
 - [ ] **12.388. CI 是否先等 healthy** — 是否在原 HTTP / 安全头检查前等待容器健康状态为 `healthy`
 - [ ] **12.389. 失败与清理是否保持** — 失败日志和 `always()` 清理是否继续执行
 - [ ] **12.390. WSL 验收是否完整** — pytest、pip check、隔离 Docker healthy、版本和清理是否通过
+
+## Phase 2-L7 Docker 运行时安全基线检查
+
+- [ ] **12.391. 根文件系统是否只读** — 生产与 CI Compose 是否启用 `read_only: true`
+- [ ] **12.392. capabilities 是否清空** — 是否配置 `cap_drop: ALL`，且容器实际 `CapEff` 为零
+- [ ] **12.393. 提权是否关闭** — 是否配置 `no-new-privileges`，且容器实际 `NoNewPrivs` 为 1
+- [ ] **12.394. 写入边界是否最小** — `/tmp` 是否为 64 MiB tmpfs，且仅 `/tmp` 与持久化 `/app/data` 可写
+- [ ] **12.395. 镜像路径是否只读** — `/app`、`/etc`、`/usr/local` 的实际写入是否失败
+- [ ] **12.396. 数据准备是否安全** — README 是否要求 rootful Docker 启动前准备数据目录权限，并提醒存量安装先停机和完成可验证备份
+- [ ] **12.397. CI 与清理是否保持** — CI 是否使用相同安全配置，同时保留 test、pip check、Docker smoke、失败日志与清理流程
 
 ## 登录保护检查
 
@@ -589,6 +599,13 @@
 - [ ] **22.53. v1.0.2 Schema 边界** — 是否保持 Schema 1、空生产迁移注册表，未新增数据库变化
 - [ ] **22.54. v1.0.2 引用一致性** — annotated tag 的 peeled commit、`origin/main`、Release target 和发布提交是否完全一致
 - [ ] **22.55. v1.0.2 正式 Release** — GitHub Release 是否非 draft、非 prerelease，标题和 tag 是否正确，且旧 tag / Release 未移动
+- [ ] **22.56. v1.0.3 范围** — 是否只发布 L7 Docker 运行时安全增强与权限文档修复，未修改业务逻辑、依赖、数据库、Schema、迁移或容器用户
+- [ ] **22.57. v1.0.3 版本一致性** — FastAPI 元数据、README、PLAN、TASKS、GOAL、CHANGELOG、tag 和 Release 是否均为 `1.0.3`
+- [ ] **22.58. v1.0.3 CHANGELOG** — 是否保留空白 Unreleased，并将 L7 归档为 `## [1.0.3] - 2026-07-12`
+- [ ] **22.59. v1.0.3 验收** — 是否运行 358 项完整 pytest、pip check 和隔离 Docker 安全配置 / healthy / 持久化 / version / down 并清理
+- [ ] **22.60. v1.0.3 Schema 与用户边界** — 是否保持 Schema 1、空生产迁移注册表和原容器用户
+- [ ] **22.61. v1.0.3 引用一致性** — annotated tag 的 peeled commit、`origin/main`、Release target 和发布提交是否完全一致
+- [ ] **22.62. v1.0.3 正式 Release** — GitHub Release 是否非 draft、非 prerelease，标题和 tag 是否正确，且旧 tag / Release 未移动
 
 ## 备份恢复检查
 
