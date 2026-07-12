@@ -29,12 +29,12 @@ jobs:
   docker-smoke:
     name: Docker production smoke
     runs-on: ubuntu-latest
-    # Fixed at job scope so always() cleanup can locate resources even if the
-    # prepare step fails before creating files under the temporary directory.
+    # Fixed job-level paths so always() cleanup can locate resources even if the
+    # prepare step fails before creating files.
     env:
-      SMOKE_DIR: ${{ format('{0}/nsfwtrack-docker-smoke', runner.temp) }}
+      SMOKE_DIR: /tmp/nsfwtrack-docker-smoke
       COMPOSE_PROJECT_NAME: nsfwtrack-ci-smoke
-      COMPOSE_FILE: ${{ format('{0}/nsfwtrack-docker-smoke/docker-compose.yml', runner.temp) }}
+      COMPOSE_FILE: /tmp/nsfwtrack-docker-smoke/docker-compose.yml
 
     steps:
       - name: Check out repository
