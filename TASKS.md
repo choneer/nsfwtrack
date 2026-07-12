@@ -9,6 +9,18 @@ N100 / 目标主机部署尚未开始，**不是当前开发任务**，必须等
 完整证据见 `COMPLETION_AUDIT.md`。历史任务保留在本文后半部分，
 不再作为新增开发路线。
 
+### Phase 2-L8 固定非 root 容器用户
+
+- [x] 镜像创建固定 UID/GID `10001:10001` 的 `nsfwtrack` 用户，并以 Dockerfile `USER` 运行应用和健康检查
+- [x] CI 隔离数据目录归 `10001:10001` 所有，验证 `Config.User`、`id -u` 与 `id -g`
+- [x] 保持只读根、`cap_drop: ALL`、`CapEff=0`、`NoNewPrivs=1` 与 `/tmp` tmpfs
+- [x] 验证 `/app/data`、`/tmp` 可写，`/app`、`/etc`、`/usr/local` 不可写
+- [x] 验证 healthy、`/login`、安全头、SQLite 创建、容器重建持久化与 Schema 1
+- [x] README 记录首次安装和 v1.0.3 存量数据的停机、可验证备份及 `10001:10001`/`0700` 迁移
+- [x] 未使用 `chmod 777`、root 启动脚本、sudo/gosu 容器入口或自动 `chown`
+- [x] 全量测试、`pip check`、隔离 Docker 与 Actions 验收通过并清理
+- [x] 同步 PLAN / TASKS / CHANGELOG / REVIEW / GOAL，不改版本或创建 Release
+
 ### Phase 2-L7 Docker 运行时安全基线
 
 - [x] 生产与 CI Compose 使用只读根文件系统并移除全部 Linux capabilities

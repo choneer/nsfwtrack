@@ -50,10 +50,10 @@ jobs:
       - name: Prepare isolated CI data and temporary credentials
         run: |
           set -euo pipefail
-          # With every capability dropped, container UID 0 must own the bind
-          # directory instead of relying on DAC_OVERRIDE for SQLite writes.
+          # The image runs as fixed UID/GID 10001:10001 and has no capability
+          # available to bypass host bind-mount permissions.
           mkdir -p "${SMOKE_DIR}"
-          sudo install -d -m 0700 -o 0 -g 0 "${SMOKE_DIR}/data"
+          sudo install -d -m 0700 -o 10001 -g 10001 "${SMOKE_DIR}/data"
           APP_PASSWORD="$(python3 -c 'import secrets; print(secrets.token_urlsafe(24))')"
           SECRET_KEY="$(python3 -c 'import secrets; print(secrets.token_hex(32))')"
           # Temporary CI-only credentials. Never use .env.example placeholders.
@@ -119,6 +119,7 @@ jobs:
           container_id="$(docker compose -f "${COMPOSE_FILE}" -p "${COMPOSE_PROJECT_NAME}" ps -q nsfwtrack)"
           test -n "${container_id}"
 
+          test "$(docker inspect --format='{{.Config.User}}' "${container_id}")" = "10001:10001"
           test "$(docker inspect --format='{{.HostConfig.ReadonlyRootfs}}' "${container_id}")" = "true"
           docker inspect --format='{{json .HostConfig.CapDrop}}' "${container_id}" | grep -q '"ALL"'
           docker inspect --format='{{json .HostConfig.SecurityOpt}}' "${container_id}" | grep -q '"no-new-privileges:true"'
@@ -128,6 +129,10 @@ jobs:
             data_probe=/app/data/.ci-write-probe
             tmp_probe=/tmp/.ci-write-probe
             trap "rm -f ${data_probe} ${tmp_probe}" EXIT
+            test "$(id -u)" = "10001"
+            test "$(id -g)" = "10001"
+            test "$(awk "/^CapEff:/ {print \$2}" /proc/1/status)" = "0000000000000000"
+            test "$(awk "/^NoNewPrivs:/ {print \$2}" /proc/1/status)" = "1"
             : > "${data_probe}"
             : > "${tmp_probe}"
             for target in /app/.ci-readonly-probe /etc/.ci-readonly-probe /usr/local/.ci-readonly-probe; do
@@ -137,6 +142,42 @@ jobs:
                 exit 1
               fi
             done
+            test -s /app/data/nsfwtrack.db
+            python -c "import sqlite3; connection = sqlite3.connect(\"/app/data/nsfwtrack.db\"); assert connection.execute(\"SELECT MAX(version) FROM schema_migrations\").fetchone()[0] == 1"
+          '
+
+      - name: Recreate container and verify SQLite persistence
+        run: |
+          set -euo pipefail
+          sudo test -s "${SMOKE_DIR}/data/nsfwtrack.db"
+          docker compose -f "${COMPOSE_FILE}" -p "${COMPOSE_PROJECT_NAME}" stop nsfwtrack
+          docker compose -f "${COMPOSE_FILE}" -p "${COMPOSE_PROJECT_NAME}" rm -f nsfwtrack
+          sudo test -s "${SMOKE_DIR}/data/nsfwtrack.db"
+          docker compose -f "${COMPOSE_FILE}" -p "${COMPOSE_PROJECT_NAME}" up -d nsfwtrack
+
+          container_id="$(docker compose -f "${COMPOSE_FILE}" -p "${COMPOSE_PROJECT_NAME}" ps -q nsfwtrack)"
+          test -n "${container_id}"
+          deadline=$((SECONDS + 90))
+          while [ "${SECONDS}" -lt "${deadline}" ]; do
+            health="$(docker inspect --format='{{if .State.Health}}{{.State.Health.Status}}{{else}}missing{{end}}' "${container_id}")"
+            echo "recreated container health: ${health}"
+            if [ "${health}" = "healthy" ]; then
+              break
+            fi
+            running="$(docker inspect --format='{{.State.Running}}' "${container_id}")"
+            if [ "${running}" != "true" ]; then
+              echo "docker smoke failed: recreated container stopped before becoming healthy" >&2
+              exit 1
+            fi
+            sleep 2
+          done
+          test "${health}" = "healthy"
+          test "$(docker inspect --format='{{.Config.User}}' "${container_id}")" = "10001:10001"
+          docker compose -f "${COMPOSE_FILE}" -p "${COMPOSE_PROJECT_NAME}" exec -T nsfwtrack sh -eu -c '
+            test "$(id -u)" = "10001"
+            test "$(id -g)" = "10001"
+            test -s /app/data/nsfwtrack.db
+            python -c "import sqlite3; connection = sqlite3.connect(\"/app/data/nsfwtrack.db\"); assert connection.execute(\"SELECT MAX(version) FROM schema_migrations\").fetchone()[0] == 1"
           '
 
       - name: Wait for /login and verify security headers

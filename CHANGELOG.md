@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+### Security
+
+- Phase 2-L8 runs the production application and image health check as the
+  fixed non-root `nsfwtrack` UID/GID `10001:10001`. CI prepares the isolated
+  bind mount for that identity and verifies container identity, the L7 runtime
+  restrictions, writable boundaries, healthy HTTP/security-header behavior,
+  and Schema 1 SQLite persistence across container recreation.
+- Documented first-install ownership and the stopped, verified-backup migration
+  from v1.0.3 root-owned data without world-writable permissions, a root entry
+  point, sudo/gosu, or startup-time automatic ownership changes.
+
 ## [1.0.3] - 2026-07-12
 
 ### Security

@@ -879,11 +879,12 @@ The exact placeholder `APP_PASSWORD` and `SECRET_KEY` values from
 ## Local Media
 
 Prepare `./data/media` only after the rootful Docker data-directory ownership
-step in the Docker Compose section below. The data mount makes that directory
-available inside the container without another volume or dependency.
+step in the Docker Compose section below. The production image runs as fixed
+UID/GID `10001:10001`, and the data mount makes this directory available inside
+the container without another volume or dependency.
 
 ```bash
-sudo install -d -m 0700 -o 0 -g 0 data/media/covers
+sudo install -d -m 0700 -o 10001 -g 10001 data/media/covers
 ```
 
 For `./data/media/covers/example.webp`, store this value in `cover_path`:
@@ -899,17 +900,14 @@ although avatars are not currently rendered.
 
 ## Docker Compose
 
-Before the first rootful Docker start, prepare `./data` for the default
-container UID `0`. For an existing installation, first stop the service and
-make a verified backup of `./data`; the ownership commands below modify the
-existing directory and its contents.
+Before the first rootful Docker start, prepare `./data` for the fixed container
+UID/GID `10001:10001`. Existing v1.0.3 installations must use the stopped,
+verified-backup migration procedure below before changing ownership.
 
 ```bash
 cp .env.example .env
-mkdir -p data
-sudo chown -R 0:0 data
-sudo chmod -R u+rwX,go-rwx data
-sudo install -d -m 0700 -o 0 -g 0 data/media/covers
+sudo install -d -m 0700 -o 10001 -g 10001 data
+sudo install -d -m 0700 -o 10001 -g 10001 data/media/covers
 docker compose build
 docker compose up -d
 ```
@@ -930,12 +928,14 @@ Production Compose runs with a read-only container root filesystem, drops all
 Linux capabilities, enables `no-new-privileges`, and mounts a 64 MiB tmpfs at
 `/tmp`. The existing `./data:/app/data` mount remains writable and persistent
 for SQLite and local media; other image paths remain read-only. This hardening
-does not change the image user, application endpoints, or health check.
+is combined with a fixed `nsfwtrack` UID/GID `10001:10001`; both the application
+and image health check run as that non-root identity.
 
-With rootful Docker, the default container UID `0` must own `./data` and its
-existing contents because all capabilities, including `DAC_OVERRIDE`, are
-dropped. The preparation before `docker compose build` keeps the directory
-writable without making it world-writable.
+With rootful Docker, UID/GID `10001:10001` must own `./data` and its existing
+contents because all capabilities, including `DAC_OVERRIDE`, are dropped. Keep
+the data directory at mode `0700`; do not use `chmod 777`, a root startup
+script, sudo/gosu in the container entry point, or startup-time automatic
+`chown`.
 
 ## Install, Upgrade, And Rollback Checklist
 
@@ -947,13 +947,11 @@ Use this single checklist for the current local deployment line.
    with a unique strong password and a long random secret, and keep `.env`
    outside version control.
 2. Before the first rootful Docker start, create and secure the writable data
-   and media directories for container UID `0`:
+   and media directories for container UID/GID `10001:10001`:
 
    ```bash
-   mkdir -p data
-   sudo chown -R 0:0 data
-   sudo chmod -R u+rwX,go-rwx data
-   sudo install -d -m 0700 -o 0 -g 0 data/media/covers
+   sudo install -d -m 0700 -o 10001 -g 10001 data
+   sudo install -d -m 0700 -o 10001 -g 10001 data/media/covers
    ```
 
 3. Only after that preparation, run `docker compose build` and
@@ -971,14 +969,42 @@ Use this single checklist for the current local deployment line.
    retain the verified file outside the deployment directory.
 2. Run `docker compose down`, then copy the stopped `data/nsfwtrack.db` to a
    dated rollback file before changing code or images.
-3. Fetch the reviewed target tag or commit, verify its release notes, then run
+3. If the existing deployment is v1.0.3 or earlier and `./data` is not already
+   owned by `10001:10001`, complete the ownership migration below while the
+   service remains stopped.
+4. Fetch the reviewed target tag or commit, verify its release notes, then run
    `docker compose build` and `docker compose up -d`.
-4. Confirm `/login` returns `200`, log in, and inspect the schema status in
+5. Confirm `/login` returns `200`, log in, and inspect the schema status in
    `/settings`. Startup never applies migrations automatically; any future
    lower-version database must use the explicit preview and apply flow after a
    backup.
-5. The current schema remains version `1`; there is no invented `1 -> 2`
+6. The current schema remains version `1`; there is no invented `1 -> 2`
    production migration. v0.9.x and v1.0.x therefore require no schema step.
+
+### Migrate Existing v1.0.3 Data Ownership
+
+Do not change a live data directory. First export and validate a fresh JSON
+backup, then stop the service and make a byte-verified stopped copy outside the
+deployment directory. Only after `cmp` succeeds should ownership change:
+
+```bash
+docker compose down
+backup_dir="../nsfwtrack-data-v1.0.3-$(date +%Y%m%d-%H%M%S)"
+sudo cp -a data "${backup_dir}"
+sudo test -s "${backup_dir}/nsfwtrack.db"
+sudo cmp -s data/nsfwtrack.db "${backup_dir}/nsfwtrack.db"
+sudo chown -R 10001:10001 data
+sudo chmod -R u+rwX,go-rwx data
+sudo chmod 0700 data
+sudo install -d -m 0700 -o 10001 -g 10001 data/media/covers
+docker compose build
+docker compose up -d
+```
+
+After startup, confirm `/login` returns `200`, verify the Schema 1 status in
+`/settings`, and retain the stopped backup until application data has been
+checked. Do not replace this procedure with world-writable permissions, a root
+container, or an entry point that changes ownership automatically.
 
 ### Rollback
 

@@ -13,7 +13,13 @@ WORKDIR /app
 COPY --from=builder /install /usr/local
 COPY app ./app
 COPY requirements.txt .
-RUN mkdir -p /app/data
+RUN groupadd --gid 10001 nsfwtrack \
+    && useradd --uid 10001 --gid 10001 --no-create-home \
+        --home-dir /app --shell /usr/sbin/nologin nsfwtrack \
+    && mkdir -p /app/data \
+    && chown 10001:10001 /app/data
+
+USER 10001:10001
 
 EXPOSE 8000
 HEALTHCHECK --interval=5s --timeout=3s --start-period=10s --retries=12 \
