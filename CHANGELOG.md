@@ -8,6 +8,8 @@
   the image with temporary CI credentials and an isolated data directory,
   waits for `/login` HTTP 200, checks baseline security response headers, dumps
   container logs on failure, and always cleans up containers and temporary data.
+- Added CI concurrency grouped by workflow and ref with `cancel-in-progress`,
+  so an older run for the same branch or pull-request ref is cancelled.
 - Added a minimal `SecurityHeadersMiddleware` that applies consistent browser
   hardening headers to successful HTML, redirects, JSON, error, and local
   media responses without enabling HSTS or an aggressive CSP.
@@ -34,6 +36,14 @@
   only; a full transitive lockfile is still not generated.
 - CI now runs `pip check` after installing `requirements-dev.txt` and before
   pytest.
+- Phase 2-L4 updated the checkout and Python setup actions, and uses fixed
+  job-level smoke paths so failure and `always` cleanup target the same Compose
+  project and temporary directory without changing test or smoke behavior.
+
+### Security
+
+- Phase 2-L5 explicitly limits the GitHub Actions token to read-only repository
+  contents; the workflow requests no write permission or additional secret.
 
 ## [1.0.1] - 2026-07-11
 

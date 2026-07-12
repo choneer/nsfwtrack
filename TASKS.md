@@ -1,4 +1,4 @@
-# Codex 开发任务清单 — MVP
+# 开发任务清单 — MVP
 
 按顺序执行，每完成一项打个 [x]。
 
@@ -8,6 +8,13 @@
 N100 / 目标主机部署尚未开始，**不是当前开发任务**，必须等待用户明确授权。
 完整证据见 `COMPLETION_AUDIT.md`。历史任务保留在本文后半部分，
 不再作为新增开发路线。
+
+### Phase 2-L5 CI 最小权限与重复运行控制
+
+- [x] 将 workflow 权限明确限制为 `contents: read`
+- [x] 按 workflow 与 ref 设置 concurrency，并启用 `cancel-in-progress`
+- [x] 保持 test、`pip check`、Docker smoke、失败日志与清理步骤不变
+- [x] 精简同步 PLAN / TASKS / CHANGELOG，不改业务代码、依赖、数据库、Schema 或版本
 
 ### Phase 2-L4 CI Docker 冒烟验收
 
@@ -24,7 +31,7 @@ N100 / 目标主机部署尚未开始，**不是当前开发任务**，必须等
 - [x] 设置 `X-Content-Type-Options`、`Referrer-Policy`、`X-Frame-Options` 和受限 `Permissions-Policy`
 - [x] 不启用 HSTS，不加入会破坏现有表单或内联脚本的激进 CSP
 - [x] 保持 `X-Request-ID`、405 `Allow` 与现有登录 / 确认 / 媒体行为
-- [x] 专项测试 9 passed；全量 `356 passed`；`pip check` 通过
+- [x] 专项测试 11 passed；全量 `358 passed`；`pip check` 通过
 - [x] 隔离 Docker build / up / `/login` 200 含安全头 / down 清理通过
 - [x] 更新 README / TASKS / REVIEW / CHANGELOG / GOAL / PLAN
 
