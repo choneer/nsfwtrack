@@ -1079,8 +1079,14 @@ python -m pip check
 python -m pytest
 ```
 
-GitHub Actions runs on Python 3.12, installs `requirements-dev.txt`, runs
-`python -m pip check`, and then `python -m pytest`.
+GitHub Actions runs two jobs:
+
+1. `test` — Python 3.12, install `requirements-dev.txt`, `python -m pip check`,
+   then `python -m pytest`.
+2. `docker-smoke` — build the production image with temporary CI credentials
+   and an isolated data directory, wait for `/login` HTTP 200, verify baseline
+   security response headers, dump container logs on failure, and always clean
+   up containers and temporary files.
 
 Phase 2-L1 installs `httpx2` for the Starlette TestClient path used by
 `fastapi.testclient`. Phase 2-L2 pins the verified direct runtime and test

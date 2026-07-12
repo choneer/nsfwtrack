@@ -4,6 +4,10 @@
 
 ### Added
 
+- Added an independent GitHub Actions Docker production smoke job that builds
+  the image with temporary CI credentials and an isolated data directory,
+  waits for `/login` HTTP 200, checks baseline security response headers, dumps
+  container logs on failure, and always cleans up containers and temporary data.
 - Added a minimal `SecurityHeadersMiddleware` that applies consistent browser
   hardening headers to successful HTML, redirects, JSON, error, and local
   media responses without enabling HSTS or an aggressive CSP.

@@ -25,3 +25,123 @@ jobs:
 
       - name: Run tests
         run: python -m pytest
+
+  docker-smoke:
+    name: Docker production smoke
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Prepare isolated CI data and temporary credentials
+        run: |
+          set -euo pipefail
+          SMOKE_DIR="${RUNNER_TEMP}/nsfwtrack-docker-smoke"
+          mkdir -p "${SMOKE_DIR}/data"
+          APP_PASSWORD="$(python3 -c 'import secrets; print(secrets.token_urlsafe(24))')"
+          SECRET_KEY="$(python3 -c 'import secrets; print(secrets.token_hex(32))')"
+          # Temporary CI-only credentials. Never use .env.example placeholders.
+          {
+            echo "APP_PASSWORD=${APP_PASSWORD}"
+            echo "SECRET_KEY=${SECRET_KEY}"
+            echo "DATABASE_URL=sqlite:///data/nsfwtrack.db"
+          } > "${SMOKE_DIR}/.env"
+          {
+            echo "services:"
+            echo "  nsfwtrack:"
+            echo "    build: ${GITHUB_WORKSPACE}"
+            echo "    env_file:"
+            echo "      - ${SMOKE_DIR}/.env"
+            echo "    ports:"
+            echo '      - "18080:8000"'
+            echo "    volumes:"
+            echo "      - ${SMOKE_DIR}/data:/app/data"
+            echo '    restart: "no"'
+          } > "${SMOKE_DIR}/docker-compose.yml"
+          echo "SMOKE_DIR=${SMOKE_DIR}" >> "${GITHUB_ENV}"
+          echo "COMPOSE_PROJECT_NAME=nsfwtrack-ci-smoke" >> "${GITHUB_ENV}"
+          echo "COMPOSE_FILE=${SMOKE_DIR}/docker-compose.yml" >> "${GITHUB_ENV}"
+
+      - name: Build production image
+        run: docker compose -f "${COMPOSE_FILE}" -p "${COMPOSE_PROJECT_NAME}" build
+
+      - name: Start container
+        run: docker compose -f "${COMPOSE_FILE}" -p "${COMPOSE_PROJECT_NAME}" up -d
+
+      - name: Wait for /login and verify security headers
+        run: |
+          set -euo pipefail
+          python3 <<'PY'
+          import sys
+          import time
+          import urllib.request
+
+          url = "http://127.0.0.1:18080/login"
+          required = {
+              "x-content-type-options": "nosniff",
+              "referrer-policy": "strict-origin-when-cross-origin",
+              "x-frame-options": "DENY",
+          }
+          deadline = time.time() + 60
+          last_error = "no response"
+          while time.time() < deadline:
+              try:
+                  with urllib.request.urlopen(url, timeout=5) as response:
+                      status = response.getcode()
+                      headers = {k.lower(): v for k, v in response.headers.items()}
+                      if status != 200:
+                          last_error = f"status={status}"
+                      else:
+                          missing = [
+                              f"{name} expected {expected!r} got {headers.get(name)!r}"
+                              for name, expected in required.items()
+                              if headers.get(name) != expected
+                          ]
+                          permissions = headers.get("permissions-policy", "")
+                          if "camera=()" not in permissions:
+                              missing.append(
+                                  f"permissions-policy missing camera=(): {permissions!r}"
+                              )
+                          request_id = headers.get("x-request-id", "")
+                          if not request_id:
+                              missing.append("missing x-request-id")
+                          if "strict-transport-security" in headers:
+                              missing.append("unexpected HSTS")
+                          if "content-security-policy" in headers:
+                              missing.append("unexpected CSP")
+                          if not missing:
+                              print("docker smoke ok")
+                              print(f"status={status}")
+                              for name in list(required) + [
+                                  "permissions-policy",
+                                  "x-request-id",
+                              ]:
+                                  print(f"{name}: {headers.get(name)}")
+                              sys.exit(0)
+                          last_error = "; ".join(missing)
+              except Exception as exc:  # noqa: BLE001 - smoke wait loop
+                  last_error = f"{type(exc).__name__}: {exc}"
+              time.sleep(2)
+          print(f"docker smoke failed: {last_error}", file=sys.stderr)
+          sys.exit(1)
+          PY
+
+      - name: Show container logs on failure
+        if: failure()
+        run: |
+          set +e
+          docker compose -f "${COMPOSE_FILE}" -p "${COMPOSE_PROJECT_NAME}" ps -a || true
+          docker compose -f "${COMPOSE_FILE}" -p "${COMPOSE_PROJECT_NAME}" logs --no-color || true
+
+      - name: Clean up containers and temporary data
+        if: always()
+        run: |
+          set +e
+          if [ -n "${COMPOSE_FILE:-}" ] && [ -n "${COMPOSE_PROJECT_NAME:-}" ]; then
+            docker compose -f "${COMPOSE_FILE}" -p "${COMPOSE_PROJECT_NAME}" down --rmi local --volumes --remove-orphans || true
+          fi
+          if [ -n "${SMOKE_DIR:-}" ] && [ -d "${SMOKE_DIR}" ]; then
+            rm -rf "${SMOKE_DIR}"
+          fi
+          echo "docker smoke cleanup complete"

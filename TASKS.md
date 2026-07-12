@@ -9,6 +9,15 @@ N100 / 目标主机部署尚未开始，**不是当前开发任务**，必须等
 完整证据见 `COMPLETION_AUDIT.md`。历史任务保留在本文后半部分，
 不再作为新增开发路线。
 
+### Phase 2-L4 CI Docker 冒烟验收
+
+- [x] 在 GitHub Actions 增加独立 `docker-smoke` 任务，保留现有 pytest / pip check
+- [x] 使用临时随机凭据和隔离数据目录启动生产镜像，不使用示例占位值
+- [x] 等待 `/login` 200 并检查基础安全响应头与 `X-Request-ID`
+- [x] 失败时输出容器日志；`always` 清理 compose 资源与临时目录
+- [x] 本地全量测试与按 CI 设计的隔离 Docker 冒烟通过
+- [x] 更新 README / TASKS / REVIEW / CHANGELOG / GOAL / PLAN
+
 ### Phase 2-L3 浏览器安全响应头基线
 
 - [x] 增加统一 `SecurityHeadersMiddleware`，覆盖成功 / 重定向 / 错误 / JSON / 媒体响应

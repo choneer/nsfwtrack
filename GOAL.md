@@ -1,45 +1,41 @@
 # GOAL.md
 
-# 当前目标：Phase 2-L3 — 浏览器安全响应头基线
+# 当前目标：Phase 2-L4 — CI Docker 冒烟验收
 
 请先读取 `RULE.md`、`PLAN.md` 和 `TASKS.md`。
 
 ## 目标
 
-为所有 HTML、JSON、错误和重定向响应增加一致的安全响应头。
+让 GitHub Actions 自动验证生产 Docker 镜像可以构建、启动并正常响应。
 
 ## 任务
 
-- [x] 增加统一的安全响应头中间件
-- [x] 覆盖成功、重定向、404、422、500 和媒体响应
-- [x] 至少处理：
-  - `X-Content-Type-Options`
-  - `Referrer-Policy`
-  - 防止页面被第三方框架嵌入
-  - 禁用不需要的浏览器权限
-- [x] 保持 request ID、405 `Allow` 和现有页面行为不变
-- [x] 增加专项测试并完成全量测试与隔离 Docker 验收
+- [x] 在 CI 中增加独立 Docker 验收任务
+- [x] 使用临时测试凭据和隔离数据目录启动容器
+- [x] 等待 `/login` 返回 200，并检查基础安全响应头
+- [x] 失败时输出容器日志，结束后始终清理资源
+- [x] 保留现有 pytest 与 `pip check`
 
 ## 边界
 
-- 不添加会破坏现有表单或脚本的激进 CSP
-- 本地 HTTP 环境不启用 HSTS
 - 不修改业务逻辑、数据库、Schema、依赖或版本
-- 所有测试在 WSL `/home/nsfwtrack` 执行
+- 不提交 `.env` 或真实凭据
+- 不使用 `.env.example` 的占位值
+- 不创建 Release
 
 ## 完成标准
 
-- 所有响应包含预期安全头
-- 登录、媒体、错误响应和确认流程无回归
-- 全量测试、`pip check` 和 Docker 验收通过
-- 更新文档后提交推送
+- CI 的测试任务和 Docker 任务均通过
+- 本地全量测试与隔离 Docker 验收通过
+- 更新文档和 `CHANGELOG.md`
+- 提交并推送
 
 ## 执行结果
 
-- [x] 新增 `SecurityHeadersMiddleware`，统一附加最小安全响应头
-- [x] 覆盖 HTML 成功、重定向、404、422、405、JSON API 与本地媒体响应
-- [x] 头集合：`X-Content-Type-Options: nosniff`、`Referrer-Policy: strict-origin-when-cross-origin`、`X-Frame-Options: DENY`、受限 `Permissions-Policy`
-- [x] 未启用 HSTS；未加入激进 CSP
-- [x] 保留 `X-Request-ID` 与 405 `Allow`
-- [x] 专项 9 项通过；全量 `356 passed`；`pip check` 通过；隔离 Docker `/login` 200 且头齐全
-- [x] 未改业务逻辑、数据库、Schema、依赖或版本
+- [x] 新增独立 `docker-smoke` job，与 pytest job 并行
+- [x] 临时随机凭据 + 隔离数据目录 + 独立 compose project
+- [x] 等待 `/login` 200，并校验 nosniff / Referrer-Policy / X-Frame-Options / Permissions-Policy / X-Request-ID
+- [x] `if: failure()` 输出 compose logs；`if: always()` 执行 down 与临时目录清理
+- [x] 保留原有 test job 的 pip check + pytest
+- [x] 本地全量测试通过；本地按 CI 设计的 Docker 冒烟通过并清理
+- [x] 未改业务代码、依赖、数据库、Schema 或版本
