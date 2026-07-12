@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import os
 import stat
+import tempfile
 import zlib
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
@@ -68,6 +69,13 @@ class LocalMediaUploadResult:
     uploaded: int
     duplicate: int
     media_paths: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class _PublishedMedia:
+    path: Path
+    device: int
+    inode: int
 
 
 def normalize_local_media_path(value: str | None) -> str | None:
@@ -336,6 +344,147 @@ def _ensure_library_directory() -> Path:
         raise LocalMediaUploadError("storage_unavailable") from exc
 
 
+def _open_temporary_stream(file_descriptor: int):
+    return os.fdopen(file_descriptor, "wb")
+
+
+def _sync_temporary_stream(stream: object) -> None:
+    stream.flush()
+    os.fsync(stream.fileno())
+
+
+def _atomic_publish(temporary_path: Path, target: Path) -> None:
+    os.link(temporary_path, target, follow_symlinks=False)
+
+
+def _fsync_directory(directory: Path) -> None:
+    flags = os.O_RDONLY
+    if hasattr(os, "O_DIRECTORY"):
+        flags |= os.O_DIRECTORY
+    try:
+        directory_fd = os.open(directory, flags)
+        try:
+            os.fsync(directory_fd)
+        finally:
+            os.close(directory_fd)
+    except OSError as exc:
+        raise LocalMediaUploadError("storage_unavailable") from exc
+
+
+def _write_temporary_media(library: Path, content: bytes) -> Path:
+    file_descriptor = -1
+    stream = None
+    temporary_path: Path | None = None
+    try:
+        file_descriptor, temporary_name = tempfile.mkstemp(
+            dir=library,
+            prefix=".upload-",
+            suffix=".tmp",
+        )
+        temporary_path = Path(temporary_name)
+        stream = _open_temporary_stream(file_descriptor)
+        file_descriptor = -1
+        stream.write(content)
+        _sync_temporary_stream(stream)
+        stream.close()
+        stream = None
+        return temporary_path
+    except BaseException:
+        if stream is not None:
+            try:
+                stream.close()
+            except BaseException:
+                pass
+        if file_descriptor >= 0:
+            try:
+                os.close(file_descriptor)
+            except OSError:
+                pass
+        if temporary_path is not None:
+            try:
+                temporary_path.unlink(missing_ok=True)
+            except OSError:
+                pass
+        raise
+
+
+def _verify_existing_final(
+    media_path: str,
+    extension: str,
+    digest: str,
+) -> None:
+    try:
+        existing = _safe_media_file(media_path)
+        existing_content, _ = _read_validated_file(existing, extension)
+    except LocalMediaPathError as exc:
+        raise LocalMediaUploadError("storage_unavailable") from exc
+    if hashlib.sha256(existing_content).hexdigest() != digest:
+        raise LocalMediaUploadError("storage_unavailable")
+
+
+def _publish_media_file(
+    library: Path,
+    extension: str,
+    digest: str,
+    content: bytes,
+) -> _PublishedMedia | None:
+    target = library / f"{digest}{extension}"
+    media_path = f"{LOCAL_MEDIA_PREFIX}{LOCAL_MEDIA_LIBRARY_DIR}/{target.name}"
+    temporary_path: Path | None = None
+    target_created = False
+    try:
+        temporary_path = _write_temporary_media(library, content)
+        try:
+            _atomic_publish(temporary_path, target)
+        except FileExistsError:
+            _verify_existing_final(media_path, extension, digest)
+            return None
+        target_created = True
+        temporary_path.unlink()
+        temporary_path = None
+        target_stat = target.stat(follow_symlinks=False)
+        if not stat.S_ISREG(target_stat.st_mode):
+            raise LocalMediaUploadError("storage_unavailable")
+        _fsync_directory(library)
+        return _PublishedMedia(target, target_stat.st_dev, target_stat.st_ino)
+    except BaseException:
+        if target_created:
+            try:
+                target.unlink(missing_ok=True)
+                _fsync_directory(library)
+            except BaseException:
+                pass
+        raise
+    finally:
+        if temporary_path is not None:
+            try:
+                temporary_path.unlink(missing_ok=True)
+            except OSError:
+                pass
+
+
+def _rollback_published_media(
+    library: Path,
+    published: list[_PublishedMedia],
+) -> None:
+    cleanup_failed = False
+    for record in reversed(published):
+        try:
+            current = record.path.stat(follow_symlinks=False)
+            if current.st_dev == record.device and current.st_ino == record.inode:
+                record.path.unlink()
+        except FileNotFoundError:
+            continue
+        except OSError:
+            cleanup_failed = True
+    try:
+        _fsync_directory(library)
+    except LocalMediaUploadError:
+        cleanup_failed = True
+    if cleanup_failed:
+        raise LocalMediaUploadError("storage_unavailable")
+
+
 async def store_media_uploads(files: list[UploadFile]) -> LocalMediaUploadResult:
     uploads = [upload for upload in files if upload.filename]
     if not uploads:
@@ -372,30 +521,39 @@ async def store_media_uploads(files: list[UploadFile]) -> LocalMediaUploadResult
     uploaded = 0
     duplicate = 0
     media_paths: list[str] = []
-    for extension, digest, content in prepared:
-        existing_path = paths_by_hash.get(digest)
-        if existing_path is not None:
-            duplicate += 1
-            media_paths.append(existing_path)
-            continue
-        target = library / f"{digest}{extension}"
-        media_path = f"{LOCAL_MEDIA_PREFIX}{LOCAL_MEDIA_LIBRARY_DIR}/{target.name}"
+    published: list[_PublishedMedia] = []
+    try:
+        for extension, digest, content in prepared:
+            existing_path = paths_by_hash.get(digest)
+            if existing_path is not None:
+                duplicate += 1
+                media_paths.append(existing_path)
+                continue
+            media_path = (
+                f"{LOCAL_MEDIA_PREFIX}{LOCAL_MEDIA_LIBRARY_DIR}/"
+                f"{digest}{extension}"
+            )
+            created = _publish_media_file(
+                library,
+                extension,
+                digest,
+                content,
+            )
+            if created is None:
+                duplicate += 1
+            else:
+                published.append(created)
+                uploaded += 1
+            paths_by_hash[digest] = media_path
+            media_paths.append(media_path)
+    except BaseException as exc:
         try:
-            with target.open("xb") as stream:
-                stream.write(content)
-        except FileExistsError:
-            try:
-                existing = _safe_media_file(media_path)
-                existing_content, _ = _read_validated_file(existing, extension)
-            except LocalMediaPathError as exc:
-                raise LocalMediaUploadError("storage_unavailable") from exc
-            if hashlib.sha256(existing_content).hexdigest() != digest:
-                raise LocalMediaUploadError("storage_unavailable")
-            duplicate += 1
-        except OSError as exc:
+            _rollback_published_media(library, published)
+        except LocalMediaUploadError as cleanup_exc:
+            raise cleanup_exc from exc
+        if isinstance(exc, LocalMediaUploadError):
+            raise
+        if isinstance(exc, Exception):
             raise LocalMediaUploadError("storage_unavailable") from exc
-        else:
-            uploaded += 1
-        paths_by_hash[digest] = media_path
-        media_paths.append(media_path)
+        raise
     return LocalMediaUploadResult(uploaded, duplicate, tuple(media_paths))

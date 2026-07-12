@@ -43,5 +43,6 @@
 - [x] 封面 / 头像可设置、替换和清除；清除关联不删除媒体文件
 - [x] 缺失、损坏、符号链接和非法路径安全降级，不请求外部 URL
 - [x] 未新增表，Schema 保持 2，依赖、版本、旧 Release 和 Docker 安全配置未变
-- [x] `391 passed`、pip check 与隔离 Docker 双生命周期验收通过，临时资源已清理
+- [x] 上传使用同目录随机临时文件，flush / fsync 后原子发布；写入、关闭和批次中途失败均清理临时与本批次新文件
+- [x] `397 passed`、pip check 与隔离 Docker 双生命周期验收通过，临时资源已清理
 - Actions test / Docker production smoke 结果随最终提交验收并在交付时汇报

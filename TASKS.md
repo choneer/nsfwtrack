@@ -16,12 +16,13 @@ N100 / 目标主机部署尚未开始，**不是当前开发任务**，必须等
 - [x] 支持单图和多图上传；每批 20 张、每张 10 MB，并校验扩展名、MIME 与文件结构
 - [x] 仅接受 AVIF / GIF / JPEG / PNG / WebP，拒绝 SVG、HTML、伪装、损坏和不支持文件
 - [x] 使用 SHA-256 内容寻址去重，相同图片不重复保存
+- [x] 同目录随机临时文件写完后 flush / fsync 并原子发布；写入、关闭或批次中途失败均回滚且无残留
 - [x] 支持设置、替换和确认清除封面 / 头像；清除关联不物理删除文件，strict 模式仍需 `CONFIRM`
 - [x] 缺失或损坏媒体安全显示为空状态，文件端点返回 404 而非 500
 - [x] 所有写操作登录保护并使用 POST；不请求外部 URL，不做识别、推荐或 AI
 - [x] 不新增表，不改 Schema 2、依赖、版本、旧 Release 或 Docker 安全配置
 - [x] 中英文、README / PLAN / TASKS / REVIEW / CHANGELOG / GOAL 与测试同步
-- [x] 全量 `391 passed`、`pip check` 与隔离 Docker 双生命周期通过并清理；Actions 结果随最终提交汇报
+- [x] 全量 `397 passed`、`pip check` 与隔离 Docker 双生命周期通过并清理；Actions 结果随最终提交汇报
 
 ### Phase 3-A1 来源链接与批量书签导入
 

@@ -44,7 +44,10 @@ local uploads. Each batch is limited to 20 files and each file to 10 MB.
   MIME type, and file structure agree. SVG, HTML, disguised, truncated, and
   unsupported files are rejected.
 - Uploaded bytes are named and deduplicated by SHA-256 under
-  `data/media/library`; repeated content is not saved twice.
+  `data/media/library`; repeated content is not saved twice. Each new file is
+  fully written and fsynced through a random same-directory temporary file,
+  then atomically published. A failed batch removes all of its temporary and
+  newly published files.
 - Directory scanning never follows symbolic links. Serving and assignment also
   reject symlinked, missing, oversized, invalid, or escaping paths.
 - A valid library image can set or replace an item cover or creator avatar.

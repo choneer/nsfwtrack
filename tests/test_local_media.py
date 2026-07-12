@@ -347,6 +347,250 @@ def test_multi_upload_uses_sha256_deduplication(
     assert len(local_media.scan_local_media().entries) == 2
 
 
+def test_upload_flushes_and_fsyncs_random_temp_before_atomic_publish(
+    auth_client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    media_root = tmp_path / "media"
+    content = _png_bytes()
+    events: list[str] = []
+    original_open = local_media._open_temporary_stream
+    original_publish = local_media._atomic_publish
+
+    class RecordingStream:
+        def __init__(self, raw: object) -> None:
+            self.raw = raw
+
+        def write(self, value: bytes) -> int:
+            events.append("write")
+            return self.raw.write(value)
+
+        def flush(self) -> None:
+            events.append("flush")
+            self.raw.flush()
+
+        def fileno(self) -> int:
+            return self.raw.fileno()
+
+        def close(self) -> None:
+            events.append("close")
+            self.raw.close()
+
+    def open_recording(file_descriptor: int) -> RecordingStream:
+        return RecordingStream(original_open(file_descriptor))
+
+    def sync_recording(stream: object) -> None:
+        stream.flush()
+        events.append("fsync")
+        local_media.os.fsync(stream.fileno())
+
+    def publish_recording(temporary: Path, target: Path) -> None:
+        events.append("publish")
+        assert temporary.parent == media_root / "library"
+        assert temporary.name.startswith(".upload-")
+        assert temporary.suffix == ".tmp"
+        assert temporary.read_bytes() == content
+        assert not target.exists()
+        original_publish(temporary, target)
+
+    monkeypatch.setattr(local_media, "LOCAL_MEDIA_ROOT", media_root)
+    monkeypatch.setattr(local_media, "_open_temporary_stream", open_recording)
+    monkeypatch.setattr(local_media, "_sync_temporary_stream", sync_recording)
+    monkeypatch.setattr(local_media, "_atomic_publish", publish_recording)
+
+    response = auth_client.post(
+        "/media-library/upload",
+        files={"files": ("atomic.png", content, "image/png")},
+        follow_redirects=True,
+    )
+
+    assert response.status_code == 200
+    assert "新增 1，重复 0" in response.text
+    assert events == ["write", "flush", "fsync", "close", "publish"]
+    assert not list((media_root / "library").glob(".upload-*.tmp"))
+
+
+def test_interrupted_write_removes_temporary_and_final_files(
+    auth_client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    media_root = tmp_path / "media"
+    original_open = local_media._open_temporary_stream
+
+    class InterruptedStream:
+        def __init__(self, raw: object) -> None:
+            self.raw = raw
+
+        def write(self, value: bytes) -> int:
+            self.raw.write(value[:8])
+            raise OSError("simulated interrupted write")
+
+        def close(self) -> None:
+            self.raw.close()
+
+    monkeypatch.setattr(local_media, "LOCAL_MEDIA_ROOT", media_root)
+    monkeypatch.setattr(
+        local_media,
+        "_open_temporary_stream",
+        lambda file_descriptor: InterruptedStream(original_open(file_descriptor)),
+    )
+
+    response = auth_client.post(
+        "/media-library/upload",
+        files={"files": ("interrupted.png", _png_bytes(), "image/png")},
+        follow_redirects=True,
+    )
+
+    assert response.status_code == 200
+    assert "媒体目录不可安全写入" in response.text
+    assert list((media_root / "library").iterdir()) == []
+
+
+def test_close_failure_removes_fsynced_temporary_file(
+    auth_client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    media_root = tmp_path / "media"
+    original_open = local_media._open_temporary_stream
+
+    class CloseFailingStream:
+        def __init__(self, raw: object) -> None:
+            self.raw = raw
+
+        def write(self, value: bytes) -> int:
+            return self.raw.write(value)
+
+        def flush(self) -> None:
+            self.raw.flush()
+
+        def fileno(self) -> int:
+            return self.raw.fileno()
+
+        def close(self) -> None:
+            self.raw.close()
+            raise OSError("simulated close failure")
+
+    monkeypatch.setattr(local_media, "LOCAL_MEDIA_ROOT", media_root)
+    monkeypatch.setattr(
+        local_media,
+        "_open_temporary_stream",
+        lambda file_descriptor: CloseFailingStream(original_open(file_descriptor)),
+    )
+
+    response = auth_client.post(
+        "/media-library/upload",
+        files={"files": ("close-failure.png", _png_bytes(), "image/png")},
+        follow_redirects=True,
+    )
+
+    assert response.status_code == 200
+    assert "媒体目录不可安全写入" in response.text
+    assert list((media_root / "library").iterdir()) == []
+
+
+def test_batch_mid_write_failure_rolls_back_prior_published_file(
+    auth_client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    media_root = tmp_path / "media"
+    original_open = local_media._open_temporary_stream
+    opened = 0
+
+    class InterruptedStream:
+        def __init__(self, raw: object) -> None:
+            self.raw = raw
+
+        def write(self, value: bytes) -> int:
+            self.raw.write(value[:8])
+            raise OSError("simulated second-file interruption")
+
+        def close(self) -> None:
+            self.raw.close()
+
+    def fail_second_open(file_descriptor: int) -> object:
+        nonlocal opened
+        opened += 1
+        raw = original_open(file_descriptor)
+        return raw if opened == 1 else InterruptedStream(raw)
+
+    monkeypatch.setattr(local_media, "LOCAL_MEDIA_ROOT", media_root)
+    monkeypatch.setattr(local_media, "_open_temporary_stream", fail_second_open)
+
+    response = auth_client.post(
+        "/media-library/upload",
+        files=[
+            ("files", ("first.png", _png_bytes(21), "image/png")),
+            ("files", ("second.png", _png_bytes(22), "image/png")),
+        ],
+        follow_redirects=True,
+    )
+
+    assert response.status_code == 200
+    assert "媒体目录不可安全写入" in response.text
+    assert opened == 2
+    assert list((media_root / "library").iterdir()) == []
+
+
+def test_failure_after_atomic_publish_removes_new_final_file(
+    auth_client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    media_root = tmp_path / "media"
+
+    def fail_directory_sync(directory: Path) -> None:
+        del directory
+        raise local_media.LocalMediaUploadError("storage_unavailable")
+
+    monkeypatch.setattr(local_media, "LOCAL_MEDIA_ROOT", media_root)
+    monkeypatch.setattr(local_media, "_fsync_directory", fail_directory_sync)
+
+    response = auth_client.post(
+        "/media-library/upload",
+        files={"files": ("post-publish.png", _png_bytes(24), "image/png")},
+        follow_redirects=True,
+    )
+
+    assert response.status_code == 200
+    assert "媒体目录不可安全写入" in response.text
+    assert list((media_root / "library").iterdir()) == []
+
+
+def test_raced_existing_final_is_revalidated_and_reported_as_duplicate(
+    auth_client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    media_root = tmp_path / "media"
+    library = media_root / "library"
+    library.mkdir(parents=True)
+    content = _png_bytes(23)
+    digest = hashlib.sha256(content).hexdigest()
+    target = library / f"{digest}.png"
+    target.write_bytes(content)
+    monkeypatch.setattr(local_media, "LOCAL_MEDIA_ROOT", media_root)
+    monkeypatch.setattr(
+        local_media,
+        "scan_local_media",
+        lambda: local_media.LocalMediaScan((), 0, 0, 0),
+    )
+
+    response = auth_client.post(
+        "/media-library/upload",
+        files={"files": ("raced.png", content, "image/png")},
+        follow_redirects=True,
+    )
+
+    assert response.status_code == 200
+    assert "新增 0，重复 1" in response.text
+    assert target.read_bytes() == content
+    assert list(library.iterdir()) == [target]
+
+
 @pytest.mark.parametrize(
     ("filename", "content", "mime", "message"),
     [

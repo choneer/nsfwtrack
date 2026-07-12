@@ -4,6 +4,10 @@
 
 ### Fixed
 
+- Local media uploads now stage each image in a random same-directory temporary
+  file, flush and fsync it before atomic no-overwrite publication, revalidate a
+  raced final path, and roll back every temporary or newly published file when
+  any file in the batch fails.
 - Source import now treats multiple existing items with the same case-folded
   title as an explicit conflict in preview and apply instead of silently
   attaching the source to an arbitrary item.
