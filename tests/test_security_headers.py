@@ -1,13 +1,19 @@
 from __future__ import annotations
 
+from collections.abc import Generator
 from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
 
+from app.main import create_app
 from app.request_context import REQUEST_ID_HEADER, is_valid_request_id
 from app.security_headers import SECURITY_HEADERS
 from app.services import local_media
+
+EXPECTED_SECRET = "not-for-user-output"
+SQL_SECRET = "SELECT password FROM users WHERE token='private-token'"
+PATH_SECRET = "/home/nsfwtrack/private.env"
 
 
 def _assert_security_headers(response: object) -> None:
@@ -16,6 +22,23 @@ def _assert_security_headers(response: object) -> None:
     assert "Strict-Transport-Security" not in response.headers
     assert "Content-Security-Policy" not in response.headers
     assert is_valid_request_id(response.headers[REQUEST_ID_HEADER])
+
+
+@pytest.fixture
+def error_client() -> Generator[TestClient, None, None]:
+    """Reuse the same unhandled-exception entry points as error-handling tests."""
+    test_app = create_app()
+
+    @test_app.get("/testing-errors/failure")
+    def page_failure() -> None:
+        raise RuntimeError(f"{EXPECTED_SECRET} {SQL_SECRET} {PATH_SECRET}")
+
+    @test_app.get("/api/testing-errors/failure")
+    def api_failure() -> None:
+        raise RuntimeError(f"{EXPECTED_SECRET} {SQL_SECRET} {PATH_SECRET}")
+
+    with TestClient(test_app) as test_client:
+        yield test_client
 
 
 def test_login_success_html_includes_security_headers(client: TestClient) -> None:
@@ -117,3 +140,36 @@ def test_login_form_post_still_works_with_security_headers(
     assert response.status_code == 200
     assert response.json()["ok"] is True
     _assert_security_headers(response)
+
+
+@pytest.mark.parametrize(
+    "path",
+    ["/testing-errors/failure", "/api/testing-errors/failure"],
+)
+def test_unhandled_500_includes_security_headers_without_leakage(
+    error_client: TestClient,
+    path: str,
+) -> None:
+    response = error_client.get(path)
+
+    assert response.status_code == 500
+    _assert_security_headers(response)
+    for secret in (
+        EXPECTED_SECRET,
+        SQL_SECRET,
+        PATH_SECRET,
+        "Traceback",
+        "RuntimeError",
+    ):
+        assert secret not in response.text
+    if path.startswith("/api/"):
+        assert response.headers["content-type"].startswith("application/json")
+        payload = response.json()
+        assert payload["error"] == "internal_server_error"
+        assert payload["request_id"] == response.headers[REQUEST_ID_HEADER]
+        assert EXPECTED_SECRET not in str(payload)
+        assert PATH_SECRET not in str(payload)
+        assert "Traceback" not in str(payload)
+    else:
+        assert response.headers["content-type"].startswith("text/html")
+        assert response.headers[REQUEST_ID_HEADER] in response.text
