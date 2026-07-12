@@ -1,31 +1,42 @@
 # GOAL.md
 
-# 当前目标：Phase 2-L6 — Docker 健康状态与就绪验收
+# 当前目标：发布 v1.0.2
 
-请先读取 `RULE.md`、`PLAN.md` 和 `TASKS.md`。
+请先读取 `RULE.md`、`PLAN.md`、`TASKS.md` 和 `CHANGELOG.md`。
 
 ## 目标
 
-为生产镜像增加 Docker 健康检查，并让 CI 使用同一健康状态判断容器是否就绪。
+正式发布 Phase 2-L1 至 L6 的维护与稳定性改进。
 
 ## 任务
 
-- 在生产镜像中增加 `HEALTHCHECK`
-- 只使用 Python 标准库，不安装 curl 或新依赖
-- CI 等待容器变为 `healthy` 后，再执行现有 `/login` 和安全头检查
-- 保持失败日志和 `always()` 清理逻辑
-- 同步更新 PLAN、TASKS、CHANGELOG 和简短 README 说明
+- 将应用版本更新为 `1.0.2`
+- 将 `Unreleased` 整理为 `[1.0.2] - 2026-07-12`
+- 保留新的空白 `Unreleased`
+- 同步 README、PLAN、TASKS、REVIEW 和 GOAL
+- 运行全量测试、`pip check` 和隔离 Docker 验收
+- 创建发布提交、annotated tag `v1.0.2` 和正式 GitHub Release
 
 ## 边界
 
-- 不新增业务接口
-- 不修改业务代码、数据库、Schema、依赖或版本
+- 不修改业务逻辑、依赖、数据库、Schema 或迁移
+- 不修改旧 tag 和 Release
+- 所有操作在 WSL `/home/nsfwtrack` 执行
 - 不部署到 N100
-- 所有测试在 WSL `/home/nsfwtrack` 执行
 
 ## 完成标准
 
-- `docker compose ps` 显示容器为 `healthy`
-- CI test 与 docker-smoke 均通过
-- 全量测试、`pip check` 和隔离 Docker 验收通过
-- 提交并推送
+- 测试、Docker 和 Actions 通过
+- `main`、tag 和 Release 指向同一发布提交
+- 工作区干净
+- `v1.0.2` 正式发布
+
+## 执行结果
+
+- [x] L1 至 L6 已整理为 `v1.0.2` 发布内容，新的 `Unreleased` 保持空白
+- [x] 应用版本与 README / PLAN / TASKS / REVIEW / GOAL 已同步为 `1.0.2`
+- [x] 全量测试 `358 passed`，`pip check` 与隔离 Docker healthy / `/login` / 版本验收通过
+- [x] 发布提交、annotated tag 和正式 GitHub Release 已创建并推送
+- [x] `main`、tag peeled commit 和 Release target 指向同一发布提交
+- [x] 未修改业务逻辑、依赖、数据库、Schema、迁移或旧 tag / Release
+- [x] 未部署到 N100，临时资源已清理，工作区干净

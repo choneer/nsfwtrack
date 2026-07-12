@@ -27,7 +27,7 @@ def create_app() -> FastAPI:
     configure_request_logging()
     app = FastAPI(
         title="NSFWTrack",
-        version="1.0.1",
+        version="1.0.2",
         lifespan=lifespan,
         docs_url=None,
         redoc_url=None,

@@ -450,7 +450,7 @@
 - [ ] **12.345. 凭据部署门禁是否识别** — 是否记录 `.env.example` 已知占位密码 / Secret 可启动的问题
 - [ ] **12.346. F4 结论是否准确** — 是否确认数据健康备份提示、影响范围、单项修复、confirm / strict / rollback 已实现，并仅保留专项测试收口
 - [ ] **12.347. 测试缺口是否分级** — 是否区分已完成的 K2 自动回归、授权后才可做的 K3 / N100 操作验收和可延后维护
-- [ ] **12.348. 当前状态是否收敛** — PLAN / TASKS 是否标明 v1.0.1 稳定、代码 / WSL 已完成，且不把未授权的 N100 部署列为当前开发任务
+- [ ] **12.348. 当前状态是否收敛** — PLAN / TASKS 是否标明 v1.0.2 稳定、代码 / WSL 已完成，且不把未授权的 N100 部署列为当前开发任务
 - [ ] **12.349. 禁止项是否保持** — 是否未引入外部内容、URL 导入、远程图片代理、AI、云同步、多用户、前端重写或虚构迁移
 
 ## Phase 2-K2 投入使用前边界收口检查
@@ -501,6 +501,19 @@
 - [ ] **12.381. 失败日志是否保留** — 失败时是否输出容器日志
 - [ ] **12.382. 清理是否始终执行** — `always` 是否 down 容器并删除临时数据
 - [ ] **12.383. 范围是否保持** — 是否未改业务代码、依赖、数据库、Schema 或版本
+
+## Phase 2-L5 CI 最小权限与重复运行控制检查
+
+- [ ] **12.384. 权限是否最小只读** — workflow 是否只声明 `contents: read`，未请求写权限或额外密钥
+- [ ] **12.385. 重复运行是否取消** — 是否按 workflow / ref 分组并启用 `cancel-in-progress`
+- [ ] **12.386. 原验收是否保持** — test、pip check、Docker smoke、失败日志和清理步骤是否不变
+
+## Phase 2-L6 Docker 健康状态与就绪验收检查
+
+- [ ] **12.387. 镜像健康检查是否最小** — 是否只用 Python 标准库访问现有 `/login`，未安装 curl、依赖或新增接口
+- [ ] **12.388. CI 是否先等 healthy** — 是否在原 HTTP / 安全头检查前等待容器健康状态为 `healthy`
+- [ ] **12.389. 失败与清理是否保持** — 失败日志和 `always()` 清理是否继续执行
+- [ ] **12.390. WSL 验收是否完整** — pytest、pip check、隔离 Docker healthy、版本和清理是否通过
 
 ## 登录保护检查
 
@@ -569,6 +582,13 @@
 - [ ] **22.46. v1.0.1 Schema 边界** — 是否保持 Schema 1、空生产迁移注册表，未接触默认 schema 2 数据卷
 - [ ] **22.47. v1.0.1 引用一致性** — annotated tag 的 peeled commit、`origin/main`、Release target 和发布提交是否完全一致
 - [ ] **22.48. v1.0.1 正式 Release** — GitHub Release 是否非 draft、非 prerelease，标题和 tag 是否正确，且旧 tag / Release 未移动
+- [ ] **22.49. v1.0.2 范围** — 是否只发布 L1 至 L6 维护与 CI 改进，未新增业务逻辑、数据库、Schema 或迁移
+- [ ] **22.50. v1.0.2 版本一致性** — FastAPI 元数据、README、PLAN、TASKS、GOAL、CHANGELOG、tag 和 Release 是否均为 `1.0.2`
+- [ ] **22.51. v1.0.2 CHANGELOG** — 是否保留空白 Unreleased，并将 L1 至 L6 归档为 `## [1.0.2] - 2026-07-12`
+- [ ] **22.52. v1.0.2 验收** — 是否运行 358 项完整 pytest、pip check 和全新隔离 Docker healthy / `/login` / version / down 并清理
+- [ ] **22.53. v1.0.2 Schema 边界** — 是否保持 Schema 1、空生产迁移注册表，未新增数据库变化
+- [ ] **22.54. v1.0.2 引用一致性** — annotated tag 的 peeled commit、`origin/main`、Release target 和发布提交是否完全一致
+- [ ] **22.55. v1.0.2 正式 Release** — GitHub Release 是否非 draft、非 prerelease，标题和 tag 是否正确，且旧 tag / Release 未移动
 
 ## 备份恢复检查
 

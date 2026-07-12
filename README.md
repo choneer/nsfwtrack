@@ -2,11 +2,11 @@
 
 NSFWTrack is a local single-user content record manager / collection tracker.
 
-Current release: `v1.0.1 / completion audit and boundary closure`.
+Current release: `v1.0.2 / maintenance and CI hardening`.
 
-Release: [NSFWTrack v1.0.1](https://github.com/choneer/nsfwtrack/releases/tag/v1.0.1).
+Release: [NSFWTrack v1.0.2](https://github.com/choneer/nsfwtrack/releases/tag/v1.0.2).
 
-Current status: `stable v1.0.1 — code development and WSL acceptance complete`.
+Current status: `stable v1.0.2 — code development and WSL acceptance complete`.
 
 N100 deployment: `not started; waits for explicit user authorization`.
 
@@ -18,9 +18,9 @@ management.
 
 Phase 2-K1 found no genuine TODO / FIXME marker, stub route, 501 response, or
 dead navigation entry. Phase 2-K2 closed the three pre-use findings and the
-current 347-test suite passes.
+current `v1.0.2` suite contains 358 passing tests.
 
-Code development and WSL acceptance for `v1.0.1` are complete. See
+Code development and WSL acceptance through `v1.0.2` are complete. See
 [COMPLETION_AUDIT.md](COMPLETION_AUDIT.md) for the archived K1 / K2 evidence.
 
 - Phase 2-K2 closed the local media-path, bulk / clear confirmation, deployment
@@ -30,6 +30,21 @@ Code development and WSL acceptance for `v1.0.1` are complete. See
 
 No further product feature phase is open. Optional maintenance remains outside
 the stable release scope unless separately approved.
+
+## Features in v1.0.2
+
+`v1.0.2` publishes Phase 2-L1 through L6 maintenance and CI hardening. It adds
+no product feature, database change, schema migration, or external integration.
+
+- TestClient uses the supported `httpx2` path, and direct runtime/development
+  dependencies are pinned to the versions verified on Python 3.12.
+- CI runs `pip check` and full pytest, applies minimal browser security headers,
+  and performs an isolated production-image Docker smoke test.
+- The workflow token is limited to read-only repository contents, while stale
+  runs for the same workflow/ref are cancelled automatically.
+- The production image uses a Python-standard-library `/login` health check;
+  Docker smoke waits for `healthy` before the existing HTTP and security-header
+  assertions, with failure logs and unconditional cleanup retained.
 
 ## Features in v1.0.1
 
