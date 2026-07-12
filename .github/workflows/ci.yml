@@ -52,6 +52,7 @@ jobs:
           set -euo pipefail
           # With every capability dropped, container UID 0 must own the bind
           # directory instead of relying on DAC_OVERRIDE for SQLite writes.
+          mkdir -p "${SMOKE_DIR}"
           sudo install -d -m 0700 -o 0 -g 0 "${SMOKE_DIR}/data"
           APP_PASSWORD="$(python3 -c 'import secrets; print(secrets.token_urlsafe(24))')"
           SECRET_KEY="$(python3 -c 'import secrets; print(secrets.token_hex(32))')"
@@ -209,7 +210,7 @@ jobs:
           set +e
           docker compose -f "${COMPOSE_FILE}" -p "${COMPOSE_PROJECT_NAME}" down --rmi local --volumes --remove-orphans || true
           if [ -d "${SMOKE_DIR}" ]; then
-            rm -rf "${SMOKE_DIR}"
+            sudo rm -rf "${SMOKE_DIR}"
           fi
           echo "docker smoke cleanup complete"
           echo "cleanup targets: SMOKE_DIR=${SMOKE_DIR} COMPOSE_FILE=${COMPOSE_FILE} COMPOSE_PROJECT_NAME=${COMPOSE_PROJECT_NAME}"
