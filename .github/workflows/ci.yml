@@ -78,6 +78,31 @@ jobs:
       - name: Start container
         run: docker compose -f "${COMPOSE_FILE}" -p "${COMPOSE_PROJECT_NAME}" up -d
 
+      - name: Wait for container health
+        run: |
+          set -euo pipefail
+          container_id="$(docker compose -f "${COMPOSE_FILE}" -p "${COMPOSE_PROJECT_NAME}" ps -q nsfwtrack)"
+          if [ -z "${container_id}" ]; then
+            echo "docker smoke failed: container was not created" >&2
+            exit 1
+          fi
+          deadline=$((SECONDS + 90))
+          while [ "${SECONDS}" -lt "${deadline}" ]; do
+            health="$(docker inspect --format='{{if .State.Health}}{{.State.Health.Status}}{{else}}missing{{end}}' "${container_id}")"
+            echo "container health: ${health}"
+            if [ "${health}" = "healthy" ]; then
+              exit 0
+            fi
+            running="$(docker inspect --format='{{.State.Running}}' "${container_id}")"
+            if [ "${running}" != "true" ]; then
+              echo "docker smoke failed: container stopped before becoming healthy" >&2
+              exit 1
+            fi
+            sleep 2
+          done
+          echo "docker smoke failed: container did not become healthy" >&2
+          exit 1
+
       - name: Wait for /login and verify security headers
         run: |
           set -euo pipefail

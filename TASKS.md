@@ -9,6 +9,14 @@ N100 / 目标主机部署尚未开始，**不是当前开发任务**，必须等
 完整证据见 `COMPLETION_AUDIT.md`。历史任务保留在本文后半部分，
 不再作为新增开发路线。
 
+### Phase 2-L6 Docker 健康状态与就绪验收
+
+- [x] 为生产镜像增加仅使用 Python 标准库访问现有 `/login` 的 `HEALTHCHECK`
+- [x] CI 启动容器后等待 `healthy`，再执行原有 `/login` 与安全响应头检查
+- [x] 保持失败日志、`always()` 清理、pytest 与 `pip check` 流程
+- [x] 全量测试、`pip check` 与隔离 Docker healthy 验收通过
+- [x] 更新 README / PLAN / TASKS / CHANGELOG / GOAL
+
 ### Phase 2-L5 CI 最小权限与重复运行控制
 
 - [x] 将 workflow 权限明确限制为 `contents: read`

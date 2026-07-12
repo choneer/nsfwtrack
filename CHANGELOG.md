@@ -4,6 +4,9 @@
 
 ### Added
 
+- Added a production-image `HEALTHCHECK` that uses only Python's standard
+  library to request the existing `/login` route; no curl, package, dependency,
+  or application endpoint was added.
 - Added an independent GitHub Actions Docker production smoke job that builds
   the image with temporary CI credentials and an isolated data directory,
   waits for `/login` HTTP 200, checks baseline security response headers, dumps
@@ -39,6 +42,9 @@
 - Phase 2-L4 updated the checkout and Python setup actions, and uses fixed
   job-level smoke paths so failure and `always` cleanup target the same Compose
   project and temporary directory without changing test or smoke behavior.
+- Phase 2-L6 makes the Docker smoke job wait for the image health status to
+  become `healthy` before running the existing `/login` and security-header
+  assertions; failure logs and unconditional cleanup remain unchanged.
 
 ### Security
 
