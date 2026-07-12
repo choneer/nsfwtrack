@@ -1,44 +1,34 @@
 # GOAL.md
 
-# 当前目标：发布 v1.0.1
-
-请先读取 `RULE.md`、`PLAN.md`、`TASKS.md` 和 `CHANGELOG.md`。
+# 当前目标：v1.0.1 发布后文档收口
 
 ## 目标
 
-正式发布包含 K1、K2 收口修改的 `v1.0.1`。
+修正仓库中已经过时的 K3 和部署状态描述。
 
 ## 任务
 
-- 将应用版本更新为 `1.0.1`
-- 整理 `CHANGELOG.md` 的 `v1.0.1` 内容
-- 同步更新 `README.md`、`PLAN.md`、`TASKS.md` 和 `REVIEW.md`
-- 运行全量测试和隔离 Docker 验收
-- 创建发布提交
-- 创建 annotated tag `v1.0.1`
-- 创建正式 GitHub Release
+- [x] 标明当前稳定版本为 `v1.0.1`
+- [x] 标明代码开发与 WSL 验收已经完成
+- [x] 删除将 K3、N100 或目标主机验收列为当前开发任务的表述
+- [x] 标明 N100 部署尚未开始，必须等待用户明确授权
+- [x] 同步 README、PLAN、TASKS、REVIEW、COMPLETION_AUDIT 和 GOAL
 
 ## 边界
 
-- 不修改业务逻辑
-- 不修改依赖、数据库结构、Schema 或迁移
-- 不修改旧 tag 和 Release
-- 不接触默认 schema 2 数据卷
+- 只修改文档
+- 不修改代码、测试、版本号、tag 或数据库
+- 不启动服务
+- 不生成或修改凭据
+- 不在 N100 部署或测试
 
 ## 完成标准
 
-- 测试与 Docker 验收通过
-- `main`、tag 和 Release 指向同一发布提交
-- 工作区干净
-- `v1.0.1` 正式发布
+文档状态一致，提交并推送，工作区干净。
 
 ## 执行结果
 
-- [x] K1 / K2 已整理为 `v1.0.1` 发布内容
-- [x] 应用版本和发布文档已更新为 `1.0.1`
-- [x] 全量测试 `347 passed`
-- [x] 隔离 Docker build / up / `/login` 200 / 应用版本 / Schema 1 / down 通过并清理
-- [x] 发布提交、annotated tag 和正式 GitHub Release 已创建并推送
-- [x] `main`、tag peeled commit 和 Release target 指向同一发布提交
-- [x] 未修改业务逻辑、依赖、数据库结构、Schema、迁移或旧 tag / Release
-- [x] 未接触默认 schema 2 数据卷，工作区干净
+- [x] 文档统一为：稳定版 `v1.0.1`；代码开发与 WSL 验收已完成
+- [x] 不再将 K3 / N100 / 目标主机验收列为当前开发任务
+- [x] 标明 N100 部署尚未开始，等待用户明确授权
+- [x] 仅文档变更，未改代码、版本、tag、凭据或运行环境

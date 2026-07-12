@@ -18,16 +18,16 @@ current test suite. The repository contains no genuine TODO / FIXME marker,
 stub route, 501 response, `NotImplementedError`, or dead navigation entry.
 
 Phase 2-K2 has now closed every P0 / P1 use-before finding from this audit.
-One bounded operator stage remains before an unqualified first real-data
-deployment:
+Code development and WSL acceptance are complete for `v1.0.1`:
 
 1. **Phase 2-K2: use-before boundary closure (complete)** — closed local
    media-path, confirmation, secret-preflight, and focused regression gaps.
-2. **Phase 2-K3: target deployment acceptance (remaining)** — perform the real target-host,
-   browser, and backup/restore drill before importing irreplaceable data.
+2. **Phase 2-K3: target-host / N100 deployment (not started)** — optional
+   operator run only after explicit user authorization. It is not a current
+   development task.
 
-No additional product feature phase is required. Work outside K2 and K3 is
-either optional maintenance or outside the project boundary.
+No additional product feature phase is required. Optional maintenance remains
+outside the stable release scope unless separately approved.
 
 ## Phase 2-K2 Closure - 2026-07-11
 
@@ -48,8 +48,9 @@ either optional maintenance or outside the project boundary.
   `/login` 200, authenticated mounted-media 200, shutdown, and cleanup passed.
 - No dependency, database structure, schema version, production migration,
   or external request was added by K2. The completed K1 / K2 work is published
-  as the `v1.0.1` patch release. No current P0 / P1 completion finding remains;
-  K3 is an operator acceptance run.
+  as the `v1.0.1` patch release. No current P0 / P1 completion finding remains.
+  Code development and WSL acceptance are complete. N100 / target-host
+  deployment has not started and waits for explicit user authorization.
 
 ## Evidence Collected
 
@@ -262,7 +263,9 @@ F4 does not require another product feature or a new database operation.
 - Exact `.env.example` placeholder rejection.
 - Focused F4 warning visibility and policy tests.
 
-### Must Exercise In K3
+### Optional After Explicit Authorization (K3 / N100)
+
+Not a current development task. N100 deployment has not started.
 
 - A real browser run of JavaScript confirmation and the detail-page view POST;
   TestClient does not execute JavaScript.
@@ -293,28 +296,30 @@ Do not turn completion work into any of the following:
 - A frontend framework migration or HTMX rewrite solely to match old wording.
 - Invented schema versions, migrations, indexes, or tables.
 
-## Finite Remaining Stages
+## Current Status After v1.0.1
 
 ### Phase 2-K2: Use-Before Boundary Closure
 
-Status: **Complete.**
+Status: **Complete.** Published in `v1.0.1`.
 
-Scope is limited to K1-01, K1-02, K1-03, focused F4 tests, and the matching
-README / REVIEW / CHANGELOG updates. It may not add product features,
-dependencies, schema changes, external requests, or a new release unless
-separately requested.
+Scope was limited to K1-01, K1-02, K1-03, focused F4 tests, and the matching
+README / REVIEW / CHANGELOG updates. It did not add product features,
+dependencies, schema changes, external requests beyond the published patch.
 
-Exit gate:
+Exit gate (met):
 
 - All K2 acceptance bullets pass.
-- Full pytest and isolated Docker acceptance pass.
+- Full pytest and isolated Docker / WSL acceptance pass.
 - No current P0/P1 completion finding remains.
 
 ### Phase 2-K3: Target Deployment Acceptance
 
-Scope is an operator acceptance run, not feature development.
+Status: **Not started. Not a current development task.**
 
-Exit gate:
+N100 / target-host deployment waits for explicit user authorization. Until
+then, do not treat the following as open engineering work.
+
+If later authorized, the operator checklist is:
 
 - Unique deployment secrets are configured outside git.
 - Target-host Docker, persistence, restart, LAN login, and browser smoke pass.
@@ -322,5 +327,5 @@ Exit gate:
   instance, and count-compared before real data is entrusted to the system.
 - The final audit records no remaining use-before blocker.
 
-After K3, normal use can begin. Everything else in this document is optional
-maintenance or explicitly outside the project boundary.
+Everything else in this document is optional maintenance or explicitly outside
+the project boundary.

@@ -6,7 +6,9 @@ Current release: `v1.0.1 / completion audit and boundary closure`.
 
 Release: [NSFWTrack v1.0.1](https://github.com/choneer/nsfwtrack/releases/tag/v1.0.1).
 
-Current development: `Phase 2-K3 target deployment acceptance remains`.
+Current status: `stable v1.0.1 — code development and WSL acceptance complete`.
+
+N100 deployment: `not started; waits for explicit user authorization`.
 
 NSFWTrack remains intentionally local-only. It is designed for manual records,
 local SQLite persistence, LAN deployment, and simple personal collection
@@ -18,17 +20,16 @@ Phase 2-K1 found no genuine TODO / FIXME marker, stub route, 501 response, or
 dead navigation entry. Phase 2-K2 closed the three pre-use findings and the
 current 347-test suite passes.
 
-Before entrusting irreplaceable real data to a new deployment, complete the
-remaining target-host stage documented in
-[COMPLETION_AUDIT.md](COMPLETION_AUDIT.md):
+Code development and WSL acceptance for `v1.0.1` are complete. See
+[COMPLETION_AUDIT.md](COMPLETION_AUDIT.md) for the archived K1 / K2 evidence.
 
 - Phase 2-K2 closed the local media-path, bulk / clear confirmation, deployment
   placeholder-secret, focused F4 test, and upgrade-runbook gaps.
-- Phase 2-K3 performs the actual N100 / LAN browser and isolated backup/restore
-  acceptance run.
+- N100 / target-host deployment has not started and is not a current development
+  task. It must wait for explicit user authorization.
 
-These stages do not add external content, URL import, crawlers, recommendations,
-AI, cloud sync, multi-user support, dependencies, or invented migrations.
+No further product feature phase is open. Optional maintenance remains outside
+the stable release scope unless separately approved.
 
 ## Features in v1.0.1
 
