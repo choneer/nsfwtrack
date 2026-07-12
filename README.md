@@ -864,12 +864,12 @@ The exact placeholder `APP_PASSWORD` and `SECRET_KEY` values from
 
 ## Local Media
 
-Create `./data/media` and place local raster images there. The Docker Compose
-data mount makes that directory available inside the container without another
-volume or dependency.
+Prepare `./data/media` only after the rootful Docker data-directory ownership
+step in the Docker Compose section below. The data mount makes that directory
+available inside the container without another volume or dependency.
 
 ```bash
-mkdir -p data/media/covers
+sudo install -d -m 0700 -o 0 -g 0 data/media/covers
 ```
 
 For `./data/media/covers/example.webp`, store this value in `cover_path`:
@@ -885,8 +885,17 @@ although avatars are not currently rendered.
 
 ## Docker Compose
 
+Before the first rootful Docker start, prepare `./data` for the default
+container UID `0`. For an existing installation, first stop the service and
+make a verified backup of `./data`; the ownership commands below modify the
+existing directory and its contents.
+
 ```bash
 cp .env.example .env
+mkdir -p data
+sudo chown -R 0:0 data
+sudo chmod -R u+rwX,go-rwx data
+sudo install -d -m 0700 -o 0 -g 0 data/media/covers
 docker compose build
 docker compose up -d
 ```
@@ -911,13 +920,8 @@ does not change the image user, application endpoints, or health check.
 
 With rootful Docker, the default container UID `0` must own `./data` and its
 existing contents because all capabilities, including `DAC_OVERRIDE`, are
-dropped. Back up an existing data directory, stop the service, then prepare it
-without making it world-writable:
-
-```bash
-sudo chown -R 0:0 data
-sudo chmod -R u+rwX,go-rwx data
-```
+dropped. The preparation before `docker compose build` keeps the directory
+writable without making it world-writable.
 
 ## Install, Upgrade, And Rollback Checklist
 
@@ -928,13 +932,23 @@ Use this single checklist for the current local deployment line.
 1. Copy `.env.example` to `.env`, replace both shipped credential placeholders
    with a unique strong password and a long random secret, and keep `.env`
    outside version control.
-2. Run `mkdir -p data/media`, then `docker compose build` and
+2. Before the first rootful Docker start, create and secure the writable data
+   and media directories for container UID `0`:
+
+   ```bash
+   mkdir -p data
+   sudo chown -R 0:0 data
+   sudo chmod -R u+rwX,go-rwx data
+   sudo install -d -m 0700 -o 0 -g 0 data/media/covers
+   ```
+
+3. Only after that preparation, run `docker compose build` and
    `docker compose up -d`.
-3. Confirm
+4. Confirm
    `curl -s -o /dev/null -w "%{http_code}\n" http://localhost:8000/login`
    returns `200`, log in from the intended LAN device, and keep the service off
    the public internet.
-4. Export and validate a JSON backup after entering important data; also copy
+5. Export and validate a JSON backup after entering important data; also copy
    `data/nsfwtrack.db` only while the container is stopped.
 
 ### Upgrade From v0.9.x Or v1.0.x
