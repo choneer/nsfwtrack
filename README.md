@@ -2,11 +2,11 @@
 
 NSFWTrack is a local single-user content record manager / collection tracker.
 
-Current release: `v1.0.3 / Docker runtime hardening`.
+Current release: `v1.0.4 / non-root Docker runtime`.
 
-Release: [NSFWTrack v1.0.3](https://github.com/choneer/nsfwtrack/releases/tag/v1.0.3).
+Release: [NSFWTrack v1.0.4](https://github.com/choneer/nsfwtrack/releases/tag/v1.0.4).
 
-Current status: `stable v1.0.3 — code development and WSL acceptance complete`.
+Current status: `stable v1.0.4 — code development and WSL acceptance complete`.
 
 N100 deployment: `not started; waits for explicit user authorization`.
 
@@ -18,9 +18,9 @@ management.
 
 Phase 2-K1 found no genuine TODO / FIXME marker, stub route, 501 response, or
 dead navigation entry. Phase 2-K2 closed the three pre-use findings and the
-current `v1.0.3` suite contains 358 passing tests.
+current `v1.0.4` suite contains 358 passing tests.
 
-Code development and WSL acceptance through `v1.0.3` are complete. See
+Code development and WSL acceptance through `v1.0.4` are complete. See
 [COMPLETION_AUDIT.md](COMPLETION_AUDIT.md) for the archived K1 / K2 evidence.
 
 - Phase 2-K2 closed the local media-path, bulk / clear confirmation, deployment
@@ -30,6 +30,24 @@ Code development and WSL acceptance through `v1.0.3` are complete. See
 
 No further product feature phase is open. Optional maintenance remains outside
 the stable release scope unless separately approved.
+
+## Features in v1.0.4
+
+`v1.0.4` publishes the Phase 2-L8 fixed non-root Docker runtime identity and
+data-ownership migration. It adds no product feature, dependency, database
+change, schema migration, or security-configuration relaxation.
+
+- The production image creates the `nsfwtrack` user with fixed UID/GID
+  `10001:10001`. Dockerfile `USER` makes both the application and image
+  `HEALTHCHECK` run as that non-root identity.
+- The v1.0.3 read-only root filesystem, all-capability drop,
+  `no-new-privileges`, `/tmp` tmpfs, and `/app/data` writable mount remain in
+  force. CI verifies the configured and actual identity plus these boundaries.
+- Before upgrading v1.0.3 or any earlier deployment, stop the service, complete
+  a verified backup, then migrate `data` ownership to `10001:10001` while
+  keeping mode `0700`. The exact commands are in the upgrade checklist below.
+- SQLite creation, Schema 1, healthy HTTP/security headers, and persistence
+  across container removal and recreation are verified in CI.
 
 ## Features in v1.0.3
 

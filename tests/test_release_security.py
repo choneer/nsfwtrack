@@ -23,7 +23,7 @@ PUBLIC_ROUTES = {
 
 
 def test_application_metadata_matches_current_release() -> None:
-    assert create_app().version == "1.0.3"
+    assert create_app().version == "1.0.4"
 
 
 def test_every_non_public_route_declares_authentication_dependency() -> None:

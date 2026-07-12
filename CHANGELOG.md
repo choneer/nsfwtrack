@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## [1.0.4] - 2026-07-12
+
 ### Security
 
 - Phase 2-L8 runs the production application and image health check as the

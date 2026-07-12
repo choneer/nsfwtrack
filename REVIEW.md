@@ -450,7 +450,7 @@
 - [ ] **12.345. 凭据部署门禁是否识别** — 是否记录 `.env.example` 已知占位密码 / Secret 可启动的问题
 - [ ] **12.346. F4 结论是否准确** — 是否确认数据健康备份提示、影响范围、单项修复、confirm / strict / rollback 已实现，并仅保留专项测试收口
 - [ ] **12.347. 测试缺口是否分级** — 是否区分已完成的 K2 自动回归、授权后才可做的 K3 / N100 操作验收和可延后维护
-- [ ] **12.348. 当前状态是否收敛** — PLAN / TASKS 是否标明 v1.0.3 稳定、代码 / WSL 已完成，且不把未授权的 N100 部署列为当前开发任务
+- [ ] **12.348. 当前状态是否收敛** — PLAN / TASKS 是否标明 v1.0.4 稳定、代码 / WSL 已完成，且不把未授权的 N100 部署列为当前开发任务
 - [ ] **12.349. 禁止项是否保持** — 是否未引入外部内容、URL 导入、远程图片代理、AI、云同步、多用户、前端重写或虚构迁移
 
 ## Phase 2-K2 投入使用前边界收口检查
@@ -618,6 +618,13 @@
 - [ ] **22.60. v1.0.3 Schema 与用户边界** — 是否保持 Schema 1、空生产迁移注册表和原容器用户
 - [ ] **22.61. v1.0.3 引用一致性** — annotated tag 的 peeled commit、`origin/main`、Release target 和发布提交是否完全一致
 - [ ] **22.62. v1.0.3 正式 Release** — GitHub Release 是否非 draft、非 prerelease，标题和 tag 是否正确，且旧 tag / Release 未移动
+- [ ] **22.63. v1.0.4 范围** — 是否只发布 L8 固定非 root 身份与数据权限迁移，未修改业务逻辑、依赖、数据库、Schema、迁移、容器 UID/GID 或安全配置
+- [ ] **22.64. v1.0.4 版本一致性** — FastAPI 元数据、README、PLAN、TASKS、GOAL、CHANGELOG、tag 和 Release 是否均为 `1.0.4`
+- [ ] **22.65. v1.0.4 CHANGELOG** — 是否保留空白 Unreleased，并将 L8 归档为 `## [1.0.4] - 2026-07-12`
+- [ ] **22.66. v1.0.4 Docker 验收** — 是否验证 `Config.User` / UID / GID 为 `10001:10001`、L7/L8 安全边界、HTTP / 安全头和 SQLite 重建持久化 / Schema 1
+- [ ] **22.67. v1.0.4 升级说明** — Release notes 与 README 是否要求 v1.0.3 及更早版本先停机、完成可验证备份，再将 data 迁移为 `10001:10001` / 0700
+- [ ] **22.68. v1.0.4 引用一致性** — annotated tag 的 peeled commit、`origin/main`、Release target 和发布提交是否完全一致
+- [ ] **22.69. v1.0.4 正式 Release** — GitHub Release 是否非 draft、非 prerelease，标题和 tag 是否正确，且旧 tag / Release 未移动
 
 ## 备份恢复检查
 
