@@ -10,10 +10,10 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.12"
 
@@ -29,15 +29,20 @@ jobs:
   docker-smoke:
     name: Docker production smoke
     runs-on: ubuntu-latest
+    env:
+      # Fixed at job scope so always() cleanup can locate resources even if
+      # the prepare step fails before writing GITHUB_ENV.
+      SMOKE_DIR: ${{ runner.temp }}/nsfwtrack-docker-smoke
+      COMPOSE_PROJECT_NAME: nsfwtrack-ci-smoke
+      COMPOSE_FILE: ${{ runner.temp }}/nsfwtrack-docker-smoke/docker-compose.yml
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Prepare isolated CI data and temporary credentials
         run: |
           set -euo pipefail
-          SMOKE_DIR="${RUNNER_TEMP}/nsfwtrack-docker-smoke"
           mkdir -p "${SMOKE_DIR}/data"
           APP_PASSWORD="$(python3 -c 'import secrets; print(secrets.token_urlsafe(24))')"
           SECRET_KEY="$(python3 -c 'import secrets; print(secrets.token_hex(32))')"
@@ -58,10 +63,7 @@ jobs:
             echo "    volumes:"
             echo "      - ${SMOKE_DIR}/data:/app/data"
             echo '    restart: "no"'
-          } > "${SMOKE_DIR}/docker-compose.yml"
-          echo "SMOKE_DIR=${SMOKE_DIR}" >> "${GITHUB_ENV}"
-          echo "COMPOSE_PROJECT_NAME=nsfwtrack-ci-smoke" >> "${GITHUB_ENV}"
-          echo "COMPOSE_FILE=${SMOKE_DIR}/docker-compose.yml" >> "${GITHUB_ENV}"
+          } > "${COMPOSE_FILE}"
 
       - name: Build production image
         run: docker compose -f "${COMPOSE_FILE}" -p "${COMPOSE_PROJECT_NAME}" build
@@ -138,10 +140,9 @@ jobs:
         if: always()
         run: |
           set +e
-          if [ -n "${COMPOSE_FILE:-}" ] && [ -n "${COMPOSE_PROJECT_NAME:-}" ]; then
-            docker compose -f "${COMPOSE_FILE}" -p "${COMPOSE_PROJECT_NAME}" down --rmi local --volumes --remove-orphans || true
-          fi
-          if [ -n "${SMOKE_DIR:-}" ] && [ -d "${SMOKE_DIR}" ]; then
+          docker compose -f "${COMPOSE_FILE}" -p "${COMPOSE_PROJECT_NAME}" down --rmi local --volumes --remove-orphans || true
+          if [ -d "${SMOKE_DIR}" ]; then
             rm -rf "${SMOKE_DIR}"
           fi
           echo "docker smoke cleanup complete"
+          echo "cleanup targets: SMOKE_DIR=${SMOKE_DIR} COMPOSE_FILE=${COMPOSE_FILE} COMPOSE_PROJECT_NAME=${COMPOSE_PROJECT_NAME}"
