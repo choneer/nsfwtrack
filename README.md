@@ -903,6 +903,12 @@ Stop it with:
 docker compose down
 ```
 
+Production Compose runs with a read-only container root filesystem, drops all
+Linux capabilities, enables `no-new-privileges`, and mounts a 64 MiB tmpfs at
+`/tmp`. The existing `./data:/app/data` mount remains writable and persistent
+for SQLite and local media; other image paths remain read-only. This hardening
+does not change the image user, application endpoints, or health check.
+
 ## Install, Upgrade, And Rollback Checklist
 
 Use this single checklist for the current local deployment line.

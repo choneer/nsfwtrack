@@ -3,6 +3,13 @@ services:
     build: .
     env_file:
       - .env
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
     ports:
       - "8000:8000"
     volumes:

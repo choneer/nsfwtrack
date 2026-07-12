@@ -9,6 +9,15 @@ N100 / 目标主机部署尚未开始，**不是当前开发任务**，必须等
 完整证据见 `COMPLETION_AUDIT.md`。历史任务保留在本文后半部分，
 不再作为新增开发路线。
 
+### Phase 2-L7 Docker 运行时安全基线
+
+- [x] 生产与 CI Compose 使用只读根文件系统并移除全部 Linux capabilities
+- [x] 启用 `no-new-privileges`，为 `/tmp` 提供 64 MiB tmpfs
+- [x] 保持 `/app/data` 持久化、镜像健康检查及现有 HTTP / 安全头行为
+- [x] CI 验证 `/app/data` 与 `/tmp` 可写，`/app`、`/etc`、`/usr/local` 不可写
+- [x] 全量测试、`pip check`、隔离 Docker 与 Actions 验收通过
+- [x] 更新 README / PLAN / TASKS / CHANGELOG / GOAL
+
 ### Phase 2-L6 Docker 健康状态与就绪验收
 
 - [x] 为生产镜像增加仅使用 Python 标准库访问现有 `/login` 的 `HEALTHCHECK`

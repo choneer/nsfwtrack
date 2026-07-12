@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### Security
+
+- Phase 2-L7 runs production Compose and CI Docker smoke with a read-only root
+  filesystem, all Linux capabilities dropped, `no-new-privileges`, and a
+  dedicated `/tmp` tmpfs. `/app/data` remains the persistent writable mount;
+  CI verifies both writable paths and rejects writes to other image paths.
+
 ## [1.0.2] - 2026-07-12
 
 ### Added

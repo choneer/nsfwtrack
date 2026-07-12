@@ -65,6 +65,13 @@ jobs:
             echo "    build: ${GITHUB_WORKSPACE}"
             echo "    env_file:"
             echo "      - ${SMOKE_DIR}/.env"
+            echo "    read_only: true"
+            echo "    cap_drop:"
+            echo "      - ALL"
+            echo "    security_opt:"
+            echo "      - no-new-privileges:true"
+            echo "    tmpfs:"
+            echo "      - /tmp:size=64m,mode=1777"
             echo "    ports:"
             echo '      - "18080:8000"'
             echo "    volumes:"
@@ -102,6 +109,32 @@ jobs:
           done
           echo "docker smoke failed: container did not become healthy" >&2
           exit 1
+
+      - name: Verify runtime security and writable paths
+        run: |
+          set -euo pipefail
+          container_id="$(docker compose -f "${COMPOSE_FILE}" -p "${COMPOSE_PROJECT_NAME}" ps -q nsfwtrack)"
+          test -n "${container_id}"
+
+          test "$(docker inspect --format='{{.HostConfig.ReadonlyRootfs}}' "${container_id}")" = "true"
+          docker inspect --format='{{json .HostConfig.CapDrop}}' "${container_id}" | grep -q '"ALL"'
+          docker inspect --format='{{json .HostConfig.SecurityOpt}}' "${container_id}" | grep -q '"no-new-privileges:true"'
+          test "$(docker inspect --format='{{if index .HostConfig.Tmpfs "/tmp"}}configured{{end}}' "${container_id}")" = "configured"
+
+          docker compose -f "${COMPOSE_FILE}" -p "${COMPOSE_PROJECT_NAME}" exec -T nsfwtrack sh -eu -c '
+            data_probe=/app/data/.ci-write-probe
+            tmp_probe=/tmp/.ci-write-probe
+            trap "rm -f ${data_probe} ${tmp_probe}" EXIT
+            : > "${data_probe}"
+            : > "${tmp_probe}"
+            for target in /app/.ci-readonly-probe /etc/.ci-readonly-probe /usr/local/.ci-readonly-probe; do
+              if touch "${target}" 2>/dev/null; then
+                echo "unexpected writable path: ${target}" >&2
+                rm -f "${target}" || true
+                exit 1
+              fi
+            done
+          '
 
       - name: Wait for /login and verify security headers
         run: |

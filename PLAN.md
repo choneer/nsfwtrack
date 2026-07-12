@@ -29,7 +29,7 @@ v1.0.2
 维护与迁移：Phase 2-H 已完成并随 v0.9.0 发布
 稳定性收尾：Phase 2-I1 基线、I2 查询优化、I3 错误处理、I4 发布冻结审查已随 v1.0.0 发布
 完成度审计：Phase 2-K1 / K2 已随 v1.0.1 发布；代码开发与 WSL 验收已完成
-维护与 CI：Phase 2-L1 至 L6 已随 v1.0.2 发布
+维护与 CI：Phase 2-L1 至 L6 已随 v1.0.2 发布；L7 Docker 运行时安全基线已完成
 ```
 
 当前完成度估算：
@@ -657,9 +657,10 @@ K1 审计结论：
 4. Phase 2-L4 CI Docker 冒烟验收已完成
 5. Phase 2-L5 CI 最小权限与重复运行控制已完成
 6. Phase 2-L6 Docker 健康状态与就绪验收已完成
-7. 无其他进行中的代码开发任务（稳定版 v1.0.2）
-8. N100 / 目标主机部署未开始，等待用户明确授权
-9. 其余仅按实际问题做可选维护
+7. Phase 2-L7 Docker 运行时安全基线已完成
+8. 无其他进行中的代码开发任务（稳定版 v1.0.2）
+9. N100 / 目标主机部署未开始，等待用户明确授权
+10. 其余仅按实际问题做可选维护
 ```
 
 已完成依据：
@@ -686,6 +687,7 @@ K1 审计结论：
 - Phase 2-L4 已增加独立 Docker 生产冒烟 job、失败日志和始终执行的资源清理，并保留 pytest / pip check
 - Phase 2-L5 已将 CI 权限限定为 `contents: read`，同一 workflow / ref 的过时运行由 concurrency 自动取消
 - Phase 2-L6 已用 Python 标准库为生产镜像增加 `/login` 健康检查；CI 在执行原有 HTTP / 安全头检查前等待容器 `healthy`
+- Phase 2-L7 已为生产与 CI Compose 增加只读根文件系统、`cap_drop: ALL`、`no-new-privileges` 和 `/tmp` tmpfs，并保留 `/app/data` 写入
 - 代码开发与 WSL 验收已完成；K3 / N100 部署不是当前开发任务，须等待用户明确授权
 
 ---
