@@ -239,6 +239,119 @@ def test_bookmark_parser_and_import_support_multiple_urls_for_one_title() -> Non
     assert len(_source_rows()) == 2
 
 
+def test_identical_existing_titles_are_ambiguous_and_never_imported(
+    auth_client: object,
+) -> None:
+    first_id = _create_item(auth_client, "Same title")
+    second_id = _create_item(auth_client, "Same title")
+    payload = "Same title\thttps://example.com/ambiguous"
+
+    with SessionLocal() as db:
+        preview = build_source_preview(db, parse_source_text(payload))
+        assert (preview.new, preview.conflict, preview.new_items) == (0, 1, 0)
+        assert preview.rows[0].detail == "ambiguous_existing_title"
+
+    response = auth_client.post(
+        "/sources/import/preview",
+        data={"source_text": payload},
+    )
+    assert "存在多个同名条目，无法确定目标" in response.text
+
+    auth_client.post(
+        "/sources/import/apply",
+        data={"payload": payload, "confirm": "1"},
+        follow_redirects=True,
+    )
+    assert _source_rows() == []
+    with SessionLocal() as db:
+        items = list(db.scalars(select(Item).order_by(Item.id)).all())
+        assert [(item.id, item.title) for item in items] == [
+            (first_id, "Same title"),
+            (second_id, "Same title"),
+        ]
+
+
+def test_casefold_equivalent_existing_titles_are_ambiguous_in_english_preview(
+    auth_client: object,
+) -> None:
+    _create_item(auth_client, "Case Title")
+    _create_item(auth_client, "case title")
+    payload = "CASE TITLE\thttps://example.com/casefold-ambiguous"
+
+    auth_client.get(
+        "/set-language",
+        params={"lang": "en", "next": "/sources/import"},
+    )
+    response = auth_client.post(
+        "/sources/import/preview",
+        data={"source_text": payload},
+    )
+    assert response.status_code == 200
+    assert "Multiple items have the same title" in response.text
+    assert "target cannot be determined" in response.text
+
+    with SessionLocal() as db:
+        result = import_source_rows(db, parse_source_text(payload))
+        assert (result.new, result.conflict) == (0, 1)
+    assert _source_rows() == []
+    assert _item_titles() == ["Case Title", "case title"]
+
+
+def test_mixed_ambiguous_and_normal_rows_import_only_the_normal_row(
+    auth_client: object,
+) -> None:
+    _create_item(auth_client, "Ambiguous")
+    _create_item(auth_client, "AMBIGUOUS")
+    normal_id = _create_item(auth_client, "Normal")
+    payload = (
+        "ambiguous\thttps://example.com/skipped\n"
+        "Normal\thttps://example.com/imported"
+    )
+
+    response = auth_client.post(
+        "/sources/import/apply",
+        data={"payload": payload, "confirm": "1"},
+        follow_redirects=True,
+    )
+
+    assert response.status_code == 200
+    assert "新增 1" in response.text
+    assert "冲突 1" in response.text
+    sources = _source_rows()
+    assert len(sources) == 1
+    assert sources[0].item_id == normal_id
+    assert sources[0].normalized_url == "https://example.com/imported"
+    assert _item_titles() == ["Ambiguous", "AMBIGUOUS", "Normal"]
+
+
+def test_apply_rechecks_title_ambiguity_after_preview(monkeypatch: object) -> None:
+    rows = parse_source_text("Race title\thttps://example.com/race")
+    original_preview = build_source_preview
+
+    def preview_then_add_ambiguity(
+        db: object, pending_rows: object
+    ) -> object:
+        preview = original_preview(db, pending_rows)
+        db.add_all([Item(title="Race title"), Item(title="RACE TITLE")])
+        db.flush()
+        return preview
+
+    monkeypatch.setattr(
+        "app.services.sources.build_source_preview",
+        preview_then_add_ambiguity,
+    )
+    with SessionLocal() as db:
+        try:
+            import_source_rows(db, rows)
+        except SourceError as exc:
+            assert exc.code == "ambiguous_existing_title"
+        else:
+            raise AssertionError("source import ignored a newly ambiguous title")
+
+    assert _source_rows() == []
+    assert _item_titles() == []
+
+
 def test_batch_failure_rolls_back_items_and_sources(monkeypatch: object) -> None:
     rows = parse_source_text(
         "One\thttps://example.com/one\nTwo\thttps://example.com/two"

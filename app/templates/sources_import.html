@@ -54,10 +54,10 @@
       </div>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>{{ t("sources.row") }}</th><th>{{ t("common.title") }}</th><th>{{ t("sources.url") }}</th><th>{{ t("common.status") }}</th><th>{{ t("sources.target_item") }}</th></tr></thead>
+          <thead><tr><th>{{ t("sources.row") }}</th><th>{{ t("common.title") }}</th><th>{{ t("sources.url") }}</th><th>{{ t("common.status") }}</th><th>{{ t("sources.target_item") }}</th><th>{{ t("sources.detail") }}</th></tr></thead>
           <tbody>
             {% for row in preview.rows %}
-              <tr><td>{{ row.row }}</td><td>{{ row.title }}</td><td>{{ row.normalized_url or row.url }}</td><td>{{ t("sources.status_" ~ row.status) }}</td><td>{{ row.target_item }}</td></tr>
+              <tr><td>{{ row.row }}</td><td>{{ row.title }}</td><td>{{ row.normalized_url or row.url }}</td><td>{{ t("sources.status_" ~ row.status) }}</td><td>{{ row.target_item }}</td><td>{{ t("sources.detail_" ~ row.detail) }}</td></tr>
             {% endfor %}
           </tbody>
         </table>

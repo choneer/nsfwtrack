@@ -202,11 +202,20 @@ def serialize_parsed_sources(rows: list[ParsedSource]) -> str:
     )
 
 
+def _index_items_by_title(
+    items: list[models.Item],
+) -> dict[str, list[models.Item]]:
+    items_by_title: dict[str, list[models.Item]] = {}
+    for item in items:
+        items_by_title.setdefault(item.title.casefold(), []).append(item)
+    return items_by_title
+
+
 def build_source_preview(db: Session, rows: list[ParsedSource]) -> SourceImportPreview:
     if not source_feature_available(db):
         raise SourceError("schema_upgrade_required")
     existing_items = db.scalars(select(models.Item).order_by(models.Item.id)).all()
-    items_by_title = {item.title.casefold(): item for item in existing_items}
+    items_by_title = _index_items_by_title(existing_items)
     existing_sources = {
         source.normalized_url: source
         for source in db.scalars(select(models.ItemSource)).all()
@@ -239,7 +248,23 @@ def build_source_preview(db: Session, rows: list[ParsedSource]) -> SourceImportP
         title_key = title.casefold()
         existing_source = existing_sources.get(normalized)
         previous_title = seen_urls.get(normalized)
-        target_item = items_by_title.get(title_key)
+        matching_items = items_by_title.get(title_key, [])
+        target_item = matching_items[0] if len(matching_items) == 1 else None
+
+        if len(matching_items) > 1:
+            counts["conflict"] += 1
+            preview_rows.append(
+                SourcePreviewRow(
+                    row.row,
+                    title,
+                    row.url,
+                    normalized,
+                    "conflict",
+                    title,
+                    "ambiguous_existing_title",
+                )
+            )
+            continue
 
         if previous_title is not None:
             status = "duplicate" if previous_title == title_key else "conflict"
@@ -312,18 +337,22 @@ def import_source_rows(db: Session, rows: list[ParsedSource]) -> SourceImportPre
     new_rows = [row for row in preview.rows if row.status == "new"]
     if not new_rows:
         return preview
-    item_cache: dict[str, models.Item] = {
-        item.title.casefold(): item for item in db.scalars(select(models.Item)).all()
-    }
+    items_by_title = _index_items_by_title(
+        list(db.scalars(select(models.Item).order_by(models.Item.id)).all())
+    )
     try:
         for row in new_rows:
             title_key = row.title.casefold()
-            item = item_cache.get(title_key)
-            if item is None:
+            matching_items = items_by_title.get(title_key, [])
+            if len(matching_items) > 1:
+                raise SourceError("ambiguous_existing_title")
+            if matching_items:
+                item = matching_items[0]
+            else:
                 item = models.Item(title=row.title)
                 db.add(item)
                 db.flush()
-                item_cache[title_key] = item
+                items_by_title[title_key] = [item]
             original_title = next(
                 (
                     parsed.title
@@ -341,6 +370,9 @@ def import_source_rows(db: Session, rows: list[ParsedSource]) -> SourceImportPre
                 )
             )
         db.commit()
+    except SourceError:
+        db.rollback()
+        raise
     except Exception:
         db.rollback()
         raise SourceError("import_failed") from None

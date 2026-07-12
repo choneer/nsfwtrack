@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### Fixed
+
+- Source import now treats multiple existing items with the same case-folded
+  title as an explicit conflict in preview and apply instead of silently
+  attaching the source to an arbitrary item.
+
 ### Added
 
 - Added Phase 3-A1 `item_sources` with one-to-many item sources, original and
