@@ -43,6 +43,7 @@
       <div class="metric"><strong>{{ validation_report.table_counts["saved_views"] }}</strong><span>{{ t("dry_run.data_saved_views") }}</span></div>
       <div class="metric"><strong>{{ validation_report.table_counts["item_activity"] }}</strong><span>{{ t("dry_run.data_item_activity") }}</span></div>
       <div class="metric"><strong>{{ validation_report.table_counts["app_settings"] }}</strong><span>{{ t("dry_run.data_app_settings") }}</span></div>
+      <div class="metric"><strong>{{ validation_report.table_counts["item_sources"] }}</strong><span>{{ t("dry_run.data_item_sources") }}</span></div>
     </div>
     {% if validation_report.issues %}
       <div class="table-scroll">
@@ -80,7 +81,7 @@
 {% if preview_result %}
   <section class="card stack">
     <div class="flash success">
-      {{ t("backup.preview_success", schema=preview_result.schema, items=preview_result["items"], tags=preview_result.tags, creators=preview_result.creators, item_tags=preview_result.item_tags, item_creators=preview_result.item_creators, user_item_states=preview_result.user_item_states, collections=preview_result.collections, item_collections=preview_result.item_collections, saved_views=preview_result.saved_views, item_activity=preview_result.item_activity, app_settings=preview_result.app_settings) }}
+      {{ t("backup.preview_success", schema=preview_result.schema, items=preview_result["items"], tags=preview_result.tags, creators=preview_result.creators, item_tags=preview_result.item_tags, item_creators=preview_result.item_creators, user_item_states=preview_result.user_item_states, collections=preview_result.collections, item_collections=preview_result.item_collections, saved_views=preview_result.saved_views, item_activity=preview_result.item_activity, app_settings=preview_result.app_settings, item_sources=preview_result.item_sources) }}
     </div>
     <div class="metric-grid">
       <div class="metric"><strong>{{ preview_result.collections }}</strong><span>{{ t("backup.collections_count") }}</span></div>
@@ -102,6 +103,10 @@
       <div class="metric"><strong>{{ preview_result.app_settings_valid }}</strong><span>{{ t("backup.app_settings_valid") }}</span></div>
       <div class="metric"><strong>{{ preview_result.app_settings_skipped }}</strong><span>{{ t("backup.app_settings_skipped") }}</span></div>
       <div class="metric"><strong>{{ preview_result.app_settings_errors }}</strong><span>{{ t("backup.app_settings_errors") }}</span></div>
+      <div class="metric"><strong>{{ preview_result.item_sources }}</strong><span>{{ t("backup.item_sources_count") }}</span></div>
+      <div class="metric"><strong>{{ preview_result.item_sources_restorable }}</strong><span>{{ t("backup.item_sources_restorable") }}</span></div>
+      <div class="metric"><strong>{{ preview_result.item_sources_skipped }}</strong><span>{{ t("backup.item_sources_skipped") }}</span></div>
+      <div class="metric"><strong>{{ preview_result.item_sources_errors }}</strong><span>{{ t("backup.item_sources_errors") }}</span></div>
     </div>
   </section>
 {% endif %}
@@ -114,7 +119,7 @@
   <section class="card stack">
     <div class="flash success">
       {% if danger_policy.show_detailed_results %}
-        {{ t("backup.restore_success", created=restore_result.created, updated=restore_result.updated, skipped=restore_result.skipped, collections_created=restore_result.collections_created, collections_skipped=restore_result.collections_skipped, item_collections_created=restore_result.item_collections_created, item_collections_skipped=restore_result.item_collections_skipped, collection_errors=restore_result.collection_errors, saved_views_created=restore_result.saved_views_created, saved_views_updated=restore_result.saved_views_updated, saved_views_skipped=restore_result.saved_views_skipped, saved_view_errors=restore_result.saved_view_errors, item_activity_created=restore_result.item_activity_created, item_activity_updated=restore_result.item_activity_updated, item_activity_skipped=restore_result.item_activity_skipped, item_activity_errors=restore_result.item_activity_errors, app_settings_created=restore_result.app_settings_created, app_settings_updated=restore_result.app_settings_updated, app_settings_skipped=restore_result.app_settings_skipped, app_settings_errors=restore_result.app_settings_errors) }}
+        {{ t("backup.restore_success", created=restore_result.created, updated=restore_result.updated, skipped=restore_result.skipped, collections_created=restore_result.collections_created, collections_skipped=restore_result.collections_skipped, item_collections_created=restore_result.item_collections_created, item_collections_skipped=restore_result.item_collections_skipped, collection_errors=restore_result.collection_errors, saved_views_created=restore_result.saved_views_created, saved_views_updated=restore_result.saved_views_updated, saved_views_skipped=restore_result.saved_views_skipped, saved_view_errors=restore_result.saved_view_errors, item_activity_created=restore_result.item_activity_created, item_activity_updated=restore_result.item_activity_updated, item_activity_skipped=restore_result.item_activity_skipped, item_activity_errors=restore_result.item_activity_errors, app_settings_created=restore_result.app_settings_created, app_settings_updated=restore_result.app_settings_updated, app_settings_skipped=restore_result.app_settings_skipped, app_settings_errors=restore_result.app_settings_errors, item_sources_created=restore_result.item_sources_created, item_sources_skipped=restore_result.item_sources_skipped, item_sources_errors=restore_result.item_sources_errors) }}
       {% else %}
         {{ t("backup.restore_summary", created=restore_result.created, updated=restore_result.updated, skipped=restore_result.skipped) }}
       {% endif %}
@@ -138,6 +143,9 @@
       <div class="metric"><strong>{{ restore_result.app_settings_updated }}</strong><span>{{ t("backup.app_settings_updated") }}</span></div>
       <div class="metric"><strong>{{ restore_result.app_settings_skipped }}</strong><span>{{ t("backup.app_settings_skipped") }}</span></div>
       <div class="metric"><strong>{{ restore_result.app_settings_errors }}</strong><span>{{ t("backup.app_settings_errors") }}</span></div>
+      <div class="metric"><strong>{{ restore_result.item_sources_created }}</strong><span>{{ t("backup.item_sources_created") }}</span></div>
+      <div class="metric"><strong>{{ restore_result.item_sources_skipped }}</strong><span>{{ t("backup.item_sources_skipped") }}</span></div>
+      <div class="metric"><strong>{{ restore_result.item_sources_errors }}</strong><span>{{ t("backup.item_sources_errors") }}</span></div>
     </div>
     {% endif %}
   </section>

@@ -13,6 +13,7 @@ from app import models
 from app.config import get_settings
 from app.services.catalog import serialize_extra, split_names
 from app.services.item_query import STATUS_OPTIONS
+from app.services.sources import SourceError, normalize_source_url
 
 IMPORT_FIELDS = [
     "title",
@@ -23,6 +24,7 @@ IMPORT_FIELDS = [
     "tags",
     "creators",
     "collections",
+    "sources",
     "extra",
 ]
 CSV_TEMPLATE_FILENAME = "nsfwtrack-import-template.csv"
@@ -67,6 +69,10 @@ def csv_template_content() -> str:
             "tags": "example;local",
             "creators": "Example creator",
             "collections": "Example collection",
+            "sources": json.dumps(
+                [{"title": "Example source", "url": "https://example.com/item"}],
+                ensure_ascii=False,
+            ),
             "extra": json.dumps({"source": "manual"}, ensure_ascii=False),
         }
     )
@@ -80,6 +86,7 @@ def csv_template_content() -> str:
             "tags": "local",
             "creators": "",
             "collections": "",
+            "sources": "",
             "extra": "",
         }
     )
@@ -99,6 +106,9 @@ def json_template_content() -> str:
                     "tags": ["example", "local"],
                     "creators": ["Example creator"],
                     "collections": ["Example collection"],
+                    "sources": [
+                        {"title": "Example source", "url": "https://example.com/item"}
+                    ],
                     "extra": {"source": "manual"},
                 },
                 {
@@ -110,6 +120,7 @@ def json_template_content() -> str:
                     "tags": ["local"],
                     "creators": [],
                     "collections": [],
+                    "sources": [],
                     "extra": {},
                 },
             ]
@@ -313,6 +324,47 @@ def _normalize_name_list(value: Any, field_name: str, source_type: str) -> list[
     return split_names(value)
 
 
+def _normalize_sources(value: Any, source_type: str) -> list[dict[str, str | None]]:
+    if value is None or value == "":
+        return []
+    parsed: Any = value
+    if isinstance(value, str):
+        stripped = value.strip()
+        if not stripped:
+            return []
+        if stripped.startswith("["):
+            try:
+                parsed = json.loads(stripped)
+            except json.JSONDecodeError:
+                raise ImportDataError("invalid_sources") from None
+        elif source_type == "csv":
+            parsed = [{"url": entry.strip()} for entry in stripped.split(";") if entry.strip()]
+    if not isinstance(parsed, list):
+        raise ImportDataError("invalid_sources")
+    normalized: list[dict[str, str | None]] = []
+    seen: set[str] = set()
+    for entry in parsed:
+        if isinstance(entry, str):
+            title = None
+            url = entry
+        elif isinstance(entry, dict):
+            title = " ".join(str(entry.get("title") or "").split())[:255] or None
+            url = str(entry.get("url") or "").strip()
+        else:
+            raise ImportDataError("invalid_sources")
+        try:
+            normalized_url = normalize_source_url(url)
+        except SourceError:
+            raise ImportDataError("invalid_sources") from None
+        if normalized_url in seen:
+            continue
+        seen.add(normalized_url)
+        normalized.append(
+            {"title": title, "url": url, "normalized_url": normalized_url}
+        )
+    return normalized
+
+
 def _normalize_row(row: dict[str, Any], row_number: int, source_type: str) -> dict[str, Any]:
     title = str(row.get("title") or "").strip()
     if not title:
@@ -333,6 +385,7 @@ def _normalize_row(row: dict[str, Any], row_number: int, source_type: str) -> di
         "tags": _normalize_name_list(row.get("tags"), "tags", source_type),
         "creators": _normalize_name_list(row.get("creators"), "creators", source_type),
         "collections": _normalize_collections(row.get("collections"), source_type),
+        "sources": _normalize_sources(row.get("sources"), source_type),
         "extra": _normalize_extra(row.get("extra")),
     }
     return normalized
@@ -779,6 +832,11 @@ def import_valid_rows(
                 if error.get("code") in {"collections_not_array", "collections_non_string"}
             ]
         ),
+        created_sources=0,
+        skipped_sources=0,
+        source_errors=len(
+            [error for error in errors or [] if error.get("code") == "invalid_sources"]
+        ),
         state_records=0,
         error_rows=len(errors or []),
         errors=list(errors or []),
@@ -787,6 +845,7 @@ def import_valid_rows(
         return result
 
     try:
+        known_source_urls = set(db.scalars(select(models.ItemSource.normalized_url)).all())
         for row in valid_rows:
             item = models.Item(
                 title=row["title"],
@@ -821,6 +880,22 @@ def import_valid_rows(
                 db.add(state)
                 result["state_records"] += 1
 
+            for source_row in row["sources"]:
+                normalized_url = str(source_row["normalized_url"])
+                if normalized_url in known_source_urls:
+                    result["skipped_sources"] += 1
+                    continue
+                db.add(
+                    models.ItemSource(
+                        item_id=item.id,
+                        url=str(source_row["url"]),
+                        normalized_url=normalized_url,
+                        title=source_row["title"],
+                    )
+                )
+                known_source_urls.add(normalized_url)
+                result["created_sources"] += 1
+
             result["imported"] += 1
         db.commit()
     except Exception:
@@ -836,6 +911,9 @@ def import_valid_rows(
             linked_collections=0,
             skipped_collections=0,
             collections_errors=len(valid_rows) + len(errors or []),
+            created_sources=0,
+            skipped_sources=0,
+            source_errors=len(valid_rows) + len(errors or []),
             state_records=0,
             error_rows=len(valid_rows) + len(errors or []),
             errors=[*(errors or []), _error(None, "import_failed")],

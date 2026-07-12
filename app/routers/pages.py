@@ -149,6 +149,17 @@ from app.services.settings import (
     reset_app_settings,
     save_app_settings,
 )
+from app.services.sources import (
+    SourceError,
+    add_item_source,
+    build_source_preview,
+    delete_item_source,
+    import_source_rows,
+    list_item_sources,
+    parse_bookmarks_html,
+    parse_source_text,
+    source_feature_available,
+)
 from app.services.activity import (
     ACTIVITY_PAGE_LIMIT,
     clear_item_activity,
@@ -1231,6 +1242,8 @@ def item_detail_page(
             request,
             db=db,
             item=item,
+            item_sources=list_item_sources(db, item.id),
+            sources_available=source_feature_available(db),
             item_activity=get_item_activity(db, item.id),
             extra=parse_extra(item.extra),
             available_tags=list_available_tags(db, item.id),
@@ -1242,6 +1255,158 @@ def item_detail_page(
             edit_url=_item_edit_url(item.id, return_list_url),
         ),
     )
+
+
+@router.post("/items/{item_id}/sources", dependencies=[Depends(require_page_auth)])
+def add_item_source_page(
+    request: Request,
+    item_id: int,
+    url: str = Form(...),
+    title: str | None = Form(default=None),
+    next_url: str = Form(default="/items", alias="next"),
+    db: Session = Depends(get_db),
+) -> RedirectResponse:
+    target = _item_detail_url(item_id, next_url)
+    try:
+        add_item_source(db, item_id, url, title)
+    except SourceError as exc:
+        add_flash(request, "error", f"flash.source_{exc.code}")
+        return _redirect(target)
+    add_flash(request, "success", "flash.source_added")
+    return _redirect(target)
+
+
+@router.post(
+    "/items/{item_id}/sources/{source_id}/delete",
+    dependencies=[Depends(require_page_auth)],
+)
+def delete_item_source_page(
+    request: Request,
+    item_id: int,
+    source_id: int,
+    confirm: str | None = Form(default=None),
+    confirmation_text: str | None = Form(default=None),
+    next_url: str = Form(default="/items", alias="next"),
+    db: Session = Depends(get_db),
+) -> RedirectResponse:
+    target = _item_detail_url(item_id, next_url)
+    if not _danger_confirmation_is_valid(
+        request,
+        get_danger_policy(db),
+        confirmation_text=confirmation_text,
+        base_confirmation_valid=confirm == "1",
+    ):
+        return _redirect(target)
+    try:
+        delete_item_source(db, item_id, source_id)
+    except SourceError as exc:
+        add_flash(request, "error", f"flash.source_{exc.code}")
+        return _redirect(target)
+    add_flash(request, "success", "flash.source_deleted")
+    return _redirect(target)
+
+
+@router.get(
+    "/sources/import",
+    response_class=HTMLResponse,
+    dependencies=[Depends(require_page_auth)],
+)
+def source_import_page(
+    request: Request,
+    db: Session = Depends(get_db),
+) -> HTMLResponse:
+    return templates.TemplateResponse(
+        request,
+        "sources_import.html",
+        _base_context(
+            request,
+            db=db,
+            preview=None,
+            source_text="",
+            sources_available=source_feature_available(db),
+        ),
+    )
+
+
+@router.post(
+    "/sources/import/preview",
+    response_class=HTMLResponse,
+    dependencies=[Depends(require_page_auth)],
+)
+async def source_import_preview_page(
+    request: Request,
+    source_text: str = Form(default=""),
+    bookmarks_file: UploadFile | None = File(default=None),
+    db: Session = Depends(get_db),
+) -> HTMLResponse:
+    preview = None
+    error_key = None
+    rendered_text = source_text
+    try:
+        if bookmarks_file is not None and bookmarks_file.filename:
+            max_bytes = get_settings().max_import_upload_mb * 1024 * 1024
+            content = await bookmarks_file.read(max_bytes + 1)
+            if len(content) > max_bytes:
+                raise SourceError("file_too_large")
+            rows = parse_bookmarks_html(content)
+            rendered_text = ""
+        else:
+            if len(source_text.encode("utf-8")) > (
+                get_settings().max_import_upload_mb * 1024 * 1024
+            ):
+                raise SourceError("file_too_large")
+            rows = parse_source_text(source_text)
+        preview = build_source_preview(db, rows)
+    except SourceError as exc:
+        error_key = f"sources.error_{exc.code}"
+    return templates.TemplateResponse(
+        request,
+        "sources_import.html",
+        _base_context(
+            request,
+            db=db,
+            preview=preview,
+            source_text=rendered_text,
+            sources_available=source_feature_available(db),
+            error_key=error_key,
+        ),
+    )
+
+
+@router.post("/sources/import/apply", dependencies=[Depends(require_page_auth)])
+def source_import_apply_page(
+    request: Request,
+    payload: str = Form(...),
+    confirm: str | None = Form(default=None),
+    confirmation_text: str | None = Form(default=None),
+    db: Session = Depends(get_db),
+) -> RedirectResponse:
+    if not _danger_confirmation_is_valid(
+        request,
+        get_danger_policy(db),
+        confirmation_text=confirmation_text,
+        base_confirmation_valid=confirm == "1",
+    ):
+        return _redirect("/sources/import")
+    try:
+        if len(payload.encode("utf-8")) > (
+            get_settings().max_import_upload_mb * 1024 * 1024
+        ):
+            raise SourceError("file_too_large")
+        preview = import_source_rows(db, parse_source_text(payload))
+    except SourceError as exc:
+        add_flash(request, "error", f"flash.source_{exc.code}")
+        return _redirect("/sources/import")
+    add_flash(
+        request,
+        "success",
+        "flash.source_imported",
+        created=preview.new,
+        duplicate=preview.duplicate,
+        invalid=preview.invalid,
+        conflict=preview.conflict,
+    )
+    return _redirect("/sources/import")
 
 
 @router.post(

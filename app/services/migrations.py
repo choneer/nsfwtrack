@@ -9,7 +9,7 @@ from sqlalchemy import inspect, insert, select
 from sqlalchemy.engine import Connection, Engine
 from sqlalchemy.exc import SQLAlchemyError
 
-from app.models import SchemaMigration
+from app.models import ItemSource, SchemaMigration
 from app.services.schema_version import (
     CURRENT_SCHEMA_VERSION,
     SCHEMA_MIGRATIONS_TABLE,
@@ -420,4 +420,65 @@ def apply_upgrade(
     )
 
 
-MIGRATION_REGISTRY = MigrationRegistry()
+def _item_sources_preview(connection: Connection) -> MigrationPreview:
+    del connection
+    return MigrationPreview(
+        changes=(
+            "create item_sources table",
+            "add globally unique normalized source URLs linked to items",
+        ),
+        warnings=("back up the Schema 1 database before applying",),
+    )
+
+
+def _item_sources_precheck(connection: Connection) -> MigrationCheck:
+    inspector = inspect(connection)
+    table_names = set(inspector.get_table_names())
+    if "items" not in table_names:
+        return MigrationCheck(False, "items table is missing")
+    if "item_sources" in table_names:
+        return MigrationCheck(False, "item_sources already exists")
+    return MigrationCheck(True, "Schema 1 item table is ready")
+
+
+def _item_sources_apply(connection: Connection) -> None:
+    ItemSource.__table__.create(bind=connection)
+
+
+def _item_sources_postcheck(connection: Connection) -> MigrationCheck:
+    inspector = inspect(connection)
+    if "item_sources" not in inspector.get_table_names():
+        return MigrationCheck(False, "item_sources was not created")
+    columns = {column["name"] for column in inspector.get_columns("item_sources")}
+    required = {"id", "item_id", "url", "normalized_url", "title", "created_at"}
+    if not required.issubset(columns):
+        return MigrationCheck(False, "item_sources columns are incomplete")
+    unique_columns = {
+        tuple(constraint.get("column_names") or ())
+        for constraint in inspector.get_unique_constraints("item_sources")
+    }
+    if ("normalized_url",) not in unique_columns:
+        return MigrationCheck(False, "normalized_url uniqueness is missing")
+    foreign_keys = inspector.get_foreign_keys("item_sources")
+    if not any(
+        foreign_key.get("referred_table") == "items"
+        and tuple(foreign_key.get("constrained_columns") or ()) == ("item_id",)
+        for foreign_key in foreign_keys
+    ):
+        return MigrationCheck(False, "item source item foreign key is missing")
+    return MigrationCheck(True, "item_sources structure is valid")
+
+
+MIGRATION_REGISTRY = MigrationRegistry(
+    (
+        MigrationStep(
+            from_version=1,
+            to_version=2,
+            name="create_item_sources",
+            preview=_item_sources_preview,
+            apply=_item_sources_apply,
+            precheck=_item_sources_precheck,
+            postcheck=_item_sources_postcheck,
+        ),
+    )
+)

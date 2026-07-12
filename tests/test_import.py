@@ -5,7 +5,7 @@ import json
 from fastapi.testclient import TestClient
 
 from app.database import SessionLocal
-from app.models import Collection, ItemCollection
+from app.models import Collection, ItemCollection, ItemSource
 
 
 def _csv_confirm_data(
@@ -41,6 +41,11 @@ def _item_collection_count() -> int:
         return db.query(ItemCollection).count()
 
 
+def _item_source_count() -> int:
+    with SessionLocal() as db:
+        return db.query(ItemSource).count()
+
+
 def test_import_templates_require_login(client: TestClient) -> None:
     assert client.get("/api/import/template/csv").status_code == 401
     assert client.get("/api/import/template/json").status_code == 401
@@ -53,7 +58,7 @@ def test_csv_template_download_contains_required_headers(auth_client: TestClient
     assert 'filename="nsfwtrack-import-template.csv"' in response.headers[
         "content-disposition"
     ]
-    assert "title,summary,status,rating,note,tags,creators,collections,extra" in response.text
+    assert "title,summary,status,rating,note,tags,creators,collections,sources,extra" in response.text
     assert "Example collection" in response.text
     assert "Example item" in response.text
 
@@ -127,6 +132,56 @@ def test_json_import_uses_items_structure(auth_client: TestClient) -> None:
     assert response.status_code == 200
     assert response.json()["imported"] == 1
     assert auth_client.get("/api/search", params={"tag": "json"}).json()["total"] == 1
+
+
+def test_json_import_creates_item_sources(auth_client: TestClient) -> None:
+    response = auth_client.post(
+        "/api/import/json",
+        files={
+            "file": (
+                "items.json",
+                json.dumps(
+                    {
+                        "items": [
+                            {
+                                "title": "Imported with source",
+                                "sources": [
+                                    {
+                                        "title": "Original",
+                                        "url": "HTTPS://Example.com:443/import#fragment",
+                                    }
+                                ],
+                            }
+                        ]
+                    }
+                ).encode(),
+                "application/json",
+            )
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["created_sources"] == 1
+    with SessionLocal() as db:
+        source = db.query(ItemSource).one()
+        assert source.normalized_url == "https://example.com/import"
+        assert source.title == "Original"
+
+
+def test_csv_import_accepts_exported_sources_json(auth_client: TestClient) -> None:
+    sources = json.dumps(
+        [{"title": "CSV import source", "url": "https://example.org/from-csv"}]
+    ).replace('"', '""')
+    csv_content = f'title,sources\nCSV Source Item,"{sources}"\n'.encode()
+
+    response = auth_client.post(
+        "/api/import/csv",
+        files={"file": ("items.csv", csv_content, "text/csv")},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["created_sources"] == 1
+    assert _item_source_count() == 1
 
 
 def test_csv_import_collections_create_link_and_deduplicate(

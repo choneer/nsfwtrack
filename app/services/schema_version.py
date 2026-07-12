@@ -9,7 +9,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from app.database import Base
 
-CURRENT_SCHEMA_VERSION = 1
+CURRENT_SCHEMA_VERSION = 2
 BASELINE_MIGRATION_NAME = "baseline"
 SCHEMA_MIGRATIONS_TABLE = "schema_migrations"
 SCHEMA_STATUS_CURRENT = "current"

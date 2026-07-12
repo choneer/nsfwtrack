@@ -8,6 +8,9 @@ Release: [NSFWTrack v1.0.4](https://github.com/choneer/nsfwtrack/releases/tag/v1
 
 Current status: `stable v1.0.4 — code development and WSL acceptance complete`.
 
+Current development: `Phase 3-A1 source links and local bookmark import is
+complete on main and not yet released; application Schema is 2`.
+
 N100 deployment: `not started; waits for explicit user authorization`.
 
 NSFWTrack remains intentionally local-only. It is designed for manual records,
@@ -28,8 +31,40 @@ Code development and WSL acceptance through `v1.0.4` are complete. See
 - N100 / target-host deployment has not started and is not a current development
   task. It must wait for explicit user authorization.
 
-No further product feature phase is open. Optional maintenance remains outside
-the stable release scope unless separately approved.
+Product feature development has explicitly reopened for the bounded Phase 3-A1
+scope below. Any expansion beyond it still requires separate approval.
+
+## Unreleased: Phase 3-A1 Source Links and Local Bookmark Import
+
+Phase 3-A1 stores user-provided source URLs without requesting them. One item
+can have multiple sources, and each source stores the original URL, a globally
+unique normalized URL, an optional title, and its creation time.
+
+- Item detail pages list sources and support adding one URL or deleting one
+  source after explicit confirmation. Deleting a source never deletes its item.
+- `/sources/import` accepts pasted text with one URL per line,
+  `title<TAB>URL`, or a user-uploaded local browser bookmarks HTML file.
+- Every bulk operation is read-only until its preview reports new, duplicate,
+  invalid, and conflicting rows. Confirmed writes revalidate the same data and
+  commit all new items and sources in one transaction; failures roll back the
+  batch.
+- HTTP/HTTPS URLs are normalized by scheme, IDNA host, default port, percent
+  escapes, root path, and fragment removal. URLs containing credentials,
+  control/space characters, unsupported schemes, or no host are rejected.
+- When no title is supplied, a readable host/path title is created locally.
+  No title, metadata, image, or webpage is fetched from the URL.
+- JSON backups include the optional `item_sources` table. CSV item export and
+  CSV/JSON item import include a `sources` field; old backups and imports that
+  omit sources remain compatible.
+
+Schema 2 adds only `item_sources`. Existing Schema 1 databases do not migrate
+at startup: open `/schema-upgrade`, review the read-only dry-run, confirm a
+fresh backup, and explicitly apply `create_item_sources`. Existing items and
+all prior tables remain unchanged.
+
+The network boundary remains strict: NSFWTrack does not request external
+webpages, fetch remote images, crawl, use site adapters, synchronize sources,
+recommend content, or run AI analysis.
 
 ## Features in v1.0.4
 
@@ -993,11 +1028,13 @@ Use this single checklist for the current local deployment line.
 4. Fetch the reviewed target tag or commit, verify its release notes, then run
    `docker compose build` and `docker compose up -d`.
 5. Confirm `/login` returns `200`, log in, and inspect the schema status in
-   `/settings`. Startup never applies migrations automatically; any future
-   lower-version database must use the explicit preview and apply flow after a
-   backup.
-6. The current schema remains version `1`; there is no invented `1 -> 2`
-   production migration. v0.9.x and v1.0.x therefore require no schema step.
+   `/settings`. A v1.0.4 or earlier database reports Schema 1 and requires the
+   explicit `create_item_sources` upgrade to Schema 2.
+6. Open `/schema-upgrade`, run the read-only preview, verify the fresh backup,
+   then explicitly confirm apply. Startup and GET never migrate data.
+7. Confirm `/settings` reports Schema 2 and existing item counts are unchanged;
+   then test adding a local source URL. The migration creates only
+   `item_sources` and does not alter an existing table.
 
 ### Migrate Existing v1.0.3 Data Ownership
 
@@ -1019,10 +1056,11 @@ docker compose build
 docker compose up -d
 ```
 
-After startup, confirm `/login` returns `200`, verify the Schema 1 status in
-`/settings`, and retain the stopped backup until application data has been
-checked. Do not replace this procedure with world-writable permissions, a root
-container, or an entry point that changes ownership automatically.
+After startup, confirm `/login` returns `200`, complete the explicit Schema 1 →
+2 preview/apply flow, verify Schema 2 in `/settings`, and retain the stopped
+backup until application data has been checked. Do not replace this procedure
+with world-writable permissions, a root container, or an entry point that
+changes ownership automatically.
 
 ### Rollback
 
@@ -1099,18 +1137,20 @@ Available local-only actions:
 The CSV template uses these headers:
 
 ```text
-title,summary,status,rating,note,tags,creators,collections,extra
+title,summary,status,rating,note,tags,creators,collections,sources,extra
 ```
 
 The JSON template uses an `items` array with the same field names. Field names
 are not translated. `title` is required. `status` must be one of the internal
 values `wish`, `watching`, `watched`, `like`, `dislike`, or `ignore`.
 `rating` must be `1` to `5`. `tags`, `creators`, and `collections` are created
-or linked using the current local import logic.
+or linked using the current local import logic. `sources` accepts a JSON array
+of `{title, url}` objects in JSON or a JSON-encoded CSV cell; semicolon-separated
+URLs are also accepted in CSV.
 
 CSV preview includes a field mapping table. If a source CSV has custom column
 names, choose which source column maps to `title`, `summary`, `status`,
-`rating`, `note`, `tags`, `creators`, `collections`, or `extra`; columns can
+`rating`, `note`, `tags`, `creators`, `collections`, `sources`, or `extra`; columns can
 also be ignored. The mapping is used only for the current import and is not
 saved.
 
@@ -1121,8 +1161,9 @@ with row number, reason, and brief source content. If some rows are invalid,
 confirmation imports only valid rows and reports the skipped rows. If every row
 is invalid, confirmation is disabled.
 
-Import only accepts uploaded local files. NSFWTrack does not import from URLs,
-external data sources, crawlers, adapters, cloud sync, or remote fetchers.
+General item import only accepts uploaded local files. The separate source
+import saves URL strings supplied by the user but never requests those URLs.
+Neither flow uses crawlers, adapters, cloud sync, or remote fetchers.
 
 ## Backup And Export
 
@@ -1138,11 +1179,12 @@ Available local-only actions:
 
 JSON backups include `items`, `tags`, `creators`, `collections`, `item_tags`,
 `item_creators`, `item_collections`, `user_item_states`, `saved_views`,
-`item_activity`, and `app_settings`. Restore uses an append / merge strategy;
+`item_activity`, `app_settings`, and optional `item_sources`. Restore uses an append / merge strategy;
 it is not an overwrite restore and does not clear the current database.
 Collection restore merges by collection name, saved views merge by name,
 recent activity rows merge only for existing local items, and supported local
-settings are validated before restore.
+settings and normalized source URLs are validated before restore. Old backups
+without `item_sources` remain compatible.
 
 Backup restore only accepts uploaded local JSON files exported by NSFWTrack. It
 never restores from a URL, cloud sync, or an external data source. Uploaded JSON

@@ -16,6 +16,7 @@ from app.services.item_query import STATUS_OPTIONS
 from app.services.local_media import LocalMediaPathError, normalize_local_media_path
 from app.services.saved_views import SAVED_VIEW_ALLOWED_PARAMS
 from app.services.settings import AppSettingsError, validate_setting_value
+from app.services.sources import SourceError, normalize_source_url
 
 TOP_LEVEL_FIELDS = {"schema", "exported_at", "tables"}
 BLOCKED_SAVED_VIEW_PARAMS = {"page", "next", "redirect"}
@@ -33,6 +34,7 @@ _TABLE_REQUIRED_FIELDS: dict[str, set[str]] = {
     "saved_views": {"id", "name", "query_string"},
     "item_activity": {"item_id"},
     "app_settings": {"key", "value"},
+    "item_sources": {"item_id", "url", "normalized_url"},
 }
 
 _TABLE_KNOWN_FIELDS: dict[str, set[str]] = {
@@ -73,6 +75,14 @@ _TABLE_KNOWN_FIELDS: dict[str, set[str]] = {
         "updated_at",
     },
     "app_settings": {"id", "key", "value", "created_at", "updated_at"},
+    "item_sources": {
+        "id",
+        "item_id",
+        "url",
+        "normalized_url",
+        "title",
+        "created_at",
+    },
 }
 
 
@@ -138,7 +148,12 @@ def _build_report(
 
     relation_count = sum(
         table_counts.get(table_name, 0)
-        for table_name in ("item_tags", "item_creators", "item_collections")
+        for table_name in (
+            "item_tags",
+            "item_creators",
+            "item_collections",
+            "item_sources",
+        )
     )
     skipped_count = sum(
         1
@@ -360,6 +375,30 @@ def _validate_table_values(
                     detail=key,
                 )
             )
+    elif table_name == "item_sources":
+        try:
+            normalized = normalize_source_url(row.get("url"))
+        except SourceError:
+            issues.append(
+                _issue(
+                    "error",
+                    "invalid_source_url",
+                    table_name,
+                    index,
+                    object_id,
+                )
+            )
+        else:
+            if normalized != str(row.get("normalized_url") or ""):
+                issues.append(
+                    _issue(
+                        "error",
+                        "source_normalization_mismatch",
+                        table_name,
+                        index,
+                        object_id,
+                    )
+                )
     return issues
 
 
@@ -417,6 +456,34 @@ def _validate_relations(rows: dict[str, list[dict[str, Any]]]) -> list[BackupVal
                     )
                 )
             seen_pairs.add(pair)
+    seen_source_urls: set[str] = set()
+    for index, row in enumerate(rows["item_sources"], start=1):
+        item_id = _safe_int(row.get("item_id"))
+        normalized = str(row.get("normalized_url") or "")
+        object_id = _row_id(row)
+        if item_id is None or item_id not in item_ids:
+            issues.append(
+                _issue(
+                    "error",
+                    "orphan_item_source",
+                    "item_sources",
+                    index,
+                    object_id,
+                    detail=f"item_id={row.get('item_id')}",
+                )
+            )
+        if normalized in seen_source_urls:
+            issues.append(
+                _issue(
+                    "warning",
+                    "duplicate_source_url",
+                    "item_sources",
+                    index,
+                    object_id,
+                )
+            )
+        elif normalized:
+            seen_source_urls.add(normalized)
     return issues
 
 
@@ -584,6 +651,7 @@ def _restore_dry_run_infos(
                 len(rows["item_tags"])
                 + len(rows["item_creators"])
                 + len(rows["item_collections"])
+                + len(rows["item_sources"])
             ),
         ),
     ]
@@ -597,6 +665,8 @@ def _restore_dry_run_infos(
             "item_activity": db.scalar(select(models.ItemActivity.id).limit(1))
             is not None,
             "app_settings": db.scalar(select(models.AppSetting.id).limit(1))
+            is not None,
+            "item_sources": db.scalar(select(models.ItemSource.id).limit(1))
             is not None,
         }
         touched = ", ".join(

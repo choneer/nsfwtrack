@@ -18,6 +18,7 @@ from app.services.settings import (
     upsert_setting_row,
     validate_setting_value,
 )
+from app.services.sources import SourceError, normalize_source_url
 
 CORE_TABLE_NAMES = {
     "items",
@@ -33,6 +34,7 @@ OPTIONAL_TABLE_NAMES = {
     "saved_views",
     "item_activity",
     "app_settings",
+    "item_sources",
 }
 TABLE_NAMES = CORE_TABLE_NAMES | OPTIONAL_TABLE_NAMES
 VALID_STATUSES = {"wish", "watching", "watched", "like", "dislike", "ignore"}
@@ -104,6 +106,18 @@ def _validate_preview_rows(rows: dict[str, list[dict[str, Any]]]) -> None:
             normalize_local_media_path(row.get("avatar_path"))
         except LocalMediaPathError:
             _raise("invalid_local_media_path", "creators.avatar_path")
+    _require_keys(
+        rows["item_sources"],
+        "item_sources",
+        {"item_id", "url", "normalized_url"},
+    )
+    for row in rows["item_sources"]:
+        try:
+            normalized = normalize_source_url(row.get("url"))
+        except SourceError:
+            _raise("invalid_rows", "item_sources.url")
+        if normalized != str(row.get("normalized_url") or ""):
+            _raise("invalid_rows", "item_sources.normalized_url")
 
 
 def _safe_int_or_none(value: Any) -> int | None:
@@ -291,6 +305,48 @@ def _preview_app_settings_counts(rows: dict[str, list[dict[str, Any]]]) -> dict[
     }
 
 
+def _preview_item_source_counts(
+    rows: dict[str, list[dict[str, Any]]], db: Session | None
+) -> dict[str, int]:
+    backup_item_ids = {
+        item_id
+        for item_id in (_safe_int_or_none(row.get("id")) for row in rows["items"])
+        if item_id is not None
+    }
+    existing_urls = (
+        set(db.scalars(select(models.ItemSource.normalized_url)).all())
+        if db is not None
+        else set()
+    )
+    seen: set[str] = set()
+    restorable = 0
+    skipped = 0
+    errors = 0
+    for row in rows["item_sources"]:
+        item_id = _safe_int_or_none(row.get("item_id"))
+        try:
+            normalized = normalize_source_url(row.get("url"))
+        except SourceError:
+            skipped += 1
+            errors += 1
+            continue
+        if item_id not in backup_item_ids or normalized != row.get("normalized_url"):
+            skipped += 1
+            errors += 1
+            continue
+        if normalized in seen or normalized in existing_urls:
+            skipped += 1
+            continue
+        seen.add(normalized)
+        restorable += 1
+    return {
+        "item_sources": len(rows["item_sources"]),
+        "item_sources_restorable": restorable,
+        "item_sources_skipped": skipped,
+        "item_sources_errors": errors,
+    }
+
+
 def preview_backup_data(
     payload: dict[str, Any],
     db: Session | None = None,
@@ -309,6 +365,7 @@ def preview_backup_data(
         **_preview_saved_view_counts(rows, db),
         **_preview_item_activity_counts(rows),
         **_preview_app_settings_counts(rows),
+        **_preview_item_source_counts(rows, db),
     }
 
 
@@ -770,6 +827,47 @@ def _merge_app_settings(
             result["app_settings_skipped"] += 1
 
 
+def _merge_item_sources(
+    db: Session,
+    rows: list[dict[str, Any]],
+    item_ids: dict[int, int],
+    result: dict[str, int],
+) -> None:
+    known_urls = set(db.scalars(select(models.ItemSource.normalized_url)).all())
+    for row in rows:
+        backup_item_id = _safe_int_or_none(row.get("item_id"))
+        target_item_id = item_ids.get(backup_item_id) if backup_item_id is not None else None
+        try:
+            normalized = normalize_source_url(row.get("url"))
+        except SourceError:
+            normalized = ""
+        if (
+            target_item_id is None
+            or not normalized
+            or normalized != str(row.get("normalized_url") or "")
+        ):
+            result["skipped"] += 1
+            result["item_sources_skipped"] += 1
+            result["item_sources_errors"] += 1
+            continue
+        if normalized in known_urls:
+            result["skipped"] += 1
+            result["item_sources_skipped"] += 1
+            continue
+        title = " ".join(str(row.get("title") or "").split())[:255] or None
+        source = models.ItemSource(
+            item_id=target_item_id,
+            url=str(row.get("url") or "").strip(),
+            normalized_url=normalized,
+            title=title,
+        )
+        _set_optional_datetime(source, "created_at", row.get("created_at"))
+        db.add(source)
+        known_urls.add(normalized)
+        result["created"] += 1
+        result["item_sources_created"] += 1
+
+
 def restore_backup_data(db: Session, payload: dict[str, Any]) -> dict[str, int]:
     rows = _rows_from_payload(payload)
     _validate_preview_rows(rows)
@@ -794,6 +892,9 @@ def restore_backup_data(db: Session, payload: dict[str, Any]) -> dict[str, int]:
         "app_settings_updated": 0,
         "app_settings_skipped": 0,
         "app_settings_errors": 0,
+        "item_sources_created": 0,
+        "item_sources_skipped": 0,
+        "item_sources_errors": 0,
     }
     with db.begin():
         tag_ids = _merge_tags(db, rows["tags"], result)
@@ -819,4 +920,5 @@ def restore_backup_data(db: Session, payload: dict[str, Any]) -> dict[str, int]:
         _merge_saved_views(db, rows["saved_views"], result)
         _merge_item_activity(db, rows["item_activity"], item_ids, result)
         _merge_app_settings(db, rows["app_settings"], result)
+        _merge_item_sources(db, rows["item_sources"], item_ids, result)
     return result

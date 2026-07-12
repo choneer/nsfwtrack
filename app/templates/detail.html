@@ -63,6 +63,45 @@
   </section>
 
   <section class="card detail-section">
+    <h2>{{ t("detail.source_info") }}</h2>
+    {% if not sources_available %}
+      <p class="muted">{{ t("sources.schema_upgrade_required") }}</p>
+      <a class="button secondary" href="/schema-upgrade">{{ t("sources.open_schema_upgrade") }}</a>
+    {% else %}
+      <div class="relation-list">
+        {% for source in item_sources %}
+          <form class="relation-row" action="/items/{{ item.id }}/sources/{{ source.id }}/delete" method="post">
+            <input type="hidden" name="next" value="{{ return_list_url }}">
+            <span>
+              <a href="{{ source.normalized_url }}" target="_blank" rel="noopener noreferrer">{{ source.title or source.normalized_url }}</a>
+              <small class="muted">{{ source.normalized_url }}</small>
+            </span>
+            <button
+              class="secondary compact"
+              type="submit"
+              data-confirm-message="{{ t('detail.confirm_remove_source') }}"
+              {% if danger_policy.is_strict %}data-strict-confirm-message="{{ t('danger.strict_prompt') }}"{% endif %}
+            >{{ t("detail.remove_source") }}</button>
+          </form>
+        {% else %}
+          <p class="muted">{{ t("detail.no_sources") }}</p>
+        {% endfor %}
+      </div>
+      <form class="relation-form" action="/items/{{ item.id }}/sources" method="post">
+        <input type="hidden" name="next" value="{{ return_list_url }}">
+        <label>{{ t("sources.optional_title") }}
+          <input name="title" maxlength="255">
+        </label>
+        <label>{{ t("sources.url") }}
+          <input name="url" type="url" maxlength="2048" required placeholder="https://example.com/path">
+        </label>
+        <button type="submit">{{ t("detail.add_source") }}</button>
+      </form>
+      <p><a href="/sources/import">{{ t("sources.bulk_import_link") }}</a></p>
+    {% endif %}
+  </section>
+
+  <section class="card detail-section">
     <h2>{{ t("detail.status_info") }}</h2>
     <div class="detail-current">
       {% if item.state %}

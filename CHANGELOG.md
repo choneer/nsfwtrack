@@ -2,6 +2,39 @@
 
 ## Unreleased
 
+### Added
+
+- Added Phase 3-A1 `item_sources` with one-to-many item sources, original and
+  globally unique normalized HTTP/HTTPS URLs, optional titles, timestamps, and
+  item-delete cascading.
+- Added authenticated item-detail source listing, single-source add, confirmed
+  source delete, and `/sources/import` for one-URL-per-line,
+  `title<TAB>URL`, and user-uploaded local browser bookmarks HTML.
+- Added read-only source import previews with new, duplicate, invalid,
+  conflict, and new-item counts. Confirmed writes revalidate and commit new
+  items/sources in one transaction with full rollback on failure.
+- Added the real explicit Schema 1 → 2 `create_item_sources` migration with
+  read-only preview, source/target checks, backup confirmation, and version
+  registration through the existing migration framework.
+
+### Changed
+
+- JSON backup export, validation, preview, merge restore, CSV item export, and
+  CSV/JSON item import now include sources. `item_sources` remains optional in
+  old backup/import payloads for backward compatibility.
+- RULE now explicitly allows saving user-provided URLs and parsing local
+  bookmark HTML or plain-text URL lists while retaining the external-network
+  prohibition.
+
+### Security
+
+- Source URL normalization accepts only credential-free HTTP/HTTPS URLs,
+  canonicalizes scheme/IDNA host/default ports/percent escapes/root paths,
+  removes fragments, and enforces database uniqueness on the normalized value.
+- Source and bookmark import performs no external HTTP request and fetches no
+  remote title, metadata, image, or page. Crawlers, site adapters, automatic
+  synchronization, recommendations, and AI remain out of scope.
+
 ## [1.0.4] - 2026-07-12
 
 ### Security

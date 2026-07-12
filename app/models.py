@@ -128,6 +128,29 @@ class SchemaMigration(Base):
     )
 
 
+class ItemSource(Base):
+    __tablename__ = "item_sources"
+    __table_args__ = (
+        CheckConstraint("trim(url) != ''", name="ck_item_sources_url_not_blank"),
+        CheckConstraint(
+            "trim(normalized_url) != ''",
+            name="ck_item_sources_normalized_url_not_blank",
+        ),
+        UniqueConstraint("normalized_url", name="uq_item_sources_normalized_url"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    item_id: Mapped[int] = mapped_column(
+        ForeignKey("items.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    url: Mapped[str] = mapped_column(String(2048), nullable=False)
+    normalized_url: Mapped[str] = mapped_column(String(2048), nullable=False, index=True)
+    title: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        nullable=False, server_default=func.current_timestamp()
+    )
+
+
 class Item(Base):
     __tablename__ = "items"
 

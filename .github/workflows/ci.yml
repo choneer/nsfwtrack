@@ -143,7 +143,7 @@ jobs:
               fi
             done
             test -s /app/data/nsfwtrack.db
-            python -c "import sqlite3; connection = sqlite3.connect(\"/app/data/nsfwtrack.db\"); assert connection.execute(\"SELECT MAX(version) FROM schema_migrations\").fetchone()[0] == 1"
+            python -c "import sqlite3; connection = sqlite3.connect(\"/app/data/nsfwtrack.db\"); assert connection.execute(\"SELECT MAX(version) FROM schema_migrations\").fetchone()[0] == 2"
           '
 
       - name: Recreate container and verify SQLite persistence
@@ -177,7 +177,7 @@ jobs:
             test "$(id -u)" = "10001"
             test "$(id -g)" = "10001"
             test -s /app/data/nsfwtrack.db
-            python -c "import sqlite3; connection = sqlite3.connect(\"/app/data/nsfwtrack.db\"); assert connection.execute(\"SELECT MAX(version) FROM schema_migrations\").fetchone()[0] == 1"
+            python -c "import sqlite3; connection = sqlite3.connect(\"/app/data/nsfwtrack.db\"); assert connection.execute(\"SELECT MAX(version) FROM schema_migrations\").fetchone()[0] == 2"
           '
 
       - name: Wait for /login and verify security headers

@@ -8,8 +8,8 @@ from sqlalchemy import create_engine, inspect, select, text, update
 from sqlalchemy.engine import Connection, Engine
 
 import app.routers.pages as pages_router
-from app.database import SessionLocal, engine
-from app.models import AppSetting, SchemaMigration
+from app.database import Base, SessionLocal, engine
+from app.models import AppSetting, Item, ItemSource, SchemaMigration
 from app.services.migrations import (
     MIGRATION_REGISTRY,
     MigrationCheck,
@@ -123,9 +123,57 @@ def _step(
     )
 
 
-def test_production_registry_is_empty_and_schema_version_is_unchanged() -> None:
-    assert MIGRATION_REGISTRY.steps == ()
-    assert CURRENT_SCHEMA_VERSION == 1
+def test_production_registry_contains_explicit_schema_1_to_2_source_step() -> None:
+    assert len(MIGRATION_REGISTRY.steps) == 1
+    step = MIGRATION_REGISTRY.steps[0]
+    assert (step.from_version, step.to_version, step.name) == (
+        1,
+        2,
+        "create_item_sources",
+    )
+    assert CURRENT_SCHEMA_VERSION == 2
+
+
+def test_production_schema_1_to_2_upgrade_preserves_items(
+    isolated_engine: Engine,
+) -> None:
+    legacy_tables = [
+        table for table in Base.metadata.sorted_tables if table.name != "item_sources"
+    ]
+    Base.metadata.create_all(bind=isolated_engine, tables=legacy_tables)
+    with isolated_engine.begin() as connection:
+        connection.execute(
+            SchemaMigration.__table__.insert().values(version=1, name="baseline")
+        )
+        connection.execute(Item.__table__.insert().values(title="Legacy item"))
+
+    dry_run = preview_upgrade(isolated_engine, MIGRATION_REGISTRY)
+    assert dry_run.can_upgrade
+    assert dry_run.current_version == 1
+    assert dry_run.target_version == 2
+    assert dry_run.steps[0].name == "create_item_sources"
+    assert "item_sources" not in inspect(isolated_engine).get_table_names()
+
+    result = apply_upgrade(
+        isolated_engine,
+        MIGRATION_REGISTRY,
+        backup_confirmed=True,
+    )
+
+    assert result.from_version == 1
+    assert result.to_version == 2
+    assert result.applied_steps == ("create_item_sources",)
+    assert "item_sources" in inspect(isolated_engine).get_table_names()
+    with isolated_engine.connect() as connection:
+        assert connection.scalar(select(Item.title)) == "Legacy item"
+        assert connection.scalar(select(SchemaMigration.version).order_by(SchemaMigration.version.desc())) == 2
+        connection.execute(
+            ItemSource.__table__.insert().values(
+                item_id=1,
+                url="https://example.com",
+                normalized_url="https://example.com/",
+            )
+        )
 
 
 @pytest.mark.parametrize(
@@ -384,7 +432,12 @@ def route_registry(monkeypatch: pytest.MonkeyPatch) -> Generator[MigrationRegist
         connection.execute(
             update(SchemaMigration).values(version=0, name="route-test-version")
         )
-    registry = MigrationRegistry((_step(0, 1, name="route-test-upgrade"),))
+    registry = MigrationRegistry(
+        (
+            _step(0, 1, name="route-test-upgrade"),
+            _step(1, 2, name="route-test-upgrade-2"),
+        )
+    )
     monkeypatch.setattr(pages_router, "MIGRATION_REGISTRY", registry)
     try:
         yield registry
@@ -507,8 +560,8 @@ def test_standard_apply_requires_confirm_and_backup_then_uses_code_path(
         },
         follow_redirects=True,
     )
-    assert "显式升级到 1" in applied.text
-    assert _global_probe_and_versions() == (1, [0, 1])
+    assert "显式升级到 2" in applied.text
+    assert _global_probe_and_versions() == (2, [0, 1, 2])
     assert "items" in inspect(engine).get_table_names()
 
 
@@ -551,8 +604,8 @@ def test_strict_apply_requires_exact_confirm_text(
         },
         follow_redirects=True,
     )
-    assert "显式升级到 1" in applied.text
-    assert _global_probe_and_versions() == (1, [0, 1])
+    assert "显式升级到 2" in applied.text
+    assert _global_probe_and_versions() == (2, [0, 1, 2])
 
 
 def test_upgrade_page_copy_is_available_in_english(auth_client: TestClient) -> None:

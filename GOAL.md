@@ -1,50 +1,70 @@
 # GOAL.md
 
-# 当前目标：发布 v1.0.4
+# 当前目标：Phase 3-A1 — 来源链接与批量书签导入
 
-请先读取 `RULE.md`、`PLAN.md`、`TASKS.md`、`CHANGELOG.md` 和 `README.md`。
+请先读取 `RULE.md`、`PLAN.md`、`TASKS.md`、`README.md` 和现有导入、备份、Schema 代码。
 
 ## 目标
 
-正式发布 Phase 2-L8 固定非 root 容器用户及数据目录权限迁移流程。
+让用户能够快速把已有网址和浏览器书签导入 NSFWTrack，而不必逐条手工创建记录。
 
 ## 任务
 
-- 将应用版本更新为 `1.0.4`
-- 将 `Unreleased` 整理为 `[1.0.4] - 2026-07-12`
-- 保留新的空白 `Unreleased`
-- Release notes 明确固定 UID/GID `10001:10001`
-- Release notes 明确从 v1.0.3 及更早版本升级前的数据目录权限迁移
-- 同步 README、PLAN、TASKS、REVIEW 和 GOAL
-- 运行全量测试、`pip check` 和隔离 Docker 安全及持久化验收
-- 创建发布提交、annotated tag `v1.0.4` 和正式 GitHub Release
+- 调整 RULE.md：允许保存来源 URL、导入本地书签 HTML 和纯文本 URL 清单
+- 新增 `item_sources` 本地 SQLite 表
+- 一个条目允许关联多个来源链接
+- 来源记录至少包含 URL、规范化 URL、可选标题和创建时间
+- 支持条目详情页查看、添加和删除来源
+- 支持批量粘贴 URL，一行一个，也支持 `标题<TAB>URL`
+- 支持上传本地浏览器书签 HTML
+- 导入必须先预览，再由用户确认写入
+- 预览显示新增、重复、无效和冲突数量
+- 已存在来源不得重复创建
+- 没有标题时使用安全、可读的 URL 占位标题
+- 新增来源必须同步备份、恢复、JSON/CSV 导入导出
+- 提供显式 Schema 1 → 2 迁移预览与应用流程
+- 同步中英文界面、README、PLAN、TASKS、REVIEW 和 CHANGELOG
 
-## 边界
+## 网络边界
 
-- 不修改业务逻辑、依赖、数据库、Schema 或迁移
-- 不修改容器 UID/GID 和现有安全配置
-- 不使用 root 入口、自动 chown、sudo/gosu 或 chmod 777
-- 不修改旧 tag 和 Release
-- 所有操作在 WSL `/home/nsfwtrack` 执行
-- 不部署到 N100
+- 本阶段只保存用户提供的 URL
+- 只解析用户上传的本地书签 HTML
+- 不请求外部网页
+- 不抓取远程元数据或图片
+- 不绕过登录、验证码、付费墙或访问限制
+- 不实现爬虫、adapter、自动同步、推荐或 AI
+
+## 数据安全
+
+- 导入预览不得写入数据库
+- 确认写入必须使用 POST
+- 批量导入必须事务化
+- 坏行跳过并返回明确错误
+- 不修改或删除现有条目
+- 来源删除必须确认
+- 旧数据库和旧备份必须保持兼容
 
 ## 完成标准
 
-- 358 项测试与 `pip check` 通过
-- Docker 以 `10001:10001` 运行并保持 healthy
-- L7/L8 安全边界、SQLite 持久化和 Schema 1 验收通过
-- main 与 tag Actions 均通过
-- `main`、tag peeled commit 和 Release target 指向同一发布提交
-- 工作区干净
-- `v1.0.4` 正式发布
+- Schema 升级流程可从 1 安全升级到 2
+- 旧数据升级后保持完整
+- URL 清单和书签 HTML 均可预览并导入
+- 重复和无效 URL 被正确识别
+- 备份、恢复、CSV、JSON 均包含来源关系
+- 中英文 key 对称
+- pytest、pip check、Docker 和 Actions 通过
+- 提交并推送，不创建 Release
+- 不部署到 N100
 
 ## 执行结果
 
-- [x] Phase 2-L8 已整理为 `1.0.4`，并保留新的空白 `Unreleased`
-- [x] 应用版本、相关断言和发布文档已同步更新
-- [x] 358 项测试、`pip check` 与隔离 Docker 身份、安全、HTTP 和 SQLite 重建持久化验收通过
-- [x] README 与 Release notes 明确 v1.0.3 及更早版本的停机、可验证备份和 `10001:10001` / 0700 迁移
-- [x] 发布提交、annotated `v1.0.4` tag 和正式 GitHub Release 已创建并推送
-- [x] `main`、tag peeled commit 和 Release target 指向同一发布提交，两次 Actions 均通过
-- [x] 未修改业务逻辑、依赖、数据库、Schema、迁移、容器 UID/GID、安全配置或旧 tag / Release
-- [x] 未部署到 N100，临时资源已清理，工作区干净
+- [x] RULE 已正式允许保存用户 URL、解析本地书签 HTML 和纯文本 URL 清单，并继续禁止外部请求及自动采集能力
+- [x] `item_sources`、一个条目多来源、详情 CRUD、确认删除和规范化 URL 全局唯一约束已完成
+- [x] 一行一 URL、`标题<TAB>URL`、本地书签 HTML、只读预览和确认事务写入已完成
+- [x] 新增、重复、无效、冲突、新条目统计及整批失败回滚已验证
+- [x] JSON 备份 / 恢复与 CSV/JSON 条目导入导出已同步来源，旧文件缺少来源仍兼容
+- [x] 显式 Schema 1 → 2 dry-run / apply 通过，旧条目与关系保持，版本记录为 `[1, 2]`
+- [x] 中英文 key 对称；373 项测试、`pip check` 和隔离 Docker 双生命周期验收通过
+- [x] 未请求外部网页、获取远程图片或实现爬虫 / adapter / 同步 / 推荐 / AI
+- [x] 应用版本保持 1.0.4，v1.0.4 tag / Release 未修改，未部署 N100
+- [x] 提交已推送，Actions test 与 Docker production smoke 通过，工作区和临时资源干净

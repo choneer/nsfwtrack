@@ -111,6 +111,17 @@ def _app_setting_row(setting: models.AppSetting) -> dict[str, Any]:
     }
 
 
+def _item_source_row(source: models.ItemSource) -> dict[str, Any]:
+    return {
+        "id": source.id,
+        "item_id": source.item_id,
+        "url": source.url,
+        "normalized_url": source.normalized_url,
+        "title": source.title,
+        "created_at": _format_datetime(source.created_at),
+    }
+
+
 def export_backup_data(db: Session) -> dict[str, Any]:
     items = db.scalars(select(models.Item).order_by(models.Item.id.asc())).all()
     tags = db.scalars(select(models.Tag).order_by(models.Tag.id.asc())).all()
@@ -145,6 +156,9 @@ def export_backup_data(db: Session) -> dict[str, Any]:
     app_settings = db.scalars(
         select(models.AppSetting).order_by(models.AppSetting.key.asc())
     ).all()
+    item_sources = db.scalars(
+        select(models.ItemSource).order_by(models.ItemSource.id.asc())
+    ).all()
     return {
         "schema": BACKUP_SCHEMA,
         "exported_at": datetime.now(timezone.utc).isoformat(),
@@ -170,6 +184,7 @@ def export_backup_data(db: Session) -> dict[str, Any]:
                 _item_activity_row(activity) for activity in item_activity
             ],
             "app_settings": [_app_setting_row(setting) for setting in app_settings],
+            "item_sources": [_item_source_row(source) for source in item_sources],
         },
     }
 
@@ -189,6 +204,12 @@ def export_items_csv(db: Session) -> str:
         )
         .order_by(models.Item.id.asc())
     ).all()
+    source_rows = db.scalars(
+        select(models.ItemSource).order_by(models.ItemSource.item_id, models.ItemSource.id)
+    ).all()
+    sources_by_item: dict[int, list[models.ItemSource]] = {}
+    for source in source_rows:
+        sources_by_item.setdefault(source.item_id, []).append(source)
     output = StringIO()
     fieldnames = [
         "id",
@@ -199,6 +220,7 @@ def export_items_csv(db: Session) -> str:
         "tags",
         "creators",
         "collections",
+        "sources",
         "status",
         "rating",
         "review",
@@ -223,6 +245,13 @@ def export_items_csv(db: Session) -> str:
                 "collections": ";".join(
                     collection.name
                     for collection in sorted(item.collections, key=lambda row: row.name)
+                ),
+                "sources": json.dumps(
+                    [
+                        {"title": source.title, "url": source.url}
+                        for source in sources_by_item.get(item.id, [])
+                    ],
+                    ensure_ascii=False,
                 ),
                 "status": state.status if state else "",
                 "rating": state.rating if state and state.rating is not None else "",

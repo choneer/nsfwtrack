@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import csv
+from io import StringIO
 
 import pytest
 from fastapi.testclient import TestClient
@@ -12,6 +14,7 @@ from app.models import (
     Collection,
     ItemActivity,
     ItemCollection,
+    ItemSource,
     SavedView,
     SchemaMigration,
 )
@@ -84,6 +87,11 @@ def _app_setting_count() -> int:
         return db.query(AppSetting).count()
 
 
+def _item_source_count() -> int:
+    with SessionLocal() as db:
+        return db.query(ItemSource).count()
+
+
 def _schema_version() -> int:
     with SessionLocal() as db:
         row = db.query(SchemaMigration).one()
@@ -137,13 +145,15 @@ def test_json_export_contains_core_tables(auth_client: TestClient) -> None:
         "user_item_states",
         "saved_views",
         "item_activity",
-        "app_settings",
+            "app_settings",
+            "item_sources",
     }
     assert payload["tables"]["items"][0]["title"] == "Backup Item"
     assert payload["tables"]["user_item_states"][0]["status"] == "watched"
     assert payload["tables"]["saved_views"] == []
     assert payload["tables"]["item_activity"] == []
     assert payload["tables"]["app_settings"] == []
+    assert payload["tables"]["item_sources"] == []
     assert "schema_migrations" not in payload["tables"]
 
 
@@ -212,6 +222,85 @@ def test_json_backup_exports_and_previews_collection_tables(
     assert preview["item_collections_unrestorable"] == 0
 
 
+def test_json_backup_exports_previews_and_restores_item_sources(
+    auth_client: TestClient,
+) -> None:
+    item_id = _create_backup_item(auth_client)
+    added = auth_client.post(
+        f"/items/{item_id}/sources",
+        data={"title": "Backup source", "url": "HTTPS://Example.com:443/a#top"},
+    )
+    assert added.status_code == 200
+    payload = auth_client.get("/api/backup/export/json").json()
+    assert payload["tables"]["item_sources"] == [
+        {
+            "id": 1,
+            "item_id": item_id,
+            "url": "HTTPS://Example.com:443/a#top",
+            "normalized_url": "https://example.com/a",
+            "title": "Backup source",
+            "created_at": payload["tables"]["item_sources"][0]["created_at"],
+        }
+    ]
+
+    preview_response = auth_client.post(
+        "/api/backup/preview/json",
+        files={
+            "file": (
+                "backup.json",
+                json.dumps(payload).encode("utf-8"),
+                "application/json",
+            )
+        },
+    )
+    assert preview_response.status_code == 200
+    preview = preview_response.json()["preview"]
+    assert preview["item_sources"] == 1
+    assert preview["item_sources_restorable"] == 0
+    assert preview["item_sources_skipped"] == 1
+
+    with SessionLocal() as db:
+        db.query(ItemSource).delete()
+        db.commit()
+    restored = auth_client.post(
+        "/api/backup/restore/json",
+        data={"confirm": "1"},
+        files={
+            "file": (
+                "backup.json",
+                json.dumps(payload).encode("utf-8"),
+                "application/json",
+            )
+        },
+    )
+    assert restored.status_code == 200
+    assert restored.json()["result"]["item_sources_created"] == 1
+    assert _item_source_count() == 1
+
+
+def test_old_backup_without_item_sources_remains_compatible(
+    auth_client: TestClient,
+) -> None:
+    _create_backup_item(auth_client)
+    payload = auth_client.get("/api/backup/export/json").json()
+    payload["tables"].pop("item_sources")
+
+    preview = auth_client.post(
+        "/api/backup/preview/json",
+        files={"file": ("old.json", json.dumps(payload).encode(), "application/json")},
+    )
+    restored = auth_client.post(
+        "/api/backup/restore/json",
+        data={"confirm": "1"},
+        files={"file": ("old.json", json.dumps(payload).encode(), "application/json")},
+    )
+
+    assert preview.status_code == 200
+    assert preview.json()["preview"]["item_sources"] == 0
+    assert restored.status_code == 200
+    assert restored.json()["result"]["item_sources_created"] == 0
+
+
 def test_csv_export_contains_readable_item_data(auth_client: TestClient) -> None:
     _create_backup_item(auth_client)
 
@@ -240,6 +329,20 @@ def test_csv_export_contains_semicolon_separated_collections(
     assert response.status_code == 200
     assert "collections" in response.text.splitlines()[0]
     assert "Favorites;Watch Later" in response.text
+
+
+def test_csv_export_contains_source_objects(auth_client: TestClient) -> None:
+    item_id = _create_backup_item(auth_client)
+    auth_client.post(
+        f"/items/{item_id}/sources",
+        data={"title": "CSV source", "url": "https://example.com/csv"},
+    )
+
+    response = auth_client.get("/api/backup/export/csv")
+    row = next(csv.DictReader(StringIO(response.text)))
+    assert json.loads(row["sources"]) == [
+        {"title": "CSV source", "url": "https://example.com/csv"}
+    ]
 
 
 def test_json_backup_preview_succeeds_without_modifying_database(
@@ -815,8 +918,8 @@ def test_backup_page_renders_chinese_and_english(auth_client: TestClient) -> Non
     assert "导出 JSON 备份" in zh_response.text
     assert "合并恢复" in zh_response.text
     assert "合集" in zh_response.text
-    assert "collections 字段" in zh_response.text
-    assert "不支持 URL 导入" in zh_response.text
+    assert "collections 与 sources 字段" in zh_response.text
+    assert "不请求外部网页" in zh_response.text
     assert "校验备份文件" in zh_response.text
 
     en_response = auth_client.get(
@@ -827,8 +930,8 @@ def test_backup_page_renders_chinese_and_english(auth_client: TestClient) -> Non
     assert "Backup and Restore" in en_response.text
     assert "Export JSON Backup" in en_response.text
     assert "merge strategy" in en_response.text
-    assert "collections field" in en_response.text
-    assert "URL import" in en_response.text
+    assert "collections and sources" in en_response.text
+    assert "never requests external webpages" in en_response.text
     assert "Validate Backup File" in en_response.text
 
 
