@@ -50,5 +50,5 @@
 - [x] 中文 / English、README / PLAN / TASKS / REVIEW / CHANGELOG 和测试已同步
 - [x] 专项 `17 passed`；全量 `441 passed in 67.03s`；`pip check` 通过
 - [x] 隔离 Docker build、healthy、Schema 2、`/login` 连续三次 200、登录后重复组页 200 和清理通过
-- [ ] 提交推送与 GitHub Actions 最终验收
+- [x] 功能提交 `b4725a9` 已推送，GitHub Actions test 与 Docker production smoke 均通过（run `29228843856`）
 - [x] 未修改 B1 行为、Schema 2、迁移、依赖、版本、Docker、旧 tag / Release，未部署 N100
