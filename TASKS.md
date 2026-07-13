@@ -5,7 +5,7 @@
 ## 当前状态（v1.0.5 稳定）
 
 当前稳定版与最新 Release：`v1.0.5`。Phase 3-A1 至 A6 已正式发布，
-Phase 3-B1 已在 main 完成且尚未发布，应用 Schema 仍为 `2`。
+Phase 3-B1 / B2 已在 main 完成且尚未发布，应用 Schema 仍为 `2`。
 
 - Annotated tag object：`6a4def572e100198a446ad56353400138c573f66`
 - Peeled commit：`3c4fee62891ff2826f0b8bc97b33bf3a4d08aa73`
@@ -14,6 +14,22 @@ Phase 3-B1 已在 main 完成且尚未发布，应用 Schema 仍为 `2`。
 N100 / 目标主机部署尚未开始，**不是当前开发任务**，必须等待用户明确授权。
 完整证据见 `COMPLETION_AUDIT.md`。历史任务保留在本文后半部分，
 不再作为新增开发路线。
+
+### Phase 3-B2 重复媒体组视图（已完成，尚未发布）
+
+- [x] 新增登录保护的只读 `/media-library/duplicates`，每个真实 SHA-256 只显示一组
+- [x] 提取 B1/B2 共用分组服务，完整合法 SHA、不同路径和稳定成员边界保持一致
+- [x] 每组展示完整 SHA-256、成员数、单文件大小、总占用和可节省空间
+- [x] 每个成员展示路径、可用状态、条目封面和创作者头像引用
+- [x] 支持文件名 / 路径 / SHA 搜索及成员数 / 可节省空间 / SHA 双向稳定排序
+- [x] 每页固定 20 组，非法搜索、排序和页码安全回退或夹取
+- [x] 提供完整 SHA 与 `media_status=duplicate` 的 B1 精确筛选链接
+- [x] GET 前后数据库、引用、媒体字节及 A3/A4 候选不变，业务路径无 POST
+- [x] 同步中文 / English、README / PLAN / TASKS / REVIEW / CHANGELOG / GOAL 与专项测试
+- [x] 全量 `441 passed`，`pip check` 无依赖冲突
+- [x] 隔离 Docker build / healthy / `/login` 连续三次 200 / 登录后重复组页 200 / down 通过并清理
+- [ ] 提交推送后 Actions test / Docker production smoke 通过
+- [x] 未改 B1 行为、Schema 2、迁移、依赖、版本、Docker、旧 tag / Release，未部署 N100
 
 ### Phase 3-B1 重复媒体定位（已完成，尚未发布）
 

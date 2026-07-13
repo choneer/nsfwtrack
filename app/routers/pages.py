@@ -126,6 +126,11 @@ from app.services.media_item_candidates import (
     find_media_item_candidates,
     paginate_media_item_candidates,
 )
+from app.services.media_duplicate_groups import (
+    MEDIA_DUPLICATE_SORT_OPTIONS,
+    media_duplicate_filter_query_params,
+    query_media_duplicate_groups,
+)
 from app.services.media_library_query import (
     MEDIA_SORT_OPTIONS,
     MEDIA_STATUS_OPTIONS,
@@ -411,6 +416,87 @@ def media_library_page(
             ),
             max_media_upload_mb=MAX_MEDIA_UPLOAD_BYTES // (1024 * 1024),
             max_media_upload_files=MAX_MEDIA_UPLOAD_FILES,
+            error_key=error_key,
+        ),
+    )
+
+
+@router.get(
+    "/media-library/duplicates",
+    response_class=HTMLResponse,
+    dependencies=[Depends(require_page_auth)],
+)
+def media_duplicate_groups_page(
+    request: Request,
+    duplicate_page: str | None = Query(default=None),
+    duplicate_q: str | None = Query(default=None),
+    duplicate_sort: str | None = Query(default=None),
+    db: Session = Depends(get_db),
+) -> HTMLResponse:
+    error_key = None
+    try:
+        scan = scan_local_media()
+    except LocalMediaPathError:
+        scan = LocalMediaScan((), 0, 0, 0)
+        error_key = "media.error_storage_unavailable"
+    result = query_media_duplicate_groups(
+        scan,
+        q=duplicate_q,
+        sort=duplicate_sort,
+        page=duplicate_page,
+    )
+    media_paths = {
+        entry.media_path
+        for group in result.groups
+        for entry in group.entries
+    }
+    item_references: dict[str, list[Any]] = {}
+    creator_references: dict[str, list[Any]] = {}
+    if media_paths:
+        item_rows = db.execute(
+            select(Item.id, Item.title, Item.cover_path)
+            .where(Item.cover_path.in_(media_paths))
+            .order_by(Item.title, Item.id)
+        ).all()
+        creator_rows = db.execute(
+            select(Creator.id, Creator.name, Creator.avatar_path)
+            .where(Creator.avatar_path.in_(media_paths))
+            .order_by(Creator.name, Creator.id)
+        ).all()
+        for item in item_rows:
+            item_references.setdefault(item.cover_path, []).append(item)
+        for creator in creator_rows:
+            creator_references.setdefault(creator.avatar_path, []).append(creator)
+    library_urls = {
+        group.sha256: "/media-library?"
+        + urlencode(
+            {
+                "media_q": group.sha256,
+                "media_status": "duplicate",
+            }
+        )
+        + "#media-files"
+        for group in result.groups
+    }
+    return templates.TemplateResponse(
+        request,
+        "media_duplicate_groups.html",
+        _base_context(
+            request,
+            db=db,
+            duplicate_groups=result.groups,
+            duplicate_filters=result.filters,
+            duplicate_sort_options=MEDIA_DUPLICATE_SORT_OPTIONS,
+            duplicate_total_groups=result.total_groups,
+            duplicate_pagination=_page_context(
+                result.page_info,
+                "/media-library/duplicates",
+                page_param="duplicate_page",
+                params=media_duplicate_filter_query_params(result.filters),
+            ),
+            item_references=item_references,
+            creator_references=creator_references,
+            media_library_urls=library_urls,
             error_key=error_key,
         ),
     )

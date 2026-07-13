@@ -6,9 +6,9 @@ Current stable version: `v1.0.5 / Phase 3-A1 through A6`.
 
 Latest Release: [NSFWTrack v1.0.5](https://github.com/choneer/nsfwtrack/releases/tag/v1.0.5).
 
-Current status: `stable v1.0.5; Phase 3-B1 is complete on main and remains unreleased`.
+Current status: `stable v1.0.5; Phase 3-B1 and B2 are complete on main and remain unreleased`.
 
-Current development: `Phase 3-B1 duplicate-media location is locally accepted;
+Current development: `Phase 3-B2 duplicate-media group browsing is locally accepted;
 application Schema remains 2`.
 
 N100 deployment: `not started; waits for explicit user authorization`.
@@ -32,9 +32,9 @@ acceptance through Phase 3-A1 to A6 are complete. See
 - N100 / target-host deployment has not started and is not a current development
   task. It must wait for explicit user authorization.
 
-The bounded Phase 3-A1 through A6 scope shipped in `v1.0.5`. Phase 3-B1 is the
-current unreleased main-branch development and stays within the same local-only
-media boundary.
+The bounded Phase 3-A1 through A6 scope shipped in `v1.0.5`. Phase 3-B1 and B2
+are the current unreleased main-branch development and stay within the same
+local-only media boundary.
 
 ## Features in v1.0.5
 
@@ -61,6 +61,35 @@ Actions test and Docker production smoke also passed.
 - Annotated tag object: `6a4def572e100198a446ad56353400138c573f66`
 - Peeled release commit: `3c4fee62891ff2826f0b8bc97b33bf3a4d08aa73`
 - Release: [NSFWTrack v1.0.5](https://github.com/choneer/nsfwtrack/releases/tag/v1.0.5)
+
+### Phase 3-B2 Duplicate Media Group View
+
+The authenticated `/media-library/duplicates` page provides one stable,
+read-only row per duplicate SHA-256 group. It uses the same shared group builder
+as B1, so damaged files, malformed or empty hashes, single-path content, and
+repeated records for one path remain excluded everywhere.
+
+- Every group shows its complete SHA-256, member count, per-file byte size,
+  total bytes, and potentially reclaimable bytes. Members are ordered by their
+  normalized media paths.
+- Every member shows its local path, available status, item-cover references,
+  and creator-avatar references. Reference queries are limited to groups on the
+  current page and remain deterministically ordered.
+- `duplicate_q` performs bounded NFKC/case-insensitive filename and path
+  matching plus complete SHA-256 or prefix matching.
+- `duplicate_sort` supports member count, reclaimable space, and SHA-256 in
+  both directions with SHA tie breaking. Invalid search, sort, and page values
+  safely fall back, and `duplicate_page` contains at most 20 groups.
+- Each group links to `/media-library` with its complete SHA-256 and
+  `media_status=duplicate`, preserving an exact B1 file-level view.
+- The page has no media operation or business POST. GET does not change the
+  database, cover/avatar references, media paths or bytes, or A3/A4 candidates.
+
+Phase 3-B2 adds no table, Schema 2 change, migration, dependency, version,
+Docker change, tag, Release, external request, AI/image recognition, automatic
+keep recommendation, reference migration, or physical media operation. The
+full local suite contains 441 passing tests and `pip check` reports no broken
+requirements.
 
 ### Phase 3-B1 Duplicate Media Location
 

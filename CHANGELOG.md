@@ -9,6 +9,13 @@
   involved-file, and potentially reclaimable-byte totals.
 - Added `media_status=duplicate`, case-insensitive SHA-256 prefix search, and
   per-card duplicate group size plus stable other-media-path details.
+- Added the authenticated, read-only Phase 3-B2
+  `/media-library/duplicates` group view using the shared B1 SHA-256 boundary.
+  Each group reports member count, file size, total and reclaimable bytes, its
+  complete digest, stable member paths, and item-cover / creator-avatar references.
+- Added bounded filename/path/SHA-256 group search, member/reclaimable/SHA
+  ascending and descending stable sorts, 20-group pagination, and a complete
+  SHA link back to the exact B1 duplicate filter.
 
 ### Changed
 
@@ -16,6 +23,8 @@
   pagination, and canonical `media_page` / `match_page` / `create_page` state
   preservation now include the duplicate-content view without changing A3/A4
   candidate inputs or behavior.
+- B1 file cards and B2 group rows now consume one shared complete-valid-SHA-256
+  group builder, preserving B1 results while preventing boundary drift.
 
 ### Security
 
@@ -23,6 +32,9 @@
   malformed hashes, and single-path content are excluded; GET performs no
   database, reference, or media-file write and no external request, AI/image
   recognition, or physical media operation.
+- The B2 page exposes no media mutation or automatic keep recommendation. It
+  performs current-page reference reads only and never deletes, moves, renames,
+  overwrites, migrates references, or changes A3/A4 candidates.
 
 ## [1.0.5] - 2026-07-13
 

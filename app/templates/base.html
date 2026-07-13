@@ -741,6 +741,23 @@
       gap: 3px;
       margin: 0;
     }
+    .media-duplicate-group-list,
+    .media-duplicate-members {
+      display: grid;
+      gap: 12px;
+    }
+    .media-duplicate-group-heading code {
+      overflow-wrap: anywhere;
+      word-break: break-all;
+    }
+    .media-duplicate-member {
+      align-items: start;
+      border-top: 1px solid var(--line);
+      display: grid;
+      gap: 12px;
+      grid-template-columns: 72px minmax(0, 1fr);
+      padding-top: 12px;
+    }
     .comparison-grid {
       display: grid;
       gap: 14px;
@@ -835,6 +852,7 @@
       .saved-view-form,
       .saved-view-row,
       .candidate-row,
+      .media-duplicate-member,
       .comparison-grid {
         grid-template-columns: 1fr;
       }

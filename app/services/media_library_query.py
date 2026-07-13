@@ -1,15 +1,22 @@
 from __future__ import annotations
 
-import unicodedata
 from dataclasses import dataclass
 from typing import Collection, Literal
 
 from app.services.local_media import LocalMediaEntry, LocalMediaScan
+from app.services.media_duplicate_groups import (
+    MAX_MEDIA_SEARCH_LENGTH,
+    MediaDuplicateSummary,
+    build_media_duplicate_groups,
+    media_search_key,
+    normalize_media_search,
+    summarize_media_duplicate_groups,
+    valid_media_sha256,
+)
 from app.services.pagination import PageInfo, build_page_info
 
 
 MEDIA_LIST_PAGE_SIZE = 20
-MAX_MEDIA_SEARCH_LENGTH = 200
 MEDIA_STATUS_OPTIONS = (
     "all",
     "available",
@@ -69,13 +76,6 @@ class MediaListRow:
 
 
 @dataclass(frozen=True)
-class MediaDuplicateSummary:
-    group_count: int
-    file_count: int
-    reclaimable_bytes: int
-
-
-@dataclass(frozen=True)
 class MediaListResult:
     rows: tuple[MediaListRow, ...]
     filters: MediaListFilters
@@ -84,10 +84,7 @@ class MediaListResult:
 
 
 def _normalize_search(value: str | None) -> str:
-    normalized = unicodedata.normalize("NFKC", value or "").strip()
-    if len(normalized) > MAX_MEDIA_SEARCH_LENGTH:
-        return ""
-    return normalized
+    return normalize_media_search(value)
 
 
 def normalize_media_list_filters(
@@ -106,57 +103,7 @@ def normalize_media_list_filters(
 
 
 def _search_key(value: str) -> str:
-    return unicodedata.normalize("NFKC", value).casefold()
-
-
-def _canonical_sha256(entry: LocalMediaEntry) -> str | None:
-    digest = entry.sha256.casefold()
-    if (
-        not entry.available
-        or len(digest) != 64
-        or any(character not in "0123456789abcdef" for character in digest)
-    ):
-        return None
-    return digest
-
-
-def _build_duplicate_index(
-    scan: LocalMediaScan,
-) -> tuple[dict[str, tuple[LocalMediaEntry, ...]], MediaDuplicateSummary]:
-    entries_by_digest: dict[str, dict[str, LocalMediaEntry]] = {}
-    for entry in scan.entries:
-        digest = _canonical_sha256(entry)
-        if digest is None:
-            continue
-        entries_by_digest.setdefault(digest, {})[entry.media_path] = entry
-
-    duplicate_groups: list[tuple[LocalMediaEntry, ...]] = []
-    for digest in sorted(entries_by_digest):
-        entries = entries_by_digest[digest]
-        if len(entries) < 2:
-            continue
-        duplicate_groups.append(
-            tuple(
-                sorted(
-                    entries.values(),
-                    key=lambda entry: (_search_key(entry.media_path), entry.media_path),
-                )
-            )
-        )
-
-    index = {
-        entry.media_path: group
-        for group in duplicate_groups
-        for entry in group
-    }
-    return index, MediaDuplicateSummary(
-        group_count=len(duplicate_groups),
-        file_count=sum(len(group) for group in duplicate_groups),
-        reclaimable_bytes=sum(
-            sum(entry.size for entry in group[1:])
-            for group in duplicate_groups
-        ),
-    )
+    return media_search_key(value)
 
 
 def _matches_status(
@@ -217,10 +164,16 @@ def query_media_library(
     filters = normalize_media_list_filters(q=q, status=status, sort=sort)
     search_key = _search_key(filters.q)
     used = set(used_paths)
-    duplicate_index, duplicate_summary = _build_duplicate_index(scan)
+    duplicate_groups = build_media_duplicate_groups(scan)
+    duplicate_index = {
+        entry.media_path: group.entries
+        for group in duplicate_groups
+        for entry in group.entries
+    }
+    duplicate_summary = summarize_media_duplicate_groups(duplicate_groups)
     rows: list[MediaListRow] = []
     for entry in scan.entries:
-        digest = _canonical_sha256(entry)
+        digest = valid_media_sha256(entry)
         duplicate_group = duplicate_index.get(entry.media_path)
         if search_key and not (
             search_key in _search_key(entry.filename)
