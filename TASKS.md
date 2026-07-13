@@ -20,8 +20,8 @@ N100 / 目标主机部署尚未开始，**不是当前开发任务**，必须等
 - [x] 明确最新已发布 tag 仍为 v1.0.4，v1.0.5 tag / GitHub Release 尚未创建
 - [x] 保持功能代码、Schema 2、真实 1 → 2 迁移、依赖和 Docker 配置不变
 - [x] 全量 `433 passed`、pip check 与隔离 Docker 双生命周期验收通过并清理
-- [ ] 发布准备提交推送到 main，最终 Actions test / Docker production smoke 通过
-- [ ] 确认未创建或移动任何 tag / GitHub Release
+- [x] 发布准备提交推送到 main，Actions test / Docker production smoke 通过
+- [x] tag 引用快照不变，确认本地、origin 和 GitHub 均无 v1.0.5 tag / Release
 
 ### Phase 3-A6 本地媒体完整性审计
 

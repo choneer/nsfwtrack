@@ -42,5 +42,5 @@
 - [x] 功能代码、Schema 2、迁移、依赖和 Docker 配置保持不变
 - [x] 全量 `433 passed`，pip check 无损坏依赖
 - [x] 隔离 Docker build、healthy、`/login` 200、版本 1.0.5、Schema 2 和重建验收通过并清理
-- [ ] 发布准备提交推送到 main，最终 Actions test / Docker production smoke 通过
-- [ ] 工作区与远端同步，未创建或移动 tag / GitHub Release
+- [x] 发布准备提交推送到 main，Actions test / Docker production smoke 通过
+- [x] tag 引用快照不变，本地、origin 和 GitHub 均无 v1.0.5 tag / Release

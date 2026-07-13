@@ -55,7 +55,9 @@ This preparation changes only application version metadata, its regression
 assertion, and release documentation. The tag and GitHub Release are
 intentionally not created in this round.
 Local release-candidate acceptance passed all 433 tests, `pip check`, and an
-isolated two-lifecycle Docker smoke with version 1.0.5 and Schema 2.
+isolated two-lifecycle Docker smoke with version 1.0.5 and Schema 2. GitHub
+Actions test and Docker production smoke also passed; no v1.0.5 tag or Release
+was created.
 
 ### Phase 3-A6 Local Media Integrity Audit
 
