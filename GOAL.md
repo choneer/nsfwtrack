@@ -47,4 +47,4 @@
 - [x] A3 / A4 / A5、Schema 2、迁移、依赖、版本、Docker 配置和 Release 均未修改
 - [x] 中文 / English、README / PLAN / TASKS / REVIEW / CHANGELOG 和专项测试同步
 - [x] 全量 `433 passed`、pip check 与隔离 Docker 双生命周期验收通过，临时资源已清理
-- [ ] Actions test / Docker production smoke 随最终提交验收
+- [x] Actions test / Docker production smoke 通过并完成临时资源清理

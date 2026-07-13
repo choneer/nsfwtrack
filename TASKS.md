@@ -24,7 +24,7 @@ N100 / 目标主机部署尚未开始，**不是当前开发任务**，必须等
 - [x] A3 / A4 / A5 服务保持不变；不改 Schema 2、迁移、依赖、版本或 Release
 - [x] 同步中文 / English、README / PLAN / TASKS / REVIEW / CHANGELOG / GOAL 与专项测试
 - [x] 全量 `433 passed`、pip check 与隔离 Docker 双生命周期通过，临时资源已清理
-- [ ] Actions test / Docker production smoke 随最终提交通过
+- [x] Actions test / Docker production smoke 通过并完成临时资源清理
 
 ### Phase 3-A5 媒体库检索与分页
 
