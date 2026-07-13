@@ -756,6 +756,13 @@
 - [ ] **22.74. v1.0.5 发布引用是否精确** — annotated tag object 是否为 `6a4def572e100198a446ad56353400138c573f66`，peeled commit 是否为 `3c4fee62891ff2826f0b8bc97b33bf3a4d08aa73`
 - [ ] **22.75. v1.0.5 Release 是否真实** — `NSFWTrack v1.0.5` 是否为非 Draft、非 Pre-release 的正式 Release，地址是否为 `https://github.com/choneer/nsfwtrack/releases/tag/v1.0.5`
 - [ ] **22.76. v1.0.5 发布后同步是否完整** — 是否清除候选 / 待创建描述，提交推送 main、最终 Actions 通过、工作区干净，且未移动 tag 或修改 Release
+- [ ] **22.77. v1.0.6 范围是否准确** — 是否只包含 Phase 3-B1 / B2，未夹带新增功能或其他阶段内容
+- [ ] **22.78. v1.0.6 版本是否一致** — FastAPI 元数据、发布断言、README、PLAN、TASKS、REVIEW、GOAL 和 CHANGELOG 是否均为 1.0.6 发布候选
+- [ ] **22.79. v1.0.6 CHANGELOG 是否正确** — 是否保留空 Unreleased，并将全部 B1 / B2 内容冻结为 `[1.0.6] - 2026-07-13`，未改 v1.0.5 或更早段落
+- [ ] **22.80. v1.0.6 安全边界是否保持** — B1 / B2 是否仍只读、无媒体操作、无引用迁移、无自动保留建议且 A3/A4 不变
+- [ ] **22.81. v1.0.6 技术边界是否保持** — 是否未改 Schema 2、迁移、依赖、Docker/CI 安全配置或功能代码
+- [ ] **22.82. v1.0.6 验收是否完整** — 是否完成全量 pytest、pip check、隔离 Docker 双生命周期、版本 / Schema / 持久化检查和 Actions
+- [ ] **22.83. v1.0.6 发布操作是否克制** — 是否仅提交推送 main，工作区干净，旧 tag 未移动且 GitHub 不存在 v1.0.6 tag / Release
 
 ## 备份恢复检查
 

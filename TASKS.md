@@ -2,10 +2,10 @@
 
 按顺序执行，每完成一项打个 [x]。
 
-## 当前状态（v1.0.5 稳定）
+## 当前状态（v1.0.6 发布候选）
 
 当前稳定版与最新 Release：`v1.0.5`。Phase 3-A1 至 A6 已正式发布，
-Phase 3-B1 / B2 已在 main 完成且尚未发布，应用 Schema 仍为 `2`。
+Phase 3-B1 / B2 已冻结为 `v1.0.6` 发布候选，应用 Schema 仍为 `2`。
 
 - Annotated tag object：`6a4def572e100198a446ad56353400138c573f66`
 - Peeled commit：`3c4fee62891ff2826f0b8bc97b33bf3a4d08aa73`
@@ -15,7 +15,20 @@ N100 / 目标主机部署尚未开始，**不是当前开发任务**，必须等
 完整证据见 `COMPLETION_AUDIT.md`。历史任务保留在本文后半部分，
 不再作为新增开发路线。
 
-### Phase 3-B2 重复媒体组视图（已完成，尚未发布）
+### v1.0.6 发布准备
+
+- [x] 发布范围仅包含 Phase 3-B1 重复媒体定位与 B2 重复媒体组视图
+- [x] 应用版本元数据和发布回归断言从 1.0.5 更新为 1.0.6
+- [x] 将 B1 / B2 从 Unreleased 冻结为 `[1.0.6] - 2026-07-13`
+- [x] CHANGELOG 顶部保留新的空 Unreleased
+- [x] 同步 README / PLAN / TASKS / REVIEW / GOAL 发布候选状态
+- [x] 保留 B1 / B2 只读、无媒体操作、无引用迁移及 A3/A4 不变边界
+- [x] 未修改 Schema 2、迁移、依赖、Docker/CI 安全配置或旧 tag / Release
+- [x] 全量 `441 passed`、pip check 与隔离 Docker 双生命周期通过并清理
+- [ ] 发布准备提交推送 main，Actions test / Docker production smoke 通过
+- [x] 未创建 `v1.0.6` tag 或 GitHub Release，未部署 N100
+
+### Phase 3-B2 重复媒体组视图（已冻结至 v1.0.6 发布候选）
 
 - [x] 新增登录保护的只读 `/media-library/duplicates`，每个真实 SHA-256 只显示一组
 - [x] 提取 B1/B2 共用分组服务，完整合法 SHA、不同路径和稳定成员边界保持一致
@@ -31,7 +44,7 @@ N100 / 目标主机部署尚未开始，**不是当前开发任务**，必须等
 - [x] 功能提交 `b4725a9` 已推送，Actions run `29228843856` 的 test / Docker production smoke 均通过
 - [x] 未改 B1 行为、Schema 2、迁移、依赖、版本、Docker、旧 tag / Release，未部署 N100
 
-### Phase 3-B1 重复媒体定位（已完成，尚未发布）
+### Phase 3-B1 重复媒体定位（已冻结至 v1.0.6 发布候选）
 
 - [x] 仅按可用媒体的完整合法 SHA-256 建立稳定重复组，并要求至少两个不同路径
 - [x] 汇总重复组数、涉及文件数和每组保留一份时可节省空间

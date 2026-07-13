@@ -1,54 +1,46 @@
 # GOAL.md
 
-# 当前目标：Phase 3-B2 — 重复媒体组视图
+# 当前目标：v1.0.6 发布准备
 
 ## 目标
 
-提供按重复内容分组的只读浏览页，清晰展示每组文件及其引用情况。
+冻结并整理 Phase 3-B1 与 B2，形成可发布的 v1.0.6 提交。
 
 ## 任务
 
-- 增加登录保护的重复媒体组视图
-- 每个 SHA-256 重复组只显示一次
-- 展示组内文件数、单文件大小、总占用和可节省空间
-- 展示每个成员路径、可用状态及封面 / 头像引用
-- 支持文件名、路径和 SHA-256 搜索
-- 支持按组内文件数、可节省空间和 SHA-256 排序
-- 每页固定 20 个重复组
-- 提供跳转到现有媒体库精确 SHA 筛选的链接
-- 同步中英文、文档和测试
+- 应用版本从 1.0.5 更新为 1.0.6
+- 将 CHANGELOG 的 Unreleased 冻结为 `[1.0.6] - 2026-07-13`
+- 在 CHANGELOG 顶部新建空 Unreleased
+- 明确 v1.0.6 包含 B1 重复媒体定位和 B2 重复媒体组视图
+- 同步 README、PLAN、TASKS、REVIEW、GOAL
+- 运行完整测试、pip check 和 Docker 验收
 
 ## 边界
 
-- 只读展示，不删除、移动、重命名或覆盖媒体
-- 不提供“保留哪一份”的自动判断
-- 不修改或迁移封面、头像引用
-- 不改变 B1、A3、A4 的候选和查询行为
-- 不请求外部网络，不使用 AI 或图像识别
-- 不新增表，不修改 Schema 2、迁移、依赖或版本
+- 不新增或修改业务功能
+- 不修改 Schema 2、迁移、依赖或 Docker 安全配置
+- 不修改旧 tag 或旧 Release
+- 本轮只提交并推送发布准备
+- 暂不创建 v1.0.6 tag 或 GitHub Release
 - 不部署到 N100
 
 ## 完成标准
 
-- 一个真实重复 SHA-256 只生成一个稳定分组
-- 每组成员和引用信息准确且稳定排序
-- 搜索、排序和 20 组分页正确
-- GET 零写入，数据库引用和媒体字节不变
+- 应用与文档版本一致为 1.0.6
+- B1/B2 发布范围和只读安全边界记录完整
 - pytest、pip check、Docker 和 Actions 通过
-- 提交推送，不创建 tag 或 Release
+- 工作区干净并推送至 main
+- 未创建 v1.0.6 tag 或 Release
 
 ## 本地验收结果
 
-- [x] 登录保护的只读 `/media-library/duplicates` 已实现，每个真实 SHA 只显示一组
-- [x] B1 / B2 共用完整合法 SHA-256、不同路径去重和稳定成员排序服务
-- [x] 组成员数、文件大小、总占用、可节省空间和完整 SHA-256 已展示
-- [x] 每个成员路径、可用状态、条目封面与创作者头像引用已展示
-- [x] 文件名 / 路径 / SHA 搜索和三类双向稳定排序已实现
-- [x] 每页 20 组，非法查询、排序和页码安全回退，查询状态保留
-- [x] 完整 SHA 与 `media_status=duplicate` 的 B1 精确筛选链接已验证
-- [x] GET 前后数据库、引用、媒体字节及 A3/A4 候选不变，POST 返回 405
-- [x] 中文 / English、README / PLAN / TASKS / REVIEW / CHANGELOG 和测试已同步
-- [x] 专项 `17 passed`；全量 `441 passed in 67.03s`；`pip check` 通过
-- [x] 隔离 Docker build、healthy、Schema 2、`/login` 连续三次 200、登录后重复组页 200 和清理通过
-- [x] 功能提交 `b4725a9` 已推送，GitHub Actions test 与 Docker production smoke 均通过（run `29228843856`）
-- [x] 未修改 B1 行为、Schema 2、迁移、依赖、版本、Docker、旧 tag / Release，未部署 N100
+- [x] 应用版本和发布回归断言更新为 1.0.6
+- [x] CHANGELOG 新建空 Unreleased，并将 B1 / B2 冻结为 `[1.0.6] - 2026-07-13`
+- [x] README / PLAN / TASKS / REVIEW / GOAL 已同步发布候选状态
+- [x] 发布范围仅包含 Phase 3-B1 与 B2，保留只读、无媒体操作、无引用迁移边界
+- [x] 全量测试 `441 passed in 65.72s`，`pip check` 通过
+- [x] 隔离 Docker 双生命周期均 healthy、`/login` 200、版本 1.0.6、Schema 2
+- [x] 容器重建前后 SQLite 校验和不变，临时资源已清理
+- [x] 除版本元数据与对应断言外未修改功能代码；未改 Schema 2、迁移、依赖或 Docker/CI
+- [x] 旧 tag / Release 未移动，本地与远端均无 v1.0.6 tag
+- [ ] 发布准备提交推送、Actions 和最终工作区 / GitHub Release 不存在性验收

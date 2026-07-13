@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## [1.0.6] - 2026-07-13
+
 ### Added
 
 - Added Phase 3-B1 stable duplicate-media groups based only on complete SHA-256

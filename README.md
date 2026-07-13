@@ -2,13 +2,15 @@
 
 NSFWTrack is a local single-user content record manager / collection tracker.
 
+Current application version: `v1.0.6 release candidate / Phase 3-B1 and B2`.
+
 Current stable version: `v1.0.5 / Phase 3-A1 through A6`.
 
 Latest Release: [NSFWTrack v1.0.5](https://github.com/choneer/nsfwtrack/releases/tag/v1.0.5).
 
-Current status: `stable v1.0.5; Phase 3-B1 and B2 are complete on main and remain unreleased`.
+Current status: `v1.0.6 release-preparation candidate on main; tag and Release not created`.
 
-Current development: `Phase 3-B2 duplicate-media group browsing is locally accepted;
+Current development: `Phase 3-B1 and B2 are frozen for v1.0.6;
 application Schema remains 2`.
 
 N100 deployment: `not started; waits for explicit user authorization`.
@@ -33,8 +35,37 @@ acceptance through Phase 3-A1 to A6 are complete. See
   task. It must wait for explicit user authorization.
 
 The bounded Phase 3-A1 through A6 scope shipped in `v1.0.5`. Phase 3-B1 and B2
-are the current unreleased main-branch development and stay within the same
-local-only media boundary.
+are frozen as the complete `v1.0.6` release-candidate scope and stay within the
+same local-only media boundary.
+
+## v1.0.6 Release Candidate
+
+The `v1.0.6` candidate contains only the read-only Phase 3-B1 and B2 duplicate
+media workflow:
+
+- B1 adds stable complete-SHA-256 duplicate grouping, library totals,
+  `media_status=duplicate`, SHA-prefix search, and per-file group context.
+- B2 adds the authenticated `/media-library/duplicates` group view with group
+  sizes, reclaimable-space totals, member references, group search/sort,
+  20-group pagination, and exact links back to B1.
+- Both phases share one valid-media, complete-SHA-256 grouping implementation.
+  Damaged files, empty or malformed hashes, single-path content, and duplicate
+  records for one path remain excluded.
+- Both phases are read-only. They do not delete, move, rename, overwrite, or
+  choose a media file; migrate or clear a cover/avatar reference; change A3/A4
+  candidates; request an external resource; or use AI/image recognition.
+
+Release preparation changes only application version metadata, its regression
+assertion, and release documentation. It does not change Schema 2, the existing
+1 to 2 migration, dependencies, Docker/CI security configuration, or any old
+tag or Release. The `v1.0.6` tag and GitHub Release are intentionally not
+created during preparation.
+
+Local release-candidate acceptance passed all 441 tests and `pip check`. An
+isolated production-image Docker smoke passed two complete container
+lifecycles; both reported healthy, `/login` HTTP 200, application version 1.0.6,
+and Schema 2, while the same SQLite file retained an unchanged checksum across
+container recreation.
 
 ## Features in v1.0.5
 
