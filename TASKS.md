@@ -22,12 +22,14 @@ N100 / 目标主机部署尚未开始，**不是当前开发任务**，必须等
 - [x] 预览逐路径列出封面 / 头像引用迁移、待删除文件和预计释放空间，保持零写入
 - [x] POST 复用 standard / strict `CONFIRM` 危险确认并重新扫描完整组
 - [x] 拒绝成员变化、哈希变化、缺失、损坏、符号链接、越界与伪造路径
-- [x] 先提交所有封面 / 头像引用到 keeper，再按 inode/hash/时间身份逐个删除冗余文件
-- [x] keeper 变化时恢复原引用；数据库失败不删除文件；删除失败保留安全副本并可重试
+- [x] 删除前创建同文件系统已验证安全锚点，并在整个删除窗口让封面 / 头像引用指向该合法同哈希文件
+- [x] keeper 在首删前、中途或末次删除期间缺失时无覆盖恢复；路径被占用时保留外部文件并迁移到唯一恢复路径
+- [x] 数据库失败不删除文件；删除失败保留安全副本并可重试；成功、异常和重试均清理临时锚点
 - [x] 不删除 keeper、不处理其他组、不改变 A3/A4 候选逻辑
 - [x] 同步中文 / English、模板、CHANGELOG Unreleased 与发布后文档状态
-- [x] B3 / i18n 专项 `15 passed`
-- [x] 完整 `456 passed`、pip check 与隔离 Docker 双生命周期通过并清理
+- [x] B3 / i18n 专项 `18 passed`，keeper 竞态修复覆盖首删前、中途与末次删除三种时序
+- [x] 完整 `459 passed`、pip check 与隔离 Docker 双生命周期重新通过并清理
+- [ ] 修复提交推送 main，Actions test / Docker production smoke 通过
 - [x] 功能提交 `79de4e4` 已推送 main，Actions run `29233302653` 的 test / Docker production smoke 均通过
 - [x] 未改版本 1.0.6、Schema 2、迁移、依赖、Docker/CI 或旧 tag / Release，未部署 N100
 

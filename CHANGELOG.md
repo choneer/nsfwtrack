@@ -12,10 +12,22 @@
   deleted paths, actual released bytes, per-path failures, durability warnings,
   and a fresh-preview retry path for files that remain safely on disk.
 
+### Fixed
+
+- Closed the keeper deletion/replacement race during redundant-file removal.
+  A verified same-filesystem safety copy now remains available for the complete
+  deletion window, and affected database references point to that valid anchor
+  until a final safe media path is committed.
+- A missing keeper is restored without overwrite from the anchor. If the
+  selected path is occupied or replaced, the external file is preserved and
+  references move to a unique verified recovery path instead. Successful,
+  failed-deletion, exception, and retry paths clean temporary anchors.
+
 ### Changed
 
-- Confirmed cleanup now commits every affected cover/avatar reference to the
-  keeper before removing redundant files. Each deletion revalidates the path,
+- Confirmed cleanup commits every affected cover/avatar reference to the
+  verified safety anchor before removing redundant files, then commits them to
+  the final safe keeper/recovery path. Each deletion revalidates the path,
   complete SHA-256, device, inode, size, modification time, and change time.
 - The duplicate-group view remains write-free while exposing the separate B3
   preview. B1/B2 grouping and A3/A4 candidate algorithms remain unchanged.
@@ -27,8 +39,13 @@
   and rejects stale membership, changed hashes, missing or damaged files,
   symbolic links, escaping paths, forged paths, and keeper replacement.
 - Database failure removes no file. Deletion failure leaves references safely
-  on the keeper and preserves the failed duplicate for an explicit retry; the
-  keeper, unrelated groups, and unselected paths are never deleted.
+  on a verified keeper/recovery path and preserves the failed duplicate for an
+  explicit retry; the keeper, unrelated groups, and unselected paths are never
+  deleted.
+- Keeper loss before the first deletion, midway through deletion, or during the
+  final deletion cannot remove the last valid copy or leave a reference on a
+  missing/wrong-hash path. Anchor creation, publication, removal, and directory
+  durability use exclusive creation, identity/hash validation, and fsync.
 
 ## [1.0.6] - 2026-07-13
 

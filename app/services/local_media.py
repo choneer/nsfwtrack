@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import os
+import secrets
 import stat
 import tempfile
 import zlib
@@ -18,6 +19,8 @@ LOCAL_MEDIA_LIBRARY_DIR = "library"
 ALLOWED_MEDIA_EXTENSIONS = {".avif", ".gif", ".jpeg", ".jpg", ".png", ".webp"}
 MAX_MEDIA_UPLOAD_BYTES = 10 * 1024 * 1024
 MAX_MEDIA_UPLOAD_FILES = 20
+LOCAL_MEDIA_CLEANUP_ANCHOR_PREFIX = ".cleanup-anchor-"
+LOCAL_MEDIA_RECOVERY_PREFIX = "recovered-"
 _MIME_BY_FORMAT = {
     "avif": "image/avif",
     "gif": "image/gif",
@@ -49,6 +52,12 @@ class LocalMediaDeleteError(OSError):
     def __init__(self, code: str, *, removed: bool = False) -> None:
         self.code = code
         self.removed = removed
+        super().__init__(code)
+
+
+class LocalMediaSafetyAnchorError(OSError):
+    def __init__(self, code: str) -> None:
+        self.code = code
         super().__init__(code)
 
 
@@ -326,7 +335,216 @@ def validate_local_media_file(
     )
 
 
-def delete_validated_local_media_file(record: ValidatedLocalMediaFile) -> None:
+def _record_matches_stat(
+    record: ValidatedLocalMediaFile,
+    file_stat: os.stat_result,
+) -> bool:
+    return (
+        stat.S_ISREG(file_stat.st_mode)
+        and file_stat.st_dev == record.device
+        and file_stat.st_ino == record.inode
+        and file_stat.st_size == record.size
+        and file_stat.st_mtime_ns == record.modified_ns
+        and file_stat.st_ctime_ns == record.changed_ns
+    )
+
+
+def _read_validated_record_content(record: ValidatedLocalMediaFile) -> bytes:
+    flags = os.O_RDONLY
+    if hasattr(os, "O_CLOEXEC"):
+        flags |= os.O_CLOEXEC
+    if hasattr(os, "O_NOFOLLOW"):
+        flags |= os.O_NOFOLLOW
+    try:
+        file_descriptor = os.open(record.path, flags)
+        try:
+            before = os.fstat(file_descriptor)
+            if not _record_matches_stat(record, before):
+                raise LocalMediaSafetyAnchorError("source_changed")
+            with os.fdopen(file_descriptor, "rb", closefd=False) as stream:
+                content = stream.read(MAX_MEDIA_UPLOAD_BYTES + 1)
+            after = os.fstat(file_descriptor)
+        finally:
+            os.close(file_descriptor)
+    except LocalMediaSafetyAnchorError:
+        raise
+    except OSError as exc:
+        raise LocalMediaSafetyAnchorError("source_changed") from exc
+
+    if (
+        not _record_matches_stat(record, after)
+        or len(content) != record.size
+        or len(content) > MAX_MEDIA_UPLOAD_BYTES
+    ):
+        raise LocalMediaSafetyAnchorError("source_changed")
+    try:
+        _validated_image_format(content, record.path.suffix.casefold())
+    except LocalMediaUploadError as exc:
+        raise LocalMediaSafetyAnchorError("source_changed") from exc
+    if hashlib.sha256(content).hexdigest() != record.sha256:
+        raise LocalMediaSafetyAnchorError("source_changed")
+    return content
+
+
+def create_local_media_safety_anchor(
+    record: ValidatedLocalMediaFile,
+) -> ValidatedLocalMediaFile:
+    content = _read_validated_record_content(record)
+    anchor_fd = -1
+    anchor_path: Path | None = None
+    try:
+        anchor_fd, raw_anchor_path = tempfile.mkstemp(
+            prefix=LOCAL_MEDIA_CLEANUP_ANCHOR_PREFIX,
+            suffix=record.path.suffix.casefold(),
+            dir=record.path.parent,
+        )
+        anchor_path = Path(raw_anchor_path)
+        os.fchmod(anchor_fd, 0o600)
+        with os.fdopen(anchor_fd, "wb") as stream:
+            anchor_fd = -1
+            stream.write(content)
+            stream.flush()
+            os.fsync(stream.fileno())
+        try:
+            _fsync_directory(record.path.parent)
+        except LocalMediaUploadError as exc:
+            raise LocalMediaSafetyAnchorError("sync_failed") from exc
+        anchor_media_path = (
+            f"{PurePosixPath(record.media_path).parent.as_posix()}/"
+            f"{anchor_path.name}"
+        )
+        return validate_local_media_file(
+            anchor_media_path,
+            expected_sha256=record.sha256,
+        )
+    except Exception as exc:
+        if anchor_fd >= 0:
+            os.close(anchor_fd)
+        if anchor_path is not None:
+            try:
+                anchor_path.unlink(missing_ok=True)
+                _fsync_directory(record.path.parent)
+            except Exception:
+                pass
+        if isinstance(exc, LocalMediaSafetyAnchorError):
+            raise
+        raise LocalMediaSafetyAnchorError("create_failed") from exc
+
+
+def publish_local_media_safety_anchor(
+    anchor: ValidatedLocalMediaFile,
+    target_media_path: str,
+) -> ValidatedLocalMediaFile:
+    try:
+        normalized_target = normalize_local_media_path(target_media_path)
+    except LocalMediaPathError as exc:
+        raise LocalMediaSafetyAnchorError("invalid_target") from exc
+    if normalized_target is None:
+        raise LocalMediaSafetyAnchorError("invalid_target")
+    target_pure_path = PurePosixPath(normalized_target)
+    if target_pure_path.parent != PurePosixPath(anchor.media_path).parent:
+        raise LocalMediaSafetyAnchorError("invalid_target")
+
+    try:
+        current_anchor = validate_local_media_file(
+            anchor.media_path,
+            expected_sha256=anchor.sha256,
+        )
+    except LocalMediaPathError as exc:
+        raise LocalMediaSafetyAnchorError("anchor_changed") from exc
+    target_path = current_anchor.path.parent / target_pure_path.name
+    flags = os.O_RDONLY
+    if hasattr(os, "O_DIRECTORY"):
+        flags |= os.O_DIRECTORY
+    if hasattr(os, "O_CLOEXEC"):
+        flags |= os.O_CLOEXEC
+    try:
+        directory_fd = os.open(current_anchor.path.parent, flags)
+    except OSError as exc:
+        raise LocalMediaSafetyAnchorError("publish_failed") from exc
+    linked = False
+    try:
+        try:
+            os.link(
+                current_anchor.path.name,
+                target_path.name,
+                src_dir_fd=directory_fd,
+                dst_dir_fd=directory_fd,
+                follow_symlinks=False,
+            )
+            linked = True
+        except FileExistsError as exc:
+            raise LocalMediaSafetyAnchorError("target_exists") from exc
+        except OSError as exc:
+            raise LocalMediaSafetyAnchorError("publish_failed") from exc
+        try:
+            os.fsync(directory_fd)
+        except OSError as exc:
+            raise LocalMediaSafetyAnchorError("sync_failed") from exc
+    except Exception:
+        if linked:
+            try:
+                target_stat = os.stat(
+                    target_path.name,
+                    dir_fd=directory_fd,
+                    follow_symlinks=False,
+                )
+                anchor_stat = os.stat(
+                    current_anchor.path.name,
+                    dir_fd=directory_fd,
+                    follow_symlinks=False,
+                )
+                if (
+                    target_stat.st_dev == anchor_stat.st_dev
+                    and target_stat.st_ino == anchor_stat.st_ino
+                ):
+                    os.unlink(target_path.name, dir_fd=directory_fd)
+                    os.fsync(directory_fd)
+            except OSError:
+                pass
+        raise
+    finally:
+        os.close(directory_fd)
+
+    try:
+        return validate_local_media_file(
+            normalized_target,
+            expected_sha256=anchor.sha256,
+        )
+    except LocalMediaPathError as exc:
+        try:
+            target_stat = target_path.stat(follow_symlinks=False)
+            anchor_stat = current_anchor.path.stat(follow_symlinks=False)
+            if (
+                target_stat.st_dev == anchor_stat.st_dev
+                and target_stat.st_ino == anchor_stat.st_ino
+            ):
+                target_path.unlink()
+                _fsync_directory(target_path.parent)
+        except Exception:
+            pass
+        raise LocalMediaSafetyAnchorError("publish_failed") from exc
+
+
+def publish_local_media_recovery(
+    anchor: ValidatedLocalMediaFile,
+) -> ValidatedLocalMediaFile:
+    parent = PurePosixPath(anchor.media_path).parent.as_posix()
+    extension = anchor.path.suffix.casefold()
+    for _ in range(16):
+        candidate = (
+            f"{parent}/{LOCAL_MEDIA_RECOVERY_PREFIX}{anchor.sha256[:12]}-"
+            f"{secrets.token_hex(8)}{extension}"
+        )
+        try:
+            return publish_local_media_safety_anchor(anchor, candidate)
+        except LocalMediaSafetyAnchorError as exc:
+            if exc.code != "target_exists":
+                raise
+    raise LocalMediaSafetyAnchorError("publish_failed")
+
+
+def _delete_validated_local_media_file(record: ValidatedLocalMediaFile) -> None:
     try:
         current = validate_local_media_file(
             record.media_path,
@@ -385,6 +603,26 @@ def delete_validated_local_media_file(record: ValidatedLocalMediaFile) -> None:
             raise LocalMediaDeleteError("sync_failed", removed=True) from exc
     finally:
         os.close(directory_fd)
+
+
+def delete_validated_local_media_file(record: ValidatedLocalMediaFile) -> None:
+    _delete_validated_local_media_file(record)
+
+
+def delete_local_media_safety_anchor(
+    anchor: ValidatedLocalMediaFile,
+) -> None:
+    try:
+        current_anchor = validate_local_media_file(
+            anchor.media_path,
+            expected_sha256=anchor.sha256,
+        )
+    except LocalMediaPathError as exc:
+        raise LocalMediaSafetyAnchorError("anchor_changed") from exc
+    try:
+        _delete_validated_local_media_file(current_anchor)
+    except LocalMediaDeleteError as exc:
+        raise LocalMediaSafetyAnchorError(exc.code) from exc
 
 
 def _iter_media_files() -> tuple[list[Path], int, int]:

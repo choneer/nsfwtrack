@@ -38,6 +38,32 @@ def _digest(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def _anchor_files(media_root: Path) -> list[Path]:
+    return list(
+        media_root.rglob(f"{local_media.LOCAL_MEDIA_CLEANUP_ANCHOR_PREFIX}*")
+    )
+
+
+def _assert_database_references_are_valid(digest: str) -> set[str]:
+    with SessionLocal() as db:
+        paths = {
+            path
+            for path in [
+                *(item.cover_path for item in db.query(Item).all()),
+                *(creator.avatar_path for creator in db.query(Creator).all()),
+            ]
+            if path is not None
+        }
+    assert paths
+    for media_path in paths:
+        record = local_media.validate_local_media_file(
+            media_path,
+            expected_sha256=digest,
+        )
+        assert record.media_path == media_path
+    return paths
+
+
 def _apply_data(
     digest: str,
     keeper_path: str,
@@ -213,10 +239,11 @@ def test_cleanup_migrates_all_references_before_deleting_only_target_group(
                 .count()
                 == 0
             )
-            assert all(item.cover_path == keeper_path for item in db.query(Item).all())
-            assert all(
-                creator.avatar_path == keeper_path for creator in db.query(Creator).all()
-            )
+        reference_paths = _assert_database_references_are_valid(digest)
+        assert len(reference_paths) == 1
+        assert next(iter(reference_paths)).rsplit("/", 1)[-1].startswith(
+            local_media.LOCAL_MEDIA_CLEANUP_ANCHOR_PREFIX
+        )
         original_delete(record)
 
     monkeypatch.setattr(
@@ -247,6 +274,7 @@ def test_cleanup_migrates_all_references_before_deleting_only_target_group(
         assert {creator.avatar_path for creator in db.query(Creator).all()} == {
             keeper_path
         }
+    assert _anchor_files(media_root) == []
 
 
 def test_cleanup_routes_require_login(client: TestClient) -> None:
@@ -462,6 +490,7 @@ def test_delete_failure_keeps_references_safe_and_supports_retry(
     assert 'data-result-deleted-count>1</strong>' in first.text
     assert keeper.exists() and failed.exists()
     assert not removable.exists()
+    assert _anchor_files(media_root) == []
     with SessionLocal() as db:
         assert {item.cover_path for item in db.query(Item).all()} == {keeper_path}
         assert {creator.avatar_path for creator in db.query(Creator).all()} == {
@@ -487,6 +516,7 @@ def test_delete_failure_keeps_references_safe_and_supports_retry(
     assert 'data-result-deleted-count>1</strong>' in retry.text
     assert keeper.exists()
     assert not failed.exists()
+    assert _anchor_files(media_root) == []
 
 
 def test_database_failure_rolls_back_references_before_any_file_delete(
@@ -518,11 +548,12 @@ def test_database_failure_rolls_back_references_before_any_file_delete(
         assert error.value.code == "database_failed"
 
     assert keeper.exists() and duplicate.exists()
+    assert _anchor_files(media_root) == []
     with SessionLocal() as db:
         assert db.get(Item, item_id).cover_path == paths[1]
 
 
-def test_keeper_change_after_reference_commit_restores_original_references(
+def test_keeper_change_before_anchor_creation_preserves_original_references(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
@@ -538,25 +569,15 @@ def test_keeper_change_after_reference_commit_restores_original_references(
         db.commit()
         item_id = item.id
 
-        original_validate = local_media.validate_local_media_file
-        keeper_validations = 0
-
-        def fail_second_keeper_validation(
-            media_path: str,
-            *,
-            expected_sha256: str,
+        def fail_anchor_creation(
+            record: local_media.ValidatedLocalMediaFile,
         ) -> local_media.ValidatedLocalMediaFile:
-            nonlocal keeper_validations
-            if media_path == paths[0]:
-                keeper_validations += 1
-                if keeper_validations == 2:
-                    raise local_media.LocalMediaPathError("simulated keeper change")
-            return original_validate(media_path, expected_sha256=expected_sha256)
+            raise local_media.LocalMediaSafetyAnchorError("source_changed")
 
         monkeypatch.setattr(
             local_media,
-            "validate_local_media_file",
-            fail_second_keeper_validation,
+            "create_local_media_safety_anchor",
+            fail_anchor_creation,
         )
         with pytest.raises(MediaDuplicateCleanupError) as error:
             execute_media_duplicate_cleanup(
@@ -568,8 +589,108 @@ def test_keeper_change_after_reference_commit_restores_original_references(
         assert error.value.code == "keeper_changed"
 
     assert keeper.exists() and duplicate.exists()
+    assert _anchor_files(media_root) == []
     with SessionLocal() as db:
         assert db.get(Item, item_id).cover_path == paths[1]
+
+
+@pytest.mark.parametrize(
+    ("race_phase", "replacement"),
+    [
+        ("before_first_delete", False),
+        ("after_half_deleted", True),
+        ("during_final_delete", False),
+    ],
+)
+def test_keeper_race_always_keeps_references_on_verified_content(
+    auth_client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    race_phase: str,
+    replacement: bool,
+) -> None:
+    media_root = tmp_path / "media"
+    keeper = _write_gif(media_root, f"Race {race_phase}/Keeper.gif", extra=13)
+    duplicates = [
+        _write_gif(
+            media_root,
+            f"Race {race_phase}/Duplicate {index}.gif",
+            extra=13,
+        )
+        for index in range(1, 5)
+    ]
+    monkeypatch.setattr(local_media, "LOCAL_MEDIA_ROOT", media_root)
+    keeper_path = _media_path(keeper, media_root)
+    duplicate_paths = [_media_path(path, media_root) for path in duplicates]
+    member_paths = [keeper_path, *duplicate_paths]
+    digest = _digest(keeper)
+    replacement_content = _gif_bytes(31)
+    with SessionLocal() as db:
+        db.add_all(
+            [
+                Item(title="Race Keeper", cover_path=keeper_path),
+                Item(title="Race Duplicate", cover_path=duplicate_paths[0]),
+                Creator(
+                    name="Race Avatar",
+                    type="person",
+                    avatar_path=duplicate_paths[-1],
+                ),
+            ]
+        )
+        db.commit()
+
+    original_delete = local_media.delete_validated_local_media_file
+    delete_count = 0
+
+    def mutate_keeper() -> None:
+        keeper.unlink()
+        if replacement:
+            keeper.write_bytes(replacement_content)
+
+    def delete_with_keeper_race(
+        record: local_media.ValidatedLocalMediaFile,
+    ) -> None:
+        nonlocal delete_count
+        delete_count += 1
+        if race_phase == "before_first_delete" and delete_count == 1:
+            mutate_keeper()
+        _assert_database_references_are_valid(digest)
+        original_delete(record)
+        if race_phase == "after_half_deleted" and delete_count == 2:
+            mutate_keeper()
+        if race_phase == "during_final_delete" and delete_count == 4:
+            mutate_keeper()
+        _assert_database_references_are_valid(digest)
+
+    monkeypatch.setattr(
+        local_media,
+        "delete_validated_local_media_file",
+        delete_with_keeper_race,
+    )
+    response = auth_client.post(
+        "/media-library/duplicates/organize/apply",
+        data=_apply_data(digest, keeper_path, member_paths),
+    )
+
+    assert response.status_code == 200
+    assert delete_count == 4
+    assert 'data-result-deleted-count>4</strong>' in response.text
+    assert 'data-result-keeper-recovery' in response.text
+    assert all(not path.exists() for path in duplicates)
+    final_reference_paths = _assert_database_references_are_valid(digest)
+    assert len(final_reference_paths) == 1
+    final_path = next(iter(final_reference_paths))
+    if replacement:
+        assert keeper.read_bytes() == replacement_content
+        assert final_path != keeper_path
+        assert local_media.LOCAL_MEDIA_RECOVERY_PREFIX in final_path
+        assert 'data-result-keeper-recovery="relocated"' in response.text
+    else:
+        assert keeper.exists()
+        assert _digest(keeper) == digest
+        assert final_path == keeper_path
+        assert 'data-result-keeper-recovery="restored"' in response.text
+    assert _anchor_files(media_root) == []
 
 
 def test_validated_delete_rejects_same_content_inode_replacement(

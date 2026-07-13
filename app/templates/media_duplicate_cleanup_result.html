@@ -24,6 +24,20 @@
   <p>{{ t("media_cleanup.references_safe_detail", keeper=result.keeper_path) }}</p>
 </section>
 
+{% if result.keeper_recovery_code %}
+  <section class="notice" data-result-keeper-recovery="{{ result.keeper_recovery_code }}">
+    <strong>{{ t("media_cleanup.keeper_recovery_" ~ result.keeper_recovery_code ~ "_title") }}</strong>
+    <p>{{ t("media_cleanup.keeper_recovery_" ~ result.keeper_recovery_code ~ "_detail", requested=result.requested_keeper_path, safe=result.keeper_path) }}</p>
+  </section>
+{% endif %}
+
+{% if result.retained_anchor_path and result.keeper_recovery_code != "retained" %}
+  <section class="notice" data-result-retained-anchor>
+    <strong>{{ t("media_cleanup.anchor_retained_title") }}</strong>
+    <p>{{ t("media_cleanup.anchor_retained_detail", path=result.retained_anchor_path) }}</p>
+  </section>
+{% endif %}
+
 {% if result.deletion_failures %}
   <section class="card stack" data-result-failures>
     <h2>{{ t("media_cleanup.deletion_failures") }}</h2>

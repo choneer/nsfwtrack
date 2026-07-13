@@ -84,16 +84,26 @@ explicit, one-group-at-a-time cleanup flow:
 - Missing, damaged, symbolic-link, escaping, forged, hash-changed, or stale
   members are rejected. The keeper is never deleted and no other group is
   processed.
-- Item-cover and creator-avatar references commit to the keeper before any
-  redundant file is removed. Identity-checked deletion failures leave safe
-  local copies, report each path, and can be previewed and retried.
+- Before any redundant file is removed, affected cover/avatar references commit
+  to a verified same-filesystem safety anchor. The anchor remains a valid
+  same-SHA-256 copy throughout every deletion and is removed after references
+  safely commit to the final keeper path.
+- If the selected keeper disappears, it is restored from the anchor without
+  overwriting another file. If its path is replaced or occupied, the external
+  file remains untouched and references move to a unique verified recovery
+  path. Identity-checked deletion failures remain safe and retryable.
+- Tests cover keeper loss before the first deletion, after half the removals,
+  and during the final deletion. At every observed stage, database references
+  resolve to an existing legal file with the expected complete SHA-256, and
+  success, exception, deletion-failure, and retry paths leave no temporary
+  anchor residue.
 
 Phase 3-B3 does not change the A3/A4 candidate algorithms, application version
 1.0.6, Schema 2, the existing migration, dependencies, or Docker/CI security
 configuration. It makes no external request and adds no automatic keeper
 selection, AI/image recognition, tag, or Release.
 
-Local acceptance passes all 456 tests and `pip check`. An isolated Docker image
+Local acceptance passes all 459 tests and `pip check`. An isolated Docker image
 passes two complete healthy lifecycles with `/login`, authentication, and the
 duplicate-group page returning HTTP 200, version 1.0.6, Schema 2, unchanged
 SQLite checksum, fixed non-root identity, read-only root, zero capabilities,

@@ -70,7 +70,10 @@ class MediaDeletionFailure:
 @dataclass(frozen=True)
 class MediaDuplicateCleanupResult:
     sha256: str
+    requested_keeper_path: str
     keeper_path: str
+    keeper_recovery_code: str | None
+    retained_anchor_path: str | None
     migrated_items: int
     migrated_creators: int
     deleted_paths: tuple[str, ...]
@@ -208,34 +211,57 @@ def _same_file_identity(
     )
 
 
-def _restore_references(
+def _move_references(
     db: Session,
-    preview: MediaDuplicateCleanupPreview,
-) -> None:
+    *,
+    source_paths: tuple[str, ...],
+    destination_path: str,
+) -> bool:
     try:
-        for removal in preview.removals:
-            for item in removal.item_references:
-                db.execute(
-                    update(Item)
-                    .where(
-                        Item.id == item.id,
-                        Item.cover_path == preview.keeper.media_path,
-                    )
-                    .values(cover_path=removal.entry.media_path)
-                )
-            for creator in removal.creator_references:
-                db.execute(
-                    update(Creator)
-                    .where(
-                        Creator.id == creator.id,
-                        Creator.avatar_path == preview.keeper.media_path,
-                    )
-                    .values(avatar_path=removal.entry.media_path)
-                )
+        if source_paths:
+            db.execute(
+                update(Item)
+                .where(Item.cover_path.in_(source_paths))
+                .values(cover_path=destination_path)
+            )
+            db.execute(
+                update(Creator)
+                .where(Creator.avatar_path.in_(source_paths))
+                .values(avatar_path=destination_path)
+            )
         db.commit()
-    except Exception as exc:
+    except Exception:
         db.rollback()
-        raise MediaDuplicateCleanupError("database_failed") from exc
+        return False
+    return True
+
+
+def _select_safe_destination(
+    anchor: local_media.ValidatedLocalMediaFile,
+    keeper: local_media.ValidatedLocalMediaFile,
+) -> tuple[local_media.ValidatedLocalMediaFile, str | None]:
+    try:
+        current_keeper = local_media.validate_local_media_file(
+            keeper.media_path,
+            expected_sha256=keeper.sha256,
+        )
+    except local_media.LocalMediaPathError:
+        current_keeper = None
+    if current_keeper is not None and _same_file_identity(keeper, current_keeper):
+        return current_keeper, None
+
+    try:
+        restored = local_media.publish_local_media_safety_anchor(
+            anchor,
+            keeper.media_path,
+        )
+    except local_media.LocalMediaSafetyAnchorError:
+        try:
+            recovery = local_media.publish_local_media_recovery(anchor)
+        except local_media.LocalMediaSafetyAnchorError:
+            return anchor, "retained"
+        return recovery, "relocated"
+    return restored, "restored"
 
 
 def execute_media_duplicate_cleanup(
@@ -270,35 +296,27 @@ def execute_media_duplicate_cleanup(
     except local_media.LocalMediaPathError as exc:
         raise MediaDuplicateCleanupError("stale_group") from exc
 
-    removal_paths = tuple(removal.entry.media_path for removal in preview.removals)
-    try:
-        db.execute(
-            update(Item)
-            .where(Item.cover_path.in_(removal_paths))
-            .values(cover_path=preview.keeper.media_path)
-        )
-        db.execute(
-            update(Creator)
-            .where(Creator.avatar_path.in_(removal_paths))
-            .values(avatar_path=preview.keeper.media_path)
-        )
-        db.commit()
-    except Exception as exc:
-        db.rollback()
-        raise MediaDuplicateCleanupError("database_failed") from exc
-
     keeper_record = validated_files[preview.keeper.media_path]
     try:
-        current_keeper = local_media.validate_local_media_file(
-            preview.keeper.media_path,
-            expected_sha256=preview.group.sha256,
-        )
-    except local_media.LocalMediaPathError as exc:
-        _restore_references(db, preview)
+        anchor = local_media.create_local_media_safety_anchor(keeper_record)
+    except (local_media.LocalMediaPathError, local_media.LocalMediaSafetyAnchorError) as exc:
         raise MediaDuplicateCleanupError("keeper_changed") from exc
-    if not _same_file_identity(keeper_record, current_keeper):
-        _restore_references(db, preview)
-        raise MediaDuplicateCleanupError("keeper_changed")
+
+    member_paths = preview.member_paths
+    try:
+        references_anchored = _move_references(
+            db,
+            source_paths=member_paths,
+            destination_path=anchor.media_path,
+        )
+        if not references_anchored:
+            raise MediaDuplicateCleanupError("database_failed")
+    except MediaDuplicateCleanupError:
+        try:
+            local_media.delete_local_media_safety_anchor(anchor)
+        except local_media.LocalMediaSafetyAnchorError as exc:
+            raise MediaDuplicateCleanupError("anchor_cleanup_failed") from exc
+        raise
 
     deleted_paths: list[str] = []
     deletion_failures: list[MediaDeletionFailure] = []
@@ -344,9 +362,62 @@ def execute_media_duplicate_cleanup(
             deleted_paths.append(media_path)
             released_bytes += removal.entry.size
 
+    final_keeper, keeper_recovery_code = _select_safe_destination(
+        anchor,
+        keeper_record,
+    )
+    retained_anchor_path: str | None = None
+    if final_keeper.media_path != anchor.media_path:
+        references_finalized = _move_references(
+            db,
+            source_paths=(anchor.media_path,),
+            destination_path=final_keeper.media_path,
+        )
+        if not references_finalized:
+            final_keeper = anchor
+            keeper_recovery_code = "retained"
+    if final_keeper.media_path == anchor.media_path:
+        retained_anchor_path = anchor.media_path
+    else:
+        final_destination_verified = False
+        try:
+            current_final_keeper = local_media.validate_local_media_file(
+                final_keeper.media_path,
+                expected_sha256=preview.group.sha256,
+            )
+        except local_media.LocalMediaPathError:
+            current_final_keeper = None
+        if current_final_keeper is None or not _same_file_identity(
+            final_keeper,
+            current_final_keeper,
+        ):
+            if _move_references(
+                db,
+                source_paths=(final_keeper.media_path,),
+                destination_path=anchor.media_path,
+            ):
+                final_keeper = anchor
+                keeper_recovery_code = "retained"
+                retained_anchor_path = anchor.media_path
+            else:
+                retained_anchor_path = anchor.media_path
+        else:
+            final_destination_verified = True
+        if (
+            final_keeper.media_path != anchor.media_path
+            and final_destination_verified
+        ):
+            try:
+                local_media.delete_local_media_safety_anchor(anchor)
+            except local_media.LocalMediaSafetyAnchorError:
+                retained_anchor_path = anchor.media_path
+
     return MediaDuplicateCleanupResult(
         sha256=preview.group.sha256,
-        keeper_path=preview.keeper.media_path,
+        requested_keeper_path=preview.keeper.media_path,
+        keeper_path=final_keeper.media_path,
+        keeper_recovery_code=keeper_recovery_code,
+        retained_anchor_path=retained_anchor_path,
         migrated_items=preview.item_reference_count,
         migrated_creators=preview.creator_reference_count,
         deleted_paths=tuple(deleted_paths),
