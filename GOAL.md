@@ -1,50 +1,46 @@
 # GOAL.md
 
-# 当前目标：Phase 3-A6 — 本地媒体完整性审计
+# 当前目标：v1.0.5 发布准备
 
 ## 目标
 
-在 `/data-health` 中增加只读媒体审计，发现断裂引用和异常媒体状态。
+整理并冻结 Phase 3-A1 至 A6，形成可发布的 v1.0.5 提交。
 
 ## 任务
 
-- 增加 media 健康分类、汇总和明细
-- 审计条目封面及创作者头像的本地 `/media/` 引用
-- 检测非法路径、路径越界、符号链接、文件缺失和文件损坏
-- 检测媒体根目录不可用及残留 `.upload-*.tmp`
-- 检测不同路径下 SHA-256 相同的重复内容
-- 对跳过的符号链接和不支持文件提供汇总告警
-- 正常未使用媒体不视为问题
-- 保持现有 200 条明细上限
-- 同步中英文、文档和测试
+- 应用版本从 1.0.4 更新为 1.0.5
+- 将 CHANGELOG 的 Unreleased 整理为 1.0.5（2026-07-13）
+- 新建空的 Unreleased 段
+- README 更新当前版本、状态和功能摘要
+- 同步 PLAN、TASKS、REVIEW、GOAL
+- 明确 v1.0.5 包含 A1 至 A6 及 A1/A2 修复
+- 运行完整测试、pip check 和 Docker 验收
 
 ## 边界
 
-- 本阶段只报告，不提供媒体修复操作
-- 不清除引用，不删除、移动或修改媒体
-- 不审计或请求外部 URL
-- 不修改 A3/A4/A5 逻辑
-- 不新增表，不修改 Schema 2、依赖或版本
+- 不新增功能
+- 不修改 Schema 2、迁移、依赖或 Docker 安全配置
+- 不修改旧 tag 或旧 Release
+- 本轮只提交并推送发布准备
+- 暂不创建 tag 和 GitHub Release
 - 不部署到 N100
 
 ## 完成标准
 
-- 被引用的缺失、损坏和不安全媒体可靠报告为问题
-- 临时残留、重复内容及扫描跳过项可靠报告为告警
-- 健康页 GET 零写入，异常目录不会导致 500
+- 所有版本与文档一致为 1.0.5
 - pytest、pip check、Docker 和 Actions 通过
-- 提交推送，不创建 Release
+- 工作区干净并推送到 main
+- 未创建 tag 或 Release
 
 ## 执行结果
 
-- [x] `/data-health` 增加 media 分类、完整计数和统一明细
-- [x] 条目封面与创作者头像覆盖非法值、路径越界、符号链接、缺失和损坏检查
-- [x] 媒体根异常安全报告；无引用且尚未初始化的缺失根目录保持正常空状态
-- [x] `.upload-*.tmp`、不同路径相同 SHA-256 内容和扫描跳过项作为 warning 报告
-- [x] 正常未使用媒体不算问题，所有分类继续共享 200 条明细限制
-- [x] GET 前后数据库引用与媒体文件字节不变，不跟随符号链接或请求外部 URL
-- [x] media 问题没有修复入口，伪造修复 POST 被服务端拒绝且零修改
-- [x] A3 / A4 / A5、Schema 2、迁移、依赖、版本、Docker 配置和 Release 均未修改
-- [x] 中文 / English、README / PLAN / TASKS / REVIEW / CHANGELOG 和专项测试同步
-- [x] 全量 `433 passed`、pip check 与隔离 Docker 双生命周期验收通过，临时资源已清理
-- [x] Actions test / Docker production smoke 通过并完成临时资源清理
+- [x] FastAPI 应用版本和对应回归断言统一更新为 1.0.5
+- [x] CHANGELOG 将完整 A1-A6 与两项修复冻结为 `[1.0.5] - 2026-07-13`
+- [x] CHANGELOG 顶部保留新的空 Unreleased 段
+- [x] README / PLAN / TASKS / REVIEW / GOAL 当前版本和发布状态同步
+- [x] 明确最新已发布版本仍为 v1.0.4，v1.0.5 tag / GitHub Release 本轮不创建
+- [x] 功能代码、Schema 2、迁移、依赖和 Docker 配置保持不变
+- [x] 全量 `433 passed`，pip check 无损坏依赖
+- [x] 隔离 Docker build、healthy、`/login` 200、版本 1.0.5、Schema 2 和重建验收通过并清理
+- [ ] 发布准备提交推送到 main，最终 Actions test / Docker production smoke 通过
+- [ ] 工作区与远端同步，未创建或移动 tag / GitHub Release

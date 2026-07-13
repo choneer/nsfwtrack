@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## [1.0.5] - 2026-07-13
+
 ### Fixed
 
 - Local media uploads now stage each image in a random same-directory temporary

@@ -2,14 +2,14 @@
 
 NSFWTrack is a local single-user content record manager / collection tracker.
 
-Current release: `v1.0.4 / non-root Docker runtime`.
+Current version: `v1.0.5 release candidate / Phase 3-A1 through A6`.
 
-Release: [NSFWTrack v1.0.4](https://github.com/choneer/nsfwtrack/releases/tag/v1.0.4).
+Latest published release: [NSFWTrack v1.0.4](https://github.com/choneer/nsfwtrack/releases/tag/v1.0.4).
 
-Current status: `stable v1.0.4 — code development and WSL acceptance complete`.
+Current status: `v1.0.5 release preparation on main; tag and GitHub Release not created`.
 
-Current development: `Phase 3-A6 local media integrity audit is complete on main and
-not yet released; application Schema remains 2`.
+Current development: `Phase 3-A1 through A6 are frozen for v1.0.5; application
+Schema remains 2`.
 
 N100 deployment: `not started; waits for explicit user authorization`.
 
@@ -21,9 +21,10 @@ management.
 
 Phase 2-K1 found no genuine TODO / FIXME marker, stub route, 501 response, or
 dead navigation entry. Phase 2-K2 closed the three pre-use findings and the
-current `v1.0.4` suite contains 358 passing tests.
+archived `v1.0.4` suite contains 358 passing tests.
 
-Code development and WSL acceptance through `v1.0.4` are complete. See
+The `v1.0.4` release remains the latest published tag. Code development and WSL
+acceptance through the `v1.0.5` release candidate are complete. See
 [COMPLETION_AUDIT.md](COMPLETION_AUDIT.md) for the archived K1 / K2 evidence.
 
 - Phase 2-K2 closed the local media-path, bulk / clear confirmation, deployment
@@ -31,10 +32,32 @@ Code development and WSL acceptance through `v1.0.4` are complete. See
 - N100 / target-host deployment has not started and is not a current development
   task. It must wait for explicit user authorization.
 
-Product feature development has explicitly reopened for the bounded Phase 3-A1
-through A6 scopes below. Any expansion beyond them still requires separate approval.
+The bounded Phase 3-A1 through A6 scope is now frozen in the `v1.0.5` release
+candidate. Any expansion beyond it still requires separate approval.
 
-## Unreleased: Phase 3-A6 Local Media Integrity Audit
+## v1.0.5 Release Candidate
+
+`v1.0.5` collects the complete local-only Phase 3-A line while preserving the
+fixed non-root Docker runtime and explicit Schema 2 migration boundary:
+
+- A1 stores user-provided source links and imports local text/bookmark files
+  without requesting any URL.
+- A2 adds the safe local media library and atomic, rollback-safe image uploads.
+- A3 adds explainable, manually confirmed cover/avatar filename matching.
+- A4 creates items from explicitly confirmed unmatched local images.
+- A5 adds local media search, filtering, sorting, and independent pagination.
+- A6 adds report-only media integrity checks to `/data-health`.
+- Source import now rejects ambiguous case-folded existing titles, and media
+  upload publication now uses same-directory temporary files, flush/fsync,
+  no-overwrite atomic publication, race revalidation, and batch rollback.
+
+This preparation changes only application version metadata, its regression
+assertion, and release documentation. The tag and GitHub Release are
+intentionally not created in this round.
+Local release-candidate acceptance passed all 433 tests, `pip check`, and an
+isolated two-lifecycle Docker smoke with version 1.0.5 and Schema 2.
+
+### Phase 3-A6 Local Media Integrity Audit
 
 The authenticated `/data-health` report now includes a read-only Media
 Integrity category for app-owned item-cover and creator-avatar files. It audits
@@ -64,7 +87,7 @@ version change, Release, or deployment. The A3 matching, A4 item-candidate, and
 A5 media-query services remain unchanged.
 The full local suite contains 433 passing tests after this phase.
 
-## Unreleased: Phase 3-A5 Media Library Search and Pagination
+### Phase 3-A5 Media Library Search and Pagination
 
 The media-file card list under `/media-library` now has an independent,
 read-only query layer for larger local libraries. The complete scan still feeds
@@ -94,7 +117,7 @@ change, migration, dependency, external request, AI/image recognition, media
 file operation, version change, Release, or deployment.
 The full local suite contains 424 passing tests after this phase.
 
-## Unreleased: Phase 3-A4 Create Items from Unmatched Media
+### Phase 3-A4 Create Items from Unmatched Media
 
 The local media library now offers a second read-only candidate flow for valid,
 unused images that have no existing A3 item-cover or creator-avatar match.
@@ -124,7 +147,7 @@ dependency, external request, AI/image recognition, version change, Release,
 or deployment.
 The full local suite contains 416 passing tests after this phase.
 
-## Unreleased: Phase 3-A3 Local Media Candidate Matching
+### Phase 3-A3 Local Media Candidate Matching
 
 `/media-library` now generates explainable item-cover and creator-avatar
 candidates from validated, unused local media filenames. Candidate generation
@@ -153,7 +176,7 @@ Phase 3-A3 adds no table, Schema change, migration, dependency, external network
 request, AI, image-recognition, recommendation, version change, or deployment.
 The full local suite contains 407 passing tests after this phase.
 
-## Unreleased: Phase 3-A2 Local Media Library
+### Phase 3-A2 Local Media Library
 
 `/media-library` scans app-owned images under `data/media`, shows whether each
 image is used by an item cover or creator avatar, and accepts one or multiple
@@ -181,7 +204,7 @@ external request, image recognition, recommendation, or AI capability.
 JSON/CSV backups preserve media path references but do not embed image bytes;
 back up the stopped `data` directory to preserve both SQLite and media files.
 
-## Unreleased: Phase 3-A1 Source Links and Local Bookmark Import
+### Phase 3-A1 Source Links and Local Bookmark Import
 
 Phase 3-A1 stores user-provided source URLs without requesting them. One item
 can have multiple sources, and each source stores the original URL, a globally

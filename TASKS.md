@@ -2,13 +2,26 @@
 
 按顺序执行，每完成一项打个 [x]。
 
-## 当前状态（v1.0.4 稳定）
+## 当前状态（v1.0.5 发布准备）
 
-当前稳定版本：`v1.0.4`。代码开发与 WSL 验收已完成。
-当前 main：Phase 3-A6 已完成、尚未发布，应用 Schema 仍为 `2`。
+最新已发布版本：`v1.0.4`。当前 main 应用版本已准备为 `1.0.5`。
+Phase 3-A1 至 A6 已冻结到 v1.0.5 候选，应用 Schema 仍为 `2`；
+本轮不创建 v1.0.5 tag 或 GitHub Release。
 N100 / 目标主机部署尚未开始，**不是当前开发任务**，必须等待用户明确授权。
 完整证据见 `COMPLETION_AUDIT.md`。历史任务保留在本文后半部分，
 不再作为新增开发路线。
+
+### v1.0.5 发布准备
+
+- [x] 应用版本元数据和发布回归断言从 1.0.4 更新为 1.0.5
+- [x] 将 A1 至 A6、来源同名歧义修复和媒体原子上传修复冻结为 `[1.0.5] - 2026-07-13`
+- [x] CHANGELOG 顶部保留新的空 Unreleased 段
+- [x] README / PLAN / TASKS / REVIEW / GOAL 当前版本和发布状态同步
+- [x] 明确最新已发布 tag 仍为 v1.0.4，v1.0.5 tag / GitHub Release 尚未创建
+- [x] 保持功能代码、Schema 2、真实 1 → 2 迁移、依赖和 Docker 配置不变
+- [x] 全量 `433 passed`、pip check 与隔离 Docker 双生命周期验收通过并清理
+- [ ] 发布准备提交推送到 main，最终 Actions test / Docker production smoke 通过
+- [ ] 确认未创建或移动任何 tag / GitHub Release
 
 ### Phase 3-A6 本地媒体完整性审计
 
