@@ -28,7 +28,7 @@ N100 / 目标主机部署尚未开始，**不是当前开发任务**，必须等
 - [x] 同步中文 / English、README / PLAN / TASKS / REVIEW / CHANGELOG / GOAL 与专项测试
 - [x] 全量 `435 passed`，`pip check` 无依赖冲突
 - [x] 隔离 Docker build / healthy / `/login` 连续三次 200 / down 通过并清理
-- [ ] 提交推送后 Actions test / Docker production smoke 通过
+- [x] 功能提交 `a0bc3a5` 已推送，Actions run `29227243480` 的 test / Docker production smoke 均通过
 - [x] 未改 Schema 2、迁移、依赖、版本、Docker、旧 tag / Release，未部署 N100
 
 ### v1.0.5 正式发布
