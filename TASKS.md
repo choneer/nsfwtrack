@@ -25,7 +25,7 @@ N100 / 目标主机部署尚未开始，**不是当前开发任务**，必须等
 - [x] 保留 B1 / B2 只读、无媒体操作、无引用迁移及 A3/A4 不变边界
 - [x] 未修改 Schema 2、迁移、依赖、Docker/CI 安全配置或旧 tag / Release
 - [x] 全量 `441 passed`、pip check 与隔离 Docker 双生命周期通过并清理
-- [ ] 发布准备提交推送 main，Actions test / Docker production smoke 通过
+- [x] 发布准备提交 `c8200da` 已推送 main，Actions run `29230348185` 的 test / Docker production smoke 均通过
 - [x] 未创建 `v1.0.6` tag 或 GitHub Release，未部署 N100
 
 ### Phase 3-B2 重复媒体组视图（已冻结至 v1.0.6 发布候选）

@@ -43,4 +43,5 @@
 - [x] 容器重建前后 SQLite 校验和不变，临时资源已清理
 - [x] 除版本元数据与对应断言外未修改功能代码；未改 Schema 2、迁移、依赖或 Docker/CI
 - [x] 旧 tag / Release 未移动，本地与远端均无 v1.0.6 tag
-- [ ] 发布准备提交推送、Actions 和最终工作区 / GitHub Release 不存在性验收
+- [x] 发布准备提交 `c8200da` 已推送，Actions run `29230348185` 的 test / Docker production smoke 均通过
+- [x] 验收记录提交前工作区与 origin/main 同步，GitHub 仍无 v1.0.6 tag / Release
