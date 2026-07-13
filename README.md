@@ -6,9 +6,9 @@ Current stable version: `v1.0.5 / Phase 3-A1 through A6`.
 
 Latest Release: [NSFWTrack v1.0.5](https://github.com/choneer/nsfwtrack/releases/tag/v1.0.5).
 
-Current status: `stable v1.0.5; local, Docker, and GitHub Actions acceptance complete`.
+Current status: `stable v1.0.5; Phase 3-B1 is complete on main and remains unreleased`.
 
-Current development: `Phase 3-A1 through A6 were released in v1.0.5;
+Current development: `Phase 3-B1 duplicate-media location is locally accepted;
 application Schema remains 2`.
 
 N100 deployment: `not started; waits for explicit user authorization`.
@@ -32,8 +32,9 @@ acceptance through Phase 3-A1 to A6 are complete. See
 - N100 / target-host deployment has not started and is not a current development
   task. It must wait for explicit user authorization.
 
-The bounded Phase 3-A1 through A6 scope shipped in `v1.0.5`. Any expansion
-beyond it still requires separate approval.
+The bounded Phase 3-A1 through A6 scope shipped in `v1.0.5`. Phase 3-B1 is the
+current unreleased main-branch development and stays within the same local-only
+media boundary.
 
 ## Features in v1.0.5
 
@@ -60,6 +61,34 @@ Actions test and Docker production smoke also passed.
 - Annotated tag object: `6a4def572e100198a446ad56353400138c573f66`
 - Peeled release commit: `3c4fee62891ff2826f0b8bc97b33bf3a4d08aa73`
 - Release: [NSFWTrack v1.0.5](https://github.com/choneer/nsfwtrack/releases/tag/v1.0.5)
+
+### Phase 3-B1 Duplicate Media Location
+
+The authenticated `/media-library` now turns the duplicate-content warnings
+introduced by A6 into a stable, read-only browsing workflow. It groups only
+validated files at different paths whose complete SHA-256 digests are equal.
+
+- The media summary reports duplicate group count, involved file count, and
+  the byte size potentially reclaimed by retaining one file from each group.
+- `media_status=duplicate` shows only members of valid duplicate groups.
+  Damaged files, empty or malformed digests, and hashes with only one path are
+  never marked as duplicates.
+- `media_q` keeps NFKC-normalized, case-insensitive filename and path matching
+  and additionally accepts a complete SHA-256 digest or any case-insensitive
+  prefix of it.
+- Every duplicate card shows its stable group size and all other media paths in
+  the same group. Existing filename/size sorting and 20-row pagination remain
+  deterministic.
+- `media_page`, `match_page`, `create_page`, search, status, and sort state are
+  retained across all three pagers and existing media-library forms.
+- The complete original scan still feeds the unchanged A3 cover/avatar matching
+  and A4 item-candidate logic. Browsing performs no database, reference, or
+  media-file write.
+
+Phase 3-B1 adds no table, Schema 2 change, migration, dependency, version
+change, Docker change, tag, Release, external request, AI/image recognition, or
+physical media operation. The full local suite contains 435 passing tests and
+`pip check` reports no broken requirements.
 
 ### Phase 3-A6 Local Media Integrity Audit
 

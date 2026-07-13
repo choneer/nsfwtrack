@@ -2,6 +2,28 @@
 
 ## Unreleased
 
+### Added
+
+- Added Phase 3-B1 stable duplicate-media groups based only on complete SHA-256
+  digests from validated files at different paths, with library-wide group,
+  involved-file, and potentially reclaimable-byte totals.
+- Added `media_status=duplicate`, case-insensitive SHA-256 prefix search, and
+  per-card duplicate group size plus stable other-media-path details.
+
+### Changed
+
+- Media filename/path search, deterministic filename/size sorting, 20-row
+  pagination, and canonical `media_page` / `match_page` / `create_page` state
+  preservation now include the duplicate-content view without changing A3/A4
+  candidate inputs or behavior.
+
+### Security
+
+- Duplicate browsing is authenticated and read-only. Damaged files, empty or
+  malformed hashes, and single-path content are excluded; GET performs no
+  database, reference, or media-file write and no external request, AI/image
+  recognition, or physical media operation.
+
 ## [1.0.5] - 2026-07-13
 
 ### Fixed

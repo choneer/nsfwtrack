@@ -1,45 +1,50 @@
 # GOAL.md
 
-# 当前目标：v1.0.5 发布后状态同步
+# 当前目标：Phase 3-B1 — 重复媒体定位
 
 ## 目标
 
-将仓库文档从 v1.0.5 发布候选状态更新为正式发布状态。
+让用户在媒体库中快速找到内容完全相同的本地图片。
 
 ## 任务
 
-- README 将当前稳定版和最新 Release 更新为 v1.0.5
-- 将 Phase 3-A1 至 A6 标记为已随 v1.0.5 发布
-- 同步 PLAN、TASKS、REVIEW、GOAL
-- 记录 annotated tag、目标提交和 Release 地址
-- 保留 CHANGELOG 顶部空 Unreleased
-- 检查仓库中残留的“v1.0.5 尚未发布”描述
+- 按有效媒体的完整 SHA-256 构建重复内容分组
+- 增加重复组数、涉及文件数和可节省空间统计
+- 媒体状态筛选新增“重复内容”
+- 文件名、路径搜索继续保留，并支持 SHA-256 或其前缀搜索
+- 重复媒体卡片显示组内数量和其他路径
+- 分组和列表结果保持稳定排序
+- 保留现有媒体分页及 A3/A4 页码状态
+- 同步中英文、文档和测试
 
 ## 边界
 
-- 仅修改文档，不修改应用代码或测试
-- 不修改版本号、Schema 2、迁移、依赖或 Docker 配置
-- 不移动、删除或重新创建 v1.0.5 tag
-- 不编辑或重新发布 GitHub Release
+- 只读展示，不删除、移动、重命名或覆盖文件
+- 不自动清除或迁移封面、头像引用
+- 不修改 A3/A4 候选逻辑
+- 不请求外部网络，不使用 AI 或图像识别
+- 不新增表，不修改 Schema 2、迁移、依赖或版本
 - 不部署到 N100
 
 ## 完成标准
 
-- 文档一致显示 v1.0.5 已正式发布
-- v1.0.5 tag 仍指向 3c4fee62891ff2826f0b8bc97b33bf3a4d08aa73
-- main 仅新增发布后文档提交
-- Actions 通过，工作区干净
+- 只有不同路径下的有效同哈希媒体被认定为重复
+- 损坏文件和空 SHA 不进入重复组
+- 搜索、筛选、排序和分页稳定
+- GET 零写入，媒体字节及引用不变
+- pytest、pip check、Docker 和 Actions 通过
+- 提交推送，不创建 tag 或 Release
 
-## 执行结果
+## 本地验收结果
 
-- [x] README 当前稳定版和最新 Release 均更新为 v1.0.5
-- [x] README / PLAN / TASKS 将 Phase 3-A1 至 A6 标记为已随 v1.0.5 发布
-- [x] PLAN / TASKS / REVIEW / GOAL 发布后状态同步
-- [x] 记录 annotated tag object `6a4def572e100198a446ad56353400138c573f66`
-- [x] 记录 peeled commit `3c4fee62891ff2826f0b8bc97b33bf3a4d08aa73`
-- [x] 记录正式 Release `https://github.com/choneer/nsfwtrack/releases/tag/v1.0.5`
-- [x] CHANGELOG 保持空 Unreleased，未重写 v1.0.5 发布段
-- [x] 清理 v1.0.5 候选、尚未创建 tag / Release 等过时当前状态
-- [x] 仅修改 README / PLAN / TASKS / REVIEW / GOAL，未修改代码、测试或配置
-- [x] 发布后状态提交 `cce9bcd` 推送到 main，Actions test / Docker smoke 通过
-- [x] tag object / peeled commit 保持不变，Release 字段与正文哈希未修改
+- [x] 完整合法 SHA-256、不同路径与稳定分组边界已实现
+- [x] 重复组数、涉及文件数和可节省字节数已展示
+- [x] `media_status=duplicate`、SHA-256 前缀搜索和同组其他路径已实现
+- [x] 损坏、空 / 非法 SHA、单独文件和相同路径重复记录均不进入重复组
+- [x] `media_page`、`match_page`、`create_page` 与全部筛选状态继续保留
+- [x] GET 前后数据库、引用、媒体字节及 A3/A4 候选保持不变
+- [x] 中文 / English、README / PLAN / TASKS / REVIEW / CHANGELOG 和测试已同步
+- [x] 全量测试 `435 passed in 76.24s`，`pip check` 通过
+- [x] 隔离 Docker build、healthy、Schema 2、`/login` 连续三次 200 和清理通过
+- [ ] 提交推送与 GitHub Actions 最终验收
+- [x] 未修改 Schema 2、迁移、依赖、版本、Docker、旧 tag / Release，未部署 N100

@@ -396,6 +396,7 @@ def media_library_page(
             ),
             media_rows=media_result.rows,
             media_filters=media_result.filters,
+            media_duplicate_summary=media_result.duplicate_summary,
             media_status_options=MEDIA_STATUS_OPTIONS,
             media_sort_options=MEDIA_SORT_OPTIONS,
             media_pagination=_page_context(

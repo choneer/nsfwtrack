@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import html
 import re
 from pathlib import Path
@@ -25,12 +26,15 @@ def _entry(
     *,
     size: int,
     available: bool = True,
+    sha256: str | None = None,
 ) -> LocalMediaEntry:
+    if sha256 is None:
+        sha256 = hashlib.sha256(filename.encode()).hexdigest() if available else ""
     return LocalMediaEntry(
         media_path=f"/media/{filename}",
         filename=filename,
         size=size,
-        sha256="c" * 64 if available else "",
+        sha256=sha256,
         mime_type="image/png" if available else "",
         available=available,
         detail="" if available else "invalid_image",
@@ -144,6 +148,52 @@ def test_query_supports_available_damaged_used_and_unused_filters() -> None:
     assert names("unused") == ["available-unused.png", "damaged-unused.png"]
 
 
+def test_query_builds_stable_duplicate_groups_and_supports_sha_prefix_search() -> None:
+    duplicate_digest = "a" * 64
+    scan = _scan(
+        _entry("copies/Zulu.png", size=12, sha256=duplicate_digest),
+        _entry("copies/alpha.png", size=12, sha256=duplicate_digest.upper()),
+        _entry("single.png", size=7, sha256="b" * 64),
+        _entry("empty.png", size=9, sha256=""),
+        _entry("short.png", size=9, sha256="c" * 63),
+        _entry("damaged.png", size=0, available=False, sha256=duplicate_digest),
+        _entry("same-path.png", size=5, sha256="d" * 64),
+        _entry("same-path.png", size=5, sha256="d" * 64),
+    )
+
+    duplicate = query_media_library(
+        scan,
+        set(),
+        q=None,
+        status="duplicate",
+        sort="filename_asc",
+        page=1,
+    )
+    prefix = query_media_library(
+        scan,
+        set(),
+        q="A" * 16,
+        status="all",
+        sort="filename_desc",
+        page=1,
+    )
+
+    assert duplicate.duplicate_summary.group_count == 1
+    assert duplicate.duplicate_summary.file_count == 2
+    assert duplicate.duplicate_summary.reclaimable_bytes == 12
+    assert [row.entry.filename for row in duplicate.rows] == [
+        "copies/alpha.png",
+        "copies/Zulu.png",
+    ]
+    assert duplicate.rows[0].duplicate_count == 2
+    assert duplicate.rows[0].duplicate_paths == ("/media/copies/Zulu.png",)
+    assert duplicate.rows[1].duplicate_paths == ("/media/copies/alpha.png",)
+    assert [row.entry.filename for row in prefix.rows] == [
+        "copies/Zulu.png",
+        "copies/alpha.png",
+    ]
+
+
 def test_query_supports_stable_filename_and_size_sorting() -> None:
     scan = _scan(
         _entry("bravo.png", size=20),
@@ -241,11 +291,80 @@ def test_page_search_status_sort_and_empty_result_are_bilingual(
     assert "当前搜索和筛选条件没有匹配" in empty_page.text
     assert "媒体文件浏览" in used_page.text
     assert "Browse Media Files" in english.text
-    assert "Filename / Path Search" in english.text
+    assert "Filename / Path / SHA-256 Search" in english.text
     assert "Damaged or Unavailable" in english.text
+    assert "Duplicate Content" in english.text
     assert used.read_bytes() == _gif_bytes(20)
     assert unused.read_bytes() == _gif_bytes(5)
     assert damaged.read_bytes() == b"not-an-image"
+
+
+def test_duplicate_page_reports_summary_paths_and_remains_read_only(
+    auth_client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    media_root = tmp_path / "media"
+    first = _write_gif(media_root, "Copies/First.gif", extra=12)
+    second = _write_gif(media_root, "Copies/Second.gif", extra=12)
+    unique = _write_gif(media_root, "Unique.gif", extra=3)
+    damaged = media_root / "Copies" / "Damaged.gif"
+    damaged.write_bytes(_gif_bytes(12)[:-1])
+    monkeypatch.setattr(local_media, "LOCAL_MEDIA_ROOT", media_root)
+    with SessionLocal() as db:
+        db.add(Item(title="Referenced", cover_path="/media/Copies/First.gif"))
+        db.commit()
+        before_items = [(item.id, item.title, item.cover_path) for item in db.query(Item)]
+        before_matches = [
+            candidate.candidate_id
+            for candidate in build_local_media_matches(db).candidates
+        ]
+        before_creates = [
+            candidate.candidate_id
+            for candidate in build_media_item_candidates(db).candidates
+        ]
+    before_files = {
+        path: path.read_bytes()
+        for path in (first, second, unique, damaged)
+    }
+    digest_prefix = hashlib.sha256(first.read_bytes()).hexdigest()[:20].upper()
+
+    response = auth_client.get(
+        "/media-library",
+        params={
+            "match_page": "2",
+            "create_page": "3",
+            "media_page": "1",
+            "media_q": digest_prefix,
+            "media_status": "duplicate",
+            "media_sort": "filename_desc",
+        },
+    )
+    assert response.status_code == 200
+    assert _media_paths(response.text) == [
+        "/media/Copies/Second.gif",
+        "/media/Copies/First.gif",
+    ]
+    assert 'data-media-duplicate-groups>1</strong>' in response.text
+    assert 'data-media-duplicate-files>2</strong>' in response.text
+    assert f'data-media-reclaimable-bytes>{len(first.read_bytes())} B</strong>' in response.text
+    assert response.text.count('data-media-duplicate-count="2"') == 2
+    assert 'data-media-duplicate-path="/media/Copies/First.gif"' in response.text
+    assert 'data-media-duplicate-path="/media/Copies/Second.gif"' in response.text
+    assert f'name="media_q" value="{digest_prefix}"' in response.text
+    assert '<option value="duplicate" selected>' in response.text
+    assert '<option value="filename_desc" selected>' in response.text
+    with SessionLocal() as db:
+        assert [(item.id, item.title, item.cover_path) for item in db.query(Item)] == before_items
+        assert [
+            candidate.candidate_id
+            for candidate in build_local_media_matches(db).candidates
+        ] == before_matches
+        assert [
+            candidate.candidate_id
+            for candidate in build_media_item_candidates(db).candidates
+        ] == before_creates
+    assert {path: path.read_bytes() for path in before_files} == before_files
 
 
 def test_all_three_pagers_preserve_each_other_and_media_filters(
@@ -258,6 +377,7 @@ def test_all_three_pagers_preserve_each_other_and_media_filters(
         matched_name = f"Asset Match {index:02d}"
         _write_gif(media_root, f"{matched_name}.gif", extra=index)
         _write_gif(media_root, f"Asset Create {index:02d}.cover.gif", extra=index + 30)
+        _write_gif(media_root, f"Asset Duplicate {index:02d}.gif", extra=99)
     monkeypatch.setattr(local_media, "LOCAL_MEDIA_ROOT", media_root)
     with SessionLocal() as db:
         db.add_all([Item(title=f"Asset Match {index:02d}") for index in range(21)])
@@ -270,14 +390,14 @@ def test_all_three_pagers_preserve_each_other_and_media_filters(
             "match_page": "2",
             "create_page": "2",
             "media_q": "Asset",
-            "media_status": "unused",
+            "media_status": "duplicate",
             "media_sort": "filename_desc",
         },
     )
     queries = _media_library_link_queries(page.text)
     expected_filters = {
         "media_q": ["Asset"],
-        "media_status": ["unused"],
+        "media_status": ["duplicate"],
         "media_sort": ["filename_desc"],
     }
 

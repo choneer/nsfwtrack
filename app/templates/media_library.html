@@ -324,6 +324,9 @@
   <div class="metric-grid compact-metrics">
     <div class="metric"><strong>{{ scan.entries|length }}</strong><span>{{ t("media.scanned") }}</span></div>
     <div class="metric"><strong>{{ media_pagination.total }}</strong><span>{{ t("media.list_results") }}</span></div>
+    <div class="metric"><strong data-media-duplicate-groups>{{ media_duplicate_summary.group_count }}</strong><span>{{ t("media.duplicate_groups") }}</span></div>
+    <div class="metric"><strong data-media-duplicate-files>{{ media_duplicate_summary.file_count }}</strong><span>{{ t("media.duplicate_files") }}</span></div>
+    <div class="metric"><strong data-media-reclaimable-bytes>{{ media_duplicate_summary.reclaimable_bytes }} B</strong><span>{{ t("media.duplicate_reclaimable") }}</span></div>
     <div class="metric"><strong>{{ scan.invalid }}</strong><span>{{ t("media.invalid") }}</span></div>
     <div class="metric"><strong>{{ scan.skipped_symlinks }}</strong><span>{{ t("media.symlinks_skipped") }}</span></div>
     <div class="metric"><strong>{{ scan.skipped_unsupported }}</strong><span>{{ t("media.unsupported_skipped") }}</span></div>
@@ -344,6 +347,15 @@
       <strong>{{ entry.filename }}</strong>
       <small class="muted">{{ entry.mime_type or t("media.unavailable") }} · {{ entry.size }} B</small>
       {% if entry.sha256 %}<code>{{ entry.sha256 }}</code>{% endif %}
+      {% if row.duplicate_count > 1 %}
+        <div class="stack" data-media-duplicate-count="{{ row.duplicate_count }}">
+          <strong>{{ t("media.duplicate_group_size", count=row.duplicate_count) }}</strong>
+          <span class="muted">{{ t("media.duplicate_other_paths") }}</span>
+          <ul>
+            {% for path in row.duplicate_paths %}<li data-media-duplicate-path="{{ path }}"><code>{{ path }}</code></li>{% endfor %}
+          </ul>
+        </div>
+      {% endif %}
       <div>
         <strong>{{ t("media.references") }}</strong>
         {% set item_refs = item_references.get(entry.media_path, []) %}

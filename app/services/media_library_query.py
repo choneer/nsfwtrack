@@ -10,7 +10,14 @@ from app.services.pagination import PageInfo, build_page_info
 
 MEDIA_LIST_PAGE_SIZE = 20
 MAX_MEDIA_SEARCH_LENGTH = 200
-MEDIA_STATUS_OPTIONS = ("all", "available", "damaged", "used", "unused")
+MEDIA_STATUS_OPTIONS = (
+    "all",
+    "available",
+    "damaged",
+    "used",
+    "unused",
+    "duplicate",
+)
 MEDIA_SORT_OPTIONS = (
     "filename_asc",
     "filename_desc",
@@ -20,7 +27,14 @@ MEDIA_SORT_OPTIONS = (
 DEFAULT_MEDIA_STATUS = "all"
 DEFAULT_MEDIA_SORT = "filename_asc"
 
-MediaStatus = Literal["all", "available", "damaged", "used", "unused"]
+MediaStatus = Literal[
+    "all",
+    "available",
+    "damaged",
+    "used",
+    "unused",
+    "duplicate",
+]
 MediaSort = Literal["filename_asc", "filename_desc", "size_asc", "size_desc"]
 
 
@@ -39,6 +53,26 @@ class MediaListFilters:
 class MediaListRow:
     entry: LocalMediaEntry
     used: bool
+    duplicate_group: tuple[LocalMediaEntry, ...]
+
+    @property
+    def duplicate_count(self) -> int:
+        return len(self.duplicate_group) if self.duplicate_group else 1
+
+    @property
+    def duplicate_paths(self) -> tuple[str, ...]:
+        return tuple(
+            member.media_path
+            for member in self.duplicate_group
+            if member.media_path != self.entry.media_path
+        )
+
+
+@dataclass(frozen=True)
+class MediaDuplicateSummary:
+    group_count: int
+    file_count: int
+    reclaimable_bytes: int
 
 
 @dataclass(frozen=True)
@@ -46,6 +80,7 @@ class MediaListResult:
     rows: tuple[MediaListRow, ...]
     filters: MediaListFilters
     page_info: PageInfo
+    duplicate_summary: MediaDuplicateSummary
 
 
 def _normalize_search(value: str | None) -> str:
@@ -74,7 +109,63 @@ def _search_key(value: str) -> str:
     return unicodedata.normalize("NFKC", value).casefold()
 
 
-def _matches_status(entry: LocalMediaEntry, *, used: bool, status: MediaStatus) -> bool:
+def _canonical_sha256(entry: LocalMediaEntry) -> str | None:
+    digest = entry.sha256.casefold()
+    if (
+        not entry.available
+        or len(digest) != 64
+        or any(character not in "0123456789abcdef" for character in digest)
+    ):
+        return None
+    return digest
+
+
+def _build_duplicate_index(
+    scan: LocalMediaScan,
+) -> tuple[dict[str, tuple[LocalMediaEntry, ...]], MediaDuplicateSummary]:
+    entries_by_digest: dict[str, dict[str, LocalMediaEntry]] = {}
+    for entry in scan.entries:
+        digest = _canonical_sha256(entry)
+        if digest is None:
+            continue
+        entries_by_digest.setdefault(digest, {})[entry.media_path] = entry
+
+    duplicate_groups: list[tuple[LocalMediaEntry, ...]] = []
+    for digest in sorted(entries_by_digest):
+        entries = entries_by_digest[digest]
+        if len(entries) < 2:
+            continue
+        duplicate_groups.append(
+            tuple(
+                sorted(
+                    entries.values(),
+                    key=lambda entry: (_search_key(entry.media_path), entry.media_path),
+                )
+            )
+        )
+
+    index = {
+        entry.media_path: group
+        for group in duplicate_groups
+        for entry in group
+    }
+    return index, MediaDuplicateSummary(
+        group_count=len(duplicate_groups),
+        file_count=sum(len(group) for group in duplicate_groups),
+        reclaimable_bytes=sum(
+            sum(entry.size for entry in group[1:])
+            for group in duplicate_groups
+        ),
+    )
+
+
+def _matches_status(
+    entry: LocalMediaEntry,
+    *,
+    used: bool,
+    duplicate: bool,
+    status: MediaStatus,
+) -> bool:
     if status == "available":
         return entry.available
     if status == "damaged":
@@ -83,6 +174,8 @@ def _matches_status(entry: LocalMediaEntry, *, used: bool, status: MediaStatus) 
         return used
     if status == "unused":
         return not used
+    if status == "duplicate":
+        return duplicate
     return True
 
 
@@ -124,20 +217,31 @@ def query_media_library(
     filters = normalize_media_list_filters(q=q, status=status, sort=sort)
     search_key = _search_key(filters.q)
     used = set(used_paths)
-    rows = [
-        MediaListRow(entry=entry, used=entry.media_path in used)
-        for entry in scan.entries
-        if (
-            not search_key
-            or search_key in _search_key(entry.filename)
+    duplicate_index, duplicate_summary = _build_duplicate_index(scan)
+    rows: list[MediaListRow] = []
+    for entry in scan.entries:
+        digest = _canonical_sha256(entry)
+        duplicate_group = duplicate_index.get(entry.media_path)
+        if search_key and not (
+            search_key in _search_key(entry.filename)
             or search_key in _search_key(entry.media_path)
-        )
-        and _matches_status(
+            or (digest is not None and digest.startswith(search_key))
+        ):
+            continue
+        if not _matches_status(
             entry,
             used=entry.media_path in used,
+            duplicate=duplicate_group is not None,
             status=filters.status,
+        ):
+            continue
+        rows.append(
+            MediaListRow(
+                entry=entry,
+                used=entry.media_path in used,
+                duplicate_group=duplicate_group or (),
+            )
         )
-    ]
     _sort_rows(rows, filters.sort)
     page_info = build_page_info(
         page=page,
@@ -150,6 +254,7 @@ def query_media_library(
         rows=tuple(rows[start:end]),
         filters=filters,
         page_info=page_info,
+        duplicate_summary=duplicate_summary,
     )
 
 

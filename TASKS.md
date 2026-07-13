@@ -5,7 +5,7 @@
 ## 当前状态（v1.0.5 稳定）
 
 当前稳定版与最新 Release：`v1.0.5`。Phase 3-A1 至 A6 已正式发布，
-应用 Schema 仍为 `2`。
+Phase 3-B1 已在 main 完成且尚未发布，应用 Schema 仍为 `2`。
 
 - Annotated tag object：`6a4def572e100198a446ad56353400138c573f66`
 - Peeled commit：`3c4fee62891ff2826f0b8bc97b33bf3a4d08aa73`
@@ -14,6 +14,22 @@
 N100 / 目标主机部署尚未开始，**不是当前开发任务**，必须等待用户明确授权。
 完整证据见 `COMPLETION_AUDIT.md`。历史任务保留在本文后半部分，
 不再作为新增开发路线。
+
+### Phase 3-B1 重复媒体定位（已完成，尚未发布）
+
+- [x] 仅按可用媒体的完整合法 SHA-256 建立稳定重复组，并要求至少两个不同路径
+- [x] 汇总重复组数、涉及文件数和每组保留一份时可节省空间
+- [x] 新增 `media_status=duplicate`，只显示真实重复组成员
+- [x] `media_q` 同时支持文件名、路径、完整 SHA-256 和大小写无关的 SHA 前缀
+- [x] 重复卡片显示组内数量和稳定排序的其他媒体路径
+- [x] 损坏文件、空 / 非法 SHA 和单独文件不标记为重复
+- [x] 保留四种排序、20 条分页、三套页码、筛选及既有表单返回状态
+- [x] GET 前后数据库、引用和媒体字节不变，A3/A4 候选 ID 保持一致
+- [x] 同步中文 / English、README / PLAN / TASKS / REVIEW / CHANGELOG / GOAL 与专项测试
+- [x] 全量 `435 passed`，`pip check` 无依赖冲突
+- [x] 隔离 Docker build / healthy / `/login` 连续三次 200 / down 通过并清理
+- [ ] 提交推送后 Actions test / Docker production smoke 通过
+- [x] 未改 Schema 2、迁移、依赖、版本、Docker、旧 tag / Release，未部署 N100
 
 ### v1.0.5 正式发布
 
