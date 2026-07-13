@@ -15,6 +15,7 @@
     <p class="muted">{{ t("media.description") }}</p>
   </div>
   <div class="actions">
+    <a class="button secondary" href="/media-library/recovery">{{ t("media.open_recovery_center") }}</a>
     <a class="button secondary" href="/media-library/duplicates">{{ t("media.open_duplicate_groups") }}</a>
   </div>
 </div>
@@ -347,6 +348,7 @@
           {{ t("media.invalid_image") }}
         {% endif %}
       </div>
+      {% if entry.is_recovered %}<span class="pill" data-media-recovered>{{ t("media.recovered_badge") }}</span>{% endif %}
       <strong>{{ entry.filename }}</strong>
       <small class="muted">{{ entry.mime_type or t("media.unavailable") }} · {{ entry.size }} B</small>
       {% if entry.sha256 %}<code>{{ entry.sha256 }}</code>{% endif %}

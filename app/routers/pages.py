@@ -136,6 +136,12 @@ from app.services.media_duplicate_cleanup import (
     build_media_duplicate_cleanup_preview,
     execute_media_duplicate_cleanup,
 )
+from app.services.media_cleanup_recovery import (
+    MEDIA_RECOVERY_SORT_OPTIONS,
+    MEDIA_RECOVERY_STATUS_OPTIONS,
+    media_recovery_filter_query_params,
+    query_media_cleanup_recovery,
+)
 from app.services.media_library_query import (
     MEDIA_SORT_OPTIONS,
     MEDIA_STATUS_OPTIONS,
@@ -421,6 +427,53 @@ def media_library_page(
             ),
             max_media_upload_mb=MAX_MEDIA_UPLOAD_BYTES // (1024 * 1024),
             max_media_upload_files=MAX_MEDIA_UPLOAD_FILES,
+            error_key=error_key,
+        ),
+    )
+
+
+@router.get(
+    "/media-library/recovery",
+    response_class=HTMLResponse,
+    dependencies=[Depends(require_page_auth)],
+)
+def media_cleanup_recovery_page(
+    request: Request,
+    recovery_page: str | None = Query(default=None),
+    recovery_q: str | None = Query(default=None),
+    recovery_status: str | None = Query(default=None),
+    recovery_sort: str | None = Query(default=None),
+    db: Session = Depends(get_db),
+) -> HTMLResponse:
+    error_key = None
+    try:
+        scan = scan_local_media(include_cleanup_anchors=True)
+    except LocalMediaPathError:
+        scan = LocalMediaScan((), 0, 0, 0)
+        error_key = "media.error_storage_unavailable"
+    result = query_media_cleanup_recovery(
+        db,
+        scan,
+        q=recovery_q,
+        status=recovery_status,
+        sort=recovery_sort,
+        page=recovery_page,
+    )
+    return templates.TemplateResponse(
+        request,
+        "media_cleanup_recovery.html",
+        _base_context(
+            request,
+            db=db,
+            recovery_result=result,
+            recovery_status_options=MEDIA_RECOVERY_STATUS_OPTIONS,
+            recovery_sort_options=MEDIA_RECOVERY_SORT_OPTIONS,
+            recovery_pagination=_page_context(
+                result.page_info,
+                "/media-library/recovery",
+                page_param="recovery_page",
+                params=media_recovery_filter_query_params(result.filters),
+            ),
             error_key=error_key,
         ),
     )

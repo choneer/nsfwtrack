@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+{% from "_pagination.html" import pagination_nav %}
+{% block title %}{{ t("media_recovery.title") }} - NSFWTrack{% endblock %}
+{% block content %}
+<div class="toolbar">
+  <div>
+    <p class="muted">{{ t("media_recovery.local_only") }}</p>
+    <h1>{{ t("media_recovery.title") }}</h1>
+    <p class="muted">{{ t("media_recovery.description") }}</p>
+  </div>
+  <div class="actions">
+    <a class="button secondary" href="/media-library">{{ t("media_recovery.back_to_library") }}</a>
+    <a class="button secondary" href="/data-health">{{ t("media_recovery.open_data_health") }}</a>
+  </div>
+</div>
+
+{% if error_key %}<div class="flash error">{{ t(error_key) }}</div>{% endif %}
+
+<section class="notice">
+  <strong>{{ t("media_recovery.readonly_title") }}</strong>
+  <p>{{ t("media_recovery.readonly_detail") }}</p>
+  <p>{{ t("media_recovery.anchor_isolation_detail") }}</p>
+  <p>{{ t("media_recovery.recovered_detail") }}</p>
+</section>
+
+<section class="stats-section">
+  <div class="metric-grid compact-metrics">
+    <div class="metric"><strong data-recovery-anchor-count>{{ recovery_result.anchor_count }}</strong><span>{{ t("media_recovery.anchor_count") }}</span></div>
+    <div class="metric"><strong data-recovery-referenced-count>{{ recovery_result.referenced_anchor_count }}</strong><span>{{ t("media_recovery.referenced_anchor_count") }}</span></div>
+    <div class="metric"><strong data-recovery-unreferenced-count>{{ recovery_result.unreferenced_anchor_count }}</strong><span>{{ t("media_recovery.unreferenced_anchor_count") }}</span></div>
+    <div class="metric"><strong data-recovery-damaged-count>{{ recovery_result.damaged_anchor_count }}</strong><span>{{ t("media_recovery.damaged_anchor_count") }}</span></div>
+    <div class="metric"><strong data-recovery-file-count>{{ recovery_result.recovered_count }}</strong><span>{{ t("media_recovery.recovered_count") }}</span></div>
+    <div class="metric"><strong data-recovery-result-count>{{ recovery_pagination.total }}</strong><span>{{ t("media_recovery.result_count") }}</span></div>
+  </div>
+</section>
+
+<section class="card stack">
+  <form action="/media-library/recovery" method="get" class="form-grid">
+    <input type="hidden" name="recovery_page" value="1">
+    <label>{{ t("media_recovery.search") }}
+      <input
+        type="search"
+        name="recovery_q"
+        value="{{ recovery_result.filters.q }}"
+        maxlength="200"
+        placeholder="{{ t('media_recovery.search_placeholder') }}"
+      >
+    </label>
+    <label>{{ t("media_recovery.status") }}
+      <select name="recovery_status">
+        {% for option in recovery_status_options %}
+          <option value="{{ option }}"{% if recovery_result.filters.status == option %} selected{% endif %}>{{ t("media_recovery.status_" ~ option) }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>{{ t("media_recovery.sort") }}
+      <select name="recovery_sort">
+        {% for option in recovery_sort_options %}
+          <option value="{{ option }}"{% if recovery_result.filters.sort == option %} selected{% endif %}>{{ t("media_recovery.sort_" ~ option) }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <div class="filter-actions">
+      <button type="submit">{{ t("media_recovery.apply") }}</button>
+      <a class="button secondary" href="/media-library/recovery">{{ t("media_recovery.clear") }}</a>
+    </div>
+  </form>
+  <div class="filter-summary">
+    {% if recovery_result.filters.q %}<span class="pill">{{ t("media_recovery.search") }}: {{ recovery_result.filters.q }}</span>{% endif %}
+    <span class="pill">{{ t("media_recovery.status") }}: {{ t("media_recovery.status_" ~ recovery_result.filters.status) }}</span>
+    <span class="pill">{{ t("media_recovery.sort") }}: {{ t("media_recovery.sort_" ~ recovery_result.filters.sort) }}</span>
+  </div>
+</section>
+
+<div class="item-grid stats-section" data-recovery-center>
+  {% for row in recovery_result.rows %}
+    <article
+      class="card stack"
+      data-recovery-path="{{ row.entry.media_path }}"
+      data-recovery-status="{{ row.status }}"
+      data-recovery-kind="{{ 'anchor' if row.entry.is_cleanup_anchor else 'recovered' }}"
+    >
+      <div class="toolbar">
+        <span class="pill">{{ t("media_recovery.status_" ~ row.status) }}</span>
+        <span class="pill">{{ t("media_recovery.valid" if row.entry.available else "media_recovery.invalid") }}</span>
+      </div>
+      {% if row.entry.available %}
+        <div class="cover"><img src="{{ row.entry.media_path }}" alt=""></div>
+      {% endif %}
+      <div>
+        <strong>{{ t("media_recovery.path") }}</strong>
+        <p><code>{{ row.entry.media_path }}</code></p>
+      </div>
+      <small class="muted">{{ row.entry.size }} B{% if row.entry.mime_type %} · {{ row.entry.mime_type }}{% endif %}</small>
+      <div>
+        <strong>{{ t("media_recovery.sha256") }}</strong>
+        {% if row.entry.sha256 %}<p><code>{{ row.entry.sha256 }}</code></p>{% else %}<p class="muted">{{ t("media_recovery.sha_unavailable") }}</p>{% endif %}
+      </div>
+      <div>
+        <strong>{{ t("media_recovery.references", count=row.reference_count) }}</strong>
+        {% if row.item_references or row.creator_references %}
+          <ul>
+            {% for item in row.item_references %}<li><a href="/items/{{ item.id }}">{{ t("media.item_cover_reference", title=item.title) }}</a></li>{% endfor %}
+            {% for creator in row.creator_references %}<li><a href="/creators/{{ creator.id }}">{{ t("media.creator_avatar_reference", name=creator.name) }}</a></li>{% endfor %}
+          </ul>
+        {% else %}
+          <p class="muted">{{ t("media_recovery.no_references") }}</p>
+        {% endif %}
+      </div>
+    </article>
+  {% else %}
+    <section class="card empty-state">
+      <h2>{{ t("media_recovery.empty_title") }}</h2>
+      <p class="muted">{{ t("media_recovery.empty_detail") }}</p>
+    </section>
+  {% endfor %}
+</div>
+{{ pagination_nav(t, recovery_pagination) }}
+{% endblock %}

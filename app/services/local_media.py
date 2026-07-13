@@ -70,6 +70,8 @@ class LocalMediaEntry:
     mime_type: str
     available: bool
     detail: str = ""
+    is_cleanup_anchor: bool = False
+    is_recovered: bool = False
 
 
 @dataclass(frozen=True)
@@ -625,7 +627,23 @@ def delete_local_media_safety_anchor(
         raise LocalMediaSafetyAnchorError(exc.code) from exc
 
 
-def _iter_media_files() -> tuple[list[Path], int, int]:
+def _has_exact_media_prefix(value: str, prefix: str) -> bool:
+    name = PurePosixPath(value).name
+    return name.startswith(prefix) and len(name) > len(prefix)
+
+
+def is_cleanup_anchor_filename(value: str) -> bool:
+    return _has_exact_media_prefix(value, LOCAL_MEDIA_CLEANUP_ANCHOR_PREFIX)
+
+
+def is_recovered_media_filename(value: str) -> bool:
+    return _has_exact_media_prefix(value, LOCAL_MEDIA_RECOVERY_PREFIX)
+
+
+def _iter_media_files(
+    *,
+    include_cleanup_anchors: bool = False,
+) -> tuple[list[Path], int, int]:
     if not LOCAL_MEDIA_ROOT.exists():
         return [], 0, 0
     root = _root_for_read()
@@ -643,12 +661,28 @@ def _iter_media_files() -> tuple[list[Path], int, int]:
         for entry in entries:
             try:
                 if entry.is_symlink():
+                    cleanup_anchor = is_cleanup_anchor_filename(entry.name)
+                    recovered = is_recovered_media_filename(entry.name)
+                    if cleanup_anchor and not include_cleanup_anchors:
+                        continue
                     skipped_symlinks += 1
+                    if include_cleanup_anchors and (cleanup_anchor or recovered):
+                        files.append(Path(entry.path))
                 elif entry.is_dir(follow_symlinks=False):
                     pending.append(Path(entry.path))
                 elif entry.is_file(follow_symlinks=False):
+                    cleanup_anchor = is_cleanup_anchor_filename(entry.name)
+                    recovered = is_recovered_media_filename(entry.name)
+                    if cleanup_anchor and not include_cleanup_anchors:
+                        continue
                     path = Path(entry.path)
-                    if path.suffix.casefold() in ALLOWED_MEDIA_EXTENSIONS:
+                    if (
+                        path.suffix.casefold() in ALLOWED_MEDIA_EXTENSIONS
+                        or (
+                            include_cleanup_anchors
+                            and (cleanup_anchor or recovered)
+                        )
+                    ):
                         files.append(path)
                     else:
                         skipped_unsupported += 1
@@ -659,17 +693,30 @@ def _iter_media_files() -> tuple[list[Path], int, int]:
     return files, skipped_symlinks, skipped_unsupported
 
 
-def scan_local_media() -> LocalMediaScan:
-    files, skipped_symlinks, skipped_unsupported = _iter_media_files()
+def scan_local_media(
+    *,
+    include_cleanup_anchors: bool = False,
+) -> LocalMediaScan:
+    files, skipped_symlinks, skipped_unsupported = _iter_media_files(
+        include_cleanup_anchors=include_cleanup_anchors,
+    )
     entries: list[LocalMediaEntry] = []
     invalid = 0
     root = LOCAL_MEDIA_ROOT.resolve() if LOCAL_MEDIA_ROOT.exists() else LOCAL_MEDIA_ROOT
     for path in files:
         relative = path.relative_to(root).as_posix()
         media_path = f"{LOCAL_MEDIA_PREFIX}{relative}"
+        cleanup_anchor = is_cleanup_anchor_filename(path.name)
+        recovered = is_recovered_media_filename(path.name)
+        observed_size = 0
         try:
             file_stat = path.stat(follow_symlinks=False)
-            if file_stat.st_size > MAX_MEDIA_UPLOAD_BYTES:
+            if stat.S_ISREG(file_stat.st_mode):
+                observed_size = file_stat.st_size
+            if (
+                not stat.S_ISREG(file_stat.st_mode)
+                or file_stat.st_size > MAX_MEDIA_UPLOAD_BYTES
+            ):
                 raise LocalMediaPathError("local media file too large")
             content, image_format = _read_validated_file(path, path.suffix.casefold())
             digest = hashlib.sha256(content).hexdigest()
@@ -679,11 +726,13 @@ def scan_local_media() -> LocalMediaScan:
                 LocalMediaEntry(
                     media_path=media_path,
                     filename=relative,
-                    size=0,
+                    size=(observed_size if cleanup_anchor or recovered else 0),
                     sha256="",
                     mime_type="",
                     available=False,
                     detail="invalid_image",
+                    is_cleanup_anchor=cleanup_anchor,
+                    is_recovered=recovered,
                 )
             )
             continue
@@ -695,6 +744,8 @@ def scan_local_media() -> LocalMediaScan:
                 sha256=digest,
                 mime_type=_MIME_BY_FORMAT[image_format],
                 available=True,
+                is_cleanup_anchor=cleanup_anchor,
+                is_recovered=recovered,
             )
         )
     entries.sort(key=lambda entry: entry.filename.casefold())

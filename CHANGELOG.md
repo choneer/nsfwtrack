@@ -11,6 +11,12 @@
 - Added detailed cleanup results for migrated item covers and creator avatars,
   deleted paths, actual released bytes, per-path failures, durability warnings,
   and a fresh-preview retry path for files that remain safely on disk.
+- Added the authenticated, read-only Phase 3-B4 media cleanup recovery center.
+  It reports exact cleanup-anchor and recovered-file paths, byte sizes, complete
+  SHA-256 values when valid, validity, item-cover / creator-avatar references,
+  path/SHA search, stable sorting, status filters, and 20-row pagination.
+- Added data-health findings for referenced, unreferenced, and damaged cleanup
+  anchors, with a direct link to the recovery center and no automatic fix.
 
 ### Fixed
 
@@ -31,6 +37,13 @@
   complete SHA-256, device, inode, size, modification time, and change time.
 - The duplicate-group view remains write-free while exposing the separate B3
   preview. B1/B2 grouping and A3/A4 candidate algorithms remain unchanged.
+- Ordinary media scans now exclude only files whose basename starts exactly
+  with `.cleanup-anchor-`. This isolates internal anchors from the media
+  library, B1/B2, upload deduplication, and A3/A4 while preserving every
+  non-anchor candidate ID.
+- Files whose basename starts exactly with `recovered-` remain ordinary media,
+  participate in existing duplicate/candidate behavior, and gain a dedicated
+  library filter, badge, and recovery-center status.
 
 ### Security
 
@@ -46,6 +59,11 @@
   final deletion cannot remove the last valid copy or leave a reference on a
   missing/wrong-hash path. Anchor creation, publication, removal, and directory
   durability use exclusive creation, identity/hash validation, and fsync.
+- B4 classification is anchored to the case-sensitive basename prefix rather
+  than a fuzzy contains check; lookalike filenames and prefix-named directories
+  remain ordinary media. Recovery-center and data-health GET requests perform
+  no file or database mutation and expose no delete, move, rename, migration,
+  or automatic-repair operation.
 
 ## [1.0.6] - 2026-07-13
 

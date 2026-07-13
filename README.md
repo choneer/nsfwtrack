@@ -2,15 +2,15 @@
 
 NSFWTrack is a local single-user content record manager / collection tracker.
 
-Current application version: `v1.0.6 / Phase 3-B3 in Unreleased`.
+Current application version: `v1.0.6 / Phase 3-B3 and B4 in Unreleased`.
 
 Current stable version: `v1.0.6 / Phase 3-B1 and B2`.
 
 Latest Release: [NSFWTrack v1.0.6](https://github.com/choneer/nsfwtrack/releases/tag/v1.0.6).
 
-Current status: `v1.0.6 is released; Phase 3-B3 manual duplicate-media cleanup is in Unreleased`.
+Current status: `v1.0.6 is released; Phase 3-B3 manual cleanup is complete in Unreleased and Phase 3-B4 recovery visibility is in development`.
 
-Current development: `Phase 3-B1 and B2 are published; Phase 3-B3 keeps
+Current development: `Phase 3-B1 and B2 are published; Phase 3-B4 keeps
 application version 1.0.6 and Schema 2`.
 
 N100 deployment: `not started; waits for explicit user authorization`.
@@ -35,8 +35,9 @@ acceptance through Phase 3-B1 and B2 are complete. See
   task. It must wait for explicit user authorization.
 
 The bounded Phase 3-A1 through A6 scope shipped in `v1.0.5`; the read-only
-Phase 3-B1 and B2 duplicate-media views shipped in `v1.0.6`. Phase 3-B3 is the
-current Unreleased work and stays within the same local-only media boundary.
+Phase 3-B1 and B2 duplicate-media views shipped in `v1.0.6`. Phase 3-B3 is
+complete in Unreleased; Phase 3-B4 is the current read-only recovery-status
+work and stays within the same local-only media boundary.
 
 ## v1.0.6 Release
 
@@ -108,6 +109,40 @@ passes two complete healthy lifecycles with `/login`, authentication, and the
 duplicate-group page returning HTTP 200, version 1.0.6, Schema 2, unchanged
 SQLite checksum, fixed non-root identity, read-only root, zero capabilities,
 and no-new-privileges. All temporary resources were removed.
+
+### Phase 3-B4 Media Cleanup Recovery Center
+
+The current Unreleased Phase 3-B4 makes B3 fallback artifacts observable while
+keeping the entire workflow read-only:
+
+- Only a file basename beginning exactly and case-sensitively with
+  `.cleanup-anchor-` is an internal safety anchor. A path that merely contains
+  that text, or a directory with that prefix, remains ordinary media.
+- Internal anchors are absent from the ordinary media library, B1/B2 duplicate
+  groups, upload deduplication, and A3/A4 candidates. Non-anchor A3/A4 candidate
+  IDs remain unchanged when an anchor appears.
+- A basename beginning exactly with `recovered-` remains ordinary media. It
+  participates in existing duplicate/candidate behavior and has a dedicated
+  media-library filter and badge.
+- The authenticated `/media-library/recovery` page separates referenced,
+  unreferenced, and damaged anchors from recovered files. It shows path, byte
+  size, complete SHA-256 when valid, validity, and item-cover / creator-avatar
+  references with path/SHA search, stable sorting, and 20-row pagination.
+- Data Health reports referenced, unreferenced, and damaged anchor residue and
+  links to the recovery center. Neither page offers deletion, movement,
+  renaming, reference migration, or automatic repair, and every GET is
+  write-free.
+
+Phase 3-B4 does not change B1/B2 grouping semantics, the B3 cleanup operation,
+version 1.0.6, Schema 2, migrations, dependencies, Docker/CI, tags, or Releases.
+
+B4/i18n focused acceptance passes 16 tests, the complete media-chain regression
+passes 120 tests, and the full suite passes 474 tests with `pip check` clean.
+An isolated production image passes two healthy lifecycles with `/login`, the
+authenticated recovery center, ordinary media library, and Data Health all
+returning HTTP 200; version 1.0.6, Schema 2, runtime hardening, and the SQLite
+checksum across recreation remain unchanged. All temporary resources are
+removed.
 
 ## Features in v1.0.5
 

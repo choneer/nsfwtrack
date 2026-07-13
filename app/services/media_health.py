@@ -227,6 +227,7 @@ def audit_local_media(db: Session) -> list[MediaHealthFinding]:
 
     try:
         scan = local_media.scan_local_media()
+        recovery_scan = local_media.scan_local_media(include_cleanup_anchors=True)
     except (local_media.LocalMediaPathError, OSError):
         findings.insert(
             0,
@@ -248,7 +249,10 @@ def audit_local_media(db: Session) -> list[MediaHealthFinding]:
         )
         return findings
 
-    entries_by_path = {entry.media_path: entry for entry in scan.entries}
+    entries_by_path = {entry.media_path: entry for entry in recovery_scan.entries}
+    references_by_path: dict[str, list[_MediaReference]] = defaultdict(list)
+    for reference, media_path in valid_references:
+        references_by_path[media_path].append(reference)
     for reference, media_path in valid_references:
         entry = entries_by_path.get(media_path)
         if entry is not None:
@@ -268,6 +272,29 @@ def audit_local_media(db: Session) -> list[MediaHealthFinding]:
                 reference.object_type,
                 reference.object_id,
                 detail=_short(media_path),
+            )
+        )
+
+    for entry in recovery_scan.entries:
+        if not entry.is_cleanup_anchor:
+            continue
+        reference_count = len(references_by_path.get(entry.media_path, ()))
+        if not entry.available:
+            code = "media_cleanup_anchor_damaged"
+            severity: MediaSeverity = "problem"
+        elif reference_count:
+            code = "media_cleanup_anchor_referenced"
+            severity = "warning"
+        else:
+            code = "media_cleanup_anchor_unreferenced"
+            severity = "warning"
+        findings.append(
+            _finding(
+                code,
+                "media_cleanup_anchor",
+                entry.media_path,
+                detail=f"references={reference_count} path={_short(entry.media_path)}",
+                severity=severity,
             )
         )
 

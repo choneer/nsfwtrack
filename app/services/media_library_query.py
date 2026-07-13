@@ -24,6 +24,7 @@ MEDIA_STATUS_OPTIONS = (
     "used",
     "unused",
     "duplicate",
+    "recovered",
 )
 MEDIA_SORT_OPTIONS = (
     "filename_asc",
@@ -41,6 +42,7 @@ MediaStatus = Literal[
     "used",
     "unused",
     "duplicate",
+    "recovered",
 ]
 MediaSort = Literal["filename_asc", "filename_desc", "size_asc", "size_desc"]
 
@@ -123,6 +125,8 @@ def _matches_status(
         return not used
     if status == "duplicate":
         return duplicate
+    if status == "recovered":
+        return entry.is_recovered
     return True
 
 
