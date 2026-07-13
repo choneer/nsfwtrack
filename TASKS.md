@@ -28,7 +28,7 @@ N100 / 目标主机部署尚未开始，**不是当前开发任务**，必须等
 - [x] 同步中文 / English、模板、CHANGELOG Unreleased 与发布后文档状态
 - [x] B3 / i18n 专项 `15 passed`
 - [x] 完整 `456 passed`、pip check 与隔离 Docker 双生命周期通过并清理
-- [ ] 功能提交推送 main，Actions test / Docker production smoke 通过
+- [x] 功能提交 `79de4e4` 已推送 main，Actions run `29233302653` 的 test / Docker production smoke 均通过
 - [x] 未改版本 1.0.6、Schema 2、迁移、依赖、Docker/CI 或旧 tag / Release，未部署 N100
 
 ### v1.0.6 正式发布

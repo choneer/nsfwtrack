@@ -54,5 +54,5 @@ B3 仅记录在 CHANGELOG Unreleased，应用版本保持 1.0.6，Schema 保持 
 - [x] 中文 / English、模板、专项测试、CHANGELOG Unreleased 与 v1.0.6 发布后文档已同步
 - [x] B3 / i18n 专项 `15 passed`
 - [x] 完整 `456 passed in 67.07s`、pip check 与隔离 Docker 双生命周期验收通过并清理
-- [ ] Actions test / Docker production smoke 验收
-- [ ] 提交并推送 main，确认工作区干净且未移动旧 tag / Release
+- [x] 功能提交 `79de4e4` 已推送，Actions run `29233302653` 的 test / Docker production smoke 均通过
+- [x] 功能提交后 main 与 origin/main 同步，工作区干净且 v1.0.6 / 更早 tag 与 Release 未移动
