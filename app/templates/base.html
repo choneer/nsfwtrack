@@ -758,6 +758,33 @@
       grid-template-columns: 72px minmax(0, 1fr);
       padding-top: 12px;
     }
+    .media-keeper-fieldset {
+      border: 0;
+      display: grid;
+      gap: 8px;
+      margin: 0;
+      min-width: 0;
+      padding: 0;
+    }
+    .media-keeper-fieldset legend {
+      font-weight: 700;
+      padding: 0;
+    }
+    .media-keeper-choice {
+      cursor: pointer;
+    }
+    .media-keeper-choice:has(input:checked) {
+      background: #eef7f1;
+      border-color: #91c69f;
+      border-radius: 6px;
+      padding: 12px;
+    }
+    .radio-row {
+      align-items: center;
+      display: flex;
+      font-weight: 700;
+      gap: 8px;
+    }
     .comparison-grid {
       display: grid;
       gap: 14px;

@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% from "_danger_notice.html" import danger_notice %}
+{% block title %}{{ t("media_cleanup.preview_title") }} - NSFWTrack{% endblock %}
+{% block content %}
+<div class="toolbar">
+  <div>
+    <p class="muted">{{ t("media_cleanup.manual_cleanup") }}</p>
+    <h1>{{ t("media_cleanup.preview_title") }}</h1>
+    <p class="muted">{{ t("media_cleanup.preview_description") }}</p>
+  </div>
+  <div class="actions">
+    <a class="button secondary" href="/media-library/duplicates">{{ t("media_cleanup.back_to_groups") }}</a>
+  </div>
+</div>
+
+<section class="notice">
+  <strong>{{ t("media_cleanup.no_auto_keeper_title") }}</strong>
+  <p>{{ t("media_cleanup.no_auto_keeper_detail") }}</p>
+</section>
+
+<section class="metric-grid compact-metrics">
+  <div class="metric"><strong data-cleanup-member-count>{{ preview.group.member_count }}</strong><span>{{ t("media_duplicates.member_count") }}</span></div>
+  <div class="metric"><strong data-cleanup-removal-count>{{ preview.removals|length }}</strong><span>{{ t("media_cleanup.files_to_delete") }}</span></div>
+  <div class="metric"><strong data-cleanup-reference-count>{{ preview.item_reference_count + preview.creator_reference_count }}</strong><span>{{ t("media_cleanup.references_to_migrate") }}</span></div>
+  <div class="metric"><strong data-cleanup-reclaimable-bytes>{{ preview.reclaimable_bytes }} B</strong><span>{{ t("media_cleanup.expected_release") }}</span></div>
+</section>
+
+<section class="card stack" data-cleanup-keeper="{{ preview.keeper.media_path }}">
+  <p class="muted">{{ t("media_cleanup.keeper") }}</p>
+  <div class="media-duplicate-member">
+    <div class="media-match-preview"><img src="{{ preview.keeper.media_path }}" alt=""></div>
+    <div class="stack media-match-details">
+      <code>{{ preview.keeper.media_path }}</code>
+      <strong>{{ t("media_cleanup.keeper_never_deleted") }}</strong>
+      <span class="muted">{{ t("media_cleanup.digest", sha256=preview.group.sha256) }}</span>
+    </div>
+  </div>
+</section>
+
+<section class="stack">
+  <h2>{{ t("media_cleanup.removal_plan") }}</h2>
+  {% for removal in preview.removals %}
+    <article class="card stack" data-cleanup-removal="{{ removal.entry.media_path }}">
+      <div class="toolbar">
+        <div class="stack">
+          <code>{{ removal.entry.media_path }}</code>
+          <span class="muted">{{ removal.entry.size }} B</span>
+        </div>
+        <span class="pill warning">{{ t("media_cleanup.delete_after_migration") }}</span>
+      </div>
+      <div>
+        <strong>{{ t("media_cleanup.reference_migrations") }}</strong>
+        {% if removal.item_references or removal.creator_references %}
+          <ul>
+            {% for item in removal.item_references %}
+              <li>{{ t("media_cleanup.item_migration", title=item.title, keeper=preview.keeper.media_path) }}</li>
+            {% endfor %}
+            {% for creator in removal.creator_references %}
+              <li>{{ t("media_cleanup.creator_migration", name=creator.name, keeper=preview.keeper.media_path) }}</li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <p class="muted">{{ t("media_cleanup.no_reference_migrations") }}</p>
+        {% endif %}
+      </div>
+    </article>
+  {% endfor %}
+</section>
+
+<form class="card stack" action="/media-library/duplicates/organize/apply" method="post">
+  <input type="hidden" name="sha256" value="{{ preview.group.sha256 }}">
+  <input type="hidden" name="keeper_path" value="{{ preview.keeper.media_path }}">
+  {% for media_path in preview.member_paths %}
+    <input type="hidden" name="member_path" value="{{ media_path }}">
+  {% endfor %}
+  {{ danger_notice(t, danger_policy, "danger.object_duplicate_media", "danger.consequence_media_cleanup", "danger.deletion_duplicate_media", "danger.recovery_media_cleanup", true, "danger.backup_media_body") }}
+  <p class="muted">{{ t("media_cleanup.submit_rescan") }}</p>
+  <div class="actions">
+    <button
+      class="danger"
+      type="submit"
+      data-confirm-message="{{ t('media_cleanup.confirm_cleanup') }}"
+      {% if danger_policy.is_strict %}data-strict-confirm-message="{{ t('danger.strict_prompt') }}"{% endif %}
+    >{{ t("media_cleanup.execute_cleanup") }}</button>
+    <a class="button secondary" href="/media-library/duplicates">{{ t("common.back") }}</a>
+  </div>
+</form>
+{% endblock %}

@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}{{ t("media_cleanup.result_title") }} - NSFWTrack{% endblock %}
+{% block content %}
+<div class="toolbar">
+  <div>
+    <p class="muted">{{ t("media_cleanup.manual_cleanup") }}</p>
+    <h1>{{ t("media_cleanup.result_title") }}</h1>
+    <p class="muted">{{ t("media_cleanup.result_description") }}</p>
+  </div>
+  <div class="actions">
+    <a class="button secondary" href="/media-library/duplicates">{{ t("media_cleanup.back_to_groups") }}</a>
+  </div>
+</div>
+
+<section class="metric-grid compact-metrics">
+  <div class="metric"><strong data-result-item-migrations>{{ result.migrated_items }}</strong><span>{{ t("media_cleanup.items_migrated") }}</span></div>
+  <div class="metric"><strong data-result-creator-migrations>{{ result.migrated_creators }}</strong><span>{{ t("media_cleanup.creators_migrated") }}</span></div>
+  <div class="metric"><strong data-result-deleted-count>{{ result.deleted_paths|length }}</strong><span>{{ t("media_cleanup.files_deleted") }}</span></div>
+  <div class="metric"><strong data-result-released-bytes>{{ result.released_bytes }} B</strong><span>{{ t("media_cleanup.space_released") }}</span></div>
+</section>
+
+<section class="notice">
+  <strong>{{ t("media_cleanup.references_safe_title") }}</strong>
+  <p>{{ t("media_cleanup.references_safe_detail", keeper=result.keeper_path) }}</p>
+</section>
+
+{% if result.deletion_failures %}
+  <section class="card stack" data-result-failures>
+    <h2>{{ t("media_cleanup.deletion_failures") }}</h2>
+    <p>{{ t("media_cleanup.deletion_failures_detail") }}</p>
+    <ul>
+      {% for failure in result.deletion_failures %}
+        <li><code>{{ failure.media_path }}</code>: {{ t("media_cleanup.failure_" ~ failure.code) }}</li>
+      {% endfor %}
+    </ul>
+    <form action="/media-library/duplicates/organize" method="get">
+      <input type="hidden" name="sha256" value="{{ result.sha256 }}">
+      <input type="hidden" name="keeper_path" value="{{ result.keeper_path }}">
+      <button type="submit">{{ t("media_cleanup.retry_preview") }}</button>
+    </form>
+  </section>
+{% endif %}
+
+{% if result.deletion_warnings %}
+  <section class="notice" data-result-warnings>
+    <h2>{{ t("media_cleanup.deletion_warnings") }}</h2>
+    <ul>
+      {% for warning in result.deletion_warnings %}
+        <li><code>{{ warning.media_path }}</code>: {{ t("media_cleanup.failure_" ~ warning.code) }}</li>
+      {% endfor %}
+    </ul>
+  </section>
+{% endif %}
+
+{% if show_detailed_results and result.deleted_paths %}
+  <section class="card stack" data-result-deleted-paths>
+    <h2>{{ t("media_cleanup.deleted_paths") }}</h2>
+    <ul>{% for media_path in result.deleted_paths %}<li><code>{{ media_path }}</code></li>{% endfor %}</ul>
+  </section>
+{% endif %}
+{% endblock %}

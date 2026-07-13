@@ -1,4 +1,4 @@
-{% macro danger_notice(t, policy, object_key, consequence_key, deletion_key, recovery_key, backup_recommended=true) -%}
+{% macro danger_notice(t, policy, object_key, consequence_key, deletion_key, recovery_key, backup_recommended=true, backup_body_key="danger.backup_body") -%}
 <section class="notice danger-notice">
   <h3>{{ t("danger.title") }}</h3>
   <dl class="danger-facts">
@@ -24,7 +24,7 @@
     </div>
   </dl>
   {% if policy.show_backup_reminder(backup_recommended) %}
-    <p><strong>{{ t("danger.backup_title") }}</strong> {{ t("danger.backup_body") }}</p>
+    <p><strong>{{ t("danger.backup_title") }}</strong> {{ t(backup_body_key) }}</p>
   {% endif %}
   <p>{{ t("danger.confirmation_" ~ policy.confirmation_mode) }}</p>
 </section>

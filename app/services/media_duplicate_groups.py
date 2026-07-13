@@ -127,6 +127,25 @@ def build_media_duplicate_groups(
     return tuple(groups)
 
 
+def find_media_duplicate_group(
+    scan: LocalMediaScan,
+    sha256: str | None,
+) -> MediaDuplicateGroup | None:
+    digest = (sha256 or "").strip().casefold()
+    if len(digest) != 64 or any(
+        character not in "0123456789abcdef" for character in digest
+    ):
+        return None
+    return next(
+        (
+            group
+            for group in build_media_duplicate_groups(scan)
+            if group.sha256 == digest
+        ),
+        None,
+    )
+
+
 def summarize_media_duplicate_groups(
     groups: tuple[MediaDuplicateGroup, ...],
 ) -> MediaDuplicateSummary:

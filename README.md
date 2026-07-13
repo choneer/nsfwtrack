@@ -2,16 +2,16 @@
 
 NSFWTrack is a local single-user content record manager / collection tracker.
 
-Current application version: `v1.0.6 release candidate / Phase 3-B1 and B2`.
+Current application version: `v1.0.6 / Phase 3-B3 in Unreleased`.
 
-Current stable version: `v1.0.5 / Phase 3-A1 through A6`.
+Current stable version: `v1.0.6 / Phase 3-B1 and B2`.
 
-Latest Release: [NSFWTrack v1.0.5](https://github.com/choneer/nsfwtrack/releases/tag/v1.0.5).
+Latest Release: [NSFWTrack v1.0.6](https://github.com/choneer/nsfwtrack/releases/tag/v1.0.6).
 
-Current status: `v1.0.6 release-preparation candidate on main; tag and Release not created`.
+Current status: `v1.0.6 is released; Phase 3-B3 manual duplicate-media cleanup is in Unreleased`.
 
-Current development: `Phase 3-B1 and B2 are frozen for v1.0.6;
-application Schema remains 2`.
+Current development: `Phase 3-B1 and B2 are published; Phase 3-B3 keeps
+application version 1.0.6 and Schema 2`.
 
 N100 deployment: `not started; waits for explicit user authorization`.
 
@@ -25,8 +25,8 @@ Phase 2-K1 found no genuine TODO / FIXME marker, stub route, 501 response, or
 dead navigation entry. Phase 2-K2 closed the three pre-use findings and the
 archived `v1.0.4` suite contains 358 passing tests.
 
-The `v1.0.5` release is the current stable tag. Code development and WSL
-acceptance through Phase 3-A1 to A6 are complete. See
+The `v1.0.6` release is the current stable tag. Code development and WSL
+acceptance through Phase 3-B1 and B2 are complete. See
 [COMPLETION_AUDIT.md](COMPLETION_AUDIT.md) for the archived K1 / K2 evidence.
 
 - Phase 2-K2 closed the local media-path, bulk / clear confirmation, deployment
@@ -34,13 +34,13 @@ acceptance through Phase 3-A1 to A6 are complete. See
 - N100 / target-host deployment has not started and is not a current development
   task. It must wait for explicit user authorization.
 
-The bounded Phase 3-A1 through A6 scope shipped in `v1.0.5`. Phase 3-B1 and B2
-are frozen as the complete `v1.0.6` release-candidate scope and stay within the
-same local-only media boundary.
+The bounded Phase 3-A1 through A6 scope shipped in `v1.0.5`; the read-only
+Phase 3-B1 and B2 duplicate-media views shipped in `v1.0.6`. Phase 3-B3 is the
+current Unreleased work and stays within the same local-only media boundary.
 
-## v1.0.6 Release Candidate
+## v1.0.6 Release
 
-The `v1.0.6` candidate contains only the read-only Phase 3-B1 and B2 duplicate
+The `v1.0.6` release contains only the read-only Phase 3-B1 and B2 duplicate
 media workflow:
 
 - B1 adds stable complete-SHA-256 duplicate grouping, library totals,
@@ -55,17 +55,49 @@ media workflow:
   choose a media file; migrate or clear a cover/avatar reference; change A3/A4
   candidates; request an external resource; or use AI/image recognition.
 
-Release preparation changes only application version metadata, its regression
+Release preparation changed only application version metadata, its regression
 assertion, and release documentation. It does not change Schema 2, the existing
 1 to 2 migration, dependencies, Docker/CI security configuration, or any old
-tag or Release. The `v1.0.6` tag and GitHub Release are intentionally not
-created during preparation.
+tag or Release.
 
 Local release-candidate acceptance passed all 441 tests and `pip check`. An
 isolated production-image Docker smoke passed two complete container
 lifecycles; both reported healthy, `/login` HTTP 200, application version 1.0.6,
 and Schema 2, while the same SQLite file retained an unchanged checksum across
 container recreation.
+
+- Annotated tag object: `d4d5c31cd5b2fed9a90ad69742d54b4c9dbed0b4`
+- Peeled release commit: `961a3d0cc169e82b261d83207b0ec802007e292b`
+- Release: [NSFWTrack v1.0.6](https://github.com/choneer/nsfwtrack/releases/tag/v1.0.6)
+
+### Phase 3-B3 Manual Duplicate Media Cleanup
+
+The current Unreleased Phase 3-B3 extends the duplicate-group page with an
+explicit, one-group-at-a-time cleanup flow:
+
+- The group view provides no default or recommended keeper. The user must
+  explicitly choose one current member before opening the read-only preview.
+- Preview lists every cover/avatar reference migration, redundant path, and
+  expected released byte count without changing SQLite or media files.
+- Confirmed POST uses the existing standard/strict danger policy and rescans
+  the shared B1/B2 complete-SHA-256 group before writing anything.
+- Missing, damaged, symbolic-link, escaping, forged, hash-changed, or stale
+  members are rejected. The keeper is never deleted and no other group is
+  processed.
+- Item-cover and creator-avatar references commit to the keeper before any
+  redundant file is removed. Identity-checked deletion failures leave safe
+  local copies, report each path, and can be previewed and retried.
+
+Phase 3-B3 does not change the A3/A4 candidate algorithms, application version
+1.0.6, Schema 2, the existing migration, dependencies, or Docker/CI security
+configuration. It makes no external request and adds no automatic keeper
+selection, AI/image recognition, tag, or Release.
+
+Local acceptance passes all 456 tests and `pip check`. An isolated Docker image
+passes two complete healthy lifecycles with `/login`, authentication, and the
+duplicate-group page returning HTTP 200, version 1.0.6, Schema 2, unchanged
+SQLite checksum, fixed non-root identity, read-only root, zero capabilities,
+and no-new-privileges. All temporary resources were removed.
 
 ## Features in v1.0.5
 
@@ -93,7 +125,7 @@ Actions test and Docker production smoke also passed.
 - Peeled release commit: `3c4fee62891ff2826f0b8bc97b33bf3a4d08aa73`
 - Release: [NSFWTrack v1.0.5](https://github.com/choneer/nsfwtrack/releases/tag/v1.0.5)
 
-### Phase 3-B2 Duplicate Media Group View
+### Phase 3-B2 Duplicate Media Group View (Released in v1.0.6)
 
 The authenticated `/media-library/duplicates` page provides one stable,
 read-only row per duplicate SHA-256 group. It uses the same shared group builder
@@ -113,8 +145,9 @@ repeated records for one path remain excluded everywhere.
   safely fall back, and `duplicate_page` contains at most 20 groups.
 - Each group links to `/media-library` with its complete SHA-256 and
   `media_status=duplicate`, preserving an exact B1 file-level view.
-- The page has no media operation or business POST. GET does not change the
-  database, cover/avatar references, media paths or bytes, or A3/A4 candidates.
+- B2 browsing remains read-only. Its GET does not change the database,
+  cover/avatar references, media paths or bytes, or A3/A4 candidates; B3 uses
+  separate preview and confirmed execution routes.
 
 Phase 3-B2 adds no table, Schema 2 change, migration, dependency, version,
 Docker change, tag, Release, external request, AI/image recognition, automatic
@@ -122,7 +155,7 @@ keep recommendation, reference migration, or physical media operation. The
 full local suite contains 441 passing tests and `pip check` reports no broken
 requirements.
 
-### Phase 3-B1 Duplicate Media Location
+### Phase 3-B1 Duplicate Media Location (Released in v1.0.6)
 
 The authenticated `/media-library` now turns the duplicate-content warnings
 introduced by A6 into a stable, read-only browsing workflow. It groups only

@@ -299,6 +299,7 @@ def test_strict_mode_guards_every_named_dangerous_page_flow(
         "/backup/restore",
         "/data-health/fix",
         "/settings/reset",
+        "/media-library/duplicates/organize/apply",
     ],
 )
 def test_get_cannot_execute_named_dangerous_operations(

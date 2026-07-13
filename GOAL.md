@@ -1,47 +1,58 @@
 # GOAL.md
 
-# 当前目标：v1.0.6 发布准备
+# 当前目标：Phase 3-B3 — 重复媒体手动整理
+
+当前稳定版与最新 Release 为 `v1.0.6`，Phase 3-B1 / B2 已正式发布。
+B3 仅记录在 CHANGELOG Unreleased，应用版本保持 1.0.6，Schema 保持 2。
 
 ## 目标
 
-冻结并整理 Phase 3-B1 与 B2，形成可发布的 v1.0.6 提交。
+允许用户明确选择保留文件，安全整理一个重复媒体组。
 
 ## 任务
 
-- 应用版本从 1.0.5 更新为 1.0.6
-- 将 CHANGELOG 的 Unreleased 冻结为 `[1.0.6] - 2026-07-13`
-- 在 CHANGELOG 顶部新建空 Unreleased
-- 明确 v1.0.6 包含 B1 重复媒体定位和 B2 重复媒体组视图
-- 同步 README、PLAN、TASKS、REVIEW、GOAL
-- 运行完整测试、pip check 和 Docker 验收
+- 在重复组页面增加手动整理入口
+- 用户必须明确选择唯一保留路径
+- 预览受影响的文件、条目封面和创作者头像引用
+- 提交时重新扫描并验证完整 SHA-256、组成员和文件状态
+- 将冗余路径的封面 / 头像引用迁移到保留路径
+- 安全删除确认移除的重复文件
+- 展示迁移数量、删除结果、释放空间和失败明细
+- 操作支持安全重试，不产生断裂引用
+- 同步中英文和测试
+- 同一提交内将文档更新为 v1.0.6 已正式发布，B1/B2 已发布，B3 位于 Unreleased
 
 ## 边界
 
-- 不新增或修改业务功能
-- 不修改 Schema 2、迁移、依赖或 Docker 安全配置
-- 不修改旧 tag 或旧 Release
-- 本轮只提交并推送发布准备
-- 暂不创建 v1.0.6 tag 或 GitHub Release
-- 不部署到 N100
+- 不自动选择保留文件
+- 每次只处理一个当前重复组
+- 不接受损坏、符号链接、越界、缺失或非组成员路径
+- 不删除用户选择的保留文件
+- 不修改 A3/A4 候选算法
+- 不请求外部网络，不使用 AI 或图像识别
+- 不新增表，不修改 Schema 2、迁移、依赖或版本
+- 不创建 tag 或 Release，不部署到 N100
 
 ## 完成标准
 
-- 应用与文档版本一致为 1.0.6
-- B1/B2 发布范围和只读安全边界记录完整
+- GET 预览零写入
+- POST 必须通过现有严格危险操作确认
+- 陈旧、伪造或哈希变化请求全部拒绝
+- 成功后所有相关引用均指向保留文件
+- 删除失败不得造成断裂引用，并明确报告可重试项
+- 非目标文件、数据库记录和媒体组保持不变
 - pytest、pip check、Docker 和 Actions 通过
-- 工作区干净并推送至 main
-- 未创建 v1.0.6 tag 或 Release
 
-## 本地验收结果
+## 当前验收状态
 
-- [x] 应用版本和发布回归断言更新为 1.0.6
-- [x] CHANGELOG 新建空 Unreleased，并将 B1 / B2 冻结为 `[1.0.6] - 2026-07-13`
-- [x] README / PLAN / TASKS / REVIEW / GOAL 已同步发布候选状态
-- [x] 发布范围仅包含 Phase 3-B1 与 B2，保留只读、无媒体操作、无引用迁移边界
-- [x] 全量测试 `441 passed in 65.72s`，`pip check` 通过
-- [x] 隔离 Docker 双生命周期均 healthy、`/login` 200、版本 1.0.6、Schema 2
-- [x] 容器重建前后 SQLite 校验和不变，临时资源已清理
-- [x] 除版本元数据与对应断言外未修改功能代码；未改 Schema 2、迁移、依赖或 Docker/CI
-- [x] 旧 tag / Release 未移动，本地与远端均无 v1.0.6 tag
-- [x] 发布准备提交 `c8200da` 已推送，Actions run `29230348185` 的 test / Docker production smoke 均通过
-- [x] 验收记录提交前工作区与 origin/main 同步，GitHub 仍无 v1.0.6 tag / Release
+- [x] 重复组页要求明确选择 keeper，无默认值或自动推荐
+- [x] GET 预览列出引用迁移、待删除路径和预计空间，数据库、文件与 A3/A4 候选零变化
+- [x] POST 复用 standard / strict `CONFIRM` 危险确认并重新扫描共享 B1/B2 组
+- [x] 陈旧成员、哈希变化、缺失、损坏、符号链接、越界与伪造路径均服务端拒绝
+- [x] 引用先提交到 keeper，再按文件身份逐项删除；keeper 与其他组不进入删除范围
+- [x] 数据库失败零删除，keeper 变化恢复原引用，删除失败保留安全副本并支持重试
+- [x] 中文 / English、模板、专项测试、CHANGELOG Unreleased 与 v1.0.6 发布后文档已同步
+- [x] B3 / i18n 专项 `15 passed`
+- [x] 完整 `456 passed in 67.07s`、pip check 与隔离 Docker 双生命周期验收通过并清理
+- [ ] Actions test / Docker production smoke 验收
+- [ ] 提交并推送 main，确认工作区干净且未移动旧 tag / Release

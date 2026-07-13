@@ -2,20 +2,36 @@
 
 按顺序执行，每完成一项打个 [x]。
 
-## 当前状态（v1.0.6 发布候选）
+## 当前状态（v1.0.6 已发布，Phase 3-B3 开发中）
 
-当前稳定版与最新 Release：`v1.0.5`。Phase 3-A1 至 A6 已正式发布，
-Phase 3-B1 / B2 已冻结为 `v1.0.6` 发布候选，应用 Schema 仍为 `2`。
+当前稳定版与最新 Release：`v1.0.6`。Phase 3-B1 / B2 已正式发布，
+Phase 3-B3 重复媒体手动整理位于 Unreleased，应用 Schema 仍为 `2`。
 
-- Annotated tag object：`6a4def572e100198a446ad56353400138c573f66`
-- Peeled commit：`3c4fee62891ff2826f0b8bc97b33bf3a4d08aa73`
-- Release：`https://github.com/choneer/nsfwtrack/releases/tag/v1.0.5`
+- Annotated tag object：`d4d5c31cd5b2fed9a90ad69742d54b4c9dbed0b4`
+- Peeled commit：`961a3d0cc169e82b261d83207b0ec802007e292b`
+- Release：`https://github.com/choneer/nsfwtrack/releases/tag/v1.0.6`
 
 N100 / 目标主机部署尚未开始，**不是当前开发任务**，必须等待用户明确授权。
 完整证据见 `COMPLETION_AUDIT.md`。历史任务保留在本文后半部分，
 不再作为新增开发路线。
 
-### v1.0.6 发布准备
+### Phase 3-B3 重复媒体手动整理（Unreleased）
+
+- [x] 在重复组页提供无默认值的 keeper 单选与只读 GET 预览入口
+- [x] 仅接受共享 B1/B2 服务确认的单个完整合法 SHA-256 重复组
+- [x] 预览逐路径列出封面 / 头像引用迁移、待删除文件和预计释放空间，保持零写入
+- [x] POST 复用 standard / strict `CONFIRM` 危险确认并重新扫描完整组
+- [x] 拒绝成员变化、哈希变化、缺失、损坏、符号链接、越界与伪造路径
+- [x] 先提交所有封面 / 头像引用到 keeper，再按 inode/hash/时间身份逐个删除冗余文件
+- [x] keeper 变化时恢复原引用；数据库失败不删除文件；删除失败保留安全副本并可重试
+- [x] 不删除 keeper、不处理其他组、不改变 A3/A4 候选逻辑
+- [x] 同步中文 / English、模板、CHANGELOG Unreleased 与发布后文档状态
+- [x] B3 / i18n 专项 `15 passed`
+- [x] 完整 `456 passed`、pip check 与隔离 Docker 双生命周期通过并清理
+- [ ] 功能提交推送 main，Actions test / Docker production smoke 通过
+- [x] 未改版本 1.0.6、Schema 2、迁移、依赖、Docker/CI 或旧 tag / Release，未部署 N100
+
+### v1.0.6 正式发布
 
 - [x] 发布范围仅包含 Phase 3-B1 重复媒体定位与 B2 重复媒体组视图
 - [x] 应用版本元数据和发布回归断言从 1.0.5 更新为 1.0.6
@@ -26,9 +42,9 @@ N100 / 目标主机部署尚未开始，**不是当前开发任务**，必须等
 - [x] 未修改 Schema 2、迁移、依赖、Docker/CI 安全配置或旧 tag / Release
 - [x] 全量 `441 passed`、pip check 与隔离 Docker 双生命周期通过并清理
 - [x] 发布准备提交 `c8200da` 已推送 main，Actions run `29230348185` 的 test / Docker production smoke 均通过
-- [x] 未创建 `v1.0.6` tag 或 GitHub Release，未部署 N100
+- [x] annotated tag `v1.0.6` 与正式 GitHub Release 已创建并验证，未部署 N100
 
-### Phase 3-B2 重复媒体组视图（已冻结至 v1.0.6 发布候选）
+### Phase 3-B2 重复媒体组视图（已随 v1.0.6 发布）
 
 - [x] 新增登录保护的只读 `/media-library/duplicates`，每个真实 SHA-256 只显示一组
 - [x] 提取 B1/B2 共用分组服务，完整合法 SHA、不同路径和稳定成员边界保持一致
@@ -44,7 +60,7 @@ N100 / 目标主机部署尚未开始，**不是当前开发任务**，必须等
 - [x] 功能提交 `b4725a9` 已推送，Actions run `29228843856` 的 test / Docker production smoke 均通过
 - [x] 未改 B1 行为、Schema 2、迁移、依赖、版本、Docker、旧 tag / Release，未部署 N100
 
-### Phase 3-B1 重复媒体定位（已冻结至 v1.0.6 发布候选）
+### Phase 3-B1 重复媒体定位（已随 v1.0.6 发布）
 
 - [x] 仅按可用媒体的完整合法 SHA-256 建立稳定重复组，并要求至少两个不同路径
 - [x] 汇总重复组数、涉及文件数和每组保留一份时可节省空间

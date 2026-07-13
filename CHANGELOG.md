@@ -2,6 +2,34 @@
 
 ## Unreleased
 
+### Added
+
+- Added the authenticated Phase 3-B3 manual duplicate-media cleanup flow.
+  Duplicate-group rows require an explicit keeper with no default or automatic
+  recommendation, followed by a read-only preview of reference migrations,
+  redundant paths, and expected reclaimed bytes.
+- Added detailed cleanup results for migrated item covers and creator avatars,
+  deleted paths, actual released bytes, per-path failures, durability warnings,
+  and a fresh-preview retry path for files that remain safely on disk.
+
+### Changed
+
+- Confirmed cleanup now commits every affected cover/avatar reference to the
+  keeper before removing redundant files. Each deletion revalidates the path,
+  complete SHA-256, device, inode, size, modification time, and change time.
+- The duplicate-group view remains write-free while exposing the separate B3
+  preview. B1/B2 grouping and A3/A4 candidate algorithms remain unchanged.
+
+### Security
+
+- Cleanup requires login, POST, browser confirmation, server confirmation, and
+  exact `CONFIRM` text in strict mode. Submission rescans the shared B1/B2 group
+  and rejects stale membership, changed hashes, missing or damaged files,
+  symbolic links, escaping paths, forged paths, and keeper replacement.
+- Database failure removes no file. Deletion failure leaves references safely
+  on the keeper and preserves the failed duplicate for an explicit retry; the
+  keeper, unrelated groups, and unselected paths are never deleted.
+
 ## [1.0.6] - 2026-07-13
 
 ### Added

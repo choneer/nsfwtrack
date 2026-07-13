@@ -70,32 +70,46 @@
         <div class="metric"><strong data-group-total-bytes>{{ group.total_bytes }} B</strong><span>{{ t("media_duplicates.total_size") }}</span></div>
         <div class="metric"><strong data-group-reclaimable-bytes>{{ group.reclaimable_bytes }} B</strong><span>{{ t("media_duplicates.reclaimable") }}</span></div>
       </div>
-      <div class="media-duplicate-members">
-        {% for entry in group.entries %}
-          <div class="media-duplicate-member" data-media-path="{{ entry.media_path }}">
-            <div class="media-match-preview">
-              <img src="{{ entry.media_path }}" alt="">
-            </div>
-            <div class="stack media-match-details">
-              <code>{{ entry.media_path }}</code>
-              <span class="pill">{{ t("media_duplicates.available") }}</span>
-              <div>
-                <strong>{{ t("media_duplicates.references") }}</strong>
-                {% set item_refs = item_references.get(entry.media_path, []) %}
-                {% set creator_refs = creator_references.get(entry.media_path, []) %}
-                {% if item_refs or creator_refs %}
-                  <ul>
-                    {% for item in item_refs %}<li><a href="/items/{{ item.id }}">{{ t("media.item_cover_reference", title=item.title) }}</a></li>{% endfor %}
-                    {% for creator in creator_refs %}<li><a href="/creators/{{ creator.id }}">{{ t("media.creator_avatar_reference", name=creator.name) }}</a></li>{% endfor %}
-                  </ul>
-                {% else %}
-                  <p class="muted">{{ t("media_duplicates.no_references") }}</p>
-                {% endif %}
+      <form action="/media-library/duplicates/organize" method="get" class="stack media-duplicate-organize-form">
+        <input type="hidden" name="sha256" value="{{ group.sha256 }}">
+        <fieldset class="media-keeper-fieldset">
+          <legend>{{ t("media_duplicates.choose_keeper") }}</legend>
+          <p class="muted">{{ t("media_duplicates.choose_keeper_detail") }}</p>
+          <div class="media-duplicate-members">
+            {% for entry in group.entries %}
+              <div class="media-duplicate-member media-keeper-choice" data-media-path="{{ entry.media_path }}">
+                <span class="media-match-preview">
+                  <img src="{{ entry.media_path }}" alt="">
+                </span>
+                <span class="stack media-match-details">
+                  <code>{{ entry.media_path }}</code>
+                  <span class="pill">{{ t("media_duplicates.available") }}</span>
+                  <span>
+                    <strong>{{ t("media_duplicates.references") }}</strong>
+                    {% set item_refs = item_references.get(entry.media_path, []) %}
+                    {% set creator_refs = creator_references.get(entry.media_path, []) %}
+                    {% if item_refs or creator_refs %}
+                      <ul>
+                        {% for item in item_refs %}<li><a href="/items/{{ item.id }}">{{ t("media.item_cover_reference", title=item.title) }}</a></li>{% endfor %}
+                        {% for creator in creator_refs %}<li><a href="/creators/{{ creator.id }}">{{ t("media.creator_avatar_reference", name=creator.name) }}</a></li>{% endfor %}
+                      </ul>
+                    {% else %}
+                      <span class="muted">{{ t("media_duplicates.no_references") }}</span>
+                    {% endif %}
+                  </span>
+                  <span class="radio-row">
+                    <input type="radio" name="keeper_path" id="keeper-{{ group.sha256 }}-{{ loop.index }}" value="{{ entry.media_path }}" required>
+                    <label for="keeper-{{ group.sha256 }}-{{ loop.index }}">{{ t("media_duplicates.keep_this_file") }}</label>
+                  </span>
+                </span>
               </div>
-            </div>
+            {% endfor %}
           </div>
-        {% endfor %}
-      </div>
+        </fieldset>
+        <div class="actions">
+          <button type="submit">{{ t("media_duplicates.preview_cleanup") }}</button>
+        </div>
+      </form>
     </article>
   {% else %}
     <section class="card"><p class="muted">{{ t("media_duplicates.no_results") if duplicate_filters.q else t("media_duplicates.empty") }}</p></section>

@@ -45,6 +45,13 @@ class LocalMediaUploadError(ValueError):
         super().__init__(code)
 
 
+class LocalMediaDeleteError(OSError):
+    def __init__(self, code: str, *, removed: bool = False) -> None:
+        self.code = code
+        self.removed = removed
+        super().__init__(code)
+
+
 @dataclass(frozen=True)
 class LocalMediaEntry:
     media_path: str
@@ -69,6 +76,18 @@ class LocalMediaUploadResult:
     uploaded: int
     duplicate: int
     media_paths: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class ValidatedLocalMediaFile:
+    media_path: str
+    path: Path
+    size: int
+    sha256: str
+    device: int
+    inode: int
+    modified_ns: int
+    changed_ns: int
 
 
 @dataclass(frozen=True)
@@ -242,6 +261,130 @@ def resolve_local_media_file(media_path: str) -> Path:
     candidate = _safe_media_file(normalized)
     _read_validated_file(candidate, candidate.suffix.casefold())
     return candidate
+
+
+def validate_local_media_file(
+    media_path: str,
+    *,
+    expected_sha256: str,
+) -> ValidatedLocalMediaFile:
+    normalized = normalize_local_media_path(media_path)
+    digest = expected_sha256.casefold()
+    if normalized is None or len(digest) != 64 or any(
+        character not in "0123456789abcdef" for character in digest
+    ):
+        raise LocalMediaPathError("invalid local media validation request")
+
+    path = _safe_media_file(normalized)
+    flags = os.O_RDONLY
+    if hasattr(os, "O_CLOEXEC"):
+        flags |= os.O_CLOEXEC
+    if hasattr(os, "O_NOFOLLOW"):
+        flags |= os.O_NOFOLLOW
+    try:
+        file_descriptor = os.open(path, flags)
+        try:
+            before = os.fstat(file_descriptor)
+            if not stat.S_ISREG(before.st_mode) or before.st_size > MAX_MEDIA_UPLOAD_BYTES:
+                raise LocalMediaPathError("local media file unavailable")
+            with os.fdopen(file_descriptor, "rb", closefd=False) as stream:
+                content = stream.read(MAX_MEDIA_UPLOAD_BYTES + 1)
+            after = os.fstat(file_descriptor)
+        finally:
+            os.close(file_descriptor)
+    except LocalMediaPathError:
+        raise
+    except OSError as exc:
+        raise LocalMediaPathError("local media file unavailable") from exc
+
+    if (
+        len(content) > MAX_MEDIA_UPLOAD_BYTES
+        or before.st_dev != after.st_dev
+        or before.st_ino != after.st_ino
+        or before.st_size != after.st_size
+        or before.st_mtime_ns != after.st_mtime_ns
+        or before.st_ctime_ns != after.st_ctime_ns
+        or len(content) != after.st_size
+    ):
+        raise LocalMediaPathError("local media file changed during validation")
+    try:
+        _validated_image_format(content, path.suffix.casefold())
+    except LocalMediaUploadError as exc:
+        raise LocalMediaPathError("invalid local media image") from exc
+    actual_digest = hashlib.sha256(content).hexdigest()
+    if actual_digest != digest:
+        raise LocalMediaPathError("local media hash changed")
+    return ValidatedLocalMediaFile(
+        media_path=normalized,
+        path=path,
+        size=len(content),
+        sha256=actual_digest,
+        device=after.st_dev,
+        inode=after.st_ino,
+        modified_ns=after.st_mtime_ns,
+        changed_ns=after.st_ctime_ns,
+    )
+
+
+def delete_validated_local_media_file(record: ValidatedLocalMediaFile) -> None:
+    try:
+        current = validate_local_media_file(
+            record.media_path,
+            expected_sha256=record.sha256,
+        )
+    except LocalMediaPathError as exc:
+        raise LocalMediaDeleteError("changed") from exc
+    if (
+        current.path != record.path
+        or current.device != record.device
+        or current.inode != record.inode
+        or current.size != record.size
+        or current.modified_ns != record.modified_ns
+        or current.changed_ns != record.changed_ns
+    ):
+        raise LocalMediaDeleteError("changed")
+
+    flags = os.O_RDONLY
+    if hasattr(os, "O_DIRECTORY"):
+        flags |= os.O_DIRECTORY
+    if hasattr(os, "O_CLOEXEC"):
+        flags |= os.O_CLOEXEC
+    try:
+        directory_fd = os.open(current.path.parent, flags)
+    except OSError as exc:
+        raise LocalMediaDeleteError("delete_failed") from exc
+    try:
+        try:
+            current_stat = os.stat(
+                current.path.name,
+                dir_fd=directory_fd,
+                follow_symlinks=False,
+            )
+        except FileNotFoundError as exc:
+            raise LocalMediaDeleteError("missing") from exc
+        except OSError as exc:
+            raise LocalMediaDeleteError("delete_failed") from exc
+        if (
+            not stat.S_ISREG(current_stat.st_mode)
+            or current_stat.st_dev != record.device
+            or current_stat.st_ino != record.inode
+            or current_stat.st_size != record.size
+            or current_stat.st_mtime_ns != record.modified_ns
+            or current_stat.st_ctime_ns != record.changed_ns
+        ):
+            raise LocalMediaDeleteError("changed")
+        try:
+            os.unlink(current.path.name, dir_fd=directory_fd)
+        except FileNotFoundError as exc:
+            raise LocalMediaDeleteError("missing") from exc
+        except OSError as exc:
+            raise LocalMediaDeleteError("delete_failed") from exc
+        try:
+            os.fsync(directory_fd)
+        except OSError as exc:
+            raise LocalMediaDeleteError("sync_failed", removed=True) from exc
+    finally:
+        os.close(directory_fd)
 
 
 def _iter_media_files() -> tuple[list[Path], int, int]:

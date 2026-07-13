@@ -2,26 +2,26 @@
 
 > NSFWTrack 是本地单用户媒体记录器 / 收藏管理器。  
 > 当前开发边界：本地管理、本地数据维护、手动确认操作、SQLite、FastAPI、Jinja2、轻量原生 JavaScript、Docker Compose。
-> Phase 3-A1 允许保存用户提供的 URL；Phase 3-A2 允许校验和保存用户上传的本地栅格图片；Phase 3-A3 允许基于本地文件名生成并手动确认媒体关联候选；Phase 3-A4 允许从未匹配本地图片手动确认创建条目；Phase 3-A5 允许对完整本地媒体扫描结果进行只读检索与分页；Phase 3-A6 允许在数据健康页只读审计本地媒体完整性；Phase 3-B1 允许按完整 SHA-256 只读定位重复媒体；Phase 3-B2 允许按重复组只读浏览路径与引用。仍禁止请求外部网页、远程图片、爬虫、站点 adapter、自动同步、识别、推荐、AI、多用户或云同步。
+> Phase 3-A1 允许保存用户提供的 URL；Phase 3-A2 允许校验和保存用户上传的本地栅格图片；Phase 3-A3 允许基于本地文件名生成并手动确认媒体关联候选；Phase 3-A4 允许从未匹配本地图片手动确认创建条目；Phase 3-A5 允许对完整本地媒体扫描结果进行只读检索与分页；Phase 3-A6 允许在数据健康页只读审计本地媒体完整性；Phase 3-B1 允许按完整 SHA-256 只读定位重复媒体；Phase 3-B2 允许按重复组只读浏览路径与引用；Phase 3-B3 允许用户明确选择 keeper 后，在重扫、确认和引用安全迁移后删除同组冗余文件。仍禁止请求外部网页、远程图片、爬虫、站点 adapter、自动同步、识别、推荐、AI、多用户或云同步。
 
 ---
 
 ## 一、当前总体状态
 
-当前应用发布候选版本：
+当前应用版本与开发阶段：
 
 ```text
-v1.0.6 / Phase 3-B1 与 B2
+v1.0.6 / Phase 3-B3 Unreleased
 ```
 
-当前最新稳定版本仍为 `v1.0.5`。
+当前最新稳定版本为 `v1.0.6`，发布范围为 Phase 3-B1 与 B2。
 
 当前发布引用：
 
 ```text
-annotated tag object: 6a4def572e100198a446ad56353400138c573f66
-peeled commit: 3c4fee62891ff2826f0b8bc97b33bf3a4d08aa73
-Release: https://github.com/choneer/nsfwtrack/releases/tag/v1.0.5
+annotated tag object: d4d5c31cd5b2fed9a90ad69742d54b4c9dbed0b4
+peeled commit: 961a3d0cc169e82b261d83207b0ec802007e292b
+Release: https://github.com/choneer/nsfwtrack/releases/tag/v1.0.6
 ```
 
 当前项目状态：
@@ -40,15 +40,15 @@ Release: https://github.com/choneer/nsfwtrack/releases/tag/v1.0.5
 稳定性收尾：Phase 2-I1 基线、I2 查询优化、I3 错误处理、I4 发布冻结审查已随 v1.0.0 发布
 完成度审计：Phase 2-K1 / K2 已随 v1.0.1 发布；代码开发与 WSL 验收已完成
 维护与 CI：Phase 2-L1 至 L6 已随 v1.0.2 发布；L7 已随 v1.0.3 发布；L8 固定非 root 容器用户已随 v1.0.4 发布
-产品功能重启：Phase 3-A1 至 A6 已随 v1.0.5 发布；Phase 3-B1 / B2 已冻结为 v1.0.6 发布候选
+产品功能重启：Phase 3-A1 至 A6 已随 v1.0.5 发布；Phase 3-B1 / B2 已随 v1.0.6 发布；Phase 3-B3 开发中
 ```
 
 当前完成度估算：
 
 ```text
 核心业务能力：已完成
-代码发布状态：v1.0.5 已正式发布；v1.0.6 发布准备中，尚无 tag / Release
-当前开发状态：Phase 3-B1 / B2 已冻结至 `[1.0.6] - 2026-07-13`，main 仍使用 Schema 2
+代码发布状态：v1.0.6 已正式发布，tag 与正式 GitHub Release 均已验证
+当前开发状态：Phase 3-B3 位于 Unreleased，main 保持应用版本 1.0.6 与 Schema 2
 WSL 验收：已完成
 N100 部署：尚未开始，等待用户明确授权
 ```
@@ -870,7 +870,7 @@ K1 审计结论：
 
 ---
 
-### Phase 3-B1 — 重复媒体定位（已冻结至 v1.0.6 发布候选）
+### Phase 3-B1 — 重复媒体定位（已随 v1.0.6 发布）
 
 已完成：
 
@@ -891,7 +891,7 @@ K1 审计结论：
 
 ---
 
-### Phase 3-B2 — 重复媒体组视图（已冻结至 v1.0.6 发布候选）
+### Phase 3-B2 — 重复媒体组视图（已随 v1.0.6 发布）
 
 已完成：
 
@@ -912,28 +912,52 @@ K1 审计结论：
 
 ---
 
-### v1.0.6 — Phase 3-B1 与 B2（发布候选）
+### v1.0.6 — Phase 3-B1 与 B2（已正式发布）
 
-候选范围：
+发布范围：
 
 - B1 完整 SHA-256 重复媒体定位、统计、duplicate 筛选、SHA 搜索和同组路径
 - B2 登录保护的只读重复组页、组指标、成员引用、搜索排序分页和 B1 精确链接
 - B1 / B2 共用同一有效媒体完整 SHA-256 分组边界
 
-冻结边界：
+发布边界：
 
 - 只读展示，不删除、移动、重命名、覆盖或自动选择媒体
 - 不清除或迁移封面 / 头像引用，不改变 A3/A4 候选逻辑
 - 不修改 Schema 2、真实 1 → 2 迁移、依赖或 Docker/CI 安全配置
 - 不请求外部网络，不使用 AI / 图像识别，不部署到 N100
-- 本轮只生成并推送发布准备提交，不创建 `v1.0.6` tag 或 GitHub Release
+- annotated tag object 为 `d4d5c31cd5b2fed9a90ad69742d54b4c9dbed0b4`
+- peeled commit 为 `961a3d0cc169e82b261d83207b0ec802007e292b`
+- 正式 Release 为 `https://github.com/choneer/nsfwtrack/releases/tag/v1.0.6`
 
-本地候选验收：
+发布验收：
 
 - 全量 441 passed，`pip check` 无依赖冲突
 - 隔离 Docker 双生命周期均 healthy、`/login` 200、应用版本 1.0.6、Schema 2
 - 容器重建前后 SQLite 文件校验和不变，fixed non-root 与只读根保持
 - 临时容器、镜像、凭据和数据已清理
+
+---
+
+### Phase 3-B3 — 重复媒体手动整理（Unreleased）
+
+目标：
+
+- 在 B2 重复组页要求用户明确选择唯一 keeper，不预选、不评分、不推荐
+- 使用共享 B1/B2 完整合法 SHA-256 分组边界生成只读 GET 预览
+- 预览逐路径列出条目封面、创作者头像迁移、待删除文件和预计释放空间
+- POST 复用 standard / strict 危险确认并在提交时重新扫描完整组
+- 先提交所有冗余路径引用到 keeper，再按已验证文件身份逐个删除
+- 删除失败时保留安全副本、报告路径与原因，并允许重新预览后重试
+
+拒绝边界：
+
+- 组成员扩张或缩减、哈希变化、缺失、损坏、符号链接、路径越界和伪造路径全部拒绝
+- keeper 在提交期间变化时恢复原引用，不删除任何冗余文件
+- 不删除 keeper，不处理其他重复组，不自动批量整理
+- 不改变 A3/A4 候选逻辑，不请求网络，不使用 AI / 图像识别
+- 不修改版本 1.0.6、Schema 2、迁移、依赖或 Docker/CI 配置
+- 不创建 tag / Release，不部署到 N100
 
 ---
 
@@ -952,9 +976,9 @@ K1 审计结论：
 8. Phase 2-L8 固定非 root 容器用户已随 v1.0.4 发布
 9. Phase 3-A1 至 A6 已随 v1.0.5 发布
 10. 来源同名歧义与媒体原子上传修复已随 v1.0.5 发布
-11. Phase 3-B1 / B2 已冻结为 v1.0.6 发布候选
-12. 当前稳定版为 v1.0.5；应用候选版本为 1.0.6；Schema 为 2
-13. v1.0.6 tag / Release 尚未创建，等待单独发布指令
+11. Phase 3-B1 / B2 已随 v1.0.6 正式发布
+12. 当前稳定版与应用版本均为 v1.0.6；Schema 为 2
+13. Phase 3-B3 重复媒体手动整理位于 Unreleased
 14. N100 / 目标主机部署未开始，等待用户明确授权
 15. 其余仅按实际问题做可选维护
 ```
@@ -1001,8 +1025,11 @@ K1 审计结论：
 - Phase 3-B1 专项覆盖无效 / 单独媒体排除、排序分页状态、GET 零写入及 A3/A4 候选不变，全量 435 passed
 - Phase 3-B2 已完成共享分组服务、组指标与引用、三类双向排序、20 组分页和 B1 精确链接
 - Phase 3-B2 专项覆盖登录 / 405、边界复用、六种排序、非法参数、分页状态、GET 零写入及双语，全量 441 passed
-- v1.0.6 发布候选仅冻结 B1 / B2；不增加功能，不创建 tag / Release
-- v1.0.6 候选全量 441 passed、pip check 和隔离 Docker 双生命周期已通过
+- v1.0.6 已正式发布且范围仅为 B1 / B2；旧 tag / Release 未移动
+- v1.0.6 发布前全量 441 passed、pip check 和隔离 Docker 双生命周期已通过
+- Phase 3-B3 已完成显式 keeper、零写入预览、提交重扫、引用先迁移和安全删除实现
+- Phase 3-B3 专项覆盖 strict 确认、陈旧 / 伪造 / 越界 / 文件异常拒绝、提交失败零删除及删除失败安全重试
+- Phase 3-B3 全量 456 passed、pip check 与隔离 Docker 双生命周期已通过，SQLite 重建校验和不变且临时资源已清理
 - 当前发布准备与本地验收完成后仍需单独发布指令；N100 部署须等待用户明确授权
 
 ---

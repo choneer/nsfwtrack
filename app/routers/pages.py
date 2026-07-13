@@ -131,6 +131,11 @@ from app.services.media_duplicate_groups import (
     media_duplicate_filter_query_params,
     query_media_duplicate_groups,
 )
+from app.services.media_duplicate_cleanup import (
+    MediaDuplicateCleanupError,
+    build_media_duplicate_cleanup_preview,
+    execute_media_duplicate_cleanup,
+)
 from app.services.media_library_query import (
     MEDIA_SORT_OPTIONS,
     MEDIA_STATUS_OPTIONS,
@@ -498,6 +503,97 @@ def media_duplicate_groups_page(
             creator_references=creator_references,
             media_library_urls=library_urls,
             error_key=error_key,
+        ),
+    )
+
+
+def _media_duplicate_cleanup_preview_url(
+    sha256: str | None,
+    keeper_path: str | None,
+) -> str:
+    return "/media-library/duplicates/organize?" + urlencode(
+        {
+            "sha256": sha256 or "",
+            "keeper_path": keeper_path or "",
+        }
+    )
+
+
+def _media_duplicate_cleanup_error_flash(
+    request: Request,
+    exc: MediaDuplicateCleanupError,
+) -> None:
+    add_flash(request, "error", f"flash.media_duplicate_cleanup_{exc.code}")
+
+
+@router.get(
+    "/media-library/duplicates/organize",
+    response_class=HTMLResponse,
+    dependencies=[Depends(require_page_auth)],
+)
+def media_duplicate_cleanup_preview_page(
+    request: Request,
+    sha256: str | None = Query(default=None),
+    keeper_path: str | None = Query(default=None),
+    db: Session = Depends(get_db),
+) -> Response:
+    try:
+        preview = build_media_duplicate_cleanup_preview(
+            db,
+            sha256=sha256,
+            keeper_path=keeper_path,
+        )
+    except MediaDuplicateCleanupError as exc:
+        _media_duplicate_cleanup_error_flash(request, exc)
+        return _redirect("/media-library/duplicates")
+    return templates.TemplateResponse(
+        request,
+        "media_duplicate_cleanup_preview.html",
+        _base_context(request, db=db, preview=preview),
+    )
+
+
+@router.post(
+    "/media-library/duplicates/organize/apply",
+    response_class=HTMLResponse,
+    dependencies=[Depends(require_page_auth)],
+)
+def media_duplicate_cleanup_apply_page(
+    request: Request,
+    sha256: str = Form(...),
+    keeper_path: str = Form(...),
+    member_path: list[str] | None = Form(default=None),
+    confirm: str | None = Form(default=None),
+    confirmation_text: str | None = Form(default=None),
+    db: Session = Depends(get_db),
+) -> Response:
+    danger_policy = get_danger_policy(db)
+    preview_url = _media_duplicate_cleanup_preview_url(sha256, keeper_path)
+    if not _danger_confirmation_is_valid(
+        request,
+        danger_policy,
+        confirmation_text=confirmation_text,
+        base_confirmation_valid=confirm == "1",
+    ):
+        return _redirect(preview_url)
+    try:
+        result = execute_media_duplicate_cleanup(
+            db,
+            sha256=sha256,
+            keeper_path=keeper_path,
+            expected_member_paths=member_path,
+        )
+    except MediaDuplicateCleanupError as exc:
+        _media_duplicate_cleanup_error_flash(request, exc)
+        return _redirect("/media-library/duplicates")
+    return templates.TemplateResponse(
+        request,
+        "media_duplicate_cleanup_result.html",
+        _base_context(
+            request,
+            db=db,
+            result=result,
+            show_detailed_results=danger_policy.show_detailed_results,
         ),
     )
 
