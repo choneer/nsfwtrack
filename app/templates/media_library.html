@@ -1,4 +1,6 @@
 {% extends "base.html" %}
+{% from "_danger_notice.html" import danger_notice %}
+{% from "_pagination.html" import pagination_nav %}
 {% block title %}{{ t("media.title") }} - NSFWTrack{% endblock %}
 {% block content %}
 <div class="toolbar">
@@ -19,6 +21,117 @@
     </label>
     <button type="submit">{{ t("media.upload") }}</button>
   </form>
+</section>
+
+<section class="card stack media-match-panel" id="media-matches">
+  <div class="toolbar">
+    <div>
+      <h2>{{ t("media.match_title") }}</h2>
+      <p class="muted">{{ t("media.match_description") }}</p>
+    </div>
+  </div>
+  <div class="notice">
+    <strong>{{ t("media.match_readonly") }}</strong>
+    <p>{{ t("media.match_rules") }}</p>
+    <p>{{ t("media.match_no_overwrite") }}</p>
+  </div>
+  <div class="metric-grid compact-metrics">
+    <div class="metric"><strong>{{ match_scan.unused_media }}</strong><span>{{ t("media.match_unused_media") }}</span></div>
+    <div class="metric"><strong>{{ match_scan.unmatched_media }}</strong><span>{{ t("media.match_unmatched_media") }}</span></div>
+    <div class="metric"><strong>{{ match_scan.empty_items }}</strong><span>{{ t("media.match_empty_items") }}</span></div>
+    <div class="metric"><strong>{{ match_scan.empty_creators }}</strong><span>{{ t("media.match_empty_creators") }}</span></div>
+    <div class="metric"><strong>{{ match_scan.ready }}</strong><span>{{ t("media.match_ready") }}</span></div>
+    <div class="metric"><strong>{{ match_scan.conflicts }}</strong><span>{{ t("media.match_conflicts") }}</span></div>
+  </div>
+
+  {% if match_candidates %}
+    {{ danger_notice(
+      t,
+      danger_policy,
+      "danger.object_media_matches",
+      "danger.consequence_media_matches",
+      "danger.deletion_none",
+      "danger.recovery_media_matches",
+      false
+    ) }}
+    <form id="media-match-bulk-form" action="/media-library/matches/apply-bulk" method="post" class="bulk-panel">
+      <input type="hidden" name="match_page" value="{{ match_pagination.page }}">
+      <div class="bulk-heading">
+        <div class="actions">
+          <button type="button" class="secondary" id="media-match-select-page">{{ t("media.match_select_page") }}</button>
+          <button type="button" class="secondary" id="media-match-clear-selection">{{ t("media.match_clear_selection") }}</button>
+          <span class="pill" id="media-match-selected-count">{{ t("media.match_selected", count=0) }}</span>
+        </div>
+        <button
+          type="submit"
+          class="warning"
+          id="media-match-apply-selected"
+          data-confirm-message="{{ t('media.match_confirm_bulk') }}"
+          {% if danger_policy.is_strict %}data-strict-confirm-message="{{ t('danger.strict_prompt') }}"{% endif %}
+          disabled
+        >{{ t("media.match_apply_selected") }}</button>
+      </div>
+    </form>
+
+    <div class="media-match-list">
+      {% for candidate in match_candidates %}
+        <article class="candidate-row media-match-row{% if not candidate.can_apply %} media-match-conflict{% endif %}">
+          <div class="media-match-preview">
+            <img src="{{ candidate.media_path }}" alt="">
+          </div>
+          <div class="stack media-match-details">
+            <strong>{{ candidate.filename }}</strong>
+            <div class="tag-row">
+              <span class="pill">{{ t("media.match_target_" ~ candidate.target_type) }}</span>
+              <span class="pill">{{ t("media.match_reason_" ~ candidate.reason) }}</span>
+              <span class="pill">{{ t("media.match_confidence_" ~ candidate.confidence) }}</span>
+            </div>
+            <a href="/{{ 'items' if candidate.target_type == 'item' else 'creators' }}/{{ candidate.target_id }}">{{ candidate.target_name }}</a>
+            {% if candidate.conflicts %}
+              <div class="flash error media-match-error">
+                <strong>{{ t("media.match_conflict") }}</strong>
+                {% for conflict in candidate.conflicts %}
+                  <span>{{ t("media.match_conflict_" ~ conflict) }}</span>
+                {% endfor %}
+              </div>
+            {% endif %}
+          </div>
+          <div class="media-match-actions">
+            {% if candidate.can_apply %}
+              <label class="bulk-card-select">
+                <input
+                  type="checkbox"
+                  name="candidate_ids"
+                  value="{{ candidate.candidate_id }}"
+                  form="media-match-bulk-form"
+                  class="media-match-checkbox"
+                >
+                {{ t("media.match_select") }}
+              </label>
+              <form action="/media-library/matches/apply" method="post" class="inline-form">
+                <input type="hidden" name="candidate_id" value="{{ candidate.candidate_id }}">
+                <input type="hidden" name="match_page" value="{{ match_pagination.page }}">
+                <button
+                  type="submit"
+                  class="warning"
+                  data-confirm-message="{{ t('media.match_confirm_single') }}"
+                  {% if danger_policy.is_strict %}data-strict-confirm-message="{{ t('danger.strict_prompt') }}"{% endif %}
+                >{{ t("media.match_apply") }}</button>
+              </form>
+            {% else %}
+              <span class="pill">{{ t("media.match_conflict_disabled") }}</span>
+            {% endif %}
+          </div>
+        </article>
+      {% endfor %}
+    </div>
+    {{ pagination_nav(t, match_pagination) }}
+  {% else %}
+    <div class="empty-state">
+      <h3>{{ t("media.match_empty_title") }}</h3>
+      <p class="muted">{{ t("media.match_empty") }}</p>
+    </div>
+  {% endif %}
 </section>
 
 <section class="stats-section">
@@ -88,4 +201,30 @@
   <h2>{{ t("media.boundary_title") }}</h2>
   <p>{{ t("media.boundary") }}</p>
 </section>
+<script>
+  (() => {
+    const checkboxes = Array.from(document.querySelectorAll(".media-match-checkbox"));
+    const selectPage = document.getElementById("media-match-select-page");
+    const clearSelection = document.getElementById("media-match-clear-selection");
+    const selectedCount = document.getElementById("media-match-selected-count");
+    const applySelected = document.getElementById("media-match-apply-selected");
+    if (!selectedCount || !applySelected) return;
+    const countTemplate = {{ t("media.match_selected", count="__COUNT__")|tojson }};
+    const update = () => {
+      const count = checkboxes.filter((checkbox) => checkbox.checked).length;
+      selectedCount.textContent = countTemplate.replace("__COUNT__", String(count));
+      applySelected.disabled = count === 0;
+    };
+    checkboxes.forEach((checkbox) => checkbox.addEventListener("change", update));
+    selectPage?.addEventListener("click", () => {
+      checkboxes.forEach((checkbox) => { checkbox.checked = true; });
+      update();
+    });
+    clearSelection?.addEventListener("click", () => {
+      checkboxes.forEach((checkbox) => { checkbox.checked = false; });
+      update();
+    });
+    update();
+  })();
+</script>
 {% endblock %}

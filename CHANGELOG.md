@@ -14,6 +14,13 @@
 
 ### Added
 
+- Added Phase 3-A3 explainable local media candidates for empty item covers and
+  creator avatars using deterministic exact, normalized, `.cover`, and
+  `.avatar` filename rules. Candidate previews are read-only and display their
+  target type, matching reason, confidence, and ambiguity conflicts.
+- Added authenticated single and current-page bulk candidate confirmation.
+  Confirmed writes regenerate candidates, reject stale or cross-page input,
+  and apply only selected valid associations in one transaction.
 - Added the authenticated Phase 3-A2 `/media-library` for safe local scanning,
   multi-image uploads, reference visibility, and item-cover / creator-avatar
   assignment using the existing media path fields and data mount.
@@ -36,6 +43,9 @@
 
 ### Changed
 
+- Media candidate matching considers only validated unused files and targets
+  without an existing cover or avatar. One-media/multiple-target and
+  one-target/multiple-media ambiguity is disabled rather than guessed.
 - Item covers and creator avatars can now be set, replaced, or cleared from the
   local media library. Clearing an association never deletes its media file.
 
@@ -48,6 +58,10 @@
 
 ### Security
 
+- Phase 3-A3 never auto-applies a candidate or overwrites an existing cover or
+  avatar. Every write is an authenticated confirmed POST; strict mode requires
+  exact `CONFIRM`. Matching performs no network request, AI/image recognition,
+  or physical media-file creation, move, rename, overwrite, or deletion.
 - Media scanning and serving reject symlinks, path escape, unsupported and
   non-regular files. Only validated AVIF, GIF, JPEG, PNG, and WebP uploads are
   accepted; SVG, HTML, disguised files, remote fetching, recognition,

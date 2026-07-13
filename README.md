@@ -8,7 +8,7 @@ Release: [NSFWTrack v1.0.4](https://github.com/choneer/nsfwtrack/releases/tag/v1
 
 Current status: `stable v1.0.4 — code development and WSL acceptance complete`.
 
-Current development: `Phase 3-A2 local media library is complete on main and
+Current development: `Phase 3-A3 local media candidate matching is complete on main and
 not yet released; application Schema remains 2`.
 
 N100 deployment: `not started; waits for explicit user authorization`.
@@ -32,7 +32,36 @@ Code development and WSL acceptance through `v1.0.4` are complete. See
   task. It must wait for explicit user authorization.
 
 Product feature development has explicitly reopened for the bounded Phase 3-A1
-and A2 scopes below. Any expansion beyond them still requires separate approval.
+through A3 scopes below. Any expansion beyond them still requires separate approval.
+
+## Unreleased: Phase 3-A3 Local Media Candidate Matching
+
+`/media-library` now generates explainable item-cover and creator-avatar
+candidates from validated, unused local media filenames. Candidate generation
+is read-only: opening or paging the screen never changes an association.
+
+- Matching first compares NFKC-normalized, case-insensitive names exactly, then
+  compares normalized names containing only letters and numbers. A final
+  `.cover`, `-cover`, `_cover`, or space-separated `cover` suffix limits the
+  target to items; the equivalent `avatar` suffix limits it to creators.
+- Every candidate displays its target type, exact or normalized matching reason,
+  and high or medium confidence. A media file matching multiple targets, or a
+  target matching multiple files, is marked as an ambiguous conflict and cannot
+  be selected or applied.
+- Only available media with no current reference, items without covers, and
+  creators without avatars are considered. Single and current-page bulk POSTs
+  regenerate the candidate set before writing and reject stale, conflicting,
+  cross-page, unavailable, or newly occupied targets.
+- Standard mode requires browser and server confirmation. Strict mode also
+  requires the exact text `CONFIRM`. A valid bulk operation assigns only the
+  manually selected candidates from its current 20-row page in one transaction.
+- Matching only updates existing `cover_path` or `avatar_path` fields. It never
+  creates, downloads, recognizes, renames, moves, overwrites, or deletes a media
+  file and never overwrites an existing cover or avatar association.
+
+Phase 3-A3 adds no table, Schema change, migration, dependency, external network
+request, AI, image-recognition, recommendation, version change, or deployment.
+The full local suite contains 407 passing tests after this phase.
 
 ## Unreleased: Phase 3-A2 Local Media Library
 

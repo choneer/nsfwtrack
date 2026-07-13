@@ -120,6 +120,12 @@ from app.services.local_media import (
     scan_local_media,
     store_media_uploads,
 )
+from app.services.media_matching import (
+    MediaMatchError,
+    apply_local_media_matches,
+    match_local_media,
+    paginate_media_matches,
+)
 from app.services.metadata_cleanup import (
     MetadataCleanupError,
     find_metadata_cleanup_candidates,
@@ -127,7 +133,7 @@ from app.services.metadata_cleanup import (
     merge_metadata_objects,
 )
 from app.services.metadata_lists import list_creator_page, list_tag_page
-from app.services.pagination import PageInfo
+from app.services.pagination import PageInfo, parse_page
 from app.services.migrations import (
     MIGRATION_REGISTRY,
     MigrationError,
@@ -298,6 +304,7 @@ def local_media_file_page(media_path: str) -> FileResponse:
 )
 def media_library_page(
     request: Request,
+    match_page: str | None = Query(default=None),
     db: Session = Depends(get_db),
 ) -> HTMLResponse:
     error_key = None
@@ -316,6 +323,8 @@ def media_library_page(
     for creator in creators:
         if creator.avatar_path:
             creator_references.setdefault(creator.avatar_path, []).append(creator)
+    match_scan = match_local_media(scan, items, creators)
+    candidate_page = paginate_media_matches(match_scan, match_page)
     return templates.TemplateResponse(
         request,
         "media_library.html",
@@ -327,6 +336,13 @@ def media_library_page(
             creators=creators,
             item_references=item_references,
             creator_references=creator_references,
+            match_scan=match_scan,
+            match_candidates=candidate_page.rows,
+            match_pagination=_page_context(
+                candidate_page.page_info,
+                "/media-library",
+                page_param="match_page",
+            ),
             max_media_upload_mb=MAX_MEDIA_UPLOAD_BYTES // (1024 * 1024),
             max_media_upload_files=MAX_MEDIA_UPLOAD_FILES,
             error_key=error_key,
@@ -352,6 +368,88 @@ async def media_library_upload_page(
             duplicate=result.duplicate,
         )
     return _redirect("/media-library")
+
+
+def _media_match_redirect(match_page: str | int | None) -> RedirectResponse:
+    return _redirect(f"/media-library?match_page={parse_page(match_page)}")
+
+
+def _apply_media_match_candidates(
+    request: Request,
+    db: Session,
+    candidate_ids: list[str],
+    *,
+    match_page: str | None,
+    confirm: str | None,
+    confirmation_text: str | None,
+) -> RedirectResponse:
+    if not _danger_confirmation_is_valid(
+        request,
+        get_danger_policy(db),
+        confirmation_text=confirmation_text,
+        base_confirmation_valid=confirm == "1",
+    ):
+        return _media_match_redirect(match_page)
+    try:
+        result = apply_local_media_matches(
+            db,
+            candidate_ids,
+            current_page=match_page,
+        )
+    except MediaMatchError as exc:
+        add_flash(request, "error", f"flash.media_match_{exc.code}")
+    else:
+        add_flash(
+            request,
+            "success",
+            "flash.media_match_applied",
+            applied=result.applied,
+        )
+    return _media_match_redirect(match_page)
+
+
+@router.post(
+    "/media-library/matches/apply",
+    dependencies=[Depends(require_page_auth)],
+)
+def media_library_apply_match_page(
+    request: Request,
+    candidate_id: str = Form(...),
+    match_page: str = Form(...),
+    confirm: str | None = Form(default=None),
+    confirmation_text: str | None = Form(default=None),
+    db: Session = Depends(get_db),
+) -> RedirectResponse:
+    return _apply_media_match_candidates(
+        request,
+        db,
+        [candidate_id],
+        match_page=match_page,
+        confirm=confirm,
+        confirmation_text=confirmation_text,
+    )
+
+
+@router.post(
+    "/media-library/matches/apply-bulk",
+    dependencies=[Depends(require_page_auth)],
+)
+def media_library_apply_matches_bulk_page(
+    request: Request,
+    candidate_ids: list[str] | None = Form(default=None),
+    match_page: str = Form(...),
+    confirm: str | None = Form(default=None),
+    confirmation_text: str | None = Form(default=None),
+    db: Session = Depends(get_db),
+) -> RedirectResponse:
+    return _apply_media_match_candidates(
+        request,
+        db,
+        candidate_ids or [],
+        match_page=match_page,
+        confirm=confirm,
+        confirmation_text=confirmation_text,
+    )
 
 
 def _validated_library_media_path(media_path: str) -> str:
