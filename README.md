@@ -8,7 +8,7 @@ Release: [NSFWTrack v1.0.4](https://github.com/choneer/nsfwtrack/releases/tag/v1
 
 Current status: `stable v1.0.4 — code development and WSL acceptance complete`.
 
-Current development: `Phase 3-A3 local media candidate matching is complete on main and
+Current development: `Phase 3-A4 unmatched-media item creation is complete on main and
 not yet released; application Schema remains 2`.
 
 N100 deployment: `not started; waits for explicit user authorization`.
@@ -32,7 +32,37 @@ Code development and WSL acceptance through `v1.0.4` are complete. See
   task. It must wait for explicit user authorization.
 
 Product feature development has explicitly reopened for the bounded Phase 3-A1
-through A3 scopes below. Any expansion beyond them still requires separate approval.
+through A4 scopes below. Any expansion beyond them still requires separate approval.
+
+## Unreleased: Phase 3-A4 Create Items from Unmatched Media
+
+The local media library now offers a second read-only candidate flow for valid,
+unused images that have no existing A3 item-cover or creator-avatar match.
+Nothing is created until an authenticated manual confirmation is submitted.
+
+- Suggested titles come from the filename without its image extension. The
+  cover convention is removed from the title, while avatar-convention files are
+  excluded from item creation entirely.
+- Suggested titles remain editable until confirmation. The preview marks empty
+  or oversized defaults, exact existing titles, normalized existing titles, and
+  normalized conflicts among default candidate titles so they can be corrected.
+- Single and current-page bulk POSTs regenerate the complete candidate set,
+  enforce the current 20-row page, validate every local file again, and use only
+  the submitted final titles. Forged, stale, occupied, missing, invalid, or
+  cross-page candidates are rejected.
+- Final titles must contain 1–255 characters and must not exactly or normally
+  collide with an existing item or another title selected in the same batch.
+  Any validation, file, insert, flush, or commit failure rolls back the entire
+  batch, leaving no partially created items.
+- A successful confirmation creates each item and assigns the candidate's
+  existing local path as `cover_path`. It does not create, download, inspect,
+  move, rename, overwrite, or delete any media file.
+
+Standard mode requires browser and server confirmation; strict mode also
+requires exact `CONFIRM`. Phase 3-A4 adds no table, Schema change, migration,
+dependency, external request, AI/image recognition, version change, Release,
+or deployment.
+The full local suite contains 416 passing tests after this phase.
 
 ## Unreleased: Phase 3-A3 Local Media Candidate Matching
 

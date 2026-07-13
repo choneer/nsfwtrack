@@ -90,10 +90,10 @@ def _exact_match_name(value: str) -> str:
     return unicodedata.normalize("NFKC", value).strip().casefold()
 
 
-def _filename_match_parts(filename: str) -> tuple[str, TargetType | None]:
+def filename_match_parts(filename: str) -> tuple[str, TargetType | None]:
     stem = PurePosixPath(filename).stem.strip()
     matched = _ROLE_SUFFIX_RE.fullmatch(stem)
-    if matched is None or not matched.group(1).strip():
+    if matched is None:
         return stem, None
     role: TargetType = "item" if matched.group(2).casefold() == "cover" else "creator"
     return matched.group(1).strip(), role
@@ -137,7 +137,7 @@ def _entry_candidates(
     entry: LocalMediaEntry,
     targets: Sequence[_Target],
 ) -> list[MediaMatchCandidate]:
-    match_name, role = _filename_match_parts(entry.filename)
+    match_name, role = filename_match_parts(entry.filename)
     if not match_name:
         return []
     eligible = [target for target in targets if role is None or target.target_type == role]

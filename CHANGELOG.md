@@ -14,6 +14,13 @@
 
 ### Added
 
+- Added Phase 3-A4 read-only new-item candidates for validated, unused local
+  images that have no A3 media match. Suggested titles come from filenames with
+  the image extension and cover convention removed; avatar-convention files are
+  excluded, and titles remain editable until confirmation.
+- Added authenticated single and current-page bulk item creation. Confirmed
+  writes rescan candidates, revalidate each media file and final title, create
+  items with their local `cover_path`, and commit the complete batch together.
 - Added Phase 3-A3 explainable local media candidates for empty item covers and
   creator avatars using deterministic exact, normalized, `.cover`, and
   `.avatar` filename rules. Candidate previews are read-only and display their
@@ -43,6 +50,10 @@
 
 ### Changed
 
+- New-item candidate previews identify invalid defaults, exact or normalized
+  existing-title conflicts, and normalized candidate-batch conflicts. Final
+  submitted titles are checked again, and any stale, forged, cross-page,
+  conflicting, or failed row rejects or rolls back the entire selected batch.
 - Media candidate matching considers only validated unused files and targets
   without an existing cover or avatar. One-media/multiple-target and
   one-target/multiple-media ambiguity is disabled rather than guessed.
@@ -58,6 +69,9 @@
 
 ### Security
 
+- Phase 3-A4 never creates an item from GET or without confirmation. It performs
+  no external request, AI/image recognition, or physical media-file operation;
+  successful and failed batches leave every media byte and path unchanged.
 - Phase 3-A3 never auto-applies a candidate or overwrites an existing cover or
   avatar. Every write is an authenticated confirmed POST; strict mode requires
   exact `CONFIRM`. Matching performs no network request, AI/image recognition,

@@ -56,6 +56,7 @@
     ) }}
     <form id="media-match-bulk-form" action="/media-library/matches/apply-bulk" method="post" class="bulk-panel">
       <input type="hidden" name="match_page" value="{{ match_pagination.page }}">
+      <input type="hidden" name="create_page" value="{{ item_candidate_pagination.page }}">
       <div class="bulk-heading">
         <div class="actions">
           <button type="button" class="secondary" id="media-match-select-page">{{ t("media.match_select_page") }}</button>
@@ -111,6 +112,7 @@
               <form action="/media-library/matches/apply" method="post" class="inline-form">
                 <input type="hidden" name="candidate_id" value="{{ candidate.candidate_id }}">
                 <input type="hidden" name="match_page" value="{{ match_pagination.page }}">
+                <input type="hidden" name="create_page" value="{{ item_candidate_pagination.page }}">
                 <button
                   type="submit"
                   class="warning"
@@ -130,6 +132,131 @@
     <div class="empty-state">
       <h3>{{ t("media.match_empty_title") }}</h3>
       <p class="muted">{{ t("media.match_empty") }}</p>
+    </div>
+  {% endif %}
+</section>
+
+<section class="card stack media-match-panel" id="media-item-candidates">
+  <div class="toolbar">
+    <div>
+      <h2>{{ t("media_item.title") }}</h2>
+      <p class="muted">{{ t("media_item.description") }}</p>
+    </div>
+  </div>
+  <div class="notice">
+    <strong>{{ t("media_item.readonly") }}</strong>
+    <p>{{ t("media_item.rules") }}</p>
+    <p>{{ t("media_item.edit_hint") }}</p>
+  </div>
+  <div class="metric-grid compact-metrics">
+    <div class="metric"><strong>{{ item_candidate_scan.eligible_media }}</strong><span>{{ t("media_item.eligible") }}</span></div>
+    <div class="metric"><strong>{{ item_candidate_scan.excluded_matched }}</strong><span>{{ t("media_item.excluded_matched") }}</span></div>
+    <div class="metric"><strong>{{ item_candidate_scan.excluded_avatar }}</strong><span>{{ t("media_item.excluded_avatar") }}</span></div>
+    <div class="metric"><strong>{{ item_candidate_scan.conflicts }}</strong><span>{{ t("media_item.default_conflicts") }}</span></div>
+  </div>
+
+  {% if item_candidates %}
+    {{ danger_notice(
+      t,
+      danger_policy,
+      "danger.object_media_item_candidates",
+      "danger.consequence_media_item_candidates",
+      "danger.deletion_none",
+      "danger.recovery_media_item_candidates",
+      false
+    ) }}
+    <form id="media-item-bulk-form" action="/media-library/item-candidates/create-bulk" method="post" class="bulk-panel">
+      <input type="hidden" name="create_page" value="{{ item_candidate_pagination.page }}">
+      <input type="hidden" name="match_page" value="{{ match_pagination.page }}">
+      <div class="bulk-heading">
+        <div class="actions">
+          <button type="button" class="secondary" id="media-item-select-page">{{ t("media_item.select_page") }}</button>
+          <button type="button" class="secondary" id="media-item-clear-selection">{{ t("media_item.clear_selection") }}</button>
+          <span class="pill" id="media-item-selected-count">{{ t("media_item.selected", count=0) }}</span>
+        </div>
+        <button
+          type="submit"
+          class="warning"
+          id="media-item-create-selected"
+          data-confirm-message="{{ t('media_item.confirm_bulk') }}"
+          {% if danger_policy.is_strict %}data-strict-confirm-message="{{ t('danger.strict_prompt') }}"{% endif %}
+          disabled
+        >{{ t("media_item.create_selected") }}</button>
+      </div>
+    </form>
+
+    <div class="media-match-list">
+      {% for candidate in item_candidates %}
+        {% set single_form_id = "media-item-single-" ~ candidate.candidate_id %}
+        <article class="candidate-row media-match-row{% if candidate.conflicts %} media-match-conflict{% endif %}">
+          <div class="media-match-preview">
+            <img src="{{ candidate.media_path }}" alt="">
+          </div>
+          <div class="stack media-match-details">
+            <strong>{{ candidate.filename }}</strong>
+            <label>{{ t("media_item.item_title") }}
+              <input
+                type="text"
+                name="title"
+                value="{{ candidate.suggested_title }}"
+                maxlength="255"
+                required
+                form="{{ single_form_id }}"
+                class="media-item-title-input"
+                data-candidate-id="{{ candidate.candidate_id }}"
+              >
+            </label>
+            {% if candidate.conflicts %}
+              <div class="flash error media-match-error">
+                <strong>{{ t("media_item.default_conflict") }}</strong>
+                {% for conflict in candidate.conflicts %}
+                  <span>{{ t("media_item.conflict_" ~ conflict) }}</span>
+                {% endfor %}
+                <span>{{ t("media_item.resolve_conflict") }}</span>
+              </div>
+            {% endif %}
+          </div>
+          <div class="media-match-actions">
+            <label class="bulk-card-select">
+              <input
+                type="checkbox"
+                name="candidate_ids"
+                value="{{ candidate.candidate_id }}"
+                form="media-item-bulk-form"
+                class="media-item-checkbox"
+                data-candidate-id="{{ candidate.candidate_id }}"
+              >
+              {{ t("media_item.select") }}
+            </label>
+            <input
+              type="hidden"
+              name="candidate_titles"
+              value="{{ candidate.suggested_title }}"
+              form="media-item-bulk-form"
+              class="media-item-bulk-title"
+              data-candidate-id="{{ candidate.candidate_id }}"
+              disabled
+            >
+            <form id="{{ single_form_id }}" action="/media-library/item-candidates/create" method="post" class="inline-form">
+              <input type="hidden" name="candidate_id" value="{{ candidate.candidate_id }}">
+              <input type="hidden" name="create_page" value="{{ item_candidate_pagination.page }}">
+              <input type="hidden" name="match_page" value="{{ match_pagination.page }}">
+              <button
+                type="submit"
+                class="warning"
+                data-confirm-message="{{ t('media_item.confirm_single') }}"
+                {% if danger_policy.is_strict %}data-strict-confirm-message="{{ t('danger.strict_prompt') }}"{% endif %}
+              >{{ t("media_item.create") }}</button>
+            </form>
+          </div>
+        </article>
+      {% endfor %}
+    </div>
+    {{ pagination_nav(t, item_candidate_pagination) }}
+  {% else %}
+    <div class="empty-state">
+      <h3>{{ t("media_item.empty_title") }}</h3>
+      <p class="muted">{{ t("media_item.empty") }}</p>
     </div>
   {% endif %}
 </section>
@@ -216,6 +343,53 @@
       applySelected.disabled = count === 0;
     };
     checkboxes.forEach((checkbox) => checkbox.addEventListener("change", update));
+    selectPage?.addEventListener("click", () => {
+      checkboxes.forEach((checkbox) => { checkbox.checked = true; });
+      update();
+    });
+    clearSelection?.addEventListener("click", () => {
+      checkboxes.forEach((checkbox) => { checkbox.checked = false; });
+      update();
+    });
+    update();
+  })();
+  (() => {
+    const checkboxes = Array.from(document.querySelectorAll(".media-item-checkbox"));
+    const titleInputs = new Map(
+      Array.from(document.querySelectorAll(".media-item-title-input"))
+        .map((input) => [input.dataset.candidateId, input])
+    );
+    const bulkTitles = new Map(
+      Array.from(document.querySelectorAll(".media-item-bulk-title"))
+        .map((input) => [input.dataset.candidateId, input])
+    );
+    const selectPage = document.getElementById("media-item-select-page");
+    const clearSelection = document.getElementById("media-item-clear-selection");
+    const selectedCount = document.getElementById("media-item-selected-count");
+    const createSelected = document.getElementById("media-item-create-selected");
+    if (!selectedCount || !createSelected) return;
+    const countTemplate = {{ t("media_item.selected", count="__COUNT__")|tojson }};
+    const syncRow = (checkbox) => {
+      const candidateId = checkbox.dataset.candidateId;
+      const titleInput = titleInputs.get(candidateId);
+      const bulkTitle = bulkTitles.get(candidateId);
+      if (!titleInput || !bulkTitle) return;
+      bulkTitle.value = titleInput.value;
+      bulkTitle.disabled = !checkbox.checked;
+    };
+    const update = () => {
+      checkboxes.forEach(syncRow);
+      const count = checkboxes.filter((checkbox) => checkbox.checked).length;
+      selectedCount.textContent = countTemplate.replace("__COUNT__", String(count));
+      createSelected.disabled = count === 0;
+    };
+    checkboxes.forEach((checkbox) => checkbox.addEventListener("change", update));
+    titleInputs.forEach((input, candidateId) => {
+      input.addEventListener("input", () => {
+        const bulkTitle = bulkTitles.get(candidateId);
+        if (bulkTitle) bulkTitle.value = input.value;
+      });
+    });
     selectPage?.addEventListener("click", () => {
       checkboxes.forEach((checkbox) => { checkbox.checked = true; });
       update();
