@@ -41,5 +41,5 @@
 - [x] CHANGELOG 保持空 Unreleased，未重写 v1.0.5 发布段
 - [x] 清理 v1.0.5 候选、尚未创建 tag / Release 等过时当前状态
 - [x] 仅修改 README / PLAN / TASKS / REVIEW / GOAL，未修改代码、测试或配置
-- [ ] 发布后状态提交推送到 main，最终 Actions 通过
-- [ ] 工作区干净，tag object / peeled commit 保持不变，Release 未修改
+- [x] 发布后状态提交 `cce9bcd` 推送到 main，Actions test / Docker smoke 通过
+- [x] tag object / peeled commit 保持不变，Release 字段与正文哈希未修改

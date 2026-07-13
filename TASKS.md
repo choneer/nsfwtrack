@@ -26,7 +26,7 @@ N100 / 目标主机部署尚未开始，**不是当前开发任务**，必须等
 - [x] 发布准备提交推送到 main，Actions test / Docker production smoke 通过
 - [x] 创建并推送 annotated `v1.0.5` tag，tag object 与 peeled commit 验证通过
 - [x] 创建正式 GitHub Release，标题为 `NSFWTrack v1.0.5`，非 Draft / Pre-release
-- [ ] README / PLAN / TASKS / REVIEW / GOAL 发布后状态同步并通过最终 Actions
+- [x] README / PLAN / TASKS / REVIEW / GOAL 发布后状态提交 `cce9bcd`，Actions test / Docker smoke 通过
 
 ### Phase 3-A6 本地媒体完整性审计（已随 v1.0.5 发布）
 
