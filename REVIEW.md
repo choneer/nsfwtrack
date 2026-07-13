@@ -718,13 +718,13 @@
 - [ ] **22.67. v1.0.4 升级说明** — Release notes 与 README 是否要求 v1.0.3 及更早版本先停机、完成可验证备份，再将 data 迁移为 `10001:10001` / 0700
 - [ ] **22.68. v1.0.4 引用一致性** — annotated tag 的 peeled commit、`origin/main`、Release target 和发布提交是否完全一致
 - [ ] **22.69. v1.0.4 正式 Release** — GitHub Release 是否非 draft、非 prerelease，标题和 tag 是否正确，且旧 tag / Release 未移动
-- [ ] **22.70. v1.0.5 范围是否准确** — 是否只冻结 Phase 3-A1 至 A6、来源同名歧义修复和媒体原子上传修复，未夹带新功能
-- [ ] **22.71. v1.0.5 版本是否一致** — FastAPI 元数据、回归断言、README、PLAN、TASKS、REVIEW、GOAL 和 CHANGELOG 当前状态是否均为 1.0.5
-- [ ] **22.72. v1.0.5 CHANGELOG 是否完整** — 是否保留空 Unreleased，并将完整 A1-A6 与两项修复归档为 `## [1.0.5] - 2026-07-13`
-- [ ] **22.73. v1.0.5 边界是否冻结** — 是否保持 Schema 2、唯一真实 1 → 2 迁移、依赖、Docker 配置和所有功能实现不变
-- [ ] **22.74. v1.0.5 验收是否完整** — 是否完成全量 pytest、pip check、隔离 Docker build / healthy / `/login` / version / Schema 2 / 重建 / down 和最终 Actions
-- [ ] **22.75. v1.0.5 发布状态是否真实** — 是否明确最新已发布版本仍为 v1.0.4，本轮仅推送 v1.0.5 发布准备且未创建 tag 或 GitHub Release
-- [ ] **22.76. v1.0.5 资源与凭据是否收尾** — 是否清理隔离容器和临时数据，GH_TOKEN 未写入仓库且使用后 unset
+- [ ] **22.70. v1.0.5 发布范围是否准确** — 是否仅包含 Phase 3-A1 至 A6、来源同名歧义修复和媒体原子上传修复，未夹带新功能
+- [ ] **22.71. v1.0.5 当前状态是否一致** — README、PLAN、TASKS、REVIEW 和 GOAL 是否均标明 v1.0.5 为当前稳定版与最新 Release，A1-A6 已发布
+- [ ] **22.72. v1.0.5 CHANGELOG 是否保持** — 是否保留空 Unreleased 和原 `[1.0.5] - 2026-07-13` 发布段，发布后同步未重写 CHANGELOG
+- [ ] **22.73. v1.0.5 文档边界是否冻结** — 发布后同步是否只修改文档，保持代码、测试、Schema 2、唯一真实 1 → 2 迁移、依赖和 Docker 配置不变
+- [ ] **22.74. v1.0.5 发布引用是否精确** — annotated tag object 是否为 `6a4def572e100198a446ad56353400138c573f66`，peeled commit 是否为 `3c4fee62891ff2826f0b8bc97b33bf3a4d08aa73`
+- [ ] **22.75. v1.0.5 Release 是否真实** — `NSFWTrack v1.0.5` 是否为非 Draft、非 Pre-release 的正式 Release，地址是否为 `https://github.com/choneer/nsfwtrack/releases/tag/v1.0.5`
+- [ ] **22.76. v1.0.5 发布后同步是否完整** — 是否清除候选 / 待创建描述，提交推送 main、最终 Actions 通过、工作区干净，且未移动 tag 或修改 Release
 
 ## 备份恢复检查
 

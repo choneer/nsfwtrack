@@ -2,28 +2,33 @@
 
 按顺序执行，每完成一项打个 [x]。
 
-## 当前状态（v1.0.5 发布准备）
+## 当前状态（v1.0.5 稳定）
 
-最新已发布版本：`v1.0.4`。当前 main 应用版本已准备为 `1.0.5`。
-Phase 3-A1 至 A6 已冻结到 v1.0.5 候选，应用 Schema 仍为 `2`；
-本轮不创建 v1.0.5 tag 或 GitHub Release。
+当前稳定版与最新 Release：`v1.0.5`。Phase 3-A1 至 A6 已正式发布，
+应用 Schema 仍为 `2`。
+
+- Annotated tag object：`6a4def572e100198a446ad56353400138c573f66`
+- Peeled commit：`3c4fee62891ff2826f0b8bc97b33bf3a4d08aa73`
+- Release：`https://github.com/choneer/nsfwtrack/releases/tag/v1.0.5`
+
 N100 / 目标主机部署尚未开始，**不是当前开发任务**，必须等待用户明确授权。
 完整证据见 `COMPLETION_AUDIT.md`。历史任务保留在本文后半部分，
 不再作为新增开发路线。
 
-### v1.0.5 发布准备
+### v1.0.5 正式发布
 
 - [x] 应用版本元数据和发布回归断言从 1.0.4 更新为 1.0.5
 - [x] 将 A1 至 A6、来源同名歧义修复和媒体原子上传修复冻结为 `[1.0.5] - 2026-07-13`
 - [x] CHANGELOG 顶部保留新的空 Unreleased 段
-- [x] README / PLAN / TASKS / REVIEW / GOAL 当前版本和发布状态同步
-- [x] 明确最新已发布 tag 仍为 v1.0.4，v1.0.5 tag / GitHub Release 尚未创建
+- [x] README / PLAN / TASKS / REVIEW / GOAL 发布准备状态同步
 - [x] 保持功能代码、Schema 2、真实 1 → 2 迁移、依赖和 Docker 配置不变
 - [x] 全量 `433 passed`、pip check 与隔离 Docker 双生命周期验收通过并清理
 - [x] 发布准备提交推送到 main，Actions test / Docker production smoke 通过
-- [x] tag 引用快照不变，确认本地、origin 和 GitHub 均无 v1.0.5 tag / Release
+- [x] 创建并推送 annotated `v1.0.5` tag，tag object 与 peeled commit 验证通过
+- [x] 创建正式 GitHub Release，标题为 `NSFWTrack v1.0.5`，非 Draft / Pre-release
+- [ ] README / PLAN / TASKS / REVIEW / GOAL 发布后状态同步并通过最终 Actions
 
-### Phase 3-A6 本地媒体完整性审计
+### Phase 3-A6 本地媒体完整性审计（已随 v1.0.5 发布）
 
 - [x] `/data-health` 增加只读 media 分类、完整汇总和统一问题明细
 - [x] 条目封面与创作者头像引用覆盖非法值、路径越界、符号链接、缺失和损坏
@@ -39,7 +44,7 @@ N100 / 目标主机部署尚未开始，**不是当前开发任务**，必须等
 - [x] 全量 `433 passed`、pip check 与隔离 Docker 双生命周期通过，临时资源已清理
 - [x] Actions test / Docker production smoke 通过并完成临时资源清理
 
-### Phase 3-A5 媒体库检索与分页
+### Phase 3-A5 媒体库检索与分页（已随 v1.0.5 发布）
 
 - [x] 文件名和相对 `/media/...` 路径支持 NFKC 大小写无关本地搜索，输入限制 200 字符
 - [x] 支持全部、可用、损坏 / 不可用、已使用和未使用筛选，使用状态来自现有封面 / 头像引用
@@ -54,7 +59,7 @@ N100 / 目标主机部署尚未开始，**不是当前开发任务**，必须等
 - [x] 同步 README / PLAN / TASKS / REVIEW / CHANGELOG / GOAL 与专项测试
 - [x] 全量 `424 passed`、pip check 与隔离 Docker 双生命周期通过并清理；Actions 结果随最终提交汇报
 
-### Phase 3-A4 未匹配媒体快速建档
+### Phase 3-A4 未匹配媒体快速建档（已随 v1.0.5 发布）
 
 - [x] 仅从有效、未使用且没有 A3 配对的本地图片生成只读新条目候选，不自动建档
 - [x] 文件名移除扩展名和封面约定后缀生成默认标题，头像约定文件排除
@@ -69,7 +74,7 @@ N100 / 目标主机部署尚未开始，**不是当前开发任务**，必须等
 - [x] 中英文、README / PLAN / TASKS / REVIEW / CHANGELOG / GOAL 与专项测试同步
 - [x] 全量 `416 passed`、pip check 与隔离 Docker 双生命周期通过并清理；Actions 结果随最终提交汇报
 
-### Phase 3-A3 本地媒体候选配对
+### Phase 3-A3 本地媒体候选配对（已随 v1.0.5 发布）
 
 - [x] 仅对有效未使用媒体、无封面条目和无头像创作者生成只读候选，不自动写入
 - [x] 支持 NFKC / casefold 精确名称、仅保留字母数字的规范化名称及 `cover` / `avatar` 约定后缀
@@ -83,7 +88,7 @@ N100 / 目标主机部署尚未开始，**不是当前开发任务**，必须等
 - [x] 中英文、README / PLAN / TASKS / REVIEW / CHANGELOG / GOAL 与专项测试同步
 - [x] 全量 `407 passed`、pip check 与隔离 Docker 双生命周期通过并清理；Actions 结果随最终提交汇报
 
-### Phase 3-A2 本地媒体库
+### Phase 3-A2 本地媒体库（已随 v1.0.5 发布）
 
 - [x] 扫描 `data/media` 并展示条目封面 / 创作者头像引用状态，不跟随符号链接或越出目录
 - [x] 支持单图和多图上传；每批 20 张、每张 10 MB，并校验扩展名、MIME 与文件结构
@@ -97,7 +102,7 @@ N100 / 目标主机部署尚未开始，**不是当前开发任务**，必须等
 - [x] 中英文、README / PLAN / TASKS / REVIEW / CHANGELOG / GOAL 与测试同步
 - [x] 全量 `397 passed`、`pip check` 与隔离 Docker 双生命周期通过并清理；Actions 结果随最终提交汇报
 
-### Phase 3-A1 来源链接与批量书签导入
+### Phase 3-A1 来源链接与批量书签导入（已随 v1.0.5 发布）
 
 - [x] 修改 RULE，允许保存用户提供 URL、解析本地书签 HTML 与纯文本 URL 清单
 - [x] 新增 `item_sources`，支持一个条目多个来源、可选标题、创建时间和全局规范化 URL 唯一约束

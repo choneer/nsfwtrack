@@ -2,14 +2,14 @@
 
 NSFWTrack is a local single-user content record manager / collection tracker.
 
-Current version: `v1.0.5 release candidate / Phase 3-A1 through A6`.
+Current stable version: `v1.0.5 / Phase 3-A1 through A6`.
 
-Latest published release: [NSFWTrack v1.0.4](https://github.com/choneer/nsfwtrack/releases/tag/v1.0.4).
+Latest Release: [NSFWTrack v1.0.5](https://github.com/choneer/nsfwtrack/releases/tag/v1.0.5).
 
-Current status: `v1.0.5 release preparation on main; tag and GitHub Release not created`.
+Current status: `stable v1.0.5; local, Docker, and GitHub Actions acceptance complete`.
 
-Current development: `Phase 3-A1 through A6 are frozen for v1.0.5; application
-Schema remains 2`.
+Current development: `Phase 3-A1 through A6 were released in v1.0.5;
+application Schema remains 2`.
 
 N100 deployment: `not started; waits for explicit user authorization`.
 
@@ -23,8 +23,8 @@ Phase 2-K1 found no genuine TODO / FIXME marker, stub route, 501 response, or
 dead navigation entry. Phase 2-K2 closed the three pre-use findings and the
 archived `v1.0.4` suite contains 358 passing tests.
 
-The `v1.0.4` release remains the latest published tag. Code development and WSL
-acceptance through the `v1.0.5` release candidate are complete. See
+The `v1.0.5` release is the current stable tag. Code development and WSL
+acceptance through Phase 3-A1 to A6 are complete. See
 [COMPLETION_AUDIT.md](COMPLETION_AUDIT.md) for the archived K1 / K2 evidence.
 
 - Phase 2-K2 closed the local media-path, bulk / clear confirmation, deployment
@@ -32,12 +32,12 @@ acceptance through the `v1.0.5` release candidate are complete. See
 - N100 / target-host deployment has not started and is not a current development
   task. It must wait for explicit user authorization.
 
-The bounded Phase 3-A1 through A6 scope is now frozen in the `v1.0.5` release
-candidate. Any expansion beyond it still requires separate approval.
+The bounded Phase 3-A1 through A6 scope shipped in `v1.0.5`. Any expansion
+beyond it still requires separate approval.
 
-## v1.0.5 Release Candidate
+## Features in v1.0.5
 
-`v1.0.5` collects the complete local-only Phase 3-A line while preserving the
+`v1.0.5` publishes the complete local-only Phase 3-A line while preserving the
 fixed non-root Docker runtime and explicit Schema 2 migration boundary:
 
 - A1 stores user-provided source links and imports local text/bookmark files
@@ -51,13 +51,15 @@ fixed non-root Docker runtime and explicit Schema 2 migration boundary:
   upload publication now uses same-directory temporary files, flush/fsync,
   no-overwrite atomic publication, race revalidation, and batch rollback.
 
-This preparation changes only application version metadata, its regression
-assertion, and release documentation. The tag and GitHub Release are
-intentionally not created in this round.
-Local release-candidate acceptance passed all 433 tests, `pip check`, and an
+The release preparation changed only application version metadata, its
+regression assertion, and release documentation. Local release acceptance
+passed all 433 tests, `pip check`, and an
 isolated two-lifecycle Docker smoke with version 1.0.5 and Schema 2. GitHub
-Actions test and Docker production smoke also passed; no v1.0.5 tag or Release
-was created.
+Actions test and Docker production smoke also passed.
+
+- Annotated tag object: `6a4def572e100198a446ad56353400138c573f66`
+- Peeled release commit: `3c4fee62891ff2826f0b8bc97b33bf3a4d08aa73`
+- Release: [NSFWTrack v1.0.5](https://github.com/choneer/nsfwtrack/releases/tag/v1.0.5)
 
 ### Phase 3-A6 Local Media Integrity Audit
 
