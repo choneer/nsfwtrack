@@ -17,6 +17,7 @@
   <strong>{{ t("data_health.readonly_notice") }}</strong>
   <p>{{ t("data_health.backup_hint") }}</p>
   <p>{{ t("data_health.no_auto_fix") }}</p>
+  <p>{{ t("data_health.media_report_only") }}</p>
 </section>
 
 <section class="card stack">
@@ -134,7 +135,11 @@
               <td>{{ t("data_health.issue_" ~ issue.code) }}</td>
               <td>
                 {% if issue.detail %}
-                  <code>{{ issue.detail }}</code>
+                  {% if issue.code == "media_root_unavailable" %}
+                    <code>{{ t("data_health.media_root_state_" ~ issue.detail) }}</code>
+                  {% else %}
+                    <code>{{ issue.detail }}</code>
+                  {% endif %}
                 {% else %}
                   <span class="muted">{{ t("common.none") }}</span>
                 {% endif %}

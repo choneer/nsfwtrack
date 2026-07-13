@@ -55,7 +55,7 @@ def test_audit_suite_is_read_only_and_covers_required_operations(tmp_path: Path)
     assert by_operation["collections"].query_count <= 3
     assert by_operation["duplicates"].query_count <= 7
     assert by_operation["stats"].query_count <= 11
-    assert by_operation["data_health"].query_count <= 11
+    assert by_operation["data_health"].query_count <= 12
     with Session(engine) as db:
         after = int(db.scalar(select(func.count(models.Item.id))) or 0)
     assert after == before == 30

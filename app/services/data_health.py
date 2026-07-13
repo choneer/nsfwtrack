@@ -11,9 +11,17 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.services.item_query import STATUS_OPTIONS
+from app.services.media_health import audit_local_media
 from app.services.saved_views import SAVED_VIEW_ALLOWED_PARAMS
 
-CATEGORY_ORDER = ("items", "relations", "duplicates", "saved_views", "activity")
+CATEGORY_ORDER = (
+    "items",
+    "relations",
+    "duplicates",
+    "saved_views",
+    "activity",
+    "media",
+)
 DATA_HEALTH_DETAIL_LIMIT = 200
 BLOCKED_SAVED_VIEW_PARAMS = {"page", "next", "redirect"}
 _BAD_PERCENT_RE = re.compile(r"%(?![0-9A-Fa-f]{2})")
@@ -66,6 +74,17 @@ def build_data_health_report(
     issues.extend(_check_duplicate_relations(db))
     issues.extend(_check_saved_views(db))
     issues.extend(_check_item_activity(db))
+    issues.extend(
+        _issue(
+            "media",
+            finding.code,
+            finding.object_type,
+            finding.object_id,
+            detail=finding.detail,
+            severity=finding.severity,
+        )
+        for finding in audit_local_media(db)
+    )
     return _build_report(issues, detail_limit=detail_limit)
 
 

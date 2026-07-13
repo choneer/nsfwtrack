@@ -8,7 +8,7 @@ Release: [NSFWTrack v1.0.4](https://github.com/choneer/nsfwtrack/releases/tag/v1
 
 Current status: `stable v1.0.4 — code development and WSL acceptance complete`.
 
-Current development: `Phase 3-A5 media library search and pagination is complete on main and
+Current development: `Phase 3-A6 local media integrity audit is complete on main and
 not yet released; application Schema remains 2`.
 
 N100 deployment: `not started; waits for explicit user authorization`.
@@ -32,7 +32,37 @@ Code development and WSL acceptance through `v1.0.4` are complete. See
   task. It must wait for explicit user authorization.
 
 Product feature development has explicitly reopened for the bounded Phase 3-A1
-through A5 scopes below. Any expansion beyond them still requires separate approval.
+through A6 scopes below. Any expansion beyond them still requires separate approval.
+
+## Unreleased: Phase 3-A6 Local Media Integrity Audit
+
+The authenticated `/data-health` report now includes a read-only Media
+Integrity category for app-owned item-cover and creator-avatar files. It audits
+the existing database references and local `data/media` tree without changing
+either one.
+
+- Referenced `/media/...` paths report invalid values, attempts to escape the
+  media root, symbolic-link traversal, missing files, and damaged or unsafe
+  images as problems. External URLs are classified as invalid local references
+  and are never requested.
+- A missing media root is reported when a valid reference depends on it. A
+  symlinked, non-directory, unreadable, or otherwise unscannable root is also
+  reported without failing the page. An uninitialized missing root with no
+  local reference remains healthy.
+- Stale `.upload-*.tmp` files and different paths with identical SHA-256 image
+  content are warnings. The report also summarizes symbolic links and
+  unsupported files skipped by the safe local scan.
+- Valid unreferenced images are normal library content and are not issues. The
+  existing global 200-detail limit still applies while category and issue totals
+  retain complete counts.
+- Media findings are report-only. They add no fix option, and forged media fix
+  submissions are rejected without clearing a reference or changing a file.
+
+Phase 3-A6 GET reporting performs no database or media write and adds no table,
+Schema change, migration, dependency, external request, media operation,
+version change, Release, or deployment. The A3 matching, A4 item-candidate, and
+A5 media-query services remain unchanged.
+The full local suite contains 433 passing tests after this phase.
 
 ## Unreleased: Phase 3-A5 Media Library Search and Pagination
 

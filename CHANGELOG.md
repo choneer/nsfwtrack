@@ -14,6 +14,14 @@
 
 ### Added
 
+- Added a read-only Phase 3-A6 Media Integrity category to `/data-health` for
+  item-cover and creator-avatar references, reporting invalid and escaping
+  paths, symbolic links, missing files, damaged images, and unavailable media
+  roots without failing the page.
+- Added warning-only reporting for `.upload-*.tmp` residue, duplicate SHA-256
+  image content at different paths, and summary counts for symbolic links and
+  unsupported files skipped by the local scan. Valid unused media remains a
+  normal library state.
 - Added Phase 3-A5 local media filename/path search, all/available/damaged/used/
   unused filtering, deterministic filename/size sorting in both directions, and
   independent 20-row `media_page` pagination for the media-file card list.
@@ -56,6 +64,9 @@
 
 ### Changed
 
+- Media health findings use the existing global 200-detail limit while complete
+  issue and category totals remain available. A missing uninitialized media
+  root is healthy when no valid local reference depends on it.
 - The complete local scan continues to feed unchanged A3/A4 candidate logic;
   Phase 3-A5 search, status, sort, and pagination apply only to rendered media
   cards. Invalid query, status, sort, and page values safely fall back or clamp.
@@ -78,6 +89,10 @@
 
 ### Security
 
+- Phase 3-A6 performs only local database and filesystem reads. It never
+  requests an external URL, follows a symbolic link, changes a reference or
+  media file, or exposes a media fix option; forged media fix submissions are
+  rejected by the existing server-side whitelist.
 - Phase 3-A5 GET browsing is read-only and performs no database, association, or
   media-file write. Search is local and bounded, with no path interpretation,
   external request, AI, or image recognition.
