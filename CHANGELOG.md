@@ -14,6 +14,12 @@
 
 ### Added
 
+- Added Phase 3-A5 local media filename/path search, all/available/damaged/used/
+  unused filtering, deterministic filename/size sorting in both directions, and
+  independent 20-row `media_page` pagination for the media-file card list.
+- Added canonical query-state preservation across `media_page`, `match_page`,
+  `create_page`, filter submissions, uploads, manual assignments, and A3/A4
+  confirmation redirects, with distinct bilingual empty-scan and no-result states.
 - Added Phase 3-A4 read-only new-item candidates for validated, unused local
   images that have no A3 media match. Suggested titles come from filenames with
   the image extension and cover convention removed; avatar-convention files are
@@ -50,6 +56,9 @@
 
 ### Changed
 
+- The complete local scan continues to feed unchanged A3/A4 candidate logic;
+  Phase 3-A5 search, status, sort, and pagination apply only to rendered media
+  cards. Invalid query, status, sort, and page values safely fall back or clamp.
 - New-item candidate previews identify invalid defaults, exact or normalized
   existing-title conflicts, and normalized candidate-batch conflicts. Final
   submitted titles are checked again, and any stale, forged, cross-page,
@@ -69,6 +78,9 @@
 
 ### Security
 
+- Phase 3-A5 GET browsing is read-only and performs no database, association, or
+  media-file write. Search is local and bounded, with no path interpretation,
+  external request, AI, or image recognition.
 - Phase 3-A4 never creates an item from GET or without confirmation. It performs
   no external request, AI/image recognition, or physical media-file operation;
   successful and failed batches leave every media byte and path unchanged.

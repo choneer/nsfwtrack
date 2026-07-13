@@ -8,7 +8,7 @@ Release: [NSFWTrack v1.0.4](https://github.com/choneer/nsfwtrack/releases/tag/v1
 
 Current status: `stable v1.0.4 — code development and WSL acceptance complete`.
 
-Current development: `Phase 3-A4 unmatched-media item creation is complete on main and
+Current development: `Phase 3-A5 media library search and pagination is complete on main and
 not yet released; application Schema remains 2`.
 
 N100 deployment: `not started; waits for explicit user authorization`.
@@ -32,7 +32,37 @@ Code development and WSL acceptance through `v1.0.4` are complete. See
   task. It must wait for explicit user authorization.
 
 Product feature development has explicitly reopened for the bounded Phase 3-A1
-through A4 scopes below. Any expansion beyond them still requires separate approval.
+through A5 scopes below. Any expansion beyond them still requires separate approval.
+
+## Unreleased: Phase 3-A5 Media Library Search and Pagination
+
+The media-file card list under `/media-library` now has an independent,
+read-only query layer for larger local libraries. The complete scan still feeds
+the unchanged A3 matching and A4 item-candidate flows; only the browsed media
+cards are searched, filtered, sorted, and paged.
+
+- `media_q` performs local NFKC-normalized, case-insensitive substring matching
+  against both the relative filename/path and the `/media/...` path. Searches
+  longer than 200 characters safely fall back to an empty search.
+- `media_status` supports all, available, damaged/unavailable, used, and unused.
+  Used status is derived from current item-cover and creator-avatar references;
+  no media or association is changed while filtering.
+- `media_sort` supports filename ascending/descending and byte size
+  ascending/descending, with deterministic filename/path tie breaking.
+- `media_page` always displays at most 20 cards and safely falls back or clamps
+  invalid, negative, non-numeric, empty, and out-of-range values.
+- Media pagination preserves the canonical search/filter/sort state plus the
+  current `match_page` and `create_page`. A3 and A4 pagination preserve each
+  other, `media_page`, and all media filters. Upload, manual assignment, and
+  candidate-confirmation redirects retain the same canonical state.
+- Empty scans and empty filtered results have distinct bilingual states. Invalid
+  status or sort values fall back to all media and filename ascending without a
+  500 response or database write.
+
+Phase 3-A5 performs no POST or mutation of its own and adds no table, Schema
+change, migration, dependency, external request, AI/image recognition, media
+file operation, version change, Release, or deployment.
+The full local suite contains 424 passing tests after this phase.
 
 ## Unreleased: Phase 3-A4 Create Items from Unmatched Media
 

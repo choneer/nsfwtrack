@@ -1,6 +1,12 @@
 {% extends "base.html" %}
 {% from "_danger_notice.html" import danger_notice %}
 {% from "_pagination.html" import pagination_nav %}
+{% macro media_state_fields(media_filters, media_pagination) -%}
+  <input type="hidden" name="media_page" value="{{ media_pagination.page }}">
+  <input type="hidden" name="media_q" value="{{ media_filters.q }}">
+  <input type="hidden" name="media_status" value="{{ media_filters.status }}">
+  <input type="hidden" name="media_sort" value="{{ media_filters.sort }}">
+{%- endmacro %}
 {% block title %}{{ t("media.title") }} - NSFWTrack{% endblock %}
 {% block content %}
 <div class="toolbar">
@@ -16,6 +22,9 @@
   <h2>{{ t("media.upload_title") }}</h2>
   <p class="muted">{{ t("media.upload_hint", count=max_media_upload_files, size=max_media_upload_mb) }}</p>
   <form action="/media-library/upload" method="post" enctype="multipart/form-data" class="stack">
+    <input type="hidden" name="match_page" value="{{ match_pagination.page }}">
+    <input type="hidden" name="create_page" value="{{ item_candidate_pagination.page }}">
+    {{ media_state_fields(media_filters, media_pagination) }}
     <label>{{ t("media.files") }}
       <input name="files" type="file" accept="image/avif,image/gif,image/jpeg,image/png,image/webp" multiple required>
     </label>
@@ -57,6 +66,7 @@
     <form id="media-match-bulk-form" action="/media-library/matches/apply-bulk" method="post" class="bulk-panel">
       <input type="hidden" name="match_page" value="{{ match_pagination.page }}">
       <input type="hidden" name="create_page" value="{{ item_candidate_pagination.page }}">
+      {{ media_state_fields(media_filters, media_pagination) }}
       <div class="bulk-heading">
         <div class="actions">
           <button type="button" class="secondary" id="media-match-select-page">{{ t("media.match_select_page") }}</button>
@@ -113,6 +123,7 @@
                 <input type="hidden" name="candidate_id" value="{{ candidate.candidate_id }}">
                 <input type="hidden" name="match_page" value="{{ match_pagination.page }}">
                 <input type="hidden" name="create_page" value="{{ item_candidate_pagination.page }}">
+                {{ media_state_fields(media_filters, media_pagination) }}
                 <button
                   type="submit"
                   class="warning"
@@ -168,6 +179,7 @@
     <form id="media-item-bulk-form" action="/media-library/item-candidates/create-bulk" method="post" class="bulk-panel">
       <input type="hidden" name="create_page" value="{{ item_candidate_pagination.page }}">
       <input type="hidden" name="match_page" value="{{ match_pagination.page }}">
+      {{ media_state_fields(media_filters, media_pagination) }}
       <div class="bulk-heading">
         <div class="actions">
           <button type="button" class="secondary" id="media-item-select-page">{{ t("media_item.select_page") }}</button>
@@ -241,6 +253,7 @@
               <input type="hidden" name="candidate_id" value="{{ candidate.candidate_id }}">
               <input type="hidden" name="create_page" value="{{ item_candidate_pagination.page }}">
               <input type="hidden" name="match_page" value="{{ match_pagination.page }}">
+              {{ media_state_fields(media_filters, media_pagination) }}
               <button
                 type="submit"
                 class="warning"
@@ -261,9 +274,56 @@
   {% endif %}
 </section>
 
+<section class="card stack media-list-controls" id="media-files">
+  <div class="toolbar">
+    <div>
+      <h2>{{ t("media.list_title") }}</h2>
+      <p class="muted">{{ t("media.list_description", size=media_pagination.page_size) }}</p>
+    </div>
+  </div>
+  <form action="/media-library" method="get" class="form-grid">
+    <input type="hidden" name="match_page" value="{{ match_pagination.page }}">
+    <input type="hidden" name="create_page" value="{{ item_candidate_pagination.page }}">
+    <input type="hidden" name="media_page" value="1">
+    <label>{{ t("media.list_search") }}
+      <input
+        type="search"
+        name="media_q"
+        value="{{ media_filters.q }}"
+        maxlength="200"
+        placeholder="{{ t('media.list_search_placeholder') }}"
+      >
+    </label>
+    <label>{{ t("media.list_status") }}
+      <select name="media_status">
+        {% for option in media_status_options %}
+          <option value="{{ option }}"{% if media_filters.status == option %} selected{% endif %}>{{ t("media.list_status_" ~ option) }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>{{ t("media.list_sort") }}
+      <select name="media_sort">
+        {% for option in media_sort_options %}
+          <option value="{{ option }}"{% if media_filters.sort == option %} selected{% endif %}>{{ t("media.list_sort_" ~ option) }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <div class="filter-actions">
+      <button type="submit">{{ t("media.list_apply") }}</button>
+      <a class="button secondary" href="/media-library?match_page={{ match_pagination.page }}&amp;create_page={{ item_candidate_pagination.page }}&amp;media_page=1#media-files">{{ t("media.list_clear") }}</a>
+    </div>
+  </form>
+  <div class="filter-summary">
+    {% if media_filters.q %}<span class="pill">{{ t("media.list_search") }}: {{ media_filters.q }}</span>{% endif %}
+    <span class="pill">{{ t("media.list_status") }}: {{ t("media.list_status_" ~ media_filters.status) }}</span>
+    <span class="pill">{{ t("media.list_sort") }}: {{ t("media.list_sort_" ~ media_filters.sort) }}</span>
+  </div>
+</section>
+
 <section class="stats-section">
   <div class="metric-grid compact-metrics">
     <div class="metric"><strong>{{ scan.entries|length }}</strong><span>{{ t("media.scanned") }}</span></div>
+    <div class="metric"><strong>{{ media_pagination.total }}</strong><span>{{ t("media.list_results") }}</span></div>
     <div class="metric"><strong>{{ scan.invalid }}</strong><span>{{ t("media.invalid") }}</span></div>
     <div class="metric"><strong>{{ scan.skipped_symlinks }}</strong><span>{{ t("media.symlinks_skipped") }}</span></div>
     <div class="metric"><strong>{{ scan.skipped_unsupported }}</strong><span>{{ t("media.unsupported_skipped") }}</span></div>
@@ -271,8 +331,9 @@
 </section>
 
 <div class="item-grid">
-  {% for entry in scan.entries %}
-    <article class="card stack">
+  {% for row in media_rows %}
+    {% set entry = row.entry %}
+    <article class="card stack" data-media-path="{{ entry.media_path }}">
       <div class="cover">
         {% if entry.available %}
           <img src="{{ entry.media_path }}" alt="">
@@ -299,6 +360,9 @@
       {% if entry.available %}
         <form action="/media-library/set-item-cover" method="post" class="stack">
           <input type="hidden" name="media_path" value="{{ entry.media_path }}">
+          <input type="hidden" name="match_page" value="{{ match_pagination.page }}">
+          <input type="hidden" name="create_page" value="{{ item_candidate_pagination.page }}">
+          {{ media_state_fields(media_filters, media_pagination) }}
           <label>{{ t("media.set_item_cover") }}
             <select name="item_id" required>
               <option value="">{{ t("common.none") }}</option>
@@ -309,6 +373,9 @@
         </form>
         <form action="/media-library/set-creator-avatar" method="post" class="stack">
           <input type="hidden" name="media_path" value="{{ entry.media_path }}">
+          <input type="hidden" name="match_page" value="{{ match_pagination.page }}">
+          <input type="hidden" name="create_page" value="{{ item_candidate_pagination.page }}">
+          {{ media_state_fields(media_filters, media_pagination) }}
           <label>{{ t("media.set_creator_avatar") }}
             <select name="creator_id" required>
               <option value="">{{ t("common.none") }}</option>
@@ -320,9 +387,10 @@
       {% endif %}
     </article>
   {% else %}
-    <section class="card"><p class="muted">{{ t("media.empty") }}</p></section>
+    <section class="card"><p class="muted">{{ t("media.list_no_results") if scan.entries else t("media.empty") }}</p></section>
   {% endfor %}
 </div>
+{{ pagination_nav(t, media_pagination) }}
 
 <section class="card">
   <h2>{{ t("media.boundary_title") }}</h2>

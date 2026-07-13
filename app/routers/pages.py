@@ -126,6 +126,13 @@ from app.services.media_item_candidates import (
     find_media_item_candidates,
     paginate_media_item_candidates,
 )
+from app.services.media_library_query import (
+    MEDIA_SORT_OPTIONS,
+    MEDIA_STATUS_OPTIONS,
+    media_filter_query_params,
+    normalize_media_list_filters,
+    query_media_library,
+)
 from app.services.media_matching import (
     MediaMatchError,
     apply_local_media_matches,
@@ -312,6 +319,10 @@ def media_library_page(
     request: Request,
     match_page: str | None = Query(default=None),
     create_page: str | None = Query(default=None),
+    media_page: str | None = Query(default=None),
+    media_q: str | None = Query(default=None),
+    media_status: str | None = Query(default=None),
+    media_sort: str | None = Query(default=None),
     db: Session = Depends(get_db),
 ) -> HTMLResponse:
     error_key = None
@@ -330,6 +341,7 @@ def media_library_page(
     for creator in creators:
         if creator.avatar_path:
             creator_references.setdefault(creator.avatar_path, []).append(creator)
+    used_media_paths = {*item_references, *creator_references}
     match_scan = match_local_media(scan, items, creators)
     candidate_page = paginate_media_matches(match_scan, match_page)
     item_candidate_scan = find_media_item_candidates(scan, items, creators)
@@ -337,6 +349,18 @@ def media_library_page(
         item_candidate_scan,
         create_page,
     )
+    media_result = query_media_library(
+        scan,
+        used_media_paths,
+        q=media_q,
+        status=media_status,
+        sort=media_sort,
+        page=media_page,
+    )
+    media_params = {
+        **media_filter_query_params(media_result.filters),
+        "media_page": media_result.page_info.page,
+    }
     return templates.TemplateResponse(
         request,
         "media_library.html",
@@ -354,7 +378,10 @@ def media_library_page(
                 candidate_page.page_info,
                 "/media-library",
                 page_param="match_page",
-                params={"create_page": item_candidate_page.page_info.page},
+                params={
+                    **media_params,
+                    "create_page": item_candidate_page.page_info.page,
+                },
             ),
             item_candidate_scan=item_candidate_scan,
             item_candidates=item_candidate_page.rows,
@@ -362,7 +389,24 @@ def media_library_page(
                 item_candidate_page.page_info,
                 "/media-library",
                 page_param="create_page",
-                params={"match_page": candidate_page.page_info.page},
+                params={
+                    **media_params,
+                    "match_page": candidate_page.page_info.page,
+                },
+            ),
+            media_rows=media_result.rows,
+            media_filters=media_result.filters,
+            media_status_options=MEDIA_STATUS_OPTIONS,
+            media_sort_options=MEDIA_SORT_OPTIONS,
+            media_pagination=_page_context(
+                media_result.page_info,
+                "/media-library",
+                page_param="media_page",
+                params={
+                    **media_filter_query_params(media_result.filters),
+                    "match_page": candidate_page.page_info.page,
+                    "create_page": item_candidate_page.page_info.page,
+                },
             ),
             max_media_upload_mb=MAX_MEDIA_UPLOAD_BYTES // (1024 * 1024),
             max_media_upload_files=MAX_MEDIA_UPLOAD_FILES,
@@ -375,6 +419,12 @@ def media_library_page(
 async def media_library_upload_page(
     request: Request,
     files: list[UploadFile] | None = File(default=None),
+    match_page: str | None = Form(default=None),
+    create_page: str | None = Form(default=None),
+    media_page: str | None = Form(default=None),
+    media_q: str | None = Form(default=None),
+    media_status: str | None = Form(default=None),
+    media_sort: str | None = Form(default=None),
 ) -> RedirectResponse:
     try:
         result = await store_media_uploads(files or [])
@@ -388,20 +438,38 @@ async def media_library_upload_page(
             uploaded=result.uploaded,
             duplicate=result.duplicate,
         )
-    return _redirect("/media-library")
+    return _media_library_redirect(
+        match_page=match_page,
+        create_page=create_page,
+        media_page=media_page,
+        media_q=media_q,
+        media_status=media_status,
+        media_sort=media_sort,
+    )
 
 
-def _media_library_candidate_redirect(
+def _media_library_redirect(
     *,
     match_page: str | int | None,
     create_page: str | int | None,
+    media_page: str | int | None,
+    media_q: str | None,
+    media_status: str | None,
+    media_sort: str | None,
 ) -> RedirectResponse:
+    filters = normalize_media_list_filters(
+        q=media_q,
+        status=media_status,
+        sort=media_sort,
+    )
     return _redirect(
         "/media-library?"
         + urlencode(
             {
                 "match_page": parse_page(match_page),
                 "create_page": parse_page(create_page),
+                "media_page": parse_page(media_page),
+                **media_filter_query_params(filters),
             }
         )
     )
@@ -414,6 +482,10 @@ def _apply_media_match_candidates(
     *,
     match_page: str | None,
     create_page: str | None,
+    media_page: str | None,
+    media_q: str | None,
+    media_status: str | None,
+    media_sort: str | None,
     confirm: str | None,
     confirmation_text: str | None,
 ) -> RedirectResponse:
@@ -423,9 +495,13 @@ def _apply_media_match_candidates(
         confirmation_text=confirmation_text,
         base_confirmation_valid=confirm == "1",
     ):
-        return _media_library_candidate_redirect(
+        return _media_library_redirect(
             match_page=match_page,
             create_page=create_page,
+            media_page=media_page,
+            media_q=media_q,
+            media_status=media_status,
+            media_sort=media_sort,
         )
     try:
         result = apply_local_media_matches(
@@ -442,9 +518,13 @@ def _apply_media_match_candidates(
             "flash.media_match_applied",
             applied=result.applied,
         )
-    return _media_library_candidate_redirect(
+    return _media_library_redirect(
         match_page=match_page,
         create_page=create_page,
+        media_page=media_page,
+        media_q=media_q,
+        media_status=media_status,
+        media_sort=media_sort,
     )
 
 
@@ -457,6 +537,10 @@ def media_library_apply_match_page(
     candidate_id: str = Form(...),
     match_page: str = Form(...),
     create_page: str | None = Form(default=None),
+    media_page: str | None = Form(default=None),
+    media_q: str | None = Form(default=None),
+    media_status: str | None = Form(default=None),
+    media_sort: str | None = Form(default=None),
     confirm: str | None = Form(default=None),
     confirmation_text: str | None = Form(default=None),
     db: Session = Depends(get_db),
@@ -467,6 +551,10 @@ def media_library_apply_match_page(
         [candidate_id],
         match_page=match_page,
         create_page=create_page,
+        media_page=media_page,
+        media_q=media_q,
+        media_status=media_status,
+        media_sort=media_sort,
         confirm=confirm,
         confirmation_text=confirmation_text,
     )
@@ -481,6 +569,10 @@ def media_library_apply_matches_bulk_page(
     candidate_ids: list[str] | None = Form(default=None),
     match_page: str = Form(...),
     create_page: str | None = Form(default=None),
+    media_page: str | None = Form(default=None),
+    media_q: str | None = Form(default=None),
+    media_status: str | None = Form(default=None),
+    media_sort: str | None = Form(default=None),
     confirm: str | None = Form(default=None),
     confirmation_text: str | None = Form(default=None),
     db: Session = Depends(get_db),
@@ -491,6 +583,10 @@ def media_library_apply_matches_bulk_page(
         candidate_ids or [],
         match_page=match_page,
         create_page=create_page,
+        media_page=media_page,
+        media_q=media_q,
+        media_status=media_status,
+        media_sort=media_sort,
         confirm=confirm,
         confirmation_text=confirmation_text,
     )
@@ -504,6 +600,10 @@ def _create_media_items_from_candidates(
     *,
     match_page: str | None,
     create_page: str,
+    media_page: str | None,
+    media_q: str | None,
+    media_status: str | None,
+    media_sort: str | None,
     confirm: str | None,
     confirmation_text: str | None,
 ) -> RedirectResponse:
@@ -513,9 +613,13 @@ def _create_media_items_from_candidates(
         confirmation_text=confirmation_text,
         base_confirmation_valid=confirm == "1",
     ):
-        return _media_library_candidate_redirect(
+        return _media_library_redirect(
             match_page=match_page,
             create_page=create_page,
+            media_page=media_page,
+            media_q=media_q,
+            media_status=media_status,
+            media_sort=media_sort,
         )
     try:
         result = create_items_from_media_candidates(
@@ -533,9 +637,13 @@ def _create_media_items_from_candidates(
             "flash.media_item_candidate_created",
             created=result.created,
         )
-    return _media_library_candidate_redirect(
+    return _media_library_redirect(
         match_page=match_page,
         create_page=create_page,
+        media_page=media_page,
+        media_q=media_q,
+        media_status=media_status,
+        media_sort=media_sort,
     )
 
 
@@ -549,6 +657,10 @@ def media_library_create_item_candidate_page(
     title: str = Form(...),
     create_page: str = Form(...),
     match_page: str | None = Form(default=None),
+    media_page: str | None = Form(default=None),
+    media_q: str | None = Form(default=None),
+    media_status: str | None = Form(default=None),
+    media_sort: str | None = Form(default=None),
     confirm: str | None = Form(default=None),
     confirmation_text: str | None = Form(default=None),
     db: Session = Depends(get_db),
@@ -560,6 +672,10 @@ def media_library_create_item_candidate_page(
         [title],
         match_page=match_page,
         create_page=create_page,
+        media_page=media_page,
+        media_q=media_q,
+        media_status=media_status,
+        media_sort=media_sort,
         confirm=confirm,
         confirmation_text=confirmation_text,
     )
@@ -575,6 +691,10 @@ def media_library_create_item_candidates_bulk_page(
     candidate_titles: list[str] | None = Form(default=None),
     create_page: str = Form(...),
     match_page: str | None = Form(default=None),
+    media_page: str | None = Form(default=None),
+    media_q: str | None = Form(default=None),
+    media_status: str | None = Form(default=None),
+    media_sort: str | None = Form(default=None),
     confirm: str | None = Form(default=None),
     confirmation_text: str | None = Form(default=None),
     db: Session = Depends(get_db),
@@ -586,6 +706,10 @@ def media_library_create_item_candidates_bulk_page(
         candidate_titles or [],
         match_page=match_page,
         create_page=create_page,
+        media_page=media_page,
+        media_q=media_q,
+        media_status=media_status,
+        media_sort=media_sort,
         confirm=confirm,
         confirmation_text=confirmation_text,
     )
@@ -607,6 +731,12 @@ def media_library_set_item_cover_page(
     request: Request,
     item_id: int = Form(...),
     media_path: str = Form(...),
+    match_page: str | None = Form(default=None),
+    create_page: str | None = Form(default=None),
+    media_page: str | None = Form(default=None),
+    media_q: str | None = Form(default=None),
+    media_status: str | None = Form(default=None),
+    media_sort: str | None = Form(default=None),
     db: Session = Depends(get_db),
 ) -> RedirectResponse:
     item = db.get(Item, item_id)
@@ -621,7 +751,14 @@ def media_library_set_item_cover_page(
         add_flash(request, "error", "flash.media_assignment_failed")
     else:
         add_flash(request, "success", "flash.media_cover_set")
-    return _redirect("/media-library")
+    return _media_library_redirect(
+        match_page=match_page,
+        create_page=create_page,
+        media_page=media_page,
+        media_q=media_q,
+        media_status=media_status,
+        media_sort=media_sort,
+    )
 
 
 @router.post(
@@ -632,6 +769,12 @@ def media_library_set_creator_avatar_page(
     request: Request,
     creator_id: int = Form(...),
     media_path: str = Form(...),
+    match_page: str | None = Form(default=None),
+    create_page: str | None = Form(default=None),
+    media_page: str | None = Form(default=None),
+    media_q: str | None = Form(default=None),
+    media_status: str | None = Form(default=None),
+    media_sort: str | None = Form(default=None),
     db: Session = Depends(get_db),
 ) -> RedirectResponse:
     creator = db.get(Creator, creator_id)
@@ -646,7 +789,14 @@ def media_library_set_creator_avatar_page(
         add_flash(request, "error", "flash.media_assignment_failed")
     else:
         add_flash(request, "success", "flash.media_avatar_set")
-    return _redirect("/media-library")
+    return _media_library_redirect(
+        match_page=match_page,
+        create_page=create_page,
+        media_page=media_page,
+        media_q=media_q,
+        media_status=media_status,
+        media_sort=media_sort,
+    )
 
 
 @router.post("/items/{item_id}/cover/clear", dependencies=[Depends(require_page_auth)])
