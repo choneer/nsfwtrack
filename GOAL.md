@@ -53,5 +53,5 @@ Phase 3-B3 / B4 仅记录在 CHANGELOG Unreleased，版本保持 1.0.6，Schema 
 - [x] 中文 / English、模板、CHANGELOG Unreleased 与当前文档已同步
 - [x] B4 / i18n 专项 `16 passed`，完整媒体链回归 `120 passed`
 - [x] 最终全量 `474 passed in 85.09s`、pip check 与隔离 Docker 双生命周期通过并清理
-- [ ] 提交推送 main，Actions test / Docker production smoke 通过
-- [ ] 最终确认版本 1.0.6、Schema 2、迁移、依赖、Docker/CI 与旧 tag / Release 不变
+- [x] 功能提交 `4d7a061` 已推送 main，Actions run `29251083388` 的 test / Docker production smoke 均通过
+- [x] 最终确认版本 1.0.6、Schema 2、迁移、依赖、Docker/CI 与旧 tag / Release 不变

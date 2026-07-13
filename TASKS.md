@@ -30,8 +30,8 @@ N100 / 目标主机部署尚未开始，**不是当前开发任务**，必须等
 - [x] 同步中文 / English、模板、CHANGELOG Unreleased 与当前文档
 - [x] B4 / i18n 专项 `16 passed`、媒体链 `120 passed`、全量 `474 passed` 且 pip check 无冲突
 - [x] 隔离 Docker 双生命周期、登录、恢复中心、普通媒体、data-health 与持久化验收通过并清理
-- [ ] Actions test / Docker production smoke 通过
-- [ ] 提交推送 main，确认版本 1.0.6、Schema 2 及旧 tag / Release 不变
+- [x] 功能提交 `4d7a061` 已推送 main，Actions run `29251083388` 的 test / Docker production smoke 均通过
+- [x] 确认版本 1.0.6、Schema 2、迁移、依赖、Docker/CI 及旧 tag / Release 不变
 
 ### Phase 3-B3 重复媒体手动整理（Unreleased）
 
