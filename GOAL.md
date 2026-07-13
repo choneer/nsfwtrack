@@ -53,5 +53,5 @@ B3 仅记录在 CHANGELOG Unreleased，应用版本保持 1.0.6，Schema 保持 
 - [x] 数据库异常、删除失败和重试测试验证无临时锚点残留
 - [x] B3 / i18n 专项 `18 passed`，最终完整 `459 passed in 69.18s` 且 pip check 无冲突
 - [x] Docker build / 双生命周期 / 登录与重复组页验收通过，SQLite 校验和不变且资源已清理
-- [ ] 修复提交推送 main，Actions test / Docker production smoke 通过
-- [ ] 最终确认版本 1.0.6、Schema 2、迁移、依赖、Docker/CI 及旧 tag / Release 不变
+- [x] 修复提交 `bba2aa0` 已推送 main，Actions run `29236104263` 的 test / Docker production smoke 均通过
+- [x] 最终确认版本 1.0.6、Schema 2、迁移、依赖、Docker/CI 及旧 tag / Release 不变
