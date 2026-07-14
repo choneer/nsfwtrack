@@ -2,10 +2,10 @@
 
 按顺序执行，每完成一项打个 [x]。
 
-## 当前状态（v1.0.6 已发布，Phase 3-C3 已完成于 Unreleased）
+## 当前状态（v1.0.6 已发布，Phase 3-C4 已完成于 Unreleased）
 
 当前稳定版与最新 Release：`v1.0.6`。Phase 3-B1 / B2 已正式发布，
-Phase 3-B3 / B4 / B5 / B6 / C1 / C2 / C3 已完成并位于 Unreleased，应用 Schema 仍为 `2`。
+Phase 3-B3 / B4 / B5 / B6 / C1 / C2 / C3 / C4 已完成并位于 Unreleased，应用 Schema 仍为 `2`。
 
 - Annotated tag object：`d4d5c31cd5b2fed9a90ad69742d54b4c9dbed0b4`
 - Peeled commit：`961a3d0cc169e82b261d83207b0ec802007e292b`
@@ -14,6 +14,27 @@ Phase 3-B3 / B4 / B5 / B6 / C1 / C2 / C3 已完成并位于 Unreleased，应用 
 N100 / 目标主机部署尚未开始，**不是当前开发任务**，必须等待用户明确授权。
 完整证据见 `COMPLETION_AUDIT.md`。历史任务保留在本文后半部分，
 不再作为新增开发路线。
+
+### Phase 3-C4 损坏媒体文件手动清理（Unreleased）
+
+- [x] Data Health 为带原始 SHA 的损坏普通媒体增加逐项 finding 和预览入口
+- [x] 媒体库 invalid 卡片为同一合格目标增加单项预览入口
+- [x] GET 登录保护并展示路径、SHA、size、device、inode、mtime、ctime、引用和后果，保持零写入
+- [x] 只接受允许扩展名普通非 symlink；排除有效媒体、anchor、上传残留和扫描跳过项
+- [x] `recovered-*` 继续作为普通媒体参与 finding、预览和手动删除
+- [x] 内容读取复用 C3 根 / 父目录 / 文件验证 FD 链，不通过目标 `Path.stat/read_bytes` 打开
+- [x] 已引用目标只显示 C1 单项修复链接且无删除表单
+- [x] POST 复用 standard / strict `CONFIRM` 并重验完整身份、原始 SHA 和仍为损坏图片
+- [x] 结束预览事务后获取 `BEGIN IMMEDIATE`，锁内重查封面与头像引用均为零
+- [x] 通过最终父目录 fd 只 unlink 选定目标并 fsync 所在目录
+- [x] 身份 / SHA / 父路径 / symlink / 有效图片替换及锁内引用竞态均在 unlink 前拒绝
+- [x] unlink 失败保留目标；目录 fsync 失败准确报告已删除同步警告
+- [x] 不修改引用、不创建恢复副本、不触碰其他媒体、不自动或批量处理
+- [x] 同步中文 / English、模板、CHANGELOG Unreleased、README / PLAN / TASKS / REVIEW / GOAL 和专项测试
+- [x] 保持版本 1.0.6、Schema 2、迁移、依赖、Docker/CI、旧 tag / Release 和 N100 状态不变
+- [x] C4 专项 `17 passed`，覆盖 eligibility、零写入、确认、身份 / SHA / 路径 / 引用竞态和 unlink / fsync 失败
+- [x] B3-B6、C1-C3、媒体库、上传、恢复、Data Health、备份与导入组合回归 `281 passed`
+- [x] 全量 `557 passed`、`pip check`、Docker build / healthy / `/login` 200 / down 清理通过
 
 ### Phase 3-C3 媒体扫描跳过项定位中心（Unreleased）
 

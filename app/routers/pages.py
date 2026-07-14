@@ -137,6 +137,11 @@ from app.services.media_duplicate_cleanup import (
     build_media_duplicate_cleanup_preview,
     execute_media_duplicate_cleanup,
 )
+from app.services.media_damaged_cleanup import (
+    MediaDamagedCleanupError,
+    build_media_damaged_cleanup_preview,
+    execute_media_damaged_cleanup,
+)
 from app.services.media_cleanup_recovery import (
     MEDIA_RECOVERY_SORT_OPTIONS,
     MEDIA_RECOVERY_STATUS_OPTIONS,
@@ -401,6 +406,21 @@ def media_library_page(
         sort=media_sort,
         page=media_page,
     )
+    damaged_cleanup_preview_urls = {
+        row.entry.media_path: (
+            "/data-health/damaged-media/delete-preview?"
+            + urlencode(
+                {
+                    "media_path": row.entry.media_path,
+                    "sha256": row.entry.sha256,
+                }
+            )
+        )
+        for row in media_result.rows
+        if not row.entry.available
+        and bool(row.entry.sha256)
+        and not row.entry.is_cleanup_anchor
+    }
     media_params = {
         **media_filter_query_params(media_result.filters),
         "media_page": media_result.page_info.page,
@@ -453,6 +473,7 @@ def media_library_page(
                     "create_page": item_candidate_page.page_info.page,
                 },
             ),
+            damaged_cleanup_preview_urls=damaged_cleanup_preview_urls,
             max_media_upload_mb=MAX_MEDIA_UPLOAD_BYTES // (1024 * 1024),
             max_media_upload_files=MAX_MEDIA_UPLOAD_FILES,
             error_key=error_key,
@@ -1937,6 +1958,15 @@ def data_health_page(request: Request, db: Session = Depends(get_db)) -> HTMLRes
         if issue.code == "media_upload_residue"
         and issue.object_type == "media_file"
     }
+    damaged_media_cleanup_urls = {
+        issue.object_id: (
+            "/data-health/damaged-media/delete-preview?"
+            + urlencode({"media_path": issue.object_id})
+        )
+        for issue in report.issues
+        if issue.code == "media_damaged_file"
+        and issue.object_type == "media_file"
+    }
     media_scan_skip_urls = {
         "media_scan_skipped_symlinks": (
             "/media-library/skipped?skip_type=symlink"
@@ -1955,9 +1985,114 @@ def data_health_page(request: Request, db: Session = Depends(get_db)) -> HTMLRes
             fix_options=build_data_health_fix_options(report),
             media_reference_repair_urls=media_reference_repair_urls,
             upload_residue_cleanup_urls=upload_residue_cleanup_urls,
+            damaged_media_cleanup_urls=damaged_media_cleanup_urls,
             media_scan_skip_urls=media_scan_skip_urls,
         ),
     )
+
+
+def _damaged_media_delete_preview_url(
+    media_path: str | None,
+    sha256: str | None,
+) -> str:
+    params = {"media_path": media_path or ""}
+    if sha256:
+        params["sha256"] = sha256
+    return "/data-health/damaged-media/delete-preview?" + urlencode(params)
+
+
+@router.get(
+    "/data-health/damaged-media/delete-preview",
+    response_class=HTMLResponse,
+    dependencies=[Depends(require_page_auth)],
+)
+def media_damaged_cleanup_preview_page(
+    request: Request,
+    media_path: str | None = Query(default=None),
+    sha256: str | None = Query(default=None),
+    db: Session = Depends(get_db),
+) -> HTMLResponse:
+    preview = None
+    error_key = None
+    try:
+        preview = build_media_damaged_cleanup_preview(
+            db,
+            media_path=media_path,
+            sha256=sha256,
+        )
+    except MediaDamagedCleanupError as exc:
+        error_key = f"media_damaged_cleanup.error_{exc.code}"
+    return templates.TemplateResponse(
+        request,
+        "media_damaged_cleanup_preview.html",
+        _base_context(
+            request,
+            db=db,
+            damaged_preview=preview,
+            error_key=error_key,
+        ),
+        status_code=200 if preview is not None else 400,
+    )
+
+
+@router.post(
+    "/data-health/damaged-media/delete",
+    dependencies=[Depends(require_page_auth)],
+)
+def media_damaged_cleanup_page(
+    request: Request,
+    media_path: str = Form(...),
+    sha256: str = Form(...),
+    expected_size: str = Form(...),
+    expected_device: str = Form(...),
+    expected_inode: str = Form(...),
+    expected_modified_ns: str = Form(...),
+    expected_changed_ns: str = Form(...),
+    confirm: str | None = Form(default=None),
+    confirmation_text: str | None = Form(default=None),
+    db: Session = Depends(get_db),
+) -> RedirectResponse:
+    preview_url = _damaged_media_delete_preview_url(media_path, sha256)
+    if not _danger_confirmation_is_valid(
+        request,
+        get_danger_policy(db),
+        confirmation_text=confirmation_text,
+        base_confirmation_valid=confirm == "1",
+    ):
+        return _redirect(preview_url)
+    try:
+        result = execute_media_damaged_cleanup(
+            db,
+            media_path=media_path,
+            sha256=sha256,
+            expected_size=expected_size,
+            expected_device=expected_device,
+            expected_inode=expected_inode,
+            expected_modified_ns=expected_modified_ns,
+            expected_changed_ns=expected_changed_ns,
+        )
+    except MediaDamagedCleanupError as exc:
+        add_flash(
+            request,
+            "error",
+            f"flash.media_damaged_cleanup_{exc.code}",
+        )
+        return _redirect("/data-health")
+    add_flash(
+        request,
+        "success",
+        "flash.media_damaged_cleanup_success",
+        deleted_path=result.deleted_path,
+        size=result.size,
+    )
+    if result.warning_code:
+        add_flash(
+            request,
+            "info",
+            "flash.media_damaged_cleanup_warning",
+            code=result.warning_code,
+        )
+    return _redirect("/data-health")
 
 
 def _upload_residue_delete_preview_url(residue_path: str | None) -> str:

@@ -375,6 +375,10 @@
           <p class="muted">{{ t("media.unreferenced") }}</p>
         {% endif %}
       </div>
+      {% set damaged_cleanup_url = damaged_cleanup_preview_urls.get(entry.media_path) %}
+      {% if damaged_cleanup_url %}
+        <a class="button danger" href="{{ damaged_cleanup_url }}">{{ t("media.preview_damaged_cleanup") }}</a>
+      {% endif %}
       {% if entry.available %}
         <form action="/media-library/set-item-cover" method="post" class="stack">
           <input type="hidden" name="media_path" value="{{ entry.media_path }}">

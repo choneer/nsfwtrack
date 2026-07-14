@@ -75,6 +75,10 @@ class LocalMediaEntry:
     detail: str = ""
     is_cleanup_anchor: bool = False
     is_recovered: bool = False
+    device: int | None = None
+    inode: int | None = None
+    modified_ns: int | None = None
+    changed_ns: int | None = None
 
 
 MediaScanSkipReason = Literal[
@@ -105,6 +109,19 @@ class LocalMediaScan:
     skipped_unsupported: int
     invalid: int
     skipped_entries: tuple[LocalMediaScanSkip, ...] = ()
+
+
+@dataclass(frozen=True)
+class DamagedLocalMediaFile:
+    media_path: str
+    relative_path: str
+    sha256: str
+    size: int
+    device: int
+    inode: int
+    modified_ns: int
+    changed_ns: int
+    is_recovered: bool
 
 
 @dataclass(frozen=True)
@@ -943,9 +960,9 @@ def _verify_scan_candidate_mapping(
     _close_scan_descriptors(directories, file_descriptor)
 
 
-def _read_verified_scan_candidate(
+def _read_observed_scan_candidate(
     candidate: _LocalMediaScanCandidate,
-) -> tuple[bytes, str, str]:
+) -> tuple[bytes, str]:
     directories, file_descriptor = _open_verified_scan_candidate(candidate)
     try:
         content = _read_scan_file_descriptor(file_descriptor)
@@ -956,13 +973,6 @@ def _read_verified_scan_candidate(
             content,
         )
         _verify_scan_candidate_mapping(candidate)
-        try:
-            image_format = _validated_image_format(
-                content,
-                candidate.extension,
-            )
-        except LocalMediaUploadError as exc:
-            raise LocalMediaPathError("invalid local media image") from exc
         digest = hashlib.sha256(content).hexdigest()
         _verify_open_scan_candidate(
             candidate,
@@ -971,7 +981,7 @@ def _read_verified_scan_candidate(
             content,
         )
         _verify_scan_candidate_mapping(candidate)
-        return content, image_format, digest
+        return content, digest
     except _MediaScanCandidateChanged:
         raise
     except OSError:
@@ -1284,13 +1294,15 @@ def scan_local_media(
                     detail="invalid_image",
                     is_cleanup_anchor=cleanup_anchor,
                     is_recovered=recovered,
+                    device=candidate.file_identity.device,
+                    inode=candidate.file_identity.inode,
+                    modified_ns=candidate.file_identity.modified_ns,
+                    changed_ns=candidate.file_identity.changed_ns,
                 )
             )
             continue
         try:
-            content, image_format, digest = _read_verified_scan_candidate(
-                candidate
-            )
+            content, digest = _read_observed_scan_candidate(candidate)
         except _MediaScanCandidateChanged:
             mutable_skipped_entries.append(
                 _media_scan_skip_from_identity(
@@ -1314,6 +1326,35 @@ def scan_local_media(
                     detail="invalid_image",
                     is_cleanup_anchor=cleanup_anchor,
                     is_recovered=recovered,
+                    device=candidate.file_identity.device,
+                    inode=candidate.file_identity.inode,
+                    modified_ns=candidate.file_identity.modified_ns,
+                    changed_ns=candidate.file_identity.changed_ns,
+                )
+            )
+            continue
+        try:
+            image_format = _validated_image_format(
+                content,
+                candidate.extension,
+            )
+        except LocalMediaUploadError:
+            invalid += 1
+            entries.append(
+                LocalMediaEntry(
+                    media_path=media_path,
+                    filename=relative,
+                    size=len(content),
+                    sha256=digest,
+                    mime_type="",
+                    available=False,
+                    detail="invalid_image",
+                    is_cleanup_anchor=cleanup_anchor,
+                    is_recovered=recovered,
+                    device=candidate.file_identity.device,
+                    inode=candidate.file_identity.inode,
+                    modified_ns=candidate.file_identity.modified_ns,
+                    changed_ns=candidate.file_identity.changed_ns,
                 )
             )
             continue
@@ -1327,6 +1368,10 @@ def scan_local_media(
                 available=True,
                 is_cleanup_anchor=cleanup_anchor,
                 is_recovered=recovered,
+                device=candidate.file_identity.device,
+                inode=candidate.file_identity.inode,
+                modified_ns=candidate.file_identity.modified_ns,
+                changed_ns=candidate.file_identity.changed_ns,
             )
         )
     entries.sort(key=lambda entry: entry.filename.casefold())
@@ -1350,6 +1395,184 @@ def scan_local_media(
         invalid=invalid,
         skipped_entries=skipped_entries,
     )
+
+
+def _candidate_media_path(candidate: _LocalMediaScanCandidate) -> str:
+    return f"{LOCAL_MEDIA_PREFIX}{PurePosixPath(*candidate.parts).as_posix()}"
+
+
+def _damaged_candidate_for_path(
+    media_path: str,
+) -> _LocalMediaScanCandidate:
+    try:
+        normalized = normalize_local_media_path(media_path)
+    except LocalMediaPathError:
+        raise
+    if normalized is None:
+        raise LocalMediaPathError("invalid damaged media path")
+    basename = PurePosixPath(normalized).name
+    if is_cleanup_anchor_filename(basename) or is_upload_residue_filename(
+        basename
+    ):
+        raise LocalMediaPathError("invalid damaged media target")
+    candidates, _ = _iter_media_files()
+    for candidate in candidates:
+        if _candidate_media_path(candidate) == normalized:
+            return candidate
+    raise LocalMediaPathError("damaged media file unavailable")
+
+
+def _inspect_damaged_local_media_candidate(
+    media_path: str,
+    *,
+    expected_sha256: str | None = None,
+) -> tuple[DamagedLocalMediaFile, _LocalMediaScanCandidate]:
+    digest = None
+    if expected_sha256 is not None:
+        digest = expected_sha256.casefold()
+        if len(digest) != 64 or any(
+            character not in "0123456789abcdef" for character in digest
+        ):
+            raise LocalMediaPathError("invalid damaged media digest")
+    candidate = _damaged_candidate_for_path(media_path)
+    if (
+        not stat.S_ISREG(candidate.file_identity.mode)
+        or candidate.file_identity.size > MAX_MEDIA_UPLOAD_BYTES
+        or candidate.extension not in ALLOWED_MEDIA_EXTENSIONS
+    ):
+        raise LocalMediaPathError("invalid damaged media target")
+    content, actual_digest = _read_observed_scan_candidate(candidate)
+    if digest is not None and actual_digest != digest:
+        raise LocalMediaPathError("damaged media hash changed")
+    try:
+        _validated_image_format(content, candidate.extension)
+    except LocalMediaUploadError:
+        pass
+    else:
+        raise LocalMediaPathError("media file is no longer damaged")
+    relative_path = PurePosixPath(*candidate.parts).as_posix()
+    identity = candidate.file_identity
+    return (
+        DamagedLocalMediaFile(
+            media_path=f"{LOCAL_MEDIA_PREFIX}{relative_path}",
+            relative_path=relative_path,
+            sha256=actual_digest,
+            size=len(content),
+            device=identity.device,
+            inode=identity.inode,
+            modified_ns=identity.modified_ns,
+            changed_ns=identity.changed_ns,
+            is_recovered=is_recovered_media_filename(candidate.parts[-1]),
+        ),
+        candidate,
+    )
+
+
+def inspect_damaged_local_media_file(
+    media_path: str,
+    *,
+    expected_sha256: str | None = None,
+) -> DamagedLocalMediaFile:
+    try:
+        record, _ = _inspect_damaged_local_media_candidate(
+            media_path,
+            expected_sha256=expected_sha256,
+        )
+    except _MediaScanCandidateChanged as exc:
+        raise LocalMediaPathError("damaged media changed during validation") from exc
+    return record
+
+
+def same_damaged_local_media_file_identity(
+    first: DamagedLocalMediaFile,
+    second: DamagedLocalMediaFile,
+) -> bool:
+    return (
+        first.media_path == second.media_path
+        and first.relative_path == second.relative_path
+        and first.sha256 == second.sha256
+        and first.size == second.size
+        and first.device == second.device
+        and first.inode == second.inode
+        and first.modified_ns == second.modified_ns
+        and first.changed_ns == second.changed_ns
+        and first.is_recovered == second.is_recovered
+    )
+
+
+def delete_damaged_local_media_file(record: DamagedLocalMediaFile) -> None:
+    try:
+        current, candidate = _inspect_damaged_local_media_candidate(
+            record.media_path,
+            expected_sha256=record.sha256,
+        )
+    except (LocalMediaPathError, _MediaScanCandidateChanged) as exc:
+        raise LocalMediaDeleteError("changed") from exc
+    if not same_damaged_local_media_file_identity(record, current):
+        raise LocalMediaDeleteError("changed")
+
+    directories: list[int] = []
+    file_descriptor: int | None = None
+    try:
+        directories, file_descriptor = _open_verified_scan_candidate(candidate)
+        content = _read_scan_file_descriptor(file_descriptor)
+        _verify_open_scan_candidate(
+            candidate,
+            directories,
+            file_descriptor,
+            content,
+        )
+        _verify_scan_candidate_mapping(candidate)
+        if hashlib.sha256(content).hexdigest() != record.sha256:
+            raise LocalMediaDeleteError("changed")
+        try:
+            _validated_image_format(content, candidate.extension)
+        except LocalMediaUploadError:
+            pass
+        else:
+            raise LocalMediaDeleteError("changed")
+        _verify_open_scan_candidate(
+            candidate,
+            directories,
+            file_descriptor,
+            content,
+        )
+        _verify_scan_candidate_mapping(candidate)
+        try:
+            current_stat = os.stat(
+                candidate.parts[-1],
+                dir_fd=directories[-1],
+                follow_symlinks=False,
+            )
+        except FileNotFoundError as exc:
+            raise LocalMediaDeleteError("missing") from exc
+        except OSError as exc:
+            raise LocalMediaDeleteError("delete_failed") from exc
+        if (
+            not candidate.file_identity.matches(current_stat)
+            or not stat.S_ISREG(current_stat.st_mode)
+        ):
+            raise LocalMediaDeleteError("changed")
+        os.close(file_descriptor)
+        file_descriptor = None
+        try:
+            os.unlink(candidate.parts[-1], dir_fd=directories[-1])
+        except FileNotFoundError as exc:
+            raise LocalMediaDeleteError("missing") from exc
+        except OSError as exc:
+            raise LocalMediaDeleteError("delete_failed") from exc
+        try:
+            os.fsync(directories[-1])
+        except OSError as exc:
+            raise LocalMediaDeleteError("sync_failed", removed=True) from exc
+    except LocalMediaDeleteError:
+        raise
+    except _MediaScanCandidateChanged as exc:
+        raise LocalMediaDeleteError("changed") from exc
+    except OSError as exc:
+        raise LocalMediaDeleteError("delete_failed") from exc
+    finally:
+        _close_scan_descriptors(directories, file_descriptor)
 
 
 def _ensure_library_directory() -> Path:

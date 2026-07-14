@@ -2,7 +2,7 @@
 
 > NSFWTrack 是本地单用户媒体记录器 / 收藏管理器。  
 > 当前开发边界：本地管理、本地数据维护、手动确认操作、SQLite、FastAPI、Jinja2、轻量原生 JavaScript、Docker Compose。
-> Phase 3-A1 允许保存用户提供的 URL；Phase 3-A2 允许校验和保存用户上传的本地栅格图片；Phase 3-A3 允许基于本地文件名生成并手动确认媒体关联候选；Phase 3-A4 允许从未匹配本地图片手动确认创建条目；Phase 3-A5 允许对完整本地媒体扫描结果进行只读检索与分页；Phase 3-A6 允许在数据健康页只读审计本地媒体完整性；Phase 3-B1 允许按完整 SHA-256 只读定位重复媒体；Phase 3-B2 允许按重复组只读浏览路径与引用；Phase 3-B3 允许用户明确选择 keeper 后，在重扫、确认和引用安全迁移后删除同组冗余文件；Phase 3-B4 允许只读隔离和审计内部清理锚点与恢复文件；Phase 3-B5 允许用户逐项预览并手动确认将合法锚点恢复为普通媒体；Phase 3-B6 允许用户逐项确认永久删除合法且零引用的锚点残留；Phase 3-C1 允许用户逐项替换或清除 Data Health 报告的无效封面 / 头像引用；Phase 3-C2 允许用户逐项确认删除 Data Health 报告的精确 `.upload-*.tmp` 零引用残留；Phase 3-C3 允许用户只读定位媒体扫描逐项跳过路径和稳定原因。仍禁止请求外部网页、远程图片、爬虫、站点 adapter、自动同步、识别、推荐、AI、多用户或云同步。
+> Phase 3-A1 允许保存用户提供的 URL；Phase 3-A2 允许校验和保存用户上传的本地栅格图片；Phase 3-A3 允许基于本地文件名生成并手动确认媒体关联候选；Phase 3-A4 允许从未匹配本地图片手动确认创建条目；Phase 3-A5 允许对完整本地媒体扫描结果进行只读检索与分页；Phase 3-A6 允许在数据健康页只读审计本地媒体完整性；Phase 3-B1 允许按完整 SHA-256 只读定位重复媒体；Phase 3-B2 允许按重复组只读浏览路径与引用；Phase 3-B3 允许用户明确选择 keeper 后，在重扫、确认和引用安全迁移后删除同组冗余文件；Phase 3-B4 允许只读隔离和审计内部清理锚点与恢复文件；Phase 3-B5 允许用户逐项预览并手动确认将合法锚点恢复为普通媒体；Phase 3-B6 允许用户逐项确认永久删除合法且零引用的锚点残留；Phase 3-C1 允许用户逐项替换或清除 Data Health 报告的无效封面 / 头像引用；Phase 3-C2 允许用户逐项确认删除 Data Health 报告的精确 `.upload-*.tmp` 零引用残留；Phase 3-C3 允许用户只读定位媒体扫描逐项跳过路径和稳定原因；Phase 3-C4 允许用户逐项预览并确认删除仍损坏且零引用的普通媒体。仍禁止请求外部网页、远程图片、爬虫、站点 adapter、自动同步、识别、推荐、AI、多用户或云同步。
 
 ---
 
@@ -11,7 +11,7 @@
 当前应用版本与开发阶段：
 
 ```text
-v1.0.6 / Phase 3-C3 Unreleased
+v1.0.6 / Phase 3-C4 Unreleased
 ```
 
 当前最新稳定版本为 `v1.0.6`，发布范围为 Phase 3-B1 与 B2。
@@ -40,7 +40,7 @@ Release: https://github.com/choneer/nsfwtrack/releases/tag/v1.0.6
 稳定性收尾：Phase 2-I1 基线、I2 查询优化、I3 错误处理、I4 发布冻结审查已随 v1.0.0 发布
 完成度审计：Phase 2-K1 / K2 已随 v1.0.1 发布；代码开发与 WSL 验收已完成
 维护与 CI：Phase 2-L1 至 L6 已随 v1.0.2 发布；L7 已随 v1.0.3 发布；L8 固定非 root 容器用户已随 v1.0.4 发布
-产品功能重启：Phase 3-A1 至 A6 已随 v1.0.5 发布；Phase 3-B1 / B2 已随 v1.0.6 发布；Phase 3-B3 / B4 / B5 / B6 / C1 / C2 / C3 已完成并位于 Unreleased
+产品功能重启：Phase 3-A1 至 A6 已随 v1.0.5 发布；Phase 3-B1 / B2 已随 v1.0.6 发布；Phase 3-B3 / B4 / B5 / B6 / C1 / C2 / C3 / C4 已完成并位于 Unreleased
 ```
 
 当前完成度估算：
@@ -48,7 +48,7 @@ Release: https://github.com/choneer/nsfwtrack/releases/tag/v1.0.6
 ```text
 核心业务能力：已完成
 代码发布状态：v1.0.6 已正式发布，tag 与正式 GitHub Release 均已验证
-当前开发状态：Phase 3-C3 位于 Unreleased，main 保持应用版本 1.0.6 与 Schema 2
+当前开发状态：Phase 3-C4 位于 Unreleased，main 保持应用版本 1.0.6 与 Schema 2
 WSL 验收：已完成
 N100 部署：尚未开始，等待用户明确授权
 ```
@@ -1108,6 +1108,36 @@ K1 审计结论：
 
 ---
 
+### Phase 3-C4 — 损坏媒体文件手动清理（Unreleased）
+
+目标：
+
+- Data Health 和媒体库为允许扩展名、普通非符号链接的损坏媒体提供单项预览入口
+- GET 展示安全路径、原始 SHA、size、device、inode、mtime、ctime、引用与永久删除后果，保持零写入
+- 已引用目标只显示 C1 修复指引，不显示删除表单
+- POST 复用 standard / strict 确认，并重验原始 SHA、损坏状态和完整身份
+- `BEGIN IMMEDIATE` 内重新确认封面与头像引用均为零，再按目录 fd unlink 并 fsync
+
+安全边界：
+
+- 只处理 Data Health 当前报告的单个损坏普通媒体；`recovered-*` 仍按普通媒体处理
+- 有效媒体、cleanup anchor、上传残留、symlink、unsupported / special / entry-error 跳过项均排除
+- 内容读取复用 C3 已验证 FD 链，不通过可重解析的 `Path.stat/read_bytes` 打开目标
+- 父路径 / 同路径 / symlink 替换、SHA 或任一身份字段变化、文件变为有效图片均在 unlink 前拒绝
+- 写锁内新增引用时拒绝；不迁移、清除或改写任何引用
+- unlink 失败保留目标；unlink 成功但目录 fsync 失败时准确报告已删除警告
+- 不创建恢复副本，不触碰其他媒体，不自动、批量或定时清理
+- 不改变版本 1.0.6、Schema 2、迁移、依赖、Docker/CI、tag、Release 或 N100 状态
+
+验收证据：
+
+- C4 专项 `17 passed`，覆盖双入口、零写入、排除项、standard / strict、完整身份与 SHA、父路径 / symlink / 有效图片替换、引用竞态及锁 / 查询 / unlink / fsync 失败
+- B3-B6、C1-C3、媒体库、上传、恢复、Data Health、备份与导入组合回归 `281 passed`
+- 全量 `557 passed`，`pip check` 无依赖冲突
+- Docker image build 通过，Compose healthy，`/login` 200，down 后容器与网络清理完成
+
+---
+
 ## 七、有限执行顺序
 
 当前顺序：
@@ -1132,8 +1162,9 @@ K1 审计结论：
 17. Phase 3-C1 断裂媒体引用手动修复已完成并位于 Unreleased
 18. Phase 3-C2 上传残留文件手动清理已完成并位于 Unreleased
 19. Phase 3-C3 媒体扫描跳过项定位中心已完成并位于 Unreleased
-20. N100 / 目标主机部署未开始，等待用户明确授权
-21. 其余仅按实际问题做可选维护
+20. Phase 3-C4 损坏媒体文件手动清理已完成并位于 Unreleased
+21. N100 / 目标主机部署未开始，等待用户明确授权
+22. 其余仅按实际问题做可选维护
 ```
 
 已完成依据：
@@ -1203,6 +1234,8 @@ K1 审计结论：
 - Phase 3-C2 专项 22 passed、C1 / B3-B6 / 上传 / Data Health / 备份 / 导入组合回归 253 passed、全量 530 passed 且 pip check 无冲突
 - Phase 3-C2 Docker image build 通过，Compose healthy、`/login` 200，并已完整 down 清理
 - Phase 3-C2 功能提交 `ab373b3` 已推送 main，Actions run `29317914417` 的 test / Docker production smoke 均通过
+- Phase 3-C4 已完成损坏普通媒体 finding、媒体库 / Data Health 双入口、零写入完整身份预览、C1 引用指引、锁内零引用重验、身份删除和目录 fsync
+- Phase 3-C4 专项 17 passed、媒体链与数据回归 281 passed、全量 557 passed 且 pip check 无冲突；Docker build、healthy Compose、`/login` 200 与 down 清理通过
 - 当前发布准备与本地验收完成后仍需单独发布指令；N100 部署须等待用户明确授权
 
 ---

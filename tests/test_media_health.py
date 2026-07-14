@@ -105,12 +105,22 @@ def test_media_audit_reports_invalid_escape_symlink_missing_and_damaged_referenc
         "media_reference_symlink",
         "media_reference_missing",
         "media_reference_damaged",
+        "media_damaged_file",
         "media_scan_skipped_symlinks",
     }.issubset(codes)
     assert not any(
         finding.detail == "/media/healthy.gif" for finding in _media_findings(report)
     )
-    assert report.problem_count == 5
+    damaged_file = next(
+        finding
+        for finding in _media_findings(report)
+        if finding.code == "media_damaged_file"
+    )
+    assert damaged_file.object_id == "/media/broken.gif"
+    assert "sha256=" in damaged_file.detail
+    assert "references=1" in damaged_file.detail
+    assert report.problem_count == 6
+    assert report.total_issues == 7
     assert response.status_code == 200
     assert "媒体引用路径非法" in response.text
     assert "媒体引用尝试越出根目录" in response.text

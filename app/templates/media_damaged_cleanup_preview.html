@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% from "_danger_notice.html" import danger_notice %}
+{% block title %}{{ t("media_damaged_cleanup.title") }} - NSFWTrack{% endblock %}
+{% block content %}
+<div class="toolbar">
+  <div>
+    <p class="muted">{{ t("media_damaged_cleanup.local_only") }}</p>
+    <h1>{{ t("media_damaged_cleanup.title") }}</h1>
+    <p class="muted">{{ t("media_damaged_cleanup.description") }}</p>
+  </div>
+  <div class="actions">
+    <a class="button secondary" href="/media-library?media_status=damaged#media-files">{{ t("media_damaged_cleanup.back_library") }}</a>
+    <a class="button secondary" href="/data-health">{{ t("media_damaged_cleanup.back_health") }}</a>
+  </div>
+</div>
+
+{% if error_key %}
+  <div class="flash error">{{ t(error_key) }}</div>
+{% endif %}
+
+{% if damaged_preview %}
+  <section class="notice warning">
+    <strong>{{ t("media_damaged_cleanup.warning_title") }}</strong>
+    <p>{{ t("media_damaged_cleanup.warning_detail") }}</p>
+  </section>
+
+  <section class="card stack" data-damaged-media-preview>
+    <div class="toolbar">
+      <h2>{{ t("media_damaged_cleanup.identity_title") }}</h2>
+      <span class="pill">{{ t("media_damaged_cleanup.damaged_badge") }}</span>
+    </div>
+    {% if damaged_preview.media.is_recovered %}
+      <span class="pill">{{ t("media.recovered_badge") }}</span>
+    {% endif %}
+    <dl class="settings-summary">
+      <dt>{{ t("media_damaged_cleanup.path") }}</dt>
+      <dd><code data-damaged-path>{{ damaged_preview.media.media_path }}</code></dd>
+      <dt>{{ t("media_damaged_cleanup.sha256") }}</dt>
+      <dd><code data-damaged-sha>{{ damaged_preview.media.sha256 }}</code></dd>
+      <dt>{{ t("media_damaged_cleanup.size") }}</dt>
+      <dd data-damaged-size>{{ damaged_preview.media.size }} B</dd>
+      <dt>{{ t("media_damaged_cleanup.device") }}</dt>
+      <dd><code data-damaged-device>{{ damaged_preview.media.device }}</code></dd>
+      <dt>{{ t("media_damaged_cleanup.inode") }}</dt>
+      <dd><code data-damaged-inode>{{ damaged_preview.media.inode }}</code></dd>
+      <dt>{{ t("media_damaged_cleanup.modified_ns") }}</dt>
+      <dd><code data-damaged-modified>{{ damaged_preview.media.modified_ns }}</code></dd>
+      <dt>{{ t("media_damaged_cleanup.changed_ns") }}</dt>
+      <dd><code data-damaged-changed>{{ damaged_preview.media.changed_ns }}</code></dd>
+    </dl>
+  </section>
+
+  <section class="card stack">
+    <h2>{{ t("media_damaged_cleanup.references_title", count=damaged_preview.reference_count) }}</h2>
+    {% if damaged_preview.reference_count %}
+      <div class="notice">
+        <strong>{{ t("media_damaged_cleanup.referenced_warning") }}</strong>
+        <p>{{ t("media_damaged_cleanup.referenced_hint") }}</p>
+      </div>
+      {% for item in damaged_preview.item_references %}
+        <div class="relation-row">
+          <span>{{ t("data_health.object_item_cover") }} #{{ item.id }} · {{ item.title }}</span>
+          <a class="button secondary" href="/data-health/media-reference/repair?object_type=item_cover&amp;object_id={{ item.id }}">{{ t("media_damaged_cleanup.open_c1") }}</a>
+        </div>
+      {% endfor %}
+      {% for creator in damaged_preview.creator_references %}
+        <div class="relation-row">
+          <span>{{ t("data_health.object_creator_avatar") }} #{{ creator.id }} · {{ creator.name }}</span>
+          <a class="button secondary" href="/data-health/media-reference/repair?object_type=creator_avatar&amp;object_id={{ creator.id }}">{{ t("media_damaged_cleanup.open_c1") }}</a>
+        </div>
+      {% endfor %}
+    {% else %}
+      <p class="muted">{{ t("media_damaged_cleanup.no_references") }}</p>
+    {% endif %}
+  </section>
+
+  <section class="card stack">
+    <h2>{{ t("media_damaged_cleanup.consequences_title") }}</h2>
+    <ul>
+      <li>{{ t("media_damaged_cleanup.consequence_permanent") }}</li>
+      <li>{{ t("media_damaged_cleanup.consequence_no_references") }}</li>
+      <li>{{ t("media_damaged_cleanup.consequence_no_other_media") }}</li>
+      <li>{{ t("media_damaged_cleanup.consequence_recheck") }}</li>
+    </ul>
+    {{ danger_notice(t, danger_policy, "danger.object_damaged_media", "danger.consequence_damaged_media", "danger.deletion_damaged_media", "danger.recovery_damaged_media", true, "danger.backup_media_body") }}
+    {% if not damaged_preview.reference_count %}
+      <form action="/data-health/damaged-media/delete" method="post">
+        <input type="hidden" name="media_path" value="{{ damaged_preview.media.media_path }}">
+        <input type="hidden" name="sha256" value="{{ damaged_preview.media.sha256 }}">
+        <input type="hidden" name="expected_size" value="{{ damaged_preview.media.size }}">
+        <input type="hidden" name="expected_device" value="{{ damaged_preview.media.device }}">
+        <input type="hidden" name="expected_inode" value="{{ damaged_preview.media.inode }}">
+        <input type="hidden" name="expected_modified_ns" value="{{ damaged_preview.media.modified_ns }}">
+        <input type="hidden" name="expected_changed_ns" value="{{ damaged_preview.media.changed_ns }}">
+        <input type="hidden" name="confirm" value="1">
+        <button
+          class="danger"
+          type="submit"
+          data-confirm-message="{{ t('media_damaged_cleanup.confirm') }}"
+          {% if danger_policy.is_strict %}data-strict-confirm-message="{{ t('danger.strict_prompt') }}"{% endif %}
+        >{{ t("media_damaged_cleanup.submit") }}</button>
+      </form>
+    {% endif %}
+  </section>
+{% endif %}
+{% endblock %}

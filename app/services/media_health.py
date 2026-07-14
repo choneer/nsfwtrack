@@ -308,6 +308,22 @@ def audit_local_media(db: Session) -> list[MediaHealthFinding]:
             )
         )
 
+    for entry in scan.entries:
+        if entry.available or not entry.sha256 or entry.is_cleanup_anchor:
+            continue
+        reference_count = len(references_by_path.get(entry.media_path, ()))
+        findings.append(
+            _finding(
+                "media_damaged_file",
+                "media_file",
+                entry.media_path,
+                detail=(
+                    f"sha256={entry.sha256} size={entry.size} "
+                    f"references={reference_count}"
+                ),
+            )
+        )
+
     paths_by_hash: dict[str, list[str]] = defaultdict(list)
     for entry in scan.entries:
         if entry.available and entry.sha256:

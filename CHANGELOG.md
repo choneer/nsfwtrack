@@ -55,6 +55,17 @@
   with path search, reason filtering, stable path/type sorting, and fixed
   20-row pagination. Data Health scan-skip warnings link directly to matching
   symlink or legacy-unsupported filter results.
+- Added a Phase 3-C4 `media_damaged_file` Data Health finding and media-library
+  action for each ordinary allowed-extension file that has an original
+  SHA-256 but fails local image validation. Valid media, cleanup anchors,
+  upload residues, symlinks, and scan skips remain excluded; `recovered-*`
+  remains ordinary media.
+- Added an authenticated single-file C4 preview showing the safe media path,
+  original SHA-256, size, device, inode, mtime, ctime, current cover/avatar
+  references, and irreversible consequences without writing on GET.
+- Added manually confirmed deletion of exactly one still-damaged,
+  zero-reference ordinary-media file after complete identity/SHA revalidation,
+  a locked reference recheck, identity-bound unlink, and directory fsync.
 
 ### Fixed
 
@@ -115,6 +126,9 @@
   unreadable-directory, and entry-error records. Existing media candidates,
   cleanup-anchor isolation, `recovered-*`, upload residues, and invalid-image
   behavior are unchanged.
+- Referenced C4 targets expose only direct Phase 3-C1 repair links and no delete
+  form. C4 never migrates, clears, or rewrites a database reference, creates a
+  recovery file, touches another media path, or performs automatic/batch work.
 
 ### Security
 
@@ -178,6 +192,16 @@
 - Skip paths are deterministically escaped relative display paths. The page
   exposes no absolute host path, raw `OSError`, deletion, movement, recovery,
   association, POST endpoint, automatic action, or external request.
+- C4 reads damaged candidates only through the C3 verified directory/file FD
+  chain with `O_NOFOLLOW`; parent-path replacement, symlink substitution,
+  valid-image replacement, changed SHA, or any size/device/inode/mtime/ctime
+  drift is rejected before unlink.
+- C4 deletion requires login, POST, browser/server confirmation, and exact
+  `CONFIRM` in strict mode. It releases the preview transaction, acquires
+  `BEGIN IMMEDIATE`, and rechecks item-cover and creator-avatar references.
+  A racing reference, lock/query failure, identity change, or unlink failure
+  leaves the file and database unchanged. A post-unlink directory fsync error
+  accurately reports that deletion occurred with a durability warning.
 
 ## [1.0.6] - 2026-07-13
 

@@ -2,15 +2,15 @@
 
 NSFWTrack is a local single-user content record manager / collection tracker.
 
-Current application version: `v1.0.6 / Phase 3-B3 through C3 in Unreleased`.
+Current application version: `v1.0.6 / Phase 3-B3 through C4 in Unreleased`.
 
 Current stable version: `v1.0.6 / Phase 3-B1 and B2`.
 
 Latest Release: [NSFWTrack v1.0.6](https://github.com/choneer/nsfwtrack/releases/tag/v1.0.6).
 
-Current status: `v1.0.6 is released; Phase 3-B3 through B6 media cleanup and Phase 3-C1 through C3 Data Health maintenance are complete in Unreleased`.
+Current status: `v1.0.6 is released; Phase 3-B3 through B6 media cleanup and Phase 3-C1 through C4 Data Health maintenance are complete in Unreleased`.
 
-Current development: `Phase 3-B1 and B2 are published; Phase 3-C3 keeps
+Current development: `Phase 3-B1 and B2 are published; Phase 3-C4 keeps
 application version 1.0.6 and Schema 2`.
 
 N100 deployment: `not started; waits for explicit user authorization`.
@@ -43,6 +43,8 @@ reference replacement or clearing without changing any media file. C2 adds
 explicit deletion of one exact, unreferenced `.upload-*.tmp` residue without
 reading its content or modifying database references. C3 adds a read-only,
 per-path view of every safely skipped media-scan entry and its stable reason.
+C4 adds explicit permanent deletion of one still-damaged, zero-reference
+ordinary-media file after a write-free preview and locked safety rechecks.
 
 ## v1.0.6 Release
 
@@ -365,6 +367,48 @@ symlink never reads or hashes the same-name external image and never adds it to
 `scan.entries`. GitHub Actions run
 [`29332762558`](https://github.com/choneer/nsfwtrack/actions/runs/29332762558)
 completed successfully for both jobs.
+
+### Phase 3-C4 Damaged Media Manual Cleanup
+
+The current Unreleased Phase 3-C4 provides a deliberately narrow manual
+permanent-delete path for ordinary local-media files that fail image
+validation:
+
+- Data Health reports one `media_damaged_file` finding per eligible file, and
+  each matching invalid media-library card links to the same single-file
+  preview. Valid images, cleanup anchors, upload residues, symbolic links,
+  unsupported/special files, and scan skips are excluded. A damaged
+  `recovered-*` file remains eligible as ordinary media.
+- The authenticated GET preview shows the safe `/media/...` path, original
+  complete SHA-256, size, device, inode, mtime, ctime, current item-cover and
+  creator-avatar references, and irreversible consequences. GET performs no
+  file or database write.
+- Candidate content is opened only through the C3 verified root/parent/file FD
+  chain with `O_DIRECTORY|O_NOFOLLOW`; it is never opened through a
+  re-resolved `Path.stat/read_bytes` sequence.
+- A referenced target shows direct C1 repair links and no delete form. C4 never
+  clears, migrates, or rewrites a reference.
+- Confirmed POST uses the existing standard/strict danger policy. It rechecks
+  the original SHA, damaged state, and complete size/device/inode/mtime/ctime
+  identity, then acquires `BEGIN IMMEDIATE` and verifies both cover and avatar
+  reference counts are still zero before unlink.
+- Parent/symlink replacement, a changed SHA or identity, a file that becomes a
+  valid image, and a racing reference are rejected before deletion. Unlink
+  failure retains the file; directory fsync failure reports that the file was
+  deleted with a durability warning.
+- Only the selected directory entry is removed. No recovery copy is created,
+  no other media is touched, and there is no automatic, batch, scheduled,
+  network, AI, or image-recognition behavior.
+
+C4 does not change application version 1.0.6, Schema 2, migrations,
+dependencies, Docker/CI, backup/import formats, tags, Releases, or N100
+deployment.
+
+C4 focused acceptance passes 17 tests; the explicit B3-B6/C1-C3/media-library/
+upload/recovery/Data Health/backup/import regression passes 281 tests; and the
+full suite passes 557 tests. `pip check` reports no broken requirements. The production image builds,
+Compose reaches healthy state, `/login` returns HTTP 200, and the acceptance
+container and network are removed cleanly.
 
 ## Features in v1.0.5
 
