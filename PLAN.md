@@ -1087,6 +1087,9 @@ K1 审计结论：
 安全边界：
 
 - 目录通过 fd 和 `O_DIRECTORY|O_NOFOLLOW` 遍历；符号链接只做 lstat，目录替换竞态也不进入目标
+- 媒体候选保存根目录、逐级父目录与文件的 dev / inode / size / mtime / ctime；读取时从根 fd 逐段重开并复核
+- 最终文件只通过父目录 fd 与 `O_NOFOLLOW` 打开；读取后再次验证全部 fd 与当前路径映射，通过后才解析和哈希
+- 父目录替换成 symlink、文件替换或身份漂移统一安全记录为 `entry_error`，不读取外部替换内容且不进入媒体列表
 - 不打开、读取、解析、验证或哈希任何被跳过文件内容
 - 单个目录 / 条目错误生成稳定原因并继续扫描其他兄弟项
 - 只显示媒体根下安全转义的相对路径，不保留绝对路径、原始 OSError 或敏感信息
@@ -1096,9 +1099,9 @@ K1 审计结论：
 
 验收证据：
 
-- C3 专项 `8 passed`，逐项分类、目录替换竞态、零内容读取、汇总一致性、查询与零写入均有覆盖
-- A3-A6、B1-B6、C1-C2、媒体库、上传、Data Health、备份与导入组合回归 `261 passed`
-- 全量 `538 passed`，`pip check` 无依赖冲突
+- C3 专项已扩展到 `10 passed`，新增子目录 fd 打开后父路径 symlink 替换及同 inode 身份漂移的零读取 / 零哈希覆盖
+- A3-A6、B1-B6、C1-C2、媒体库、上传、Data Health、备份与导入组合回归 `263 passed`
+- 全量 `540 passed`，`pip check` 无依赖冲突
 - 隔离 Docker image build 通过，Compose healthy，`/login` 200，未登录跳过项页 303，down 清理完成
 - 功能提交 `c591ca4` 已推送 main，Actions run `29321642902` 的 test / Docker production smoke 均通过
 

@@ -58,6 +58,15 @@
 
 ### Fixed
 
+- Closed the Phase 3-C3 scan-candidate parent-path replacement race. Media
+  candidates now retain traversal-time device, inode, size, mtime, and ctime
+  identities for the root, every parent directory, and the final file; reads
+  reopen each directory through verified fds with `O_DIRECTORY|O_NOFOLLOW` and
+  open the final file through `dir_fd` with `O_NOFOLLOW`.
+- A parent replaced by a symlink, a replaced file, or any identity change now
+  becomes a safe `entry_error` skip before parsing or hashing. The scanner
+  revalidates the complete fd chain and current name mapping after reading, so
+  no external replacement content can enter the media list.
 - Closed the keeper deletion/replacement race during redundant-file removal.
   A verified same-filesystem safety copy now remains available for the complete
   deletion window, and affected database references point to that valid anchor

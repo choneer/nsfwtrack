@@ -108,6 +108,44 @@ class LocalMediaScan:
 
 
 @dataclass(frozen=True)
+class _MediaScanIdentity:
+    mode: int
+    size: int
+    device: int
+    inode: int
+    modified_ns: int
+    changed_ns: int
+
+    @classmethod
+    def from_stat(cls, file_stat: os.stat_result) -> _MediaScanIdentity:
+        return cls(
+            mode=file_stat.st_mode,
+            size=file_stat.st_size,
+            device=file_stat.st_dev,
+            inode=file_stat.st_ino,
+            modified_ns=file_stat.st_mtime_ns,
+            changed_ns=file_stat.st_ctime_ns,
+        )
+
+    def matches(self, file_stat: os.stat_result) -> bool:
+        return self == self.from_stat(file_stat)
+
+
+@dataclass(frozen=True)
+class _LocalMediaScanCandidate:
+    root: Path
+    parts: tuple[str, ...]
+    display_path: str
+    extension: str
+    directory_identities: tuple[_MediaScanIdentity, ...]
+    file_identity: _MediaScanIdentity
+
+
+class _MediaScanCandidateChanged(OSError):
+    pass
+
+
+@dataclass(frozen=True)
 class LocalMediaUploadResult:
     uploaded: int
     duplicate: int
@@ -766,6 +804,25 @@ def _media_scan_skip(
     )
 
 
+def _media_scan_skip_from_identity(
+    *,
+    path: str,
+    reason: MediaScanSkipReason,
+    extension: str,
+    identity: _MediaScanIdentity,
+) -> LocalMediaScanSkip:
+    return LocalMediaScanSkip(
+        path=path,
+        reason=reason,
+        extension=extension,
+        size=identity.size,
+        device=identity.device,
+        inode=identity.inode,
+        modified_ns=identity.modified_ns,
+        changed_ns=identity.changed_ns,
+    )
+
+
 def _scan_directory_flags() -> int:
     flags = os.O_RDONLY
     if hasattr(os, "O_DIRECTORY"):
@@ -775,6 +832,152 @@ def _scan_directory_flags() -> int:
     if hasattr(os, "O_NOFOLLOW"):
         flags |= os.O_NOFOLLOW
     return flags
+
+
+def _scan_file_flags() -> int:
+    flags = os.O_RDONLY
+    if hasattr(os, "O_CLOEXEC"):
+        flags |= os.O_CLOEXEC
+    if hasattr(os, "O_NOFOLLOW"):
+        flags |= os.O_NOFOLLOW
+    if hasattr(os, "O_NONBLOCK"):
+        flags |= os.O_NONBLOCK
+    return flags
+
+
+def _close_scan_descriptors(
+    directory_descriptors: list[int],
+    file_descriptor: int | None,
+) -> None:
+    if file_descriptor is not None:
+        try:
+            os.close(file_descriptor)
+        except OSError:
+            pass
+    for directory_descriptor in reversed(directory_descriptors):
+        try:
+            os.close(directory_descriptor)
+        except OSError:
+            pass
+
+
+def _open_verified_scan_candidate(
+    candidate: _LocalMediaScanCandidate,
+) -> tuple[list[int], int]:
+    directory_descriptors: list[int] = []
+    file_descriptor: int | None = None
+    try:
+        root_descriptor = os.open(candidate.root, _scan_directory_flags())
+        directory_descriptors.append(root_descriptor)
+        if not candidate.directory_identities[0].matches(
+            os.fstat(root_descriptor)
+        ):
+            raise _MediaScanCandidateChanged()
+        for index, segment in enumerate(candidate.parts[:-1], start=1):
+            child_descriptor = os.open(
+                segment,
+                _scan_directory_flags(),
+                dir_fd=directory_descriptors[-1],
+            )
+            directory_descriptors.append(child_descriptor)
+            if not candidate.directory_identities[index].matches(
+                os.fstat(child_descriptor)
+            ):
+                raise _MediaScanCandidateChanged()
+        file_descriptor = os.open(
+            candidate.parts[-1],
+            _scan_file_flags(),
+            dir_fd=directory_descriptors[-1],
+        )
+        file_stat = os.fstat(file_descriptor)
+        if (
+            not stat.S_ISREG(file_stat.st_mode)
+            or file_stat.st_size > MAX_MEDIA_UPLOAD_BYTES
+            or not candidate.file_identity.matches(file_stat)
+        ):
+            raise _MediaScanCandidateChanged()
+        return directory_descriptors, file_descriptor
+    except _MediaScanCandidateChanged:
+        _close_scan_descriptors(directory_descriptors, file_descriptor)
+        raise
+    except (OSError, IndexError):
+        _close_scan_descriptors(directory_descriptors, file_descriptor)
+        raise _MediaScanCandidateChanged() from None
+
+
+def _read_scan_file_descriptor(file_descriptor: int) -> bytes:
+    with os.fdopen(file_descriptor, "rb", closefd=False) as stream:
+        return stream.read(MAX_MEDIA_UPLOAD_BYTES + 1)
+
+
+def _verify_open_scan_candidate(
+    candidate: _LocalMediaScanCandidate,
+    directory_descriptors: list[int],
+    file_descriptor: int,
+    content: bytes,
+) -> None:
+    if len(directory_descriptors) != len(candidate.directory_identities):
+        raise _MediaScanCandidateChanged()
+    if any(
+        not identity.matches(os.fstat(directory_descriptor))
+        for identity, directory_descriptor in zip(
+            candidate.directory_identities,
+            directory_descriptors,
+            strict=True,
+        )
+    ):
+        raise _MediaScanCandidateChanged()
+    file_stat = os.fstat(file_descriptor)
+    if (
+        len(content) > MAX_MEDIA_UPLOAD_BYTES
+        or len(content) != file_stat.st_size
+        or not candidate.file_identity.matches(file_stat)
+    ):
+        raise _MediaScanCandidateChanged()
+
+
+def _verify_scan_candidate_mapping(
+    candidate: _LocalMediaScanCandidate,
+) -> None:
+    directories, file_descriptor = _open_verified_scan_candidate(candidate)
+    _close_scan_descriptors(directories, file_descriptor)
+
+
+def _read_verified_scan_candidate(
+    candidate: _LocalMediaScanCandidate,
+) -> tuple[bytes, str, str]:
+    directories, file_descriptor = _open_verified_scan_candidate(candidate)
+    try:
+        content = _read_scan_file_descriptor(file_descriptor)
+        _verify_open_scan_candidate(
+            candidate,
+            directories,
+            file_descriptor,
+            content,
+        )
+        _verify_scan_candidate_mapping(candidate)
+        try:
+            image_format = _validated_image_format(
+                content,
+                candidate.extension,
+            )
+        except LocalMediaUploadError as exc:
+            raise LocalMediaPathError("invalid local media image") from exc
+        digest = hashlib.sha256(content).hexdigest()
+        _verify_open_scan_candidate(
+            candidate,
+            directories,
+            file_descriptor,
+            content,
+        )
+        _verify_scan_candidate_mapping(candidate)
+        return content, image_format, digest
+    except _MediaScanCandidateChanged:
+        raise
+    except OSError:
+        raise LocalMediaPathError("local media file unavailable") from None
+    finally:
+        _close_scan_descriptors(directories, file_descriptor)
 
 
 def _sorted_scan_entries(directory_fd: int) -> list[os.DirEntry[str]]:
@@ -792,11 +995,11 @@ def _entry_lstat(entry: os.DirEntry[str]) -> os.stat_result:
 def _iter_media_files(
     *,
     include_cleanup_anchors: bool = False,
-) -> tuple[list[Path], tuple[LocalMediaScanSkip, ...]]:
+) -> tuple[list[_LocalMediaScanCandidate], tuple[LocalMediaScanSkip, ...]]:
     if not LOCAL_MEDIA_ROOT.exists():
         return [], ()
     root = _root_for_read()
-    files: list[Path] = []
+    files: list[_LocalMediaScanCandidate] = []
     skipped: list[LocalMediaScanSkip] = []
     try:
         root_fd = os.open(root, _scan_directory_flags())
@@ -820,7 +1023,8 @@ def _iter_media_files(
         path: str,
         extension: str,
         file_stat: os.stat_result,
-        directory: Path,
+        directory_parts: tuple[str, ...],
+        directory_identities: tuple[_MediaScanIdentity, ...],
     ) -> None:
         cleanup_anchor = is_cleanup_anchor_filename(name)
         recovered = is_recovered_media_filename(name)
@@ -835,11 +1039,21 @@ def _iter_media_files(
             )
         )
         if include_cleanup_anchors and (cleanup_anchor or recovered):
-            files.append(directory / name)
+            files.append(
+                _LocalMediaScanCandidate(
+                    root=root,
+                    parts=directory_parts + (name,),
+                    display_path=path,
+                    extension=PurePosixPath(name).suffix.casefold(),
+                    directory_identities=directory_identities,
+                    file_identity=_MediaScanIdentity.from_stat(file_stat),
+                )
+            )
 
     def walk_directory(
         directory_fd: int,
-        directory: Path,
+        directory_parts: tuple[str, ...],
+        directory_identities: tuple[_MediaScanIdentity, ...],
         directory_relative: str,
         directory_extension: str,
         directory_stat: os.stat_result,
@@ -867,7 +1081,8 @@ def _iter_media_files(
                         path=relative,
                         extension=extension,
                         file_stat=file_stat,
-                        directory=directory,
+                        directory_parts=directory_parts,
+                        directory_identities=directory_identities,
                     )
                 elif stat.S_ISDIR(file_stat.st_mode):
                     try:
@@ -899,7 +1114,8 @@ def _iter_media_files(
                                     path=relative,
                                     extension=extension,
                                     file_stat=current_stat,
-                                    directory=directory,
+                                    directory_parts=directory_parts,
+                                    directory_identities=directory_identities,
                                 )
                             else:
                                 skipped.append(
@@ -913,7 +1129,12 @@ def _iter_media_files(
                         continue
                     try:
                         child_stat = os.fstat(child_fd)
-                        if not stat.S_ISDIR(child_stat.st_mode):
+                        if (
+                            not stat.S_ISDIR(child_stat.st_mode)
+                            or not _MediaScanIdentity.from_stat(
+                                file_stat
+                            ).matches(child_stat)
+                        ):
                             skipped.append(
                                 _media_scan_skip(
                                     path=relative,
@@ -926,7 +1147,9 @@ def _iter_media_files(
                         try:
                             walk_directory(
                                 child_fd,
-                                directory / entry.name,
+                                directory_parts + (entry.name,),
+                                directory_identities
+                                + (_MediaScanIdentity.from_stat(child_stat),),
                                 relative,
                                 extension,
                                 child_stat,
@@ -950,15 +1173,26 @@ def _iter_media_files(
                     recovered = is_recovered_media_filename(entry.name)
                     if cleanup_anchor and not include_cleanup_anchors:
                         continue
-                    path = directory / entry.name
+                    suffix = PurePosixPath(entry.name).suffix.casefold()
                     if (
-                        path.suffix.casefold() in ALLOWED_MEDIA_EXTENSIONS
+                        suffix in ALLOWED_MEDIA_EXTENSIONS
                         or (
                             include_cleanup_anchors
                             and (cleanup_anchor or recovered)
                         )
                     ):
-                        files.append(path)
+                        files.append(
+                            _LocalMediaScanCandidate(
+                                root=root,
+                                parts=directory_parts + (entry.name,),
+                                display_path=relative,
+                                extension=suffix,
+                                directory_identities=directory_identities,
+                                file_identity=_MediaScanIdentity.from_stat(
+                                    file_stat
+                                ),
+                            )
+                        )
                     else:
                         skipped.append(
                             _media_scan_skip(
@@ -988,7 +1222,14 @@ def _iter_media_files(
                 )
     try:
         root_stat = os.fstat(root_fd)
-        walk_directory(root_fd, root, ".", "", root_stat)
+        walk_directory(
+            root_fd,
+            (),
+            (_MediaScanIdentity.from_stat(root_stat),),
+            ".",
+            "",
+            root_stat,
+        )
     finally:
         try:
             os.close(root_fd)
@@ -1016,24 +1257,50 @@ def scan_local_media(
     )
     entries: list[LocalMediaEntry] = []
     invalid = 0
-    root = LOCAL_MEDIA_ROOT.resolve() if LOCAL_MEDIA_ROOT.exists() else LOCAL_MEDIA_ROOT
-    for path in files:
-        relative = path.relative_to(root).as_posix()
+    mutable_skipped_entries = list(skipped_entries)
+    for candidate in files:
+        relative = PurePosixPath(*candidate.parts).as_posix()
         media_path = f"{LOCAL_MEDIA_PREFIX}{relative}"
-        cleanup_anchor = is_cleanup_anchor_filename(path.name)
-        recovered = is_recovered_media_filename(path.name)
-        observed_size = 0
+        cleanup_anchor = is_cleanup_anchor_filename(candidate.parts[-1])
+        recovered = is_recovered_media_filename(candidate.parts[-1])
+        observed_size = (
+            candidate.file_identity.size
+            if stat.S_ISREG(candidate.file_identity.mode)
+            else 0
+        )
+        if (
+            not stat.S_ISREG(candidate.file_identity.mode)
+            or candidate.file_identity.size > MAX_MEDIA_UPLOAD_BYTES
+        ):
+            invalid += 1
+            entries.append(
+                LocalMediaEntry(
+                    media_path=media_path,
+                    filename=relative,
+                    size=(observed_size if cleanup_anchor or recovered else 0),
+                    sha256="",
+                    mime_type="",
+                    available=False,
+                    detail="invalid_image",
+                    is_cleanup_anchor=cleanup_anchor,
+                    is_recovered=recovered,
+                )
+            )
+            continue
         try:
-            file_stat = path.stat(follow_symlinks=False)
-            if stat.S_ISREG(file_stat.st_mode):
-                observed_size = file_stat.st_size
-            if (
-                not stat.S_ISREG(file_stat.st_mode)
-                or file_stat.st_size > MAX_MEDIA_UPLOAD_BYTES
-            ):
-                raise LocalMediaPathError("local media file too large")
-            content, image_format = _read_validated_file(path, path.suffix.casefold())
-            digest = hashlib.sha256(content).hexdigest()
+            content, image_format, digest = _read_verified_scan_candidate(
+                candidate
+            )
+        except _MediaScanCandidateChanged:
+            mutable_skipped_entries.append(
+                _media_scan_skip_from_identity(
+                    path=candidate.display_path,
+                    reason="entry_error",
+                    extension=_safe_scan_text(candidate.extension),
+                    identity=candidate.file_identity,
+                )
+            )
+            continue
         except (LocalMediaPathError, OSError):
             invalid += 1
             entries.append(
@@ -1063,6 +1330,15 @@ def scan_local_media(
             )
         )
     entries.sort(key=lambda entry: entry.filename.casefold())
+    skipped_entries = tuple(
+        sorted(
+            {
+                (entry.path, entry.reason): entry
+                for entry in mutable_skipped_entries
+            }.values(),
+            key=lambda entry: (entry.path.casefold(), entry.path, entry.reason),
+        )
+    )
     return LocalMediaScan(
         entries=tuple(entries),
         skipped_symlinks=sum(

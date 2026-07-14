@@ -320,6 +320,14 @@ individually observable without turning them into write operations:
 - Directory traversal uses directory fds with `O_DIRECTORY|O_NOFOLLOW`.
   Symbolic links are identified by lstat and never followed, including when a
   directory is replaced by a link after its initial inspection.
+- Valid media candidates retain traversal-time device, inode, size, mtime, and
+  ctime identities for the root, every parent, and the file. Reading reopens
+  the complete directory chain through verified fds and opens the final file
+  through `dir_fd|O_NOFOLLOW`; it never falls back to `Path.stat/read_bytes`.
+- The open descriptors and current root-relative name mapping are revalidated
+  before parsing or hashing. Parent symlink replacement, file replacement, or
+  any identity drift becomes a safe `entry_error` and cannot enter the media
+  list or expose replacement content.
 - Skipped file content is never opened, read, parsed, validated, or hashed.
   One directory or entry failure creates a bounded reason record and does not
   interrupt sibling scanning.
@@ -339,9 +347,10 @@ cleanup anchors, `recovered-*`, upload residues, database structure, backup
 formats, version 1.0.6, Schema 2, migrations, dependencies, Docker/CI, tags,
 Releases, and N100 deployment remain unchanged.
 
-Local C3 acceptance passes 8 focused tests, 261 regression tests covering
+Local C3 acceptance passes 10 focused tests, including parent-directory and
+same-file identity replacement races, 263 regression tests covering
 Phase 3-A3 through A6, B1 through B6, C1 through C2, media library, upload,
-Data Health, backup, and import, and all 538 tests. `pip check` reports no
+Data Health, backup, and import, and all 540 tests. `pip check` reports no
 broken requirements. The production image builds, Compose reaches healthy,
 `/login` returns HTTP 200, the protected skip page redirects unauthenticated
 requests, and the isolated acceptance stack is removed cleanly.

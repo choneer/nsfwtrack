@@ -21,6 +21,10 @@ N100 / 目标主机部署尚未开始，**不是当前开发任务**，必须等
 - [x] 精确区分 symlink、unsupported extension、special file、directory unreadable 和 entry error
 - [x] 结果按路径与原因去重并确定性排序，单项错误不打断其他目录或条目
 - [x] 目录使用 fd 与 `O_DIRECTORY|O_NOFOLLOW` 遍历，检查后替换成 symlink 的竞态也不跟随
+- [x] 媒体候选保存根、逐级父目录和最终文件的 dev / inode / size / mtime / ctime 身份
+- [x] 读取从根 fd 逐段 `O_DIRECTORY|O_NOFOLLOW` 重开父目录，最终文件通过 `dir_fd + O_NOFOLLOW` 打开
+- [x] 读取后复核全部已开 fd 和当前名称映射，通过后才解析与哈希，不再使用候选 `Path.stat/read_bytes`
+- [x] 子目录 fd 打开后父路径替换为外部 symlink、文件替换或身份漂移均安全生成 `entry_error`
 - [x] 被跳过文件内容从不打开、读取、解析、验证或哈希，符号链接目标不读取
 - [x] 安全转义控制字符与反斜线，不展示绝对宿主机路径、原始 OSError 或敏感信息
 - [x] `skipped_symlinks` 与 symlink 明细数一致，`skipped_unsupported` 与其他四类明细总数一致
@@ -32,9 +36,9 @@ N100 / 目标主机部署尚未开始，**不是当前开发任务**，必须等
 - [x] 不新增删除、移动、改名、恢复、关联、自动处理、网络或 AI 能力
 - [x] 同步中文 / English、模板、CHANGELOG Unreleased、README / PLAN / TASKS / REVIEW / GOAL 和专项测试
 - [x] 保持版本 1.0.6、Schema 2、迁移、依赖、Docker/CI、旧 tag / Release 和 N100 状态不变
-- [x] C3 专项 `8 passed`，目录替换竞态、零内容读取、汇总一致性与页面零写入均通过
-- [x] A3-A6、B1-B6、C1-C2、媒体库、上传、Data Health、备份与导入组合回归 `261 passed`
-- [x] 全量 `538 passed`、`pip check`、隔离 Docker build / healthy / `/login` 200 / 未登录跳过项页 303 / down 清理通过
+- [x] C3 专项扩展到 `10 passed`，父目录后置替换与同 inode 身份漂移均验证零外部读取、零哈希
+- [x] A3-A6、B1-B6、C1-C2、媒体库、上传、Data Health、备份与导入组合回归 `263 passed`
+- [x] 全量 `540 passed`、`pip check`、隔离 Docker build / healthy / `/login` 200 / 未登录跳过项页 303 / down 清理通过
 - [x] 功能提交 `c591ca4` 已推送 main，Actions run `29321642902` 的 test / Docker production smoke 均通过
 
 ### Phase 3-C2 上传残留文件手动清理（Unreleased）

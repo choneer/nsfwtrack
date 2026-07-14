@@ -191,6 +191,121 @@ def test_directory_replaced_by_symlink_is_not_followed(
     assert secret.read_bytes() == before_secret
 
 
+def test_opened_child_directory_replaced_by_symlink_is_not_reopened_by_path(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    media_root = tmp_path / "media"
+    child = media_root / "library"
+    original = _write(child / "cover.gif", _gif_bytes(7))
+    moved_child = media_root / "library-original"
+    outside = tmp_path / "outside"
+    external = _write(outside / "cover.gif", _gif_bytes(99))
+    monkeypatch.setattr(local_media, "LOCAL_MEDIA_ROOT", media_root)
+    original_lstat = local_media._entry_lstat
+    original_hash = local_media.hashlib.sha256
+    external_inode = external.stat().st_ino
+    external_content = external.read_bytes()
+    replaced = False
+    read_inodes: list[int] = []
+    hashed_payloads: list[bytes] = []
+
+    def replace_parent_after_file_lstat(
+        entry: os.DirEntry[str],
+    ) -> os.stat_result:
+        nonlocal replaced
+        file_stat = original_lstat(entry)
+        if entry.name == "cover.gif" and not replaced:
+            child.rename(moved_child)
+            child.symlink_to(outside, target_is_directory=True)
+            replaced = True
+        return file_stat
+
+    original_fd_read = local_media._read_scan_file_descriptor
+
+    def record_fd_read(file_descriptor: int) -> bytes:
+        file_stat = os.fstat(file_descriptor)
+        read_inodes.append(file_stat.st_ino)
+        assert file_stat.st_ino != external_inode
+        return original_fd_read(file_descriptor)
+
+    def record_hash(content: bytes = b"") -> object:
+        hashed_payloads.append(content)
+        assert content != external_content
+        return original_hash(content)
+
+    monkeypatch.setattr(local_media, "_entry_lstat", replace_parent_after_file_lstat)
+    monkeypatch.setattr(local_media, "_read_scan_file_descriptor", record_fd_read)
+    monkeypatch.setattr(local_media.hashlib, "sha256", record_hash)
+
+    scan = local_media.scan_local_media()
+
+    assert replaced is True
+    assert scan.entries == ()
+    assert read_inodes == []
+    assert hashed_payloads == []
+    assert any(
+        entry.path == "library/cover.gif" and entry.reason == "entry_error"
+        for entry in scan.skipped_entries
+    )
+    assert scan.skipped_symlinks == 0
+    assert scan.skipped_unsupported == 1
+    assert external.read_bytes() == external_content
+    assert (moved_child / original.name).read_bytes() == _gif_bytes(7)
+
+
+def test_candidate_identity_change_before_read_is_skipped_without_content_use(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    media_root = tmp_path / "media"
+    candidate = _write(media_root / "cover.gif", _gif_bytes(6))
+    changed_content = _gif_bytes(5).replace(b"x", b"y") + b"y"
+    assert len(changed_content) == candidate.stat().st_size
+    monkeypatch.setattr(local_media, "LOCAL_MEDIA_ROOT", media_root)
+    original_lstat = local_media._entry_lstat
+    original_fd_read = local_media._read_scan_file_descriptor
+    original_hash = local_media.hashlib.sha256
+    changed = False
+    read_count = 0
+    hash_count = 0
+
+    def change_after_lstat(entry: os.DirEntry[str]) -> os.stat_result:
+        nonlocal changed
+        file_stat = original_lstat(entry)
+        if entry.name == candidate.name and not changed:
+            candidate.write_bytes(changed_content)
+            changed = True
+        return file_stat
+
+    def record_fd_read(file_descriptor: int) -> bytes:
+        nonlocal read_count
+        read_count += 1
+        return original_fd_read(file_descriptor)
+
+    def record_hash(content: bytes = b"") -> object:
+        nonlocal hash_count
+        hash_count += 1
+        return original_hash(content)
+
+    monkeypatch.setattr(local_media, "_entry_lstat", change_after_lstat)
+    monkeypatch.setattr(local_media, "_read_scan_file_descriptor", record_fd_read)
+    monkeypatch.setattr(local_media.hashlib, "sha256", record_hash)
+
+    scan = local_media.scan_local_media()
+
+    assert changed is True
+    assert scan.entries == ()
+    assert read_count == 0
+    assert hash_count == 0
+    assert [(entry.path, entry.reason) for entry in scan.skipped_entries] == [
+        ("cover.gif", "entry_error")
+    ]
+    assert scan.skipped_symlinks == 0
+    assert scan.skipped_unsupported == 1
+    assert candidate.read_bytes() == changed_content
+
+
 def test_legacy_counts_and_media_boundaries_remain_compatible(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
