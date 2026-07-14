@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}{{ t("media_cleanup_delete.title") }} - NSFWTrack{% endblock %}
+{% block content %}
+<div class="toolbar">
+  <div>
+    <p class="muted">{{ t("media_cleanup_delete.local_only") }}</p>
+    <h1>{{ t("media_cleanup_delete.title") }}</h1>
+    <p class="muted">{{ t("media_cleanup_delete.description") }}</p>
+  </div>
+  <div class="actions">
+    <a class="button secondary" href="/media-library/recovery">{{ t("media_cleanup_delete.back") }}</a>
+  </div>
+</div>
+
+{% if error_key %}
+  <div class="flash error">{{ t(error_key) }}</div>
+{% endif %}
+
+{% if delete_preview %}
+  <section class="notice warning">
+    <strong>{{ t("media_cleanup_delete.warning_title") }}</strong>
+    <p>{{ t("media_cleanup_delete.warning_detail") }}</p>
+  </section>
+
+  <section class="card stack" data-cleanup-delete-preview>
+    <div class="toolbar">
+      <h2>{{ t("media_cleanup_delete.identity_title") }}</h2>
+      <span class="pill">{{ t("media_cleanup_delete.unreferenced_anchor") }}</span>
+    </div>
+    <div class="cover"><img src="{{ delete_preview.anchor.media_path }}" alt=""></div>
+    <dl class="settings-summary">
+      <dt>{{ t("media_cleanup_delete.path") }}</dt>
+      <dd><code data-delete-path>{{ delete_preview.anchor.media_path }}</code></dd>
+      <dt>{{ t("media_cleanup_delete.sha256") }}</dt>
+      <dd><code data-delete-sha>{{ delete_preview.anchor.sha256 }}</code></dd>
+      <dt>{{ t("media_cleanup_delete.mime_type") }}</dt>
+      <dd>{{ delete_preview.mime_type }}</dd>
+      <dt>{{ t("media_cleanup_delete.size") }}</dt>
+      <dd data-delete-size>{{ delete_preview.anchor.size }} B</dd>
+      <dt>{{ t("media_cleanup_delete.device") }}</dt>
+      <dd><code data-delete-device>{{ delete_preview.anchor.device }}</code></dd>
+      <dt>{{ t("media_cleanup_delete.inode") }}</dt>
+      <dd><code data-delete-inode>{{ delete_preview.anchor.inode }}</code></dd>
+      <dt>{{ t("media_cleanup_delete.modified_ns") }}</dt>
+      <dd><code data-delete-modified>{{ delete_preview.anchor.modified_ns }}</code></dd>
+      <dt>{{ t("media_cleanup_delete.changed_ns") }}</dt>
+      <dd><code data-delete-changed>{{ delete_preview.anchor.changed_ns }}</code></dd>
+    </dl>
+  </section>
+
+  <section class="card stack">
+    <h2>{{ t("media_cleanup_delete.consequences_title") }}</h2>
+    <ul>
+      <li>{{ t("media_cleanup_delete.consequence_permanent") }}</li>
+      <li>{{ t("media_cleanup_delete.consequence_no_recovery") }}</li>
+      <li>{{ t("media_cleanup_delete.consequence_no_references") }}</li>
+      <li>{{ t("media_cleanup_delete.consequence_recheck") }}</li>
+    </ul>
+    {% include "_danger_notice.html" with context %}
+    <form action="/media-library/recovery/delete" method="post">
+      <input type="hidden" name="media_path" value="{{ delete_preview.anchor.media_path }}">
+      <input type="hidden" name="sha256" value="{{ delete_preview.anchor.sha256 }}">
+      <input type="hidden" name="expected_size" value="{{ delete_preview.anchor.size }}">
+      <input type="hidden" name="expected_device" value="{{ delete_preview.anchor.device }}">
+      <input type="hidden" name="expected_inode" value="{{ delete_preview.anchor.inode }}">
+      <input type="hidden" name="expected_modified_ns" value="{{ delete_preview.anchor.modified_ns }}">
+      <input type="hidden" name="expected_changed_ns" value="{{ delete_preview.anchor.changed_ns }}">
+      <button
+        class="danger"
+        type="submit"
+        data-confirm-message="{{ t('media_cleanup_delete.confirm') }}"
+        {% if danger_policy.is_strict %}data-strict-confirm-message="{{ t('danger.strict_prompt') }}"{% endif %}
+      >{{ t("media_cleanup_delete.submit") }}</button>
+    </form>
+  </section>
+{% endif %}
+{% endblock %}

@@ -24,6 +24,13 @@
 - Added manually confirmed restoration of one valid cleanup anchor to a unique
   no-overwrite `recovered-*` ordinary-media path, including transactional
   migration of every current cover/avatar reference.
+- Added the authenticated Phase 3-B6 single-anchor permanent-delete preview for
+  valid, unreferenced cleanup anchors. GET shows complete SHA-256, path, MIME,
+  size, device, inode, mtime, ctime, and irreversible consequences without
+  writing to files or the database.
+- Added manually confirmed deletion of exactly one unreferenced cleanup anchor
+  with a SQLite `BEGIN IMMEDIATE` reference recheck, final complete-identity
+  validation, identity-bound unlink, and containing-directory fsync.
 
 ### Fixed
 
@@ -58,6 +65,10 @@
 - Ordinary interactive item/creator create, edit, and media-assignment paths
   cannot create new references to internal cleanup anchors. Existing internal
   references and backup/B3 compatibility remain intact.
+- Only valid anchors classified as unreferenced expose the B6 delete preview.
+  The operation never creates `recovered-*`, migrates or clears references,
+  touches another file, or performs batch/automatic cleanup; recovery-center
+  and Data Health scans naturally stop reporting a successfully deleted path.
 
 ### Security
 
@@ -87,6 +98,15 @@
   newly published recovery path. If final anchor deletion fails, references
   remain committed to the valid same-SHA recovery file and the retained anchor
   is reported instead of discarding content or retrying automatically.
+- B6 deletion requires login, POST, browser/server confirmation, and exact
+  `CONFIRM` in strict mode. Submission rescans and rejects referenced, damaged,
+  symlinked, wrong-extension, recovered, missing, stale, forged, or changed
+  targets before unlink.
+- B6 releases its preview read transaction before acquiring `BEGIN IMMEDIATE`.
+  Under that write lock it rechecks both cover and avatar reference counts,
+  verifies every file identity field again, and then deletes and fsyncs the
+  directory. A racing reference or delete failure leaves the file and database
+  unchanged; post-unlink durability warnings report the actual removed state.
 
 ## [1.0.6] - 2026-07-13
 

@@ -143,6 +143,11 @@ from app.services.media_cleanup_recovery import (
     media_recovery_filter_query_params,
     query_media_cleanup_recovery,
 )
+from app.services.media_cleanup_delete import (
+    MediaCleanupDeleteError,
+    build_media_cleanup_delete_preview,
+    execute_media_cleanup_delete,
+)
 from app.services.media_cleanup_restore import (
     MediaCleanupRestoreError,
     build_media_cleanup_restore_preview,
@@ -480,6 +485,21 @@ def media_cleanup_recovery_page(
         and row.entry.available
         and row.entry.sha256
     }
+    cleanup_delete_preview_urls = {
+        row.entry.media_path: (
+            "/media-library/recovery/delete-preview?"
+            + urlencode(
+                {
+                    "media_path": row.entry.media_path,
+                    "sha256": row.entry.sha256,
+                }
+            )
+        )
+        for row in result.rows
+        if row.status == "anchor_unreferenced"
+        and row.entry.available
+        and row.entry.sha256
+    }
     return templates.TemplateResponse(
         request,
         "media_cleanup_recovery.html",
@@ -490,6 +510,7 @@ def media_cleanup_recovery_page(
             recovery_status_options=MEDIA_RECOVERY_STATUS_OPTIONS,
             recovery_sort_options=MEDIA_RECOVERY_SORT_OPTIONS,
             recovery_preview_urls=recovery_preview_urls,
+            cleanup_delete_preview_urls=cleanup_delete_preview_urls,
             recovery_pagination=_page_context(
                 result.page_info,
                 "/media-library/recovery",
@@ -609,6 +630,109 @@ def media_cleanup_restore_page(
             "info",
             "flash.media_cleanup_restore_anchor_warning",
             code=result.anchor_removal_code,
+        )
+    return _redirect("/media-library/recovery")
+
+
+def _media_cleanup_delete_preview_url(
+    media_path: str | None,
+    sha256: str | None,
+) -> str:
+    return "/media-library/recovery/delete-preview?" + urlencode(
+        {"media_path": media_path or "", "sha256": sha256 or ""}
+    )
+
+
+@router.get(
+    "/media-library/recovery/delete-preview",
+    response_class=HTMLResponse,
+    dependencies=[Depends(require_page_auth)],
+)
+def media_cleanup_delete_preview_page(
+    request: Request,
+    media_path: str | None = Query(default=None),
+    sha256: str | None = Query(default=None),
+    db: Session = Depends(get_db),
+) -> HTMLResponse:
+    preview = None
+    error_key = None
+    try:
+        preview = build_media_cleanup_delete_preview(
+            db,
+            media_path=media_path,
+            sha256=sha256,
+        )
+    except MediaCleanupDeleteError as exc:
+        error_key = f"media_cleanup_delete.error_{exc.code}"
+    return templates.TemplateResponse(
+        request,
+        "media_cleanup_delete_preview.html",
+        _base_context(
+            request,
+            db=db,
+            delete_preview=preview,
+            error_key=error_key,
+        ),
+        status_code=200 if preview is not None else 400,
+    )
+
+
+@router.post(
+    "/media-library/recovery/delete",
+    dependencies=[Depends(require_page_auth)],
+)
+def media_cleanup_delete_page(
+    request: Request,
+    media_path: str = Form(...),
+    sha256: str = Form(...),
+    expected_size: str = Form(...),
+    expected_device: str = Form(...),
+    expected_inode: str = Form(...),
+    expected_modified_ns: str = Form(...),
+    expected_changed_ns: str = Form(...),
+    confirm: str | None = Form(default=None),
+    confirmation_text: str | None = Form(default=None),
+    db: Session = Depends(get_db),
+) -> RedirectResponse:
+    preview_url = _media_cleanup_delete_preview_url(media_path, sha256)
+    if not _danger_confirmation_is_valid(
+        request,
+        get_danger_policy(db),
+        confirmation_text=confirmation_text,
+        base_confirmation_valid=confirm == "1",
+    ):
+        return _redirect(preview_url)
+    try:
+        result = execute_media_cleanup_delete(
+            db,
+            media_path=media_path,
+            sha256=sha256,
+            expected_size=expected_size,
+            expected_device=expected_device,
+            expected_inode=expected_inode,
+            expected_modified_ns=expected_modified_ns,
+            expected_changed_ns=expected_changed_ns,
+        )
+    except MediaCleanupDeleteError as exc:
+        add_flash(
+            request,
+            "error",
+            f"flash.media_cleanup_delete_{exc.code}",
+        )
+        return _redirect("/media-library/recovery")
+    add_flash(
+        request,
+        "success",
+        "flash.media_cleanup_delete_success",
+        deleted_path=result.deleted_path,
+        size=result.size,
+    )
+    if result.warning_code:
+        add_flash(
+            request,
+            "info",
+            "flash.media_cleanup_delete_warning",
+            code=result.warning_code,
         )
     return _redirect("/media-library/recovery")
 

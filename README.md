@@ -2,15 +2,15 @@
 
 NSFWTrack is a local single-user content record manager / collection tracker.
 
-Current application version: `v1.0.6 / Phase 3-B3 through B5 in Unreleased`.
+Current application version: `v1.0.6 / Phase 3-B3 through B6 in Unreleased`.
 
 Current stable version: `v1.0.6 / Phase 3-B1 and B2`.
 
 Latest Release: [NSFWTrack v1.0.6](https://github.com/choneer/nsfwtrack/releases/tag/v1.0.6).
 
-Current status: `v1.0.6 is released; Phase 3-B3 manual cleanup, B4 recovery visibility, and B5 safe single-anchor restore are complete in Unreleased`.
+Current status: `v1.0.6 is released; Phase 3-B3 through B6 media cleanup, visibility, recovery, and unreferenced-anchor deletion are complete in Unreleased`.
 
-Current development: `Phase 3-B1 and B2 are published; Phase 3-B5 keeps
+Current development: `Phase 3-B1 and B2 are published; Phase 3-B6 keeps
 application version 1.0.6 and Schema 2`.
 
 N100 deployment: `not started; waits for explicit user authorization`.
@@ -37,7 +37,8 @@ acceptance through Phase 3-B1 and B2 are complete. See
 The bounded Phase 3-A1 through A6 scope shipped in `v1.0.5`; the read-only
 Phase 3-B1 and B2 duplicate-media views shipped in `v1.0.6`. Phase 3-B3 is
 complete in Unreleased; Phase 3-B4 adds read-only recovery visibility and B5
-adds explicit single-anchor restoration within the same local-only boundary.
+adds explicit single-anchor restoration. B6 adds confirmed permanent deletion
+only for legal zero-reference anchors within the same local-only boundary.
 
 ## v1.0.6 Release
 
@@ -180,6 +181,44 @@ B5 focused acceptance passes 12 tests, the full suite passes 486 tests, and
 healthy lifecycles with `/login`, authentication, the recovery center, and a
 valid single-anchor preview returning HTTP 200. Runtime hardening remains
 active and the SQLite checksum is unchanged across recreation; all temporary
+Docker resources are removed.
+
+### Phase 3-B6 Unreferenced Safety Anchor Delete
+
+The current Unreleased Phase 3-B6 provides a deliberately narrow way to remove
+one valid cleanup-anchor residue only when no item cover or creator avatar
+references it:
+
+- Only an `anchor_unreferenced` recovery-center row exposes the permanent-delete
+  preview. Referenced, damaged, symlinked, wrong-extension, ordinary, and
+  `recovered-*` rows have no eligible delete action.
+- The authenticated GET preview is write-free and displays full path, SHA-256,
+  MIME type, size, device, inode, mtime, ctime, and the irreversible outcome.
+- Confirmed POST uses the existing standard/strict danger policy, rescans the
+  internal media view, and rejects any submitted identity snapshot that no
+  longer exactly matches.
+- Before unlink, the service ends the preview read transaction, acquires SQLite
+  `BEGIN IMMEDIATE`, and rechecks both item-cover and creator-avatar counts.
+  A reference added after preview therefore rejects deletion while the file and
+  database remain intact.
+- Under the same lock it validates complete identity and SHA again, then uses
+  identity-bound unlink and directory fsync. It deletes only the selected path,
+  creates no recovery file, and never migrates or clears a database reference.
+- Unlink/identity/lock failures report a specific reason and retain the target.
+  If unlink succeeds but directory durability reports an error, the result
+  accurately reports that the file was removed with a persistence warning.
+
+B6 performs no batch or automatic cleanup and does not alter B3, B4, B5,
+B1/B2/A3/A4, Data Health fix behavior, or backup compatibility. Version 1.0.6,
+Schema 2, migrations, dependencies, Docker/CI, tags, Releases, and N100
+deployment remain unchanged.
+
+B6 focused acceptance passes 15 tests, the B3-B5 media-chain regression passes
+156 tests, the full suite passes 501 tests, and `pip check` reports no
+conflicts. An isolated production image passes two healthy lifecycles; login,
+authentication, recovery center, delete preview, and confirmed deletion all
+return HTTP 200. The target disappears without a `recovered-*` file, SQLite's
+checksum remains unchanged through GET, POST, and recreation, and all temporary
 Docker resources are removed.
 
 ## Features in v1.0.5

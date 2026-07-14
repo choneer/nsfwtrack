@@ -110,6 +110,9 @@
       {% if row.entry.media_path in recovery_preview_urls %}
         <div class="actions">
           <a class="button" href="{{ recovery_preview_urls[row.entry.media_path] }}">{{ t("media_recovery.preview_restore") }}</a>
+          {% if row.entry.media_path in cleanup_delete_preview_urls %}
+            <a class="button danger" href="{{ cleanup_delete_preview_urls[row.entry.media_path] }}">{{ t("media_recovery.preview_delete") }}</a>
+          {% endif %}
         </div>
       {% elif row.entry.is_cleanup_anchor %}
         <p class="muted">{{ t("media_recovery.restore_unavailable") }}</p>

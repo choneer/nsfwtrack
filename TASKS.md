@@ -2,10 +2,10 @@
 
 按顺序执行，每完成一项打个 [x]。
 
-## 当前状态（v1.0.6 已发布，Phase 3-B5 已完成于 Unreleased）
+## 当前状态（v1.0.6 已发布，Phase 3-B6 已完成于 Unreleased）
 
 当前稳定版与最新 Release：`v1.0.6`。Phase 3-B1 / B2 已正式发布，
-Phase 3-B3 / B4 / B5 已完成并位于 Unreleased，应用 Schema 仍为 `2`。
+Phase 3-B3 / B4 / B5 / B6 已完成并位于 Unreleased，应用 Schema 仍为 `2`。
 
 - Annotated tag object：`d4d5c31cd5b2fed9a90ad69742d54b4c9dbed0b4`
 - Peeled commit：`961a3d0cc169e82b261d83207b0ec802007e292b`
@@ -14,6 +14,24 @@ Phase 3-B3 / B4 / B5 已完成并位于 Unreleased，应用 Schema 仍为 `2`。
 N100 / 目标主机部署尚未开始，**不是当前开发任务**，必须等待用户明确授权。
 完整证据见 `COMPLETION_AUDIT.md`。历史任务保留在本文后半部分，
 不再作为新增开发路线。
+
+### Phase 3-B6 无引用安全锚点手动清理（Unreleased）
+
+- [x] 仅为合法且零引用 cleanup anchor 提供登录保护的单项永久删除预览
+- [x] GET 展示完整路径、SHA、MIME、size、device、inode、mtime、ctime 和不可撤销后果并保持零写入
+- [x] POST 复用 standard / strict `CONFIRM`，提交时重扫并逐字段验证完整身份
+- [x] 结束预检读事务后获取 SQLite `BEGIN IMMEDIATE`，锁内复核封面 / 头像引用均为零
+- [x] 最终删除前再次验证完整身份和 SHA，按身份 unlink 并 fsync 所在目录
+- [x] 拒绝已引用、损坏、符号链接、错误扩展、普通、`recovered-*`、缺失、陈旧、伪造和变化请求
+- [x] 引用竞态在写锁复核时拒绝，目标文件不删除且不迁移 / 清除数据库引用
+- [x] 删除和锁失败保留文件并明确报告；unlink 后目录同步失败准确报告已删除警告
+- [x] 只删除用户确认的单个目标，不创建恢复文件、不批量或自动清理
+- [x] Data Health 与恢复中心在成功后自然移除该锚点状态，不新增自动 fix
+- [x] 同步中文 / English、模板、CHANGELOG Unreleased 与当前文档
+- [x] B6 专项 `15 passed`、媒体链及 B3-B5 回归 `156 passed`
+- [x] 全量 `501 passed`、pip check 与隔离 Docker 双生命周期及真实确认删除验收通过并清理
+- [ ] 提交推送并确认 Actions test / Docker production smoke 通过
+- [x] 保持版本 1.0.6、Schema 2、迁移、依赖、Docker/CI、旧 tag / Release 和 N100 状态不变
 
 ### Phase 3-B5 安全锚点手动恢复（Unreleased）
 
