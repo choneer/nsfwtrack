@@ -2,10 +2,10 @@
 
 按顺序执行，每完成一项打个 [x]。
 
-## 当前状态（v1.0.6 已发布，Phase 3-C2 已完成于 Unreleased）
+## 当前状态（v1.0.6 已发布，Phase 3-C3 已完成于 Unreleased）
 
 当前稳定版与最新 Release：`v1.0.6`。Phase 3-B1 / B2 已正式发布，
-Phase 3-B3 / B4 / B5 / B6 / C1 / C2 已完成并位于 Unreleased，应用 Schema 仍为 `2`。
+Phase 3-B3 / B4 / B5 / B6 / C1 / C2 / C3 已完成并位于 Unreleased，应用 Schema 仍为 `2`。
 
 - Annotated tag object：`d4d5c31cd5b2fed9a90ad69742d54b4c9dbed0b4`
 - Peeled commit：`961a3d0cc169e82b261d83207b0ec802007e292b`
@@ -14,6 +14,27 @@ Phase 3-B3 / B4 / B5 / B6 / C1 / C2 已完成并位于 Unreleased，应用 Schem
 N100 / 目标主机部署尚未开始，**不是当前开发任务**，必须等待用户明确授权。
 完整证据见 `COMPLETION_AUDIT.md`。历史任务保留在本文后半部分，
 不再作为新增开发路线。
+
+### Phase 3-C3 媒体扫描跳过项定位中心（Unreleased）
+
+- [x] 扫描逐项记录安全相对路径、稳定原因、扩展名及可取得的 lstat 身份信息
+- [x] 精确区分 symlink、unsupported extension、special file、directory unreadable 和 entry error
+- [x] 结果按路径与原因去重并确定性排序，单项错误不打断其他目录或条目
+- [x] 目录使用 fd 与 `O_DIRECTORY|O_NOFOLLOW` 遍历，检查后替换成 symlink 的竞态也不跟随
+- [x] 被跳过文件内容从不打开、读取、解析、验证或哈希，符号链接目标不读取
+- [x] 安全转义控制字符与反斜线，不展示绝对宿主机路径、原始 OSError 或敏感信息
+- [x] `skipped_symlinks` 与 symlink 明细数一致，`skipped_unsupported` 与其他四类明细总数一致
+- [x] 新增登录保护的只读 `/media-library/skipped` 页面，无 POST 或文件 / 数据库写操作
+- [x] 页面支持路径搜索、单类 / 原 unsupported 范围筛选、稳定排序和固定 20 条分页
+- [x] 页面展示路径、类型、扩展名、size、device、inode、mtime 与 ctime
+- [x] Data Health 的 symlink / unsupported 两个汇总告警链接到各自对应筛选结果
+- [x] 普通媒体、cleanup anchor、`recovered-*`、上传残留与 invalid image 行为保持兼容
+- [x] 不新增删除、移动、改名、恢复、关联、自动处理、网络或 AI 能力
+- [x] 同步中文 / English、模板、CHANGELOG Unreleased、README / PLAN / TASKS / REVIEW / GOAL 和专项测试
+- [x] 保持版本 1.0.6、Schema 2、迁移、依赖、Docker/CI、旧 tag / Release 和 N100 状态不变
+- [x] C3 专项 `8 passed`，目录替换竞态、零内容读取、汇总一致性与页面零写入均通过
+- [x] A3-A6、B1-B6、C1-C2、媒体库、上传、Data Health、备份与导入组合回归 `261 passed`
+- [x] 全量 `538 passed`、`pip check`、隔离 Docker build / healthy / `/login` 200 / 未登录跳过项页 303 / down 清理通过
 
 ### Phase 3-C2 上传残留文件手动清理（Unreleased）
 

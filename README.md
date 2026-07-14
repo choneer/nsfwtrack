@@ -2,15 +2,15 @@
 
 NSFWTrack is a local single-user content record manager / collection tracker.
 
-Current application version: `v1.0.6 / Phase 3-B3 through C2 in Unreleased`.
+Current application version: `v1.0.6 / Phase 3-B3 through C3 in Unreleased`.
 
 Current stable version: `v1.0.6 / Phase 3-B1 and B2`.
 
 Latest Release: [NSFWTrack v1.0.6](https://github.com/choneer/nsfwtrack/releases/tag/v1.0.6).
 
-Current status: `v1.0.6 is released; Phase 3-B3 through B6 media cleanup and Phase 3-C1/C2 Data Health manual maintenance are complete in Unreleased`.
+Current status: `v1.0.6 is released; Phase 3-B3 through B6 media cleanup and Phase 3-C1 through C3 Data Health maintenance are complete in Unreleased`.
 
-Current development: `Phase 3-B1 and B2 are published; Phase 3-C2 keeps
+Current development: `Phase 3-B1 and B2 are published; Phase 3-C3 keeps
 application version 1.0.6 and Schema 2`.
 
 N100 deployment: `not started; waits for explicit user authorization`.
@@ -41,7 +41,8 @@ adds explicit single-anchor restoration. B6 adds confirmed permanent deletion
 only for legal zero-reference anchors. C1 adds explicit single cover/avatar
 reference replacement or clearing without changing any media file. C2 adds
 explicit deletion of one exact, unreferenced `.upload-*.tmp` residue without
-reading its content or modifying database references.
+reading its content or modifying database references. C3 adds a read-only,
+per-path view of every safely skipped media-scan entry and its stable reason.
 
 ## v1.0.6 Release
 
@@ -304,6 +305,46 @@ acceptance stack is removed cleanly.
 Feature commit `ab373b3` is pushed to `main`. GitHub Actions run
 [`29317914417`](https://github.com/choneer/nsfwtrack/actions/runs/29317914417)
 completed successfully for both `test` and `Docker production smoke`.
+
+### Phase 3-C3 Media Scan Skip Location Center
+
+The current Unreleased Phase 3-C3 makes the existing scan-skip summaries
+individually observable without turning them into write operations:
+
+- Each skipped entry has one deterministic safe relative display path and one
+  stable reason: `symlink`, `unsupported_extension`, `special_file`,
+  `directory_unreadable`, or `entry_error`.
+- Safe lstat size, device, inode, mtime, and ctime values are recorded when
+  available. Extensions are shown separately; raw system errors and absolute
+  host paths are never retained or rendered.
+- Directory traversal uses directory fds with `O_DIRECTORY|O_NOFOLLOW`.
+  Symbolic links are identified by lstat and never followed, including when a
+  directory is replaced by a link after its initial inspection.
+- Skipped file content is never opened, read, parsed, validated, or hashed.
+  One directory or entry failure creates a bounded reason record and does not
+  interrupt sibling scanning.
+- The authenticated `/media-library/skipped` GET page supports path search,
+  exact reason filters, the legacy non-symlink unsupported scope, stable
+  path/type ordering, and fixed 20-row pagination.
+- Data Health links `media_scan_skipped_symlinks` directly to the symlink filter
+  and `media_scan_skipped_unsupported` to the four compatible non-symlink
+  reason classes.
+- `skipped_symlinks` exactly equals the symlink-record count;
+  `skipped_unsupported` exactly equals all other skip records. The per-entry
+  list is deduplicated and deterministically sorted.
+
+C3 provides no POST route, delete, move, rename, recovery, association,
+automatic action, external request, or AI/image recognition. Ordinary media,
+cleanup anchors, `recovered-*`, upload residues, database structure, backup
+formats, version 1.0.6, Schema 2, migrations, dependencies, Docker/CI, tags,
+Releases, and N100 deployment remain unchanged.
+
+Local C3 acceptance passes 8 focused tests, 261 regression tests covering
+Phase 3-A3 through A6, B1 through B6, C1 through C2, media library, upload,
+Data Health, backup, and import, and all 538 tests. `pip check` reports no
+broken requirements. The production image builds, Compose reaches healthy,
+`/login` returns HTTP 200, the protected skip page redirects unauthenticated
+requests, and the isolated acceptance stack is removed cleanly.
 
 ## Features in v1.0.5
 

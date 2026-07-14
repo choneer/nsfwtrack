@@ -47,6 +47,14 @@
   whose basename case-sensitively matches `.upload-*.tmp`, including a locked
   zero-reference recheck, complete-identity revalidation, identity-bound
   unlink, and containing-directory fsync.
+- Added deterministic per-entry Phase 3-C3 media-scan skip records for symbolic
+  links, unsupported extensions, special files, unreadable directories, and
+  entry-inspection errors. Records contain only safe media-root-relative paths,
+  stable reason codes, extensions, and lstat metadata when available.
+- Added the authenticated, read-only `/media-library/skipped` location page
+  with path search, reason filtering, stable path/type sorting, and fixed
+  20-row pagination. Data Health scan-skip warnings link directly to matching
+  symlink or legacy-unsupported filter results.
 
 ### Fixed
 
@@ -93,6 +101,11 @@
   findings. Referenced residues show C1 guidance and no delete form; C2 never
   reads, parses, restores, or copies temporary content, changes a reference,
   creates `recovered-*`, or performs automatic or batch cleanup.
+- Existing `skipped_symlinks` remains the exact symbolic-link record count and
+  `skipped_unsupported` remains the sum of unsupported-extension, special-file,
+  unreadable-directory, and entry-error records. Existing media candidates,
+  cleanup-anchor isolation, `recovered-*`, upload residues, and invalid-image
+  behavior are unchanged.
 
 ### Security
 
@@ -148,6 +161,14 @@
   failure leaves the target and database unchanged. If unlink succeeds but
   directory fsync fails, the response accurately reports the removed file and
   durability warning.
+- C3 traversal opens each directory with `O_DIRECTORY` and `O_NOFOLLOW`, uses
+  lstat-only entry inspection, and reclassifies a directory replaced by a
+  symlink without entering its target. Skipped entries are never opened for
+  content, parsed, or hashed; one directory or entry error cannot stop sibling
+  scanning.
+- Skip paths are deterministically escaped relative display paths. The page
+  exposes no absolute host path, raw `OSError`, deletion, movement, recovery,
+  association, POST endpoint, automatic action, or external request.
 
 ## [1.0.6] - 2026-07-13
 

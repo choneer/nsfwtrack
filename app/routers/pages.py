@@ -172,6 +172,12 @@ from app.services.media_reference_repair import (
     execute_media_reference_repair,
     is_repairable_media_reference_issue,
 )
+from app.services.media_scan_skips import (
+    MEDIA_SCAN_SKIP_SORT_OPTIONS,
+    MEDIA_SCAN_SKIP_TYPE_OPTIONS,
+    media_scan_skip_filter_query_params,
+    query_media_scan_skips,
+)
 from app.services.media_upload_residue_cleanup import (
     MediaUploadResidueCleanupError,
     build_media_upload_residue_cleanup_preview,
@@ -449,6 +455,52 @@ def media_library_page(
             ),
             max_media_upload_mb=MAX_MEDIA_UPLOAD_BYTES // (1024 * 1024),
             max_media_upload_files=MAX_MEDIA_UPLOAD_FILES,
+            error_key=error_key,
+        ),
+    )
+
+
+@router.get(
+    "/media-library/skipped",
+    response_class=HTMLResponse,
+    dependencies=[Depends(require_page_auth)],
+)
+def media_scan_skips_page(
+    request: Request,
+    skip_page: str | None = Query(default=None),
+    skip_q: str | None = Query(default=None),
+    skip_type: str | None = Query(default=None),
+    skip_sort: str | None = Query(default=None),
+    db: Session = Depends(get_db),
+) -> HTMLResponse:
+    error_key = None
+    try:
+        scan = scan_local_media()
+    except LocalMediaPathError:
+        scan = LocalMediaScan((), 0, 0, 0)
+        error_key = "media.error_storage_unavailable"
+    result = query_media_scan_skips(
+        scan,
+        q=skip_q,
+        skip_type=skip_type,
+        sort=skip_sort,
+        page=skip_page,
+    )
+    return templates.TemplateResponse(
+        request,
+        "media_scan_skips.html",
+        _base_context(
+            request,
+            db=db,
+            skip_result=result,
+            skip_type_options=MEDIA_SCAN_SKIP_TYPE_OPTIONS,
+            skip_sort_options=MEDIA_SCAN_SKIP_SORT_OPTIONS,
+            skip_pagination=_page_context(
+                result.page_info,
+                "/media-library/skipped",
+                page_param="skip_page",
+                params=media_scan_skip_filter_query_params(result.filters),
+            ),
             error_key=error_key,
         ),
     )
@@ -1885,6 +1937,14 @@ def data_health_page(request: Request, db: Session = Depends(get_db)) -> HTMLRes
         if issue.code == "media_upload_residue"
         and issue.object_type == "media_file"
     }
+    media_scan_skip_urls = {
+        "media_scan_skipped_symlinks": (
+            "/media-library/skipped?skip_type=symlink"
+        ),
+        "media_scan_skipped_unsupported": (
+            "/media-library/skipped?skip_type=unsupported"
+        ),
+    }
     return templates.TemplateResponse(
         request,
         "data_health.html",
@@ -1895,6 +1955,7 @@ def data_health_page(request: Request, db: Session = Depends(get_db)) -> HTMLRes
             fix_options=build_data_health_fix_options(report),
             media_reference_repair_urls=media_reference_repair_urls,
             upload_residue_cleanup_urls=upload_residue_cleanup_urls,
+            media_scan_skip_urls=media_scan_skip_urls,
         ),
     )
 

@@ -778,6 +778,26 @@
 - [ ] **12.605. 回归与版本边界是否完整** — C1、B3-B6、上传、Data Health、备份 / 导入是否通过，且版本 1.0.6、Schema 2、迁移、依赖、Docker/CI、tag / Release 与 N100 状态不变
 - [ ] **12.606. 双语与验收证据是否完整** — 中英文、专项 / 全量 pytest、pip check、Docker、Actions、文档、提交推送和资源清理是否均有真实证据
 
+## Phase 3-C3 媒体扫描跳过项定位中心检查
+
+- [ ] **12.607. 逐项模型是否完整兼容** — 是否新增安全相对路径、稳定原因、扩展名与可选 lstat 字段，同时旧四参数 `LocalMediaScan` 构造仍可用
+- [ ] **12.608. 五类原因是否精确** — symlink、unsupported extension、special file、directory unreadable、entry error 是否互斥且可解释
+- [ ] **12.609. 相对路径是否安全** — 是否只由媒体根下目录 fd 与 entry name 生成，控制字符 / 反斜线安全转义，绝对路径与原始 OSError 不进入结果或页面
+- [ ] **12.610. 符号链接是否绝不跟随** — 是否只使用 lstat，子目录通过 `O_DIRECTORY|O_NOFOLLOW` 打开，检查后目录替换竞态也不进入链接目标
+- [ ] **12.611. 被跳过内容是否零读取** — unsupported、special、symlink、目录错误和条目错误是否均不打开、读取、解析、验证或哈希内容
+- [ ] **12.612. 单项失败是否隔离** — 一个目录 scandir 或条目 lstat 失败时是否只生成一条稳定记录并继续扫描其他兄弟项
+- [ ] **12.613. 明细是否确定且去重** — 同一扫描状态多次结果是否一致，并按 casefold path、原 path 和 reason 稳定排序
+- [ ] **12.614. 旧汇总是否严格一致** — `skipped_symlinks` 是否等于 symlink 明细数，`skipped_unsupported` 是否等于其他四类明细总数
+- [ ] **12.615. 既有扫描边界是否保持** — 普通媒体、invalid image、cleanup anchor、`recovered-*`、上传残留和 include_cleanup_anchors 行为是否不变
+- [ ] **12.616. 页面是否登录且只读** — `/media-library/skipped` 是否仅有登录保护 GET，无 POST、删除、移动、改名、恢复、关联或其他写入口
+- [ ] **12.617. 页面字段是否完整** — 是否展示安全路径、类型、扩展名及可取得的 size、device、inode、mtime、ctime，并不显示 raw error
+- [ ] **12.618. 搜索筛选分页是否稳定** — 路径搜索、五类精确筛选、原 unsupported 聚合筛选、路径 / 类型排序和固定 20 条分页是否保留状态
+- [ ] **12.619. Data Health 链接是否对应** — symlink 告警是否链接 symlink 结果，unsupported 告警是否链接四类非 symlink 结果，数量与页面明细一致
+- [ ] **12.620. GET 是否零写入** — 跳过项页面和 Data Health GET 前后数据库、所有跳过文件及符号链接是否不变
+- [ ] **12.621. 范围是否保持** — 是否无自动操作、定时任务、网络、AI、依赖、数据库、Schema、迁移、Docker/CI、tag / Release 或 N100 变化
+- [ ] **12.622. 回归是否完整** — A3-A6、B1-B6、C1-C2、媒体库、上传、Data Health、备份 / 导入是否均通过
+- [ ] **12.623. 双语与验收证据是否完整** — 中英文、专项 / 全量 pytest、pip check、Docker、Actions、文档、提交推送和资源清理是否均有真实证据
+
 ## 登录保护检查
 
 - [ ] **13. 密码是否从环境变量读取** — 不是硬编码

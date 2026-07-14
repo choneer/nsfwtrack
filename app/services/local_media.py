@@ -8,6 +8,7 @@ import tempfile
 import zlib
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
+from typing import Literal
 from urllib.parse import urlsplit
 
 from fastapi import UploadFile
@@ -76,12 +77,34 @@ class LocalMediaEntry:
     is_recovered: bool = False
 
 
+MediaScanSkipReason = Literal[
+    "symlink",
+    "unsupported_extension",
+    "special_file",
+    "directory_unreadable",
+    "entry_error",
+]
+
+
+@dataclass(frozen=True)
+class LocalMediaScanSkip:
+    path: str
+    reason: MediaScanSkipReason
+    extension: str
+    size: int | None
+    device: int | None
+    inode: int | None
+    modified_ns: int | None
+    changed_ns: int | None
+
+
 @dataclass(frozen=True)
 class LocalMediaScan:
     entries: tuple[LocalMediaEntry, ...]
     skipped_symlinks: int
     skipped_unsupported: int
     invalid: int
+    skipped_entries: tuple[LocalMediaScanSkip, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -702,42 +725,232 @@ def normalize_interactive_local_media_path(value: str | None) -> str | None:
     return normalized
 
 
+def _safe_scan_text(value: str) -> str:
+    parts: list[str] = []
+    for character in value:
+        codepoint = ord(character)
+        if character == "\\":
+            parts.append("\\\\")
+        elif (
+            codepoint < 32
+            or codepoint == 127
+            or 0xD800 <= codepoint <= 0xDFFF
+        ):
+            parts.append(f"\\u{codepoint:04x}")
+        else:
+            parts.append(character)
+    return "".join(parts)
+
+
+def _join_scan_relative_path(parent: str, name: str) -> str:
+    safe_name = _safe_scan_text(name)
+    return safe_name if parent == "." else f"{parent}/{safe_name}"
+
+
+def _media_scan_skip(
+    *,
+    path: str,
+    reason: MediaScanSkipReason,
+    extension: str,
+    file_stat: os.stat_result | None,
+) -> LocalMediaScanSkip:
+    return LocalMediaScanSkip(
+        path=path,
+        reason=reason,
+        extension=extension,
+        size=file_stat.st_size if file_stat is not None else None,
+        device=file_stat.st_dev if file_stat is not None else None,
+        inode=file_stat.st_ino if file_stat is not None else None,
+        modified_ns=file_stat.st_mtime_ns if file_stat is not None else None,
+        changed_ns=file_stat.st_ctime_ns if file_stat is not None else None,
+    )
+
+
+def _scan_directory_flags() -> int:
+    flags = os.O_RDONLY
+    if hasattr(os, "O_DIRECTORY"):
+        flags |= os.O_DIRECTORY
+    if hasattr(os, "O_CLOEXEC"):
+        flags |= os.O_CLOEXEC
+    if hasattr(os, "O_NOFOLLOW"):
+        flags |= os.O_NOFOLLOW
+    return flags
+
+
+def _sorted_scan_entries(directory_fd: int) -> list[os.DirEntry[str]]:
+    with os.scandir(directory_fd) as iterator:
+        return sorted(
+            iterator,
+            key=lambda entry: (entry.name.casefold(), entry.name),
+        )
+
+
+def _entry_lstat(entry: os.DirEntry[str]) -> os.stat_result:
+    return entry.stat(follow_symlinks=False)
+
+
 def _iter_media_files(
     *,
     include_cleanup_anchors: bool = False,
-) -> tuple[list[Path], int, int]:
+) -> tuple[list[Path], tuple[LocalMediaScanSkip, ...]]:
     if not LOCAL_MEDIA_ROOT.exists():
-        return [], 0, 0
+        return [], ()
     root = _root_for_read()
     files: list[Path] = []
-    skipped_symlinks = 0
-    skipped_unsupported = 0
-    pending = [root]
-    while pending:
-        directory = pending.pop()
+    skipped: list[LocalMediaScanSkip] = []
+    try:
+        root_fd = os.open(root, _scan_directory_flags())
+    except OSError:
         try:
-            entries = sorted(os.scandir(directory), key=lambda entry: entry.name.casefold())
+            root_stat: os.stat_result | None = root.stat(follow_symlinks=False)
         except OSError:
-            skipped_unsupported += 1
-            continue
+            root_stat = None
+        return files, (
+            _media_scan_skip(
+                path=".",
+                reason="directory_unreadable",
+                extension="",
+                file_stat=root_stat,
+            ),
+        )
+
+    def append_symlink(
+        *,
+        name: str,
+        path: str,
+        extension: str,
+        file_stat: os.stat_result,
+        directory: Path,
+    ) -> None:
+        cleanup_anchor = is_cleanup_anchor_filename(name)
+        recovered = is_recovered_media_filename(name)
+        if cleanup_anchor and not include_cleanup_anchors:
+            return
+        skipped.append(
+            _media_scan_skip(
+                path=path,
+                reason="symlink",
+                extension=extension,
+                file_stat=file_stat,
+            )
+        )
+        if include_cleanup_anchors and (cleanup_anchor or recovered):
+            files.append(directory / name)
+
+    def walk_directory(
+        directory_fd: int,
+        directory: Path,
+        directory_relative: str,
+        directory_extension: str,
+        directory_stat: os.stat_result,
+    ) -> None:
+        try:
+            entries = _sorted_scan_entries(directory_fd)
+        except OSError:
+            skipped.append(
+                _media_scan_skip(
+                    path=directory_relative,
+                    reason="directory_unreadable",
+                    extension=directory_extension,
+                    file_stat=directory_stat,
+                )
+            )
+            return
         for entry in entries:
+            relative = _join_scan_relative_path(directory_relative, entry.name)
+            extension = _safe_scan_text(PurePosixPath(entry.name).suffix)
             try:
-                if entry.is_symlink():
+                file_stat = _entry_lstat(entry)
+                if stat.S_ISLNK(file_stat.st_mode):
+                    append_symlink(
+                        name=entry.name,
+                        path=relative,
+                        extension=extension,
+                        file_stat=file_stat,
+                        directory=directory,
+                    )
+                elif stat.S_ISDIR(file_stat.st_mode):
+                    try:
+                        child_fd = os.open(
+                            entry.name,
+                            _scan_directory_flags(),
+                            dir_fd=directory_fd,
+                        )
+                    except OSError:
+                        try:
+                            current_stat = os.stat(
+                                entry.name,
+                                dir_fd=directory_fd,
+                                follow_symlinks=False,
+                            )
+                        except OSError:
+                            skipped.append(
+                                _media_scan_skip(
+                                    path=relative,
+                                    reason="entry_error",
+                                    extension=extension,
+                                    file_stat=None,
+                                )
+                            )
+                        else:
+                            if stat.S_ISLNK(current_stat.st_mode):
+                                append_symlink(
+                                    name=entry.name,
+                                    path=relative,
+                                    extension=extension,
+                                    file_stat=current_stat,
+                                    directory=directory,
+                                )
+                            else:
+                                skipped.append(
+                                    _media_scan_skip(
+                                        path=relative,
+                                        reason="directory_unreadable",
+                                        extension=extension,
+                                        file_stat=current_stat,
+                                    )
+                                )
+                        continue
+                    try:
+                        child_stat = os.fstat(child_fd)
+                        if not stat.S_ISDIR(child_stat.st_mode):
+                            skipped.append(
+                                _media_scan_skip(
+                                    path=relative,
+                                    reason="entry_error",
+                                    extension=extension,
+                                    file_stat=child_stat,
+                                )
+                            )
+                            continue
+                        try:
+                            walk_directory(
+                                child_fd,
+                                directory / entry.name,
+                                relative,
+                                extension,
+                                child_stat,
+                            )
+                        except RecursionError:
+                            skipped.append(
+                                _media_scan_skip(
+                                    path=relative,
+                                    reason="directory_unreadable",
+                                    extension=extension,
+                                    file_stat=child_stat,
+                                )
+                            )
+                    finally:
+                        try:
+                            os.close(child_fd)
+                        except OSError:
+                            pass
+                elif stat.S_ISREG(file_stat.st_mode):
                     cleanup_anchor = is_cleanup_anchor_filename(entry.name)
                     recovered = is_recovered_media_filename(entry.name)
                     if cleanup_anchor and not include_cleanup_anchors:
                         continue
-                    skipped_symlinks += 1
-                    if include_cleanup_anchors and (cleanup_anchor or recovered):
-                        files.append(Path(entry.path))
-                elif entry.is_dir(follow_symlinks=False):
-                    pending.append(Path(entry.path))
-                elif entry.is_file(follow_symlinks=False):
-                    cleanup_anchor = is_cleanup_anchor_filename(entry.name)
-                    recovered = is_recovered_media_filename(entry.name)
-                    if cleanup_anchor and not include_cleanup_anchors:
-                        continue
-                    path = Path(entry.path)
+                    path = directory / entry.name
                     if (
                         path.suffix.casefold() in ALLOWED_MEDIA_EXTENSIONS
                         or (
@@ -747,19 +960,58 @@ def _iter_media_files(
                     ):
                         files.append(path)
                     else:
-                        skipped_unsupported += 1
+                        skipped.append(
+                            _media_scan_skip(
+                                path=relative,
+                                reason="unsupported_extension",
+                                extension=extension,
+                                file_stat=file_stat,
+                            )
+                        )
                 else:
-                    skipped_unsupported += 1
+                    skipped.append(
+                        _media_scan_skip(
+                            path=relative,
+                            reason="special_file",
+                            extension=extension,
+                            file_stat=file_stat,
+                        )
+                    )
             except OSError:
-                skipped_unsupported += 1
-    return files, skipped_symlinks, skipped_unsupported
+                skipped.append(
+                    _media_scan_skip(
+                        path=relative,
+                        reason="entry_error",
+                        extension=extension,
+                        file_stat=None,
+                    )
+                )
+    try:
+        root_stat = os.fstat(root_fd)
+        walk_directory(root_fd, root, ".", "", root_stat)
+    finally:
+        try:
+            os.close(root_fd)
+        except OSError:
+            pass
+    unique_skips = {
+        (entry.path, entry.reason): entry
+        for entry in skipped
+    }
+    ordered_skips = tuple(
+        sorted(
+            unique_skips.values(),
+            key=lambda entry: (entry.path.casefold(), entry.path, entry.reason),
+        )
+    )
+    return files, ordered_skips
 
 
 def scan_local_media(
     *,
     include_cleanup_anchors: bool = False,
 ) -> LocalMediaScan:
-    files, skipped_symlinks, skipped_unsupported = _iter_media_files(
+    files, skipped_entries = _iter_media_files(
         include_cleanup_anchors=include_cleanup_anchors,
     )
     entries: list[LocalMediaEntry] = []
@@ -813,9 +1065,14 @@ def scan_local_media(
     entries.sort(key=lambda entry: entry.filename.casefold())
     return LocalMediaScan(
         entries=tuple(entries),
-        skipped_symlinks=skipped_symlinks,
-        skipped_unsupported=skipped_unsupported,
+        skipped_symlinks=sum(
+            entry.reason == "symlink" for entry in skipped_entries
+        ),
+        skipped_unsupported=sum(
+            entry.reason != "symlink" for entry in skipped_entries
+        ),
         invalid=invalid,
+        skipped_entries=skipped_entries,
     )
 
 

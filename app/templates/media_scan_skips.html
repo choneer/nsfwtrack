@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% from "_pagination.html" import pagination_nav %}
+{% block title %}{{ t("media_scan_skips.title") }} - NSFWTrack{% endblock %}
+{% block content %}
+<div class="toolbar">
+  <div>
+    <p class="muted">{{ t("media_scan_skips.local_only") }}</p>
+    <h1>{{ t("media_scan_skips.title") }}</h1>
+    <p class="muted">{{ t("media_scan_skips.description") }}</p>
+  </div>
+  <div class="actions">
+    <a class="button secondary" href="/media-library">{{ t("media_scan_skips.back_to_library") }}</a>
+    <a class="button secondary" href="/data-health">{{ t("media_scan_skips.open_data_health") }}</a>
+  </div>
+</div>
+
+{% if error_key %}<div class="flash error">{{ t(error_key) }}</div>{% endif %}
+
+<section class="notice">
+  <strong>{{ t("media_scan_skips.readonly_title") }}</strong>
+  <p>{{ t("media_scan_skips.readonly_detail") }}</p>
+  <p>{{ t("media_scan_skips.safe_path_detail") }}</p>
+</section>
+
+<section class="stats-section">
+  <div class="metric-grid compact-metrics">
+    <div class="metric"><strong data-skip-total>{{ skip_result.total_count }}</strong><span>{{ t("media_scan_skips.total_count") }}</span></div>
+    <div class="metric"><strong data-skip-symlink>{{ skip_result.symlink_count }}</strong><span>{{ t("media_scan_skips.type_symlink") }}</span></div>
+    <div class="metric"><strong data-skip-unsupported-extension>{{ skip_result.unsupported_extension_count }}</strong><span>{{ t("media_scan_skips.type_unsupported_extension") }}</span></div>
+    <div class="metric"><strong data-skip-special>{{ skip_result.special_file_count }}</strong><span>{{ t("media_scan_skips.type_special_file") }}</span></div>
+    <div class="metric"><strong data-skip-directory>{{ skip_result.directory_unreadable_count }}</strong><span>{{ t("media_scan_skips.type_directory_unreadable") }}</span></div>
+    <div class="metric"><strong data-skip-entry-error>{{ skip_result.entry_error_count }}</strong><span>{{ t("media_scan_skips.type_entry_error") }}</span></div>
+    <div class="metric"><strong data-skip-result-count>{{ skip_pagination.total }}</strong><span>{{ t("media_scan_skips.result_count") }}</span></div>
+  </div>
+</section>
+
+<section class="card stack">
+  <form action="/media-library/skipped" method="get" class="form-grid">
+    <input type="hidden" name="skip_page" value="1">
+    <label>{{ t("media_scan_skips.search") }}
+      <input
+        type="search"
+        name="skip_q"
+        value="{{ skip_result.filters.q }}"
+        maxlength="200"
+        placeholder="{{ t('media_scan_skips.search_placeholder') }}"
+      >
+    </label>
+    <label>{{ t("media_scan_skips.type") }}
+      <select name="skip_type">
+        {% for option in skip_type_options %}
+          <option value="{{ option }}"{% if skip_result.filters.skip_type == option %} selected{% endif %}>{{ t("media_scan_skips.type_" ~ option) }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>{{ t("media_scan_skips.sort") }}
+      <select name="skip_sort">
+        {% for option in skip_sort_options %}
+          <option value="{{ option }}"{% if skip_result.filters.sort == option %} selected{% endif %}>{{ t("media_scan_skips.sort_" ~ option) }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <div class="filter-actions">
+      <button type="submit">{{ t("media_scan_skips.apply") }}</button>
+      <a class="button secondary" href="/media-library/skipped">{{ t("media_scan_skips.clear") }}</a>
+    </div>
+  </form>
+  <div class="filter-summary">
+    {% if skip_result.filters.q %}<span class="pill">{{ t("media_scan_skips.search") }}: {{ skip_result.filters.q }}</span>{% endif %}
+    <span class="pill">{{ t("media_scan_skips.type") }}: {{ t("media_scan_skips.type_" ~ skip_result.filters.skip_type) }}</span>
+    <span class="pill">{{ t("media_scan_skips.sort") }}: {{ t("media_scan_skips.sort_" ~ skip_result.filters.sort) }}</span>
+  </div>
+</section>
+
+{% if skip_result.rows %}
+  <section class="stats-section" data-media-scan-skips>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>{{ t("media_scan_skips.path") }}</th>
+            <th>{{ t("media_scan_skips.type") }}</th>
+            <th>{{ t("media_scan_skips.extension") }}</th>
+            <th>{{ t("media_scan_skips.size") }}</th>
+            <th>{{ t("media_scan_skips.device") }}</th>
+            <th>{{ t("media_scan_skips.inode") }}</th>
+            <th>{{ t("media_scan_skips.modified_ns") }}</th>
+            <th>{{ t("media_scan_skips.changed_ns") }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for entry in skip_result.rows %}
+            <tr data-skip-path="{{ entry.path }}" data-skip-reason="{{ entry.reason }}">
+              <td><code>{{ entry.path }}</code></td>
+              <td><span class="pill">{{ t("media_scan_skips.type_" ~ entry.reason) }}</span></td>
+              <td>{% if entry.extension %}<code>{{ entry.extension }}</code>{% else %}<span class="muted">{{ t("common.none") }}</span>{% endif %}</td>
+              <td>{% if entry.size is not none %}{{ entry.size }} B{% else %}<span class="muted">{{ t("common.none") }}</span>{% endif %}</td>
+              <td>{% if entry.device is not none %}<code>{{ entry.device }}</code>{% else %}<span class="muted">{{ t("common.none") }}</span>{% endif %}</td>
+              <td>{% if entry.inode is not none %}<code>{{ entry.inode }}</code>{% else %}<span class="muted">{{ t("common.none") }}</span>{% endif %}</td>
+              <td>{% if entry.modified_ns is not none %}<code>{{ entry.modified_ns }}</code>{% else %}<span class="muted">{{ t("common.none") }}</span>{% endif %}</td>
+              <td>{% if entry.changed_ns is not none %}<code>{{ entry.changed_ns }}</code>{% else %}<span class="muted">{{ t("common.none") }}</span>{% endif %}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+{% else %}
+  <section class="card empty-state">
+    <h2>{{ t("media_scan_skips.empty_title") }}</h2>
+    <p class="muted">{{ t("media_scan_skips.empty_detail") }}</p>
+  </section>
+{% endif %}
+
+{{ pagination_nav(t, skip_pagination) }}
+{% endblock %}
