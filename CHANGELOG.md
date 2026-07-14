@@ -66,6 +66,15 @@
 - Added manually confirmed deletion of exactly one still-damaged,
   zero-reference ordinary-media file after complete identity/SHA revalidation,
   a locked reference recheck, identity-bound unlink, and directory fsync.
+- Added the authenticated Phase 3-C5 read-only media-root diagnostic for
+  `media_root_unavailable`. It shows only the logical `/media/` path, safe
+  status, parent/root size-device-inode-mtime-ctime identities, local cover and
+  avatar reference counts, and handling consequences without host paths or raw
+  exceptions.
+- Added missing-only manual media-root initialization. A confirmed POST creates
+  only the configured final directory through its verified parent FD, then
+  fsyncs the new directory and parent without creating media or changing a
+  reference.
 
 ### Fixed
 
@@ -129,6 +138,10 @@
 - Referenced C4 targets expose only direct Phase 3-C1 repair links and no delete
   form. C4 never migrates, clears, or rewrites a database reference, creates a
   recovery file, touches another media path, or performs automatic/batch work.
+- C5 offers initialization only for a genuinely `missing` root with a safely
+  verified existing parent. Symlink, non-directory, unreadable, scan-failed,
+  ready, unsafe-configuration, and missing-parent states remain diagnostic-only
+  and never trigger recursive creation, replacement, chmod, or chown.
 
 ### Security
 
@@ -202,6 +215,17 @@
   A racing reference, lock/query failure, identity change, or unlink failure
   leaves the file and database unchanged. A post-unlink directory fsync error
   accurately reports that deletion occurred with a durability warning.
+- C5 initialization requires login, POST, browser/server confirmation, and
+  exact `CONFIRM` in strict mode. It opens the configured parent chain from the
+  application working-directory FD with `O_DIRECTORY|O_NOFOLLOW`, revalidates
+  complete parent identities and current name mappings, confirms the target is
+  still absent, and uses atomic `mkdir(dir_fd=...)`. Parent replacement,
+  symlink races, target occupation, forged identity, or mkdir failure is
+  rejected without overwriting any object. After creation it fsyncs both the
+  new directory and parent, then reopens the configured chain and verifies the
+  current parent/root mapping; a post-mkdir replacement is rejected while
+  accurately reporting that an empty directory was already created through the
+  original safe parent FD.
 
 ## [1.0.6] - 2026-07-13
 

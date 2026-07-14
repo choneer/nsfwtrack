@@ -142,6 +142,11 @@ from app.services.media_damaged_cleanup import (
     build_media_damaged_cleanup_preview,
     execute_media_damaged_cleanup,
 )
+from app.services.media_root_diagnostics import (
+    MediaRootDiagnosticError,
+    build_media_root_diagnostic,
+    execute_media_root_initialization,
+)
 from app.services.media_cleanup_recovery import (
     MEDIA_RECOVERY_SORT_OPTIONS,
     MEDIA_RECOVERY_STATUS_OPTIONS,
@@ -1975,6 +1980,15 @@ def data_health_page(request: Request, db: Session = Depends(get_db)) -> HTMLRes
             "/media-library/skipped?skip_type=unsupported"
         ),
     }
+    media_root_diagnostic_url = (
+        "/data-health/media-root"
+        if any(
+            issue.code == "media_root_unavailable"
+            and issue.object_type == "media_root"
+            for issue in report.issues
+        )
+        else None
+    )
     return templates.TemplateResponse(
         request,
         "data_health.html",
@@ -1987,8 +2001,100 @@ def data_health_page(request: Request, db: Session = Depends(get_db)) -> HTMLRes
             upload_residue_cleanup_urls=upload_residue_cleanup_urls,
             damaged_media_cleanup_urls=damaged_media_cleanup_urls,
             media_scan_skip_urls=media_scan_skip_urls,
+            media_root_diagnostic_url=media_root_diagnostic_url,
         ),
     )
+
+
+@router.get(
+    "/data-health/media-root",
+    response_class=HTMLResponse,
+    dependencies=[Depends(require_page_auth)],
+)
+def media_root_diagnostic_page(
+    request: Request,
+    db: Session = Depends(get_db),
+) -> HTMLResponse:
+    diagnostic = None
+    error_key = None
+    try:
+        candidate = build_media_root_diagnostic(db)
+        if candidate.status == "ready":
+            error_key = "media_root_diagnostic.error_root_available"
+        else:
+            diagnostic = candidate
+    except MediaRootDiagnosticError as exc:
+        error_key = f"media_root_diagnostic.error_{exc.code}"
+    return templates.TemplateResponse(
+        request,
+        "media_root_diagnostic.html",
+        _base_context(
+            request,
+            db=db,
+            media_root_diagnostic=diagnostic,
+            error_key=error_key,
+        ),
+        status_code=200 if diagnostic is not None else 400,
+    )
+
+
+@router.post(
+    "/data-health/media-root/initialize",
+    dependencies=[Depends(require_page_auth)],
+)
+def media_root_initialize_page(
+    request: Request,
+    expected_size: str = Form(...),
+    expected_device: str = Form(...),
+    expected_inode: str = Form(...),
+    expected_modified_ns: str = Form(...),
+    expected_changed_ns: str = Form(...),
+    confirm: str | None = Form(default=None),
+    confirmation_text: str | None = Form(default=None),
+    db: Session = Depends(get_db),
+) -> RedirectResponse:
+    if not _danger_confirmation_is_valid(
+        request,
+        get_danger_policy(db),
+        confirmation_text=confirmation_text,
+        base_confirmation_valid=confirm == "1",
+    ):
+        return _redirect("/data-health/media-root")
+    try:
+        result = execute_media_root_initialization(
+            db,
+            expected_size=expected_size,
+            expected_device=expected_device,
+            expected_inode=expected_inode,
+            expected_modified_ns=expected_modified_ns,
+            expected_changed_ns=expected_changed_ns,
+        )
+    except MediaRootDiagnosticError as exc:
+        add_flash(
+            request,
+            "info" if exc.created else "error",
+            (
+                "flash.media_root_initialization_created_warning"
+                if exc.created
+                else f"flash.media_root_initialization_{exc.code}"
+            ),
+            code=exc.code,
+        )
+        return _redirect("/data-health/media-root")
+    add_flash(
+        request,
+        "success",
+        "flash.media_root_initialization_success",
+        logical_path=result.logical_path,
+    )
+    if result.warning_code:
+        add_flash(
+            request,
+            "info",
+            "flash.media_root_initialization_warning",
+            code=result.warning_code,
+        )
+    return _redirect("/data-health")
 
 
 def _damaged_media_delete_preview_url(

@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% from "_danger_notice.html" import danger_notice %}
+{% block title %}{{ t("media_root_diagnostic.title") }} - NSFWTrack{% endblock %}
+{% macro identity_details(identity, prefix) -%}
+  {% if identity %}
+    <dl class="settings-summary" data-root-identity="{{ prefix }}">
+      <dt>{{ t("media_root_diagnostic.kind") }}</dt>
+      <dd><code>{{ t("media_root_diagnostic.kind_" ~ identity.kind) }}</code></dd>
+      <dt>{{ t("media_root_diagnostic.size") }}</dt>
+      <dd><code>{{ identity.size }}</code></dd>
+      <dt>{{ t("media_root_diagnostic.device") }}</dt>
+      <dd><code>{{ identity.device }}</code></dd>
+      <dt>{{ t("media_root_diagnostic.inode") }}</dt>
+      <dd><code>{{ identity.inode }}</code></dd>
+      <dt>{{ t("media_root_diagnostic.modified_ns") }}</dt>
+      <dd><code>{{ identity.modified_ns }}</code></dd>
+      <dt>{{ t("media_root_diagnostic.changed_ns") }}</dt>
+      <dd><code>{{ identity.changed_ns }}</code></dd>
+    </dl>
+  {% else %}
+    <p class="muted">{{ t("media_root_diagnostic.identity_unavailable") }}</p>
+  {% endif %}
+{%- endmacro %}
+{% block content %}
+<div class="toolbar">
+  <div>
+    <p class="muted">{{ t("media_root_diagnostic.local_only") }}</p>
+    <h1>{{ t("media_root_diagnostic.title") }}</h1>
+    <p class="muted">{{ t("media_root_diagnostic.description") }}</p>
+  </div>
+  <a class="button secondary" href="/data-health">{{ t("media_root_diagnostic.back") }}</a>
+</div>
+
+{% if error_key %}
+  <div class="flash error">{{ t(error_key) }}</div>
+{% endif %}
+
+{% if media_root_diagnostic %}
+  <section class="card stack" data-media-root-diagnostic>
+    <h2>{{ t("media_root_diagnostic.summary_title") }}</h2>
+    <dl class="settings-summary">
+      <dt>{{ t("media_root_diagnostic.logical_path") }}</dt>
+      <dd><code data-media-root-logical-path>{{ media_root_diagnostic.logical_path }}</code></dd>
+      <dt>{{ t("media_root_diagnostic.status") }}</dt>
+      <dd><code data-media-root-status>{{ t("data_health.media_root_state_" ~ media_root_diagnostic.status) }}</code></dd>
+      <dt>{{ t("media_root_diagnostic.item_references") }}</dt>
+      <dd>{{ media_root_diagnostic.item_reference_count }}</dd>
+      <dt>{{ t("media_root_diagnostic.creator_references") }}</dt>
+      <dd>{{ media_root_diagnostic.creator_reference_count }}</dd>
+      <dt>{{ t("media_root_diagnostic.total_references") }}</dt>
+      <dd>{{ media_root_diagnostic.reference_count }}</dd>
+    </dl>
+  </section>
+
+  <section class="card stack">
+    <h2>{{ t("media_root_diagnostic.parent_identity") }}</h2>
+    {{ identity_details(media_root_diagnostic.parent_identity, "parent") }}
+  </section>
+
+  <section class="card stack">
+    <h2>{{ t("media_root_diagnostic.root_identity") }}</h2>
+    {{ identity_details(media_root_diagnostic.root_identity, "root") }}
+  </section>
+
+  <section class="card stack">
+    <h2>{{ t("media_root_diagnostic.consequences_title") }}</h2>
+    <ul>
+      <li>{{ t("media_root_diagnostic.consequence_no_repair") }}</li>
+      <li>{{ t("media_root_diagnostic.consequence_references") }}</li>
+      <li>{{ t("media_root_diagnostic.consequence_no_media") }}</li>
+      <li>{{ t("media_root_diagnostic.consequence_status_" ~ media_root_diagnostic.status) }}</li>
+    </ul>
+  </section>
+
+  {% if media_root_diagnostic.can_initialize %}
+    <section class="card stack">
+      <h2>{{ t("media_root_diagnostic.initialize_title") }}</h2>
+      <p>{{ t("media_root_diagnostic.initialize_description") }}</p>
+      {{ danger_notice(t, danger_policy, "danger.object_media_root", "danger.consequence_media_root", "danger.deletion_media_root", "danger.recovery_media_root", false) }}
+      <form action="/data-health/media-root/initialize" method="post">
+        <input type="hidden" name="expected_size" value="{{ media_root_diagnostic.parent_identity.size }}">
+        <input type="hidden" name="expected_device" value="{{ media_root_diagnostic.parent_identity.device }}">
+        <input type="hidden" name="expected_inode" value="{{ media_root_diagnostic.parent_identity.inode }}">
+        <input type="hidden" name="expected_modified_ns" value="{{ media_root_diagnostic.parent_identity.modified_ns }}">
+        <input type="hidden" name="expected_changed_ns" value="{{ media_root_diagnostic.parent_identity.changed_ns }}">
+        <input type="hidden" name="confirm" value="1">
+        <button
+          class="danger"
+          type="submit"
+          data-confirm-message="{{ t('media_root_diagnostic.confirm') }}"
+          {% if danger_policy.is_strict %}data-strict-confirm-message="{{ t('danger.strict_prompt') }}"{% endif %}
+        >{{ t("media_root_diagnostic.submit") }}</button>
+      </form>
+    </section>
+  {% else %}
+    <section class="notice">
+      <strong>{{ t("media_root_diagnostic.initialization_unavailable_title") }}</strong>
+      <p>{{ t("media_root_diagnostic.initialization_unavailable_" ~ media_root_diagnostic.status) }}</p>
+    </section>
+  {% endif %}
+{% endif %}
+{% endblock %}

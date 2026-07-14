@@ -2,15 +2,15 @@
 
 NSFWTrack is a local single-user content record manager / collection tracker.
 
-Current application version: `v1.0.6 / Phase 3-B3 through C4 in Unreleased`.
+Current application version: `v1.0.6 / Phase 3-B3 through C5 in Unreleased`.
 
 Current stable version: `v1.0.6 / Phase 3-B1 and B2`.
 
 Latest Release: [NSFWTrack v1.0.6](https://github.com/choneer/nsfwtrack/releases/tag/v1.0.6).
 
-Current status: `v1.0.6 is released; Phase 3-B3 through B6 media cleanup and Phase 3-C1 through C4 Data Health maintenance are complete in Unreleased`.
+Current status: `v1.0.6 is released; Phase 3-B3 through B6 media cleanup and Phase 3-C1 through C5 Data Health maintenance are complete in Unreleased`.
 
-Current development: `Phase 3-B1 and B2 are published; Phase 3-C4 keeps
+Current development: `Phase 3-B1 and B2 are published; Phase 3-C5 keeps
 application version 1.0.6 and Schema 2`.
 
 N100 deployment: `not started; waits for explicit user authorization`.
@@ -45,6 +45,8 @@ reading its content or modifying database references. C3 adds a read-only,
 per-path view of every safely skipped media-scan entry and its stable reason.
 C4 adds explicit permanent deletion of one still-damaged, zero-reference
 ordinary-media file after a write-free preview and locked safety rechecks.
+C5 adds read-only media-root diagnostics and explicit missing-only safe
+initialization without restoring media or changing broken references.
 
 ## v1.0.6 Release
 
@@ -405,7 +407,7 @@ dependencies, Docker/CI, backup/import formats, tags, Releases, or N100
 deployment.
 
 C4 focused acceptance passes 17 tests; the explicit B3-B6/C1-C3/media-library/
-upload/recovery/Data Health/backup/import regression passes 281 tests; and the
+upload/recovery/Data Health/backup/import regression passes 280 tests; and the
 full suite passes 557 tests. `pip check` reports no broken requirements. The production image builds,
 Compose reaches healthy state, `/login` returns HTTP 200, and the acceptance
 container and network are removed cleanly.
@@ -413,6 +415,52 @@ container and network are removed cleanly.
 Feature commit `1e686f3` is pushed to `main`. GitHub Actions run
 [`29336790587`](https://github.com/choneer/nsfwtrack/actions/runs/29336790587)
 completed successfully for both `test` and `Docker production smoke`.
+
+### Phase 3-C5 Media Root Diagnostic And Safe Initialization
+
+The current Unreleased Phase 3-C5 gives `media_root_unavailable` a narrow local
+diagnostic and initialization workflow:
+
+- The authenticated GET page shows only logical `/media/`, the safe root
+  status, parent/root kind, size, device, inode, mtime, ctime, current local
+  item-cover and creator-avatar reference counts, and handling consequences.
+  It never displays an absolute host path, UID, mount detail, or raw exception.
+- GET is entirely write-free. It does not create directories, repair
+  references, touch files, or modify SQLite.
+- Only a genuinely missing root with an existing safely verified parent shows
+  the initialization form. Symlink, non-directory, unreadable, scan-failed,
+  ready, unsafe configuration, and missing-parent states provide explanation
+  only.
+- Confirmed POST uses the existing standard/strict danger policy. Starting at
+  the working-directory FD, it opens each configured parent with
+  `O_DIRECTORY|O_NOFOLLOW`, rechecks complete parent identities and current
+  path mappings, and confirms the final target remains absent.
+- The operation atomically creates only the configured final directory through
+  `mkdir(dir_fd=...)`, then fsyncs the new empty directory and its parent. It
+  never recursively creates parents, overwrites an object, chmods/chowns,
+  creates/restores media, or changes a database reference.
+- Parent replacement, parent symlink, target occupation, target symlink race,
+  forged identity, and mkdir failure are rejected. A durability failure after
+  mkdir accurately reports that the directory exists with an fsync warning.
+- After success, the root-level Data Health issue disappears. Any missing cover
+  or avatar remains a C1 per-reference issue because an empty directory cannot
+  restore old media.
+
+C5 does not change application version 1.0.6, Schema 2, migrations,
+dependencies, Docker/CI, backup/import formats, tags, Releases, or N100
+deployment. The previously documented C4 explicit regression baseline is
+corrected from 281 to 280 tests.
+
+C5 focused acceptance passes 16 tests, including a parent replacement injected
+during `mkdir`. The explicit C1-C4, upload, scan, Data Health, recovery,
+backup, validator, and import regression passes 240 tests; the full suite
+passes 573 tests; and `pip check` reports no broken requirements. The
+production image builds, Compose reaches healthy state, and `/login` returns
+HTTP 200. A separate non-root, read-only acceptance container initialized the
+missing `/app/data/media` inside a named volume; after container recreation the
+same empty directory remained, the diagnostic returned root-available HTTP
+400, and no second initialization form was exposed. All temporary containers,
+networks, volumes, cookies, and response files were removed.
 
 ## Features in v1.0.5
 

@@ -821,6 +821,32 @@
 - [ ] **12.642. 回归与版本边界是否完整** — B3-B6、C1-C3、媒体库、上传、恢复、Data Health、备份 / 导入是否通过，且版本 1.0.6、Schema 2、迁移、依赖、Docker/CI、tag / Release 与 N100 不变
 - [ ] **12.643. 双语与验收证据是否完整** — 中文 / English、专项 / 全量 pytest、pip check、Docker、Actions、文档、提交推送和资源清理是否均有真实证据
 
+## Phase 3-C5 媒体根目录诊断与安全初始化检查
+
+- [ ] **12.644. 入口范围是否精确** — Data Health 是否只为 `media_root_unavailable` 提供登录保护诊断链接，根可用时直接入口是否拒绝
+- [ ] **12.645. GET 是否绝对只读** — 诊断前后数据库、父目录、目标和其他文件是否不变，无 mkdir、chmod、chown、引用修复或媒体操作
+- [ ] **12.646. 展示是否安全完整** — 是否展示逻辑路径、状态、父 / 根 kind / size / device / inode / mtime / ctime、引用数和后果，不展示绝对路径、原始 OSError、UID 或挂载细节
+- [ ] **12.647. missing-only 是否真实** — 是否只有目标真实缺失且全部父路径安全存在时显示初始化表单
+- [ ] **12.648. 非 missing 是否只读** — symlink、not_directory、unreadable、scan_failed、ready、危险配置和缺失父目录是否无初始化入口
+- [ ] **12.649. 确认策略是否完整** — POST 是否要求登录、浏览器确认、服务端 confirm，strict 是否精确验证 `CONFIRM`
+- [ ] **12.650. 父链是否从工作目录 FD 开始** — 是否逐段使用 `O_DIRECTORY|O_NOFOLLOW`，不通过绝对路径重解析或跟随 symlink
+- [ ] **12.651. 父身份和映射是否重验** — 是否比较 size / device / inode / mtime / ctime，并在 mkdir 前再次验证当前名称映射
+- [ ] **12.652. 目标是否原子且无覆盖** — 是否先确认仍不存在，再只以最终父 fd 调用一次 mkdir；任何文件、目录、symlink 或特殊对象存在时均拒绝
+- [ ] **12.653. 竞态是否关闭** — 父路径替换 / symlink、目标抢占 / symlink 和身份变化是否均在无覆盖前提下拒绝
+- [ ] **12.654. 创建范围是否精确** — 是否只创建配置末级空目录，不递归创建、删除、替换、移动、chmod、chown或创建媒体文件
+- [ ] **12.655. 耐久状态是否准确** — 成功是否 fsync 新目录与父目录，fsync 失败是否明确报告目录已经创建及同步警告
+- [ ] **12.656. 引用是否保持** — 初始化前后 item cover / creator avatar 是否不变，根问题消失但断裂引用仍由 C1 报告
+- [ ] **12.657. Docker 卷是否验收** — 挂载卷内 missing 根是否可确认初始化，容器重建后空目录是否保持且不重复初始化
+- [ ] **12.658. 文档基线是否纠正** — README / PLAN / TASKS / GOAL 中 C4 指定组合回归是否由 281 更正为 280
+- [ ] **12.659. 回归与边界是否完整** — C1-C4、上传、扫描、Data Health、备份 / 导入是否通过，版本 1.0.6、Schema 2、迁移、依赖、Docker/CI、tag / Release 与 N100 是否不变
+- [ ] **12.660. 双语与交付是否完整** — 中文 / English、专项 / 全量 pytest、pip check、Docker、Actions、文档、提交推送和清理是否均有真实证据
+
+本地验收证据：C5 专项 `16 passed`；C1-C4、上传、扫描、Data Health、
+恢复、备份校验与导入组合回归 `240 passed`；全量 `573 passed`；
+`pip check` 无冲突。Docker build、Compose healthy、`/login` 200 与 down
+清理通过；独立 named volume 初始化及容器重建持久化通过，重建后诊断
+返回 root available 且无初始化表单，临时资源均已清理。
+
 ## 登录保护检查
 
 - [ ] **13. 密码是否从环境变量读取** — 不是硬编码
