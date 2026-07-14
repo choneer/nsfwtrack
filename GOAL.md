@@ -53,5 +53,5 @@
 - [x] 普通交互式封面 / 头像入口不能新建 cleanup anchor 引用，既有内部引用仍兼容
 - [x] 中英文、CHANGELOG Unreleased、README、PLAN、TASKS、REVIEW、GOAL 和专项测试已同步
 - [x] B5 专项 `12 passed`、全量 `486 passed`、pip check 与隔离 Docker 双生命周期通过并清理
-- [ ] 完成提交、推送与 Actions test / Docker production smoke 验收
+- [x] 功能提交 `9e19509` 已推送 main，Actions run `29306074275` 的 test / Docker production smoke 均通过
 - [x] 版本 1.0.6、Schema 2、迁移、依赖、Docker/CI、tag / Release 和 N100 状态未改

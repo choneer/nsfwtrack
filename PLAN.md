@@ -1084,6 +1084,7 @@ K1 审计结论：
 - Phase 3-B5 已完成零写入预览、完整身份重验、无覆盖恢复发布、事务引用迁移、数据库失败补偿和锚点残留报告
 - Phase 3-B5 专项覆盖 standard / strict、已引用 / 未引用、损坏 / 符号链接 / 错误扩展 / stale / forged / recovered 拒绝、目标碰撞、文件 / 目录 fsync、DB 回滚清理、删除失败和普通入口隔离
 - Phase 3-B5 专项 12 passed、全量 486 passed 且 pip check 无冲突；隔离 Docker 双生命周期 healthy，登录 / 认证 / 恢复中心 / 单项预览 200，SQLite 校验和不变且临时资源已清理
+- Phase 3-B5 功能提交 `9e19509` 已推送 main，Actions run `29306074275` 的 test / Docker production smoke 均通过
 - 当前发布准备与本地验收完成后仍需单独发布指令；N100 部署须等待用户明确授权
 
 ---

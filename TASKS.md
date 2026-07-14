@@ -30,7 +30,7 @@ N100 / 目标主机部署尚未开始，**不是当前开发任务**，必须等
 - [x] 不批量恢复、不直接丢弃内容、不操作 `recovered-*`，保持备份、B3 与 B1/B2/A3/A4 边界
 - [x] 同步中文 / English、模板、CHANGELOG Unreleased 与当前文档
 - [x] B5 专项 `12 passed`、全量 `486 passed`、pip check 与隔离 Docker 双生命周期验收通过并清理
-- [ ] 提交推送并确认 Actions test / Docker production smoke 通过
+- [x] 功能提交 `9e19509` 已推送 main，Actions run `29306074275` 的 test / Docker production smoke 均通过
 - [x] 保持版本 1.0.6、Schema 2、迁移、依赖、Docker/CI、旧 tag / Release 和 N100 状态不变
 
 ### Phase 3-B4 媒体清理恢复中心（Unreleased）
