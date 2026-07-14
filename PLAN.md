@@ -1109,6 +1109,7 @@ K1 审计结论：
 - Phase 3-B6 已完成零写入预览、完整身份重验、`BEGIN IMMEDIATE` 零引用复核、身份删除、目录 fsync 和失败状态报告
 - Phase 3-B6 专项 15 passed，竞态注入、unlink / fsync / 写锁 / 引用查询失败和 B3-B5 完整媒体链回归 156 passed
 - Phase 3-B6 全量 501 passed 且 pip check 无冲突；最终工作树隔离 Docker 双生命周期 healthy，登录 / 认证 / 恢复中心 / 删除预览 / 确认删除 200，SQLite 校验和不变且临时资源已清理
+- Phase 3-B6 功能提交 `b70e18e` 已推送 main，Actions run `29309167659` 的 test / Docker production smoke 均通过
 - 当前发布准备与本地验收完成后仍需单独发布指令；N100 部署须等待用户明确授权
 
 ---

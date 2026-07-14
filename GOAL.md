@@ -52,5 +52,5 @@
 - [x] 中英文、CHANGELOG Unreleased、README、PLAN、TASKS、REVIEW、GOAL 和专项测试已同步
 - [x] B6 专项 `15 passed`，媒体链及 B3-B5 回归 `156 passed`
 - [x] 全量 `501 passed`、pip check 与最终工作树隔离 Docker 双生命周期及真实确认删除验收通过并清理
-- [ ] 完成提交、推送与 Actions test / Docker production smoke 验收
+- [x] 功能提交 `b70e18e` 已推送 main，Actions run `29309167659` 的 test / Docker production smoke 均通过
 - [x] 版本 1.0.6、Schema 2、迁移、依赖、Docker/CI、tag / Release 和 N100 状态未改
