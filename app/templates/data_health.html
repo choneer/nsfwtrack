@@ -120,6 +120,7 @@
             <th>{{ t("data_health.object_id") }}</th>
             <th>{{ t("data_health.issue") }}</th>
             <th>{{ t("data_health.detail") }}</th>
+            <th>{{ t("data_health.action") }}</th>
           </tr>
         </thead>
         <tbody>
@@ -141,6 +142,14 @@
                   {% else %}
                     <code>{{ issue.detail }}</code>
                   {% endif %}
+                {% else %}
+                  <span class="muted">{{ t("common.none") }}</span>
+                {% endif %}
+              </td>
+              <td>
+                {% set repair_url = media_reference_repair_urls.get((issue.object_type, issue.object_id, issue.code)) %}
+                {% if repair_url %}
+                  <a class="button secondary" href="{{ repair_url }}">{{ t("data_health.repair_media_reference") }}</a>
                 {% else %}
                   <span class="muted">{{ t("common.none") }}</span>
                 {% endif %}

@@ -166,6 +166,12 @@ from app.services.media_matching import (
     match_local_media,
     paginate_media_matches,
 )
+from app.services.media_reference_repair import (
+    MediaReferenceRepairError,
+    build_media_reference_repair_preview,
+    execute_media_reference_repair,
+    is_repairable_media_reference_issue,
+)
 from app.services.metadata_cleanup import (
     MetadataCleanupError,
     find_metadata_cleanup_candidates,
@@ -1849,6 +1855,22 @@ def activity_page(request: Request, db: Session = Depends(get_db)) -> HTMLRespon
 )
 def data_health_page(request: Request, db: Session = Depends(get_db)) -> HTMLResponse:
     report = build_data_health_report(db)
+    media_reference_repair_urls = {
+        (issue.object_type, issue.object_id, issue.code): (
+            "/data-health/media-reference/repair?"
+            + urlencode(
+                {
+                    "object_type": issue.object_type,
+                    "object_id": issue.object_id,
+                }
+            )
+        )
+        for issue in report.issues
+        if is_repairable_media_reference_issue(
+            object_type=issue.object_type,
+            issue_code=issue.code,
+        )
+    }
     return templates.TemplateResponse(
         request,
         "data_health.html",
@@ -1857,8 +1879,157 @@ def data_health_page(request: Request, db: Session = Depends(get_db)) -> HTMLRes
             db=db,
             report=report,
             fix_options=build_data_health_fix_options(report),
+            media_reference_repair_urls=media_reference_repair_urls,
         ),
     )
+
+
+def _media_reference_repair_preview_url(
+    object_type: str | None,
+    object_id: str | int | None,
+    *,
+    q: str | None = None,
+    page: str | int | None = None,
+) -> str:
+    params: dict[str, str] = {
+        "object_type": object_type or "",
+        "object_id": str(object_id or ""),
+    }
+    if q:
+        params["q"] = q
+    if page not in {None, "", 1, "1"}:
+        params["page"] = str(page)
+    return "/data-health/media-reference/repair?" + urlencode(params)
+
+
+@router.get(
+    "/data-health/media-reference/repair",
+    response_class=HTMLResponse,
+    dependencies=[Depends(require_page_auth)],
+)
+def media_reference_repair_preview_page(
+    request: Request,
+    object_type: str | None = Query(default=None),
+    object_id: str | None = Query(default=None),
+    q: str | None = Query(default=None),
+    page: str | None = Query(default=None),
+    db: Session = Depends(get_db),
+) -> HTMLResponse:
+    preview = None
+    error_key = None
+    try:
+        preview = build_media_reference_repair_preview(
+            db,
+            object_type=object_type,
+            object_id=object_id,
+            q=q,
+            page=page,
+        )
+    except MediaReferenceRepairError as exc:
+        error_key = f"media_reference_repair.error_{exc.code}"
+    pagination = None
+    if preview is not None:
+        pagination = _page_context(
+            preview.page_info,
+            "/data-health/media-reference/repair",
+            params={
+                "object_type": preview.target.object_type,
+                "object_id": preview.target.object_id,
+                "q": preview.query,
+            },
+        )
+    return templates.TemplateResponse(
+        request,
+        "media_reference_repair.html",
+        _base_context(
+            request,
+            db=db,
+            repair_preview=preview,
+            replacement_pagination=pagination,
+            error_key=error_key,
+        ),
+        status_code=200 if preview is not None else 400,
+    )
+
+
+@router.post(
+    "/data-health/media-reference/repair",
+    dependencies=[Depends(require_page_auth)],
+)
+def media_reference_repair_page(
+    request: Request,
+    object_type: str = Form(...),
+    object_id: str = Form(...),
+    expected_object_token: str = Form(...),
+    expected_original_path: str = Form(...),
+    expected_issue_code: str = Form(...),
+    mode: str = Form(...),
+    replacement_path: str | None = Form(default=None),
+    replacement_sha256: str | None = Form(default=None),
+    expected_size: str | None = Form(default=None),
+    expected_device: str | None = Form(default=None),
+    expected_inode: str | None = Form(default=None),
+    expected_modified_ns: str | None = Form(default=None),
+    expected_changed_ns: str | None = Form(default=None),
+    q: str | None = Form(default=None),
+    page: str | None = Form(default=None),
+    confirm: str | None = Form(default=None),
+    confirmation_text: str | None = Form(default=None),
+    db: Session = Depends(get_db),
+) -> RedirectResponse:
+    preview_url = _media_reference_repair_preview_url(
+        object_type,
+        object_id,
+        q=q,
+        page=page,
+    )
+    danger_policy = get_danger_policy(db)
+    if not _danger_confirmation_is_valid(
+        request,
+        danger_policy,
+        confirmation_text=confirmation_text,
+        base_confirmation_valid=confirm == "1",
+    ):
+        return _redirect(preview_url)
+    try:
+        result = execute_media_reference_repair(
+            db,
+            object_type=object_type,
+            object_id=object_id,
+            expected_object_token=expected_object_token,
+            expected_original_path=expected_original_path,
+            expected_issue_code=expected_issue_code,
+            mode=mode,
+            replacement_path=replacement_path,
+            replacement_sha256=replacement_sha256,
+            expected_size=expected_size,
+            expected_device=expected_device,
+            expected_inode=expected_inode,
+            expected_modified_ns=expected_modified_ns,
+            expected_changed_ns=expected_changed_ns,
+        )
+    except MediaReferenceRepairError as exc:
+        add_flash(
+            request,
+            "error",
+            f"flash.media_reference_repair_{exc.code}",
+        )
+        return _redirect(preview_url)
+
+    flash_key = (
+        "flash.media_reference_repair_replaced"
+        if result.mode == "replace"
+        else "flash.media_reference_repair_cleared"
+    )
+    add_flash(
+        request,
+        "success",
+        flash_key,
+        object_name=result.object_name,
+        old_path=result.old_path,
+        new_path=result.new_path or "",
+    )
+    return _redirect("/data-health")
 
 
 @router.post("/data-health/fix", dependencies=[Depends(require_page_auth)])

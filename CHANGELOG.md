@@ -31,6 +31,13 @@
 - Added manually confirmed deletion of exactly one unreferenced cleanup anchor
   with a SQLite `BEGIN IMMEDIATE` reference recheck, final complete-identity
   validation, identity-bound unlink, and containing-directory fsync.
+- Added the authenticated Phase 3-C1 single-reference repair preview for Data
+  Health item-cover and creator-avatar findings covering missing, damaged,
+  symlinked, invalid/escaping paths, and damaged cleanup-anchor references.
+- Added explicit clear or manual replacement with existing validated local
+  media. Replacement candidates support path/SHA search, stable ordering, and
+  fixed 20-row pagination; valid `recovered-*` remains eligible while cleanup
+  anchors are excluded.
 
 ### Fixed
 
@@ -69,6 +76,10 @@
   The operation never creates `recovered-*`, migrates or clears references,
   touches another file, or performs batch/automatic cleanup; recovery-center
   and Data Health scans naturally stop reporting a successfully deleted path.
+- Data Health media scanning remains read-only on GET. C1 repair is isolated
+  behind its own single-object preview and confirmed POST. Submission uses a
+  conditional update for exactly one `item.cover_path` or
+  `creator.avatar_path`; no media file operation is part of the transaction.
 
 ### Security
 
@@ -107,6 +118,13 @@
   verifies every file identity field again, and then deletes and fsyncs the
   directory. A racing reference or delete failure leaves the file and database
   unchanged; post-unlink durability warnings report the actual removed state.
+- C1 repair requires login, POST, browser/server confirmation, and exact
+  `CONFIRM` in strict mode. Under `BEGIN IMMEDIATE`, it revalidates the target
+  object snapshot, original reference, current issue, and replacement's full
+  SHA-256/device/inode/size/mtime/ctime identity before and after the
+  conditional update. Stale, forged, healthy-target, changed-file, and cleanup
+  anchor requests are rejected; database failure rolls back the update and no
+  file is modified, deleted, moved, or renamed.
 
 ## [1.0.6] - 2026-07-13
 

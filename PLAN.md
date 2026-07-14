@@ -2,7 +2,7 @@
 
 > NSFWTrack 是本地单用户媒体记录器 / 收藏管理器。  
 > 当前开发边界：本地管理、本地数据维护、手动确认操作、SQLite、FastAPI、Jinja2、轻量原生 JavaScript、Docker Compose。
-> Phase 3-A1 允许保存用户提供的 URL；Phase 3-A2 允许校验和保存用户上传的本地栅格图片；Phase 3-A3 允许基于本地文件名生成并手动确认媒体关联候选；Phase 3-A4 允许从未匹配本地图片手动确认创建条目；Phase 3-A5 允许对完整本地媒体扫描结果进行只读检索与分页；Phase 3-A6 允许在数据健康页只读审计本地媒体完整性；Phase 3-B1 允许按完整 SHA-256 只读定位重复媒体；Phase 3-B2 允许按重复组只读浏览路径与引用；Phase 3-B3 允许用户明确选择 keeper 后，在重扫、确认和引用安全迁移后删除同组冗余文件；Phase 3-B4 允许只读隔离和审计内部清理锚点与恢复文件；Phase 3-B5 允许用户逐项预览并手动确认将合法锚点恢复为普通媒体；Phase 3-B6 允许用户逐项确认永久删除合法且零引用的锚点残留。仍禁止请求外部网页、远程图片、爬虫、站点 adapter、自动同步、识别、推荐、AI、多用户或云同步。
+> Phase 3-A1 允许保存用户提供的 URL；Phase 3-A2 允许校验和保存用户上传的本地栅格图片；Phase 3-A3 允许基于本地文件名生成并手动确认媒体关联候选；Phase 3-A4 允许从未匹配本地图片手动确认创建条目；Phase 3-A5 允许对完整本地媒体扫描结果进行只读检索与分页；Phase 3-A6 允许在数据健康页只读审计本地媒体完整性；Phase 3-B1 允许按完整 SHA-256 只读定位重复媒体；Phase 3-B2 允许按重复组只读浏览路径与引用；Phase 3-B3 允许用户明确选择 keeper 后，在重扫、确认和引用安全迁移后删除同组冗余文件；Phase 3-B4 允许只读隔离和审计内部清理锚点与恢复文件；Phase 3-B5 允许用户逐项预览并手动确认将合法锚点恢复为普通媒体；Phase 3-B6 允许用户逐项确认永久删除合法且零引用的锚点残留；Phase 3-C1 允许用户逐项替换或清除 Data Health 报告的无效封面 / 头像引用。仍禁止请求外部网页、远程图片、爬虫、站点 adapter、自动同步、识别、推荐、AI、多用户或云同步。
 
 ---
 
@@ -11,7 +11,7 @@
 当前应用版本与开发阶段：
 
 ```text
-v1.0.6 / Phase 3-B6 Unreleased
+v1.0.6 / Phase 3-C1 Unreleased
 ```
 
 当前最新稳定版本为 `v1.0.6`，发布范围为 Phase 3-B1 与 B2。
@@ -40,7 +40,7 @@ Release: https://github.com/choneer/nsfwtrack/releases/tag/v1.0.6
 稳定性收尾：Phase 2-I1 基线、I2 查询优化、I3 错误处理、I4 发布冻结审查已随 v1.0.0 发布
 完成度审计：Phase 2-K1 / K2 已随 v1.0.1 发布；代码开发与 WSL 验收已完成
 维护与 CI：Phase 2-L1 至 L6 已随 v1.0.2 发布；L7 已随 v1.0.3 发布；L8 固定非 root 容器用户已随 v1.0.4 发布
-产品功能重启：Phase 3-A1 至 A6 已随 v1.0.5 发布；Phase 3-B1 / B2 已随 v1.0.6 发布；Phase 3-B3 / B4 / B5 / B6 已完成并位于 Unreleased
+产品功能重启：Phase 3-A1 至 A6 已随 v1.0.5 发布；Phase 3-B1 / B2 已随 v1.0.6 发布；Phase 3-B3 / B4 / B5 / B6 / C1 已完成并位于 Unreleased
 ```
 
 当前完成度估算：
@@ -48,7 +48,7 @@ Release: https://github.com/choneer/nsfwtrack/releases/tag/v1.0.6
 ```text
 核心业务能力：已完成
 代码发布状态：v1.0.6 已正式发布，tag 与正式 GitHub Release 均已验证
-当前开发状态：Phase 3-B6 位于 Unreleased，main 保持应用版本 1.0.6 与 Schema 2
+当前开发状态：Phase 3-C1 位于 Unreleased，main 保持应用版本 1.0.6 与 Schema 2
 WSL 验收：已完成
 N100 部署：尚未开始，等待用户明确授权
 ```
@@ -1028,6 +1028,28 @@ K1 审计结论：
 
 ---
 
+### Phase 3-C1 — 断裂媒体引用手动修复（Unreleased）
+
+目标：
+
+- 从 Data Health 为缺失、损坏、符号链接、非法 / 越界路径和损坏锚点引用提供登录保护的单项预览
+- GET 展示对象、原引用、问题类型、对象快照与后果并保持数据库和文件零写入
+- 只允许用户手动选择一个现有合法媒体替换，或明确清除当前单个引用
+- 替代媒体按路径 / SHA 搜索、稳定路径排序并固定每页 20 条
+- POST 复用 standard / strict 确认，在写锁内重验后条件更新一个 `cover_path` 或 `avatar_path`
+
+安全边界：
+
+- 候选必须是完整验证通过的普通媒体；`recovered-*` 可用，cleanup anchor 永远禁止作为新引用
+- 提交时重验对象快照、原引用、当前问题及替代媒体 SHA / size / device / inode / mtime / ctime
+- 对象、引用、问题或文件变化，健康对象、陈旧和伪造请求全部拒绝
+- 替换身份在条件更新后再次验证；DB / commit 失败整笔回滚
+- 不自动推荐、自动清除、批量修复或处理其他健康问题
+- 不修改、删除、移动或重命名任何文件，不请求网络，不使用 AI / 图像识别
+- 不改变 B3-B6、媒体库、备份 / 导入、版本 1.0.6、Schema 2、迁移、依赖、Docker/CI、tag、Release 或 N100 状态
+
+---
+
 ## 七、有限执行顺序
 
 当前顺序：
@@ -1049,8 +1071,9 @@ K1 审计结论：
 14. Phase 3-B4 媒体清理恢复中心已完成并位于 Unreleased
 15. Phase 3-B5 安全锚点手动恢复已完成并位于 Unreleased
 16. Phase 3-B6 无引用安全锚点手动清理已完成并位于 Unreleased
-17. N100 / 目标主机部署未开始，等待用户明确授权
-18. 其余仅按实际问题做可选维护
+17. Phase 3-C1 断裂媒体引用手动修复已完成并位于 Unreleased
+18. N100 / 目标主机部署未开始，等待用户明确授权
+19. 其余仅按实际问题做可选维护
 ```
 
 已完成依据：
@@ -1110,6 +1133,10 @@ K1 审计结论：
 - Phase 3-B6 专项 15 passed，竞态注入、unlink / fsync / 写锁 / 引用查询失败和 B3-B5 完整媒体链回归 156 passed
 - Phase 3-B6 全量 501 passed 且 pip check 无冲突；最终工作树隔离 Docker 双生命周期 healthy，登录 / 认证 / 恢复中心 / 删除预览 / 确认删除 200，SQLite 校验和不变且临时资源已清理
 - Phase 3-B6 功能提交 `b70e18e` 已推送 main，Actions run `29309167659` 的 test / Docker production smoke 均通过
+- Phase 3-C1 已完成 Data Health 单项入口、零写入预览、替代媒体路径 / SHA 搜索与 20 条分页、显式替换 / 清除和条件更新
+- Phase 3-C1 提交在 `BEGIN IMMEDIATE` 内重验对象、原引用、问题与替代文件完整身份；陈旧 / 伪造 / cleanup anchor 请求拒绝，DB 失败整笔回滚且不操作文件
+- Phase 3-C1 专项 7 passed、B3-B6 / 媒体库 / Data Health / 备份 / 导入组合回归 232 passed、全量 508 passed 且 pip check 无冲突
+- Phase 3-C1 隔离 Docker 双生命周期 healthy，登录 / 认证 / Data Health / 预览 / 替换 / 清除 200，引用持久化、媒体 SHA 和 SQLite 重建校验和验收通过
 - 当前发布准备与本地验收完成后仍需单独发布指令；N100 部署须等待用户明确授权
 
 ---

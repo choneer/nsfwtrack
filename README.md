@@ -2,15 +2,15 @@
 
 NSFWTrack is a local single-user content record manager / collection tracker.
 
-Current application version: `v1.0.6 / Phase 3-B3 through B6 in Unreleased`.
+Current application version: `v1.0.6 / Phase 3-B3 through C1 in Unreleased`.
 
 Current stable version: `v1.0.6 / Phase 3-B1 and B2`.
 
 Latest Release: [NSFWTrack v1.0.6](https://github.com/choneer/nsfwtrack/releases/tag/v1.0.6).
 
-Current status: `v1.0.6 is released; Phase 3-B3 through B6 media cleanup, visibility, recovery, and unreferenced-anchor deletion are complete in Unreleased`.
+Current status: `v1.0.6 is released; Phase 3-B3 through B6 media cleanup and Phase 3-C1 broken-reference repair are complete in Unreleased`.
 
-Current development: `Phase 3-B1 and B2 are published; Phase 3-B6 keeps
+Current development: `Phase 3-B1 and B2 are published; Phase 3-C1 keeps
 application version 1.0.6 and Schema 2`.
 
 N100 deployment: `not started; waits for explicit user authorization`.
@@ -38,7 +38,8 @@ The bounded Phase 3-A1 through A6 scope shipped in `v1.0.5`; the read-only
 Phase 3-B1 and B2 duplicate-media views shipped in `v1.0.6`. Phase 3-B3 is
 complete in Unreleased; Phase 3-B4 adds read-only recovery visibility and B5
 adds explicit single-anchor restoration. B6 adds confirmed permanent deletion
-only for legal zero-reference anchors within the same local-only boundary.
+only for legal zero-reference anchors. C1 adds explicit single cover/avatar
+reference replacement or clearing without changing any media file.
 
 ## v1.0.6 Release
 
@@ -220,6 +221,45 @@ authentication, recovery center, delete preview, and confirmed deletion all
 return HTTP 200. The target disappears without a `recovered-*` file, SQLite's
 checksum remains unchanged through GET, POST, and recreation, and all temporary
 Docker resources are removed.
+
+### Phase 3-C1 Broken Media Reference Repair
+
+The current Unreleased Phase 3-C1 gives each invalid item-cover or
+creator-avatar finding in Data Health a deliberately narrow manual repair flow:
+
+- Missing, damaged, symbolic-link, invalid/escaping-path, and damaged internal
+  anchor references expose an authenticated single-object preview. Healthy
+  references and non-media findings have no repair action.
+- GET displays the object, exact original path, issue type, consequences, and
+  a snapshot token without writing to SQLite or the media directory.
+- The user must either explicitly clear that one reference or choose one
+  existing fully validated local image. Replacement candidates support
+  path/SHA search, stable path ordering, and fixed 20-row pagination.
+- Valid `recovered-*` images remain ordinary replacement candidates. Internal
+  `.cleanup-anchor-*` files, damaged media, symlinks, and unsupported paths are
+  excluded and rejected again by the service.
+- Confirmed POST uses the existing standard/strict danger policy. It ends the
+  preview transaction, acquires `BEGIN IMMEDIATE`, and revalidates the object,
+  original reference, issue type, and replacement SHA, size, device, inode,
+  mtime, and ctime.
+- Exactly one conditional `item.cover_path` or `creator.avatar_path` update is
+  attempted. The replacement identity is checked again before commit; stale,
+  forged, changed, or racing requests roll back.
+- A database or commit failure rolls back the complete reference update. C1
+  never deletes, writes, moves, renames, or otherwise modifies a media file.
+
+C1 does not auto-recommend, auto-clear, batch-repair, or process any other Data
+Health category. It makes no network request and adds no AI/image recognition.
+Version 1.0.6, Schema 2, migrations, dependencies, Docker/CI, tags, Releases,
+backup formats, and N100 deployment remain unchanged.
+
+C1 focused acceptance passes 7 tests, the B3-B6/media-library/Data
+Health/backup/import regression passes 232 tests, the full suite passes 508
+tests, and `pip check` reports no conflicts. An isolated production image
+passes two healthy lifecycles with login, authentication, Data Health, preview,
+confirmed replacement, and confirmed clearing returning HTTP 200. The repaired
+references persist across recreation, every media checksum remains unchanged,
+the SQLite checksum is stable, and runtime hardening remains active.
 
 ## Features in v1.0.5
 

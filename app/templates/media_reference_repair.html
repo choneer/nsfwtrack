@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+{% from "_danger_notice.html" import danger_notice %}
+{% from "_pagination.html" import pagination_nav %}
+{% block title %}{{ t("media_reference_repair.title") }} - NSFWTrack{% endblock %}
+{% block content %}
+<div class="toolbar">
+  <div>
+    <p class="muted">{{ t("media_reference_repair.local_only") }}</p>
+    <h1>{{ t("media_reference_repair.title") }}</h1>
+    <p class="muted">{{ t("media_reference_repair.description") }}</p>
+  </div>
+  <div class="actions">
+    <a class="button secondary" href="/data-health">{{ t("media_reference_repair.back") }}</a>
+  </div>
+</div>
+
+{% if error_key %}
+  <div class="flash error">{{ t(error_key) }}</div>
+{% endif %}
+
+{% if repair_preview %}
+  <section class="card stack" data-media-reference-repair-preview>
+    <div class="toolbar">
+      <div>
+        <p class="muted">{{ t("media_reference_repair.target") }}</p>
+        <h2>{{ repair_preview.target.object_name }}</h2>
+      </div>
+      <span class="pill">{{ t("data_health.object_" ~ repair_preview.target.object_type) }} #{{ repair_preview.target.object_id }}</span>
+    </div>
+    <dl class="settings-summary">
+      <dt>{{ t("media_reference_repair.original_path") }}</dt>
+      <dd><code data-original-path>{{ repair_preview.target.original_path }}</code></dd>
+      <dt>{{ t("media_reference_repair.issue_type") }}</dt>
+      <dd data-issue-code>{{ t("data_health.issue_" ~ repair_preview.target.issue_code) }}</dd>
+      <dt>{{ t("media_reference_repair.object_token") }}</dt>
+      <dd><code data-object-token>{{ repair_preview.target.object_token }}</code></dd>
+    </dl>
+  </section>
+
+  <section class="notice warning">
+    <strong>{{ t("media_reference_repair.consequences_title") }}</strong>
+    <ul>
+      <li>{{ t("media_reference_repair.consequence_single_reference") }}</li>
+      <li>{{ t("media_reference_repair.consequence_files_unchanged") }}</li>
+      <li>{{ t("media_reference_repair.consequence_revalidated") }}</li>
+      <li>{{ t("media_reference_repair.consequence_manual_only") }}</li>
+    </ul>
+  </section>
+
+  <section class="card stack">
+    <h2>{{ t("media_reference_repair.clear_title") }}</h2>
+    <p class="muted">{{ t("media_reference_repair.clear_description") }}</p>
+    {{ danger_notice(t, danger_policy, "danger.object_media_reference", "danger.consequence_media_reference_clear", "danger.deletion_none", "danger.recovery_media_reference", true) }}
+    <form action="/data-health/media-reference/repair" method="post">
+      <input type="hidden" name="object_type" value="{{ repair_preview.target.object_type }}">
+      <input type="hidden" name="object_id" value="{{ repair_preview.target.object_id }}">
+      <input type="hidden" name="expected_object_token" value="{{ repair_preview.target.object_token }}">
+      <input type="hidden" name="expected_original_path" value="{{ repair_preview.target.original_path }}">
+      <input type="hidden" name="expected_issue_code" value="{{ repair_preview.target.issue_code }}">
+      <input type="hidden" name="mode" value="clear">
+      <input type="hidden" name="q" value="{{ repair_preview.query }}">
+      <input type="hidden" name="page" value="{{ repair_preview.page_info.page }}">
+      <input type="hidden" name="confirm" value="1">
+      <button
+        class="danger"
+        type="submit"
+        data-confirm-message="{{ t('media_reference_repair.clear_confirm') }}"
+        {% if danger_policy.is_strict %}data-strict-confirm-message="{{ t('danger.strict_prompt') }}"{% endif %}
+      >{{ t("media_reference_repair.clear_action") }}</button>
+    </form>
+  </section>
+
+  <section class="card stack">
+    <div class="toolbar">
+      <div>
+        <p class="muted">{{ t("media_reference_repair.replacement_hint") }}</p>
+        <h2>{{ t("media_reference_repair.replacement_title") }}</h2>
+      </div>
+    </div>
+    <form class="filter-grid" method="get" action="/data-health/media-reference/repair">
+      <input type="hidden" name="object_type" value="{{ repair_preview.target.object_type }}">
+      <input type="hidden" name="object_id" value="{{ repair_preview.target.object_id }}">
+      <label>
+        {{ t("media_reference_repair.search_label") }}
+        <input name="q" value="{{ repair_preview.query }}" placeholder="{{ t('media_reference_repair.search_placeholder') }}">
+      </label>
+      <div class="actions">
+        <button type="submit">{{ t("common.search") }}</button>
+        <a class="button secondary" href="/data-health/media-reference/repair?object_type={{ repair_preview.target.object_type }}&amp;object_id={{ repair_preview.target.object_id }}">{{ t("common.reset") }}</a>
+      </div>
+    </form>
+    {{ danger_notice(t, danger_policy, "danger.object_media_reference", "danger.consequence_media_reference_replace", "danger.deletion_none", "danger.recovery_media_reference", true) }}
+
+    {% if repair_preview.candidate_scan_failed %}
+      <div class="flash error">{{ t("media_reference_repair.candidate_scan_failed") }}</div>
+    {% elif repair_preview.replacements %}
+      <div class="stack" data-replacement-list>
+        {% for replacement in repair_preview.replacements %}
+          <article class="relation-row" data-replacement-path="{{ replacement.media.media_path }}">
+            <div>
+              <strong><code>{{ replacement.media.media_path }}</code></strong>
+              <p class="muted"><code>{{ replacement.media.sha256 }}</code></p>
+              <p class="muted">
+                {{ replacement.mime_type }} · {{ replacement.media.size }} B
+                {% if replacement.is_recovered %} · {{ t("media_reference_repair.recovered_media") }}{% endif %}
+              </p>
+            </div>
+            <form action="/data-health/media-reference/repair" method="post">
+              <input type="hidden" name="object_type" value="{{ repair_preview.target.object_type }}">
+              <input type="hidden" name="object_id" value="{{ repair_preview.target.object_id }}">
+              <input type="hidden" name="expected_object_token" value="{{ repair_preview.target.object_token }}">
+              <input type="hidden" name="expected_original_path" value="{{ repair_preview.target.original_path }}">
+              <input type="hidden" name="expected_issue_code" value="{{ repair_preview.target.issue_code }}">
+              <input type="hidden" name="mode" value="replace">
+              <input type="hidden" name="replacement_path" value="{{ replacement.media.media_path }}">
+              <input type="hidden" name="replacement_sha256" value="{{ replacement.media.sha256 }}">
+              <input type="hidden" name="expected_size" value="{{ replacement.media.size }}">
+              <input type="hidden" name="expected_device" value="{{ replacement.media.device }}">
+              <input type="hidden" name="expected_inode" value="{{ replacement.media.inode }}">
+              <input type="hidden" name="expected_modified_ns" value="{{ replacement.media.modified_ns }}">
+              <input type="hidden" name="expected_changed_ns" value="{{ replacement.media.changed_ns }}">
+              <input type="hidden" name="q" value="{{ repair_preview.query }}">
+              <input type="hidden" name="page" value="{{ repair_preview.page_info.page }}">
+              <input type="hidden" name="confirm" value="1">
+              <button
+                class="danger"
+                type="submit"
+                data-confirm-message="{{ t('media_reference_repair.replace_confirm', path=replacement.media.media_path) }}"
+                {% if danger_policy.is_strict %}data-strict-confirm-message="{{ t('danger.strict_prompt') }}"{% endif %}
+              >{{ t("media_reference_repair.replace_action") }}</button>
+            </form>
+          </article>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="empty-state">
+        <h3>{{ t("media_reference_repair.no_candidates_title") }}</h3>
+        <p class="muted">{{ t("media_reference_repair.no_candidates_body") }}</p>
+      </div>
+    {% endif %}
+    {{ pagination_nav(t, replacement_pagination) }}
+  </section>
+{% endif %}
+{% endblock %}

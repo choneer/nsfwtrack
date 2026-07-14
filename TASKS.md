@@ -2,10 +2,10 @@
 
 按顺序执行，每完成一项打个 [x]。
 
-## 当前状态（v1.0.6 已发布，Phase 3-B6 已完成于 Unreleased）
+## 当前状态（v1.0.6 已发布，Phase 3-C1 已完成于 Unreleased）
 
 当前稳定版与最新 Release：`v1.0.6`。Phase 3-B1 / B2 已正式发布，
-Phase 3-B3 / B4 / B5 / B6 已完成并位于 Unreleased，应用 Schema 仍为 `2`。
+Phase 3-B3 / B4 / B5 / B6 / C1 已完成并位于 Unreleased，应用 Schema 仍为 `2`。
 
 - Annotated tag object：`d4d5c31cd5b2fed9a90ad69742d54b4c9dbed0b4`
 - Peeled commit：`961a3d0cc169e82b261d83207b0ec802007e292b`
@@ -14,6 +14,23 @@ Phase 3-B3 / B4 / B5 / B6 已完成并位于 Unreleased，应用 Schema 仍为 `
 N100 / 目标主机部署尚未开始，**不是当前开发任务**，必须等待用户明确授权。
 完整证据见 `COMPLETION_AUDIT.md`。历史任务保留在本文后半部分，
 不再作为新增开发路线。
+
+### Phase 3-C1 断裂媒体引用手动修复（Unreleased）
+
+- [x] Data Health 仅为缺失、损坏、符号链接、非法 / 越界路径和损坏锚点封面 / 头像引用提供单项入口
+- [x] 登录保护 GET 展示对象、原引用、问题类型、对象快照和后果，数据库与媒体文件零写入
+- [x] 替代候选仅含完整验证通过的普通本地媒体，支持路径 / SHA 搜索、稳定排序和固定 20 条分页
+- [x] `recovered-*` 可作为普通替代媒体，cleanup anchor、损坏文件和符号链接始终排除并由服务端拒绝
+- [x] 用户必须逐项选择现有媒体替换或明确清除，不自动推荐、不自动清除、不批量修复
+- [x] POST 复用 standard / strict `CONFIRM`，并在 `BEGIN IMMEDIATE` 内重验对象、原引用和问题类型
+- [x] 替换前后核对完整 SHA、size、device、inode、mtime、ctime，只执行一个带原值条件的字段更新
+- [x] 对象、原引用、问题或替代媒体变化，以及陈旧、伪造和健康对象请求均拒绝
+- [x] 数据库 / commit 失败整笔回滚；不删除、修改、移动或重命名任何媒体文件
+- [x] 成功后 Data Health 不再报告目标问题，非目标对象、其他字段与全部文件保持不变
+- [x] 同步中文 / English、模板、CHANGELOG Unreleased、README / PLAN / TASKS / REVIEW / GOAL 和专项测试
+- [x] C1 专项 `7 passed`，B3-B6 / 媒体库 / Data Health / 备份 / 导入组合回归 `232 passed`
+- [x] 全量 `508 passed`、pip check 与隔离 Docker 双生命周期、真实替换 / 清除及媒体零变化验收通过
+- [x] 保持版本 1.0.6、Schema 2、迁移、依赖、Docker/CI、旧 tag / Release 和 N100 状态不变
 
 ### Phase 3-B6 无引用安全锚点手动清理（Unreleased）
 

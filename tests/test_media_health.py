@@ -253,7 +253,7 @@ def test_media_findings_share_the_existing_global_two_hundred_detail_limit(
     )
 
 
-def test_media_health_page_renders_english_report_only_copy(
+def test_media_health_page_renders_english_readonly_get_and_bounded_repair_copy(
     auth_client: TestClient,
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
@@ -272,7 +272,8 @@ def test_media_health_page_renders_english_report_only_copy(
     assert "Media root is unavailable" in response.text
     assert "Root path is not a directory" in response.text
     assert "Media integrity findings are report-only" in response.text
-    assert "reference clearing" in response.text
+    assert "separate individual preview and confirmed POST" in response.text
+    assert "media files are never changed" in response.text
 
 
 def test_media_findings_cannot_be_submitted_as_a_health_fix(
