@@ -1135,6 +1135,7 @@ K1 审计结论：
 - B3-B6、C1-C3、媒体库、上传、恢复、Data Health、备份与导入组合回归 `281 passed`
 - 全量 `557 passed`，`pip check` 无依赖冲突
 - Docker image build 通过，Compose healthy，`/login` 200，down 后容器与网络清理完成
+- 功能提交 `1e686f3` 已推送 main，Actions run `29336790587` 的 test / Docker production smoke 均通过
 
 ---
 
@@ -1236,6 +1237,7 @@ K1 审计结论：
 - Phase 3-C2 功能提交 `ab373b3` 已推送 main，Actions run `29317914417` 的 test / Docker production smoke 均通过
 - Phase 3-C4 已完成损坏普通媒体 finding、媒体库 / Data Health 双入口、零写入完整身份预览、C1 引用指引、锁内零引用重验、身份删除和目录 fsync
 - Phase 3-C4 专项 17 passed、媒体链与数据回归 281 passed、全量 557 passed 且 pip check 无冲突；Docker build、healthy Compose、`/login` 200 与 down 清理通过
+- Phase 3-C4 功能提交 `1e686f3` 已推送 main，Actions run `29336790587` 的 test / Docker production smoke 均通过
 - 当前发布准备与本地验收完成后仍需单独发布指令；N100 部署须等待用户明确授权
 
 ---

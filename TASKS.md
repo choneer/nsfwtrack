@@ -35,6 +35,7 @@ N100 / 目标主机部署尚未开始，**不是当前开发任务**，必须等
 - [x] C4 专项 `17 passed`，覆盖 eligibility、零写入、确认、身份 / SHA / 路径 / 引用竞态和 unlink / fsync 失败
 - [x] B3-B6、C1-C3、媒体库、上传、恢复、Data Health、备份与导入组合回归 `281 passed`
 - [x] 全量 `557 passed`、`pip check`、Docker build / healthy / `/login` 200 / down 清理通过
+- [x] 功能提交 `1e686f3` 已推送 main，Actions run `29336790587` 的 test / Docker production smoke 均通过
 
 ### Phase 3-C3 媒体扫描跳过项定位中心（Unreleased）
 

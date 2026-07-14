@@ -54,4 +54,5 @@
 - Docker Compose：healthy
 - `/login`：HTTP 200
 - Docker down：容器与网络已清理
-- Actions：待提交推送后验证
+- 功能提交：`1e686f3`，已推送 `origin/main`
+- Actions：run `29336790587` 的 test / Docker production smoke 均通过
