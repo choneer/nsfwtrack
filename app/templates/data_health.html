@@ -151,6 +151,7 @@
                 {% set repair_url = media_reference_repair_urls.get((issue.object_type, issue.object_id, issue.code)) %}
                 {% set residue_url = upload_residue_cleanup_urls.get(issue.object_id) if issue.code == "media_upload_residue" else none %}
                 {% set damaged_url = damaged_media_cleanup_urls.get(issue.object_id) if issue.code == "media_damaged_file" else none %}
+                {% set duplicate_url = media_duplicate_group_urls.get(issue.object_id) if issue.code == "media_duplicate_content" else none %}
                 {% set scan_skip_url = media_scan_skip_urls.get(issue.code) %}
                 {% if issue.code == "media_root_unavailable" and media_root_diagnostic_url %}
                   <a class="button secondary" href="{{ media_root_diagnostic_url }}">{{ t("data_health.view_media_root_diagnostic") }}</a>
@@ -160,6 +161,8 @@
                   <a class="button danger" href="{{ residue_url }}">{{ t("data_health.preview_upload_residue_cleanup") }}</a>
                 {% elif damaged_url %}
                   <a class="button danger" href="{{ damaged_url }}">{{ t("data_health.preview_damaged_media_cleanup") }}</a>
+                {% elif duplicate_url %}
+                  <a class="button secondary" href="{{ duplicate_url }}">{{ t("data_health.view_media_duplicate_group") }}</a>
                 {% elif scan_skip_url %}
                   <a class="button secondary" href="{{ scan_skip_url }}">{{ t("data_health.view_media_scan_skips") }}</a>
                 {% else %}

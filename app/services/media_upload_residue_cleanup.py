@@ -28,10 +28,34 @@ class _ResidueDeleteError(OSError):
 
 
 @dataclass(frozen=True)
+class _DirectoryIdentity:
+    mode: int
+    device: int
+    inode: int
+
+    @classmethod
+    def from_stat(cls, directory_stat: os.stat_result) -> _DirectoryIdentity:
+        return cls(
+            mode=directory_stat.st_mode,
+            device=directory_stat.st_dev,
+            inode=directory_stat.st_ino,
+        )
+
+    def matches(self, directory_stat: os.stat_result) -> bool:
+        return (
+            stat.S_ISDIR(directory_stat.st_mode)
+            and stat.S_IFMT(self.mode) == stat.S_IFMT(directory_stat.st_mode)
+            and self.device == directory_stat.st_dev
+            and self.inode == directory_stat.st_ino
+        )
+
+
+@dataclass(frozen=True)
 class ValidatedUploadResidue:
     residue_path: str
     media_path: str
     path: Path
+    directory_identities: tuple[_DirectoryIdentity, ...]
     size: int
     device: int
     inode: int
@@ -116,44 +140,79 @@ def _file_flags() -> int:
     return flags
 
 
-def _open_parent_directory(residue_path: str) -> tuple[int, str]:
+def _close_directories(directory_descriptors: list[int]) -> None:
+    for directory_descriptor in reversed(directory_descriptors):
+        try:
+            os.close(directory_descriptor)
+        except OSError:
+            pass
+
+
+def _open_parent_directory(
+    residue_path: str,
+    *,
+    expected_identities: tuple[_DirectoryIdentity, ...] | None = None,
+) -> tuple[list[int], str, tuple[_DirectoryIdentity, ...]]:
     segments = residue_path.split("/")
+    directory_descriptors: list[int] = []
+    identities: list[_DirectoryIdentity] = []
     try:
         directory_fd = os.open(local_media.LOCAL_MEDIA_ROOT, _directory_flags())
     except FileNotFoundError as exc:
         raise MediaUploadResidueCleanupError("storage_unavailable") from exc
     except OSError as exc:
         raise MediaUploadResidueCleanupError("storage_unavailable") from exc
+    directory_descriptors.append(directory_fd)
     try:
-        if not stat.S_ISDIR(os.fstat(directory_fd).st_mode):
+        root_stat = os.fstat(directory_fd)
+        if not stat.S_ISDIR(root_stat.st_mode):
             raise MediaUploadResidueCleanupError("storage_unavailable")
-        for segment in segments[:-1]:
+        identities.append(_DirectoryIdentity.from_stat(root_stat))
+        if expected_identities is not None and (
+            not expected_identities
+            or not expected_identities[0].matches(root_stat)
+        ):
+            raise MediaUploadResidueCleanupError("residue_invalid")
+        for index, segment in enumerate(segments[:-1], start=1):
             try:
                 next_fd = os.open(
                     segment,
                     _directory_flags(),
-                    dir_fd=directory_fd,
+                    dir_fd=directory_descriptors[-1],
                 )
             except FileNotFoundError as exc:
                 raise MediaUploadResidueCleanupError("residue_not_found") from exc
             except OSError as exc:
                 raise MediaUploadResidueCleanupError("residue_invalid") from exc
-            os.close(directory_fd)
-            directory_fd = next_fd
-        return directory_fd, segments[-1]
+            directory_descriptors.append(next_fd)
+            directory_stat = os.fstat(next_fd)
+            identity = _DirectoryIdentity.from_stat(directory_stat)
+            identities.append(identity)
+            if expected_identities is not None and (
+                index >= len(expected_identities)
+                or not expected_identities[index].matches(directory_stat)
+            ):
+                raise MediaUploadResidueCleanupError("residue_invalid")
+        if expected_identities is not None and len(expected_identities) != len(
+            directory_descriptors
+        ):
+            raise MediaUploadResidueCleanupError("residue_invalid")
+        return directory_descriptors, segments[-1], tuple(identities)
     except Exception:
-        os.close(directory_fd)
+        _close_directories(directory_descriptors)
         raise
 
 
 def _observe_residue(residue_path: str) -> ValidatedUploadResidue:
-    directory_fd, basename = _open_parent_directory(residue_path)
+    directories, basename, directory_identities = _open_parent_directory(
+        residue_path
+    )
     try:
         try:
             file_descriptor = os.open(
                 basename,
                 _file_flags(),
-                dir_fd=directory_fd,
+                dir_fd=directories[-1],
             )
         except FileNotFoundError as exc:
             raise MediaUploadResidueCleanupError("residue_not_found") from exc
@@ -164,19 +223,22 @@ def _observe_residue(residue_path: str) -> ValidatedUploadResidue:
         finally:
             os.close(file_descriptor)
     finally:
-        os.close(directory_fd)
+        _close_directories(directories)
     if not stat.S_ISREG(file_stat.st_mode):
         raise MediaUploadResidueCleanupError("residue_invalid")
-    return ValidatedUploadResidue(
+    residue = ValidatedUploadResidue(
         residue_path=residue_path,
         media_path=f"{local_media.LOCAL_MEDIA_PREFIX}{residue_path}",
         path=local_media.LOCAL_MEDIA_ROOT / PurePosixPath(residue_path),
+        directory_identities=directory_identities,
         size=file_stat.st_size,
         device=file_stat.st_dev,
         inode=file_stat.st_ino,
         modified_ns=file_stat.st_mtime_ns,
         changed_ns=file_stat.st_ctime_ns,
     )
+    _verify_residue_mapping(residue)
+    return residue
 
 
 def _same_identity(
@@ -186,12 +248,49 @@ def _same_identity(
     return (
         first.residue_path == second.residue_path
         and first.media_path == second.media_path
+        and first.directory_identities == second.directory_identities
         and first.size == second.size
         and first.device == second.device
         and first.inode == second.inode
         and first.modified_ns == second.modified_ns
         and first.changed_ns == second.changed_ns
     )
+
+
+def _stat_matches_residue(
+    residue: ValidatedUploadResidue,
+    file_stat: os.stat_result,
+) -> bool:
+    return (
+        stat.S_ISREG(file_stat.st_mode)
+        and file_stat.st_dev == residue.device
+        and file_stat.st_ino == residue.inode
+        and file_stat.st_size == residue.size
+        and file_stat.st_mtime_ns == residue.modified_ns
+        and file_stat.st_ctime_ns == residue.changed_ns
+    )
+
+
+def _verify_residue_mapping(residue: ValidatedUploadResidue) -> None:
+    directories, basename, _ = _open_parent_directory(
+        residue.residue_path,
+        expected_identities=residue.directory_identities,
+    )
+    try:
+        try:
+            current_stat = os.stat(
+                basename,
+                dir_fd=directories[-1],
+                follow_symlinks=False,
+            )
+        except FileNotFoundError as exc:
+            raise MediaUploadResidueCleanupError("residue_not_found") from exc
+        except OSError as exc:
+            raise MediaUploadResidueCleanupError("residue_invalid") from exc
+        if not _stat_matches_residue(residue, current_stat):
+            raise MediaUploadResidueCleanupError("residue_invalid")
+    finally:
+        _close_directories(directories)
 
 
 def _reference_values(residue: ValidatedUploadResidue) -> tuple[str, str]:
@@ -296,7 +395,10 @@ def _delete_residue(residue: ValidatedUploadResidue) -> None:
         raise _ResidueDeleteError("changed")
 
     try:
-        directory_fd, basename = _open_parent_directory(residue.residue_path)
+        directories, basename, _ = _open_parent_directory(
+            residue.residue_path,
+            expected_identities=residue.directory_identities,
+        )
     except MediaUploadResidueCleanupError as exc:
         code = "missing" if exc.code == "residue_not_found" else "changed"
         raise _ResidueDeleteError(code) from exc
@@ -304,34 +406,31 @@ def _delete_residue(residue: ValidatedUploadResidue) -> None:
         try:
             current_stat = os.stat(
                 basename,
-                dir_fd=directory_fd,
+                dir_fd=directories[-1],
                 follow_symlinks=False,
             )
         except FileNotFoundError as exc:
             raise _ResidueDeleteError("missing") from exc
         except OSError as exc:
             raise _ResidueDeleteError("delete_failed") from exc
-        if (
-            not stat.S_ISREG(current_stat.st_mode)
-            or current_stat.st_dev != residue.device
-            or current_stat.st_ino != residue.inode
-            or current_stat.st_size != residue.size
-            or current_stat.st_mtime_ns != residue.modified_ns
-            or current_stat.st_ctime_ns != residue.changed_ns
-        ):
+        if not _stat_matches_residue(residue, current_stat):
             raise _ResidueDeleteError("changed")
         try:
-            os.unlink(basename, dir_fd=directory_fd)
+            _verify_residue_mapping(residue)
+        except MediaUploadResidueCleanupError as exc:
+            raise _ResidueDeleteError("changed") from exc
+        try:
+            os.unlink(basename, dir_fd=directories[-1])
         except FileNotFoundError as exc:
             raise _ResidueDeleteError("missing") from exc
         except OSError as exc:
             raise _ResidueDeleteError("delete_failed") from exc
         try:
-            os.fsync(directory_fd)
+            os.fsync(directories[-1])
         except OSError as exc:
             raise _ResidueDeleteError("sync_failed", removed=True) from exc
     finally:
-        os.close(directory_fd)
+        _close_directories(directories)
 
 
 def _rollback_quietly(db: Session) -> None:

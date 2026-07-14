@@ -11,7 +11,7 @@
 当前应用版本与开发阶段：
 
 ```text
-v1.0.6 / Phase 3-C5 Unreleased
+v1.0.6 / Phase 3-D1 Unreleased integration freeze
 ```
 
 当前最新稳定版本为 `v1.0.6`，发布范围为 Phase 3-B1 与 B2。
@@ -40,7 +40,7 @@ Release: https://github.com/choneer/nsfwtrack/releases/tag/v1.0.6
 稳定性收尾：Phase 2-I1 基线、I2 查询优化、I3 错误处理、I4 发布冻结审查已随 v1.0.0 发布
 完成度审计：Phase 2-K1 / K2 已随 v1.0.1 发布；代码开发与 WSL 验收已完成
 维护与 CI：Phase 2-L1 至 L6 已随 v1.0.2 发布；L7 已随 v1.0.3 发布；L8 固定非 root 容器用户已随 v1.0.4 发布
-产品功能重启：Phase 3-A1 至 A6 已随 v1.0.5 发布；Phase 3-B1 / B2 已随 v1.0.6 发布；Phase 3-B3 / B4 / B5 / B6 / C1 / C2 / C3 / C4 / C5 已完成并位于 Unreleased
+产品功能重启：Phase 3-A1 至 A6 已随 v1.0.5 发布；Phase 3-B1 / B2 已随 v1.0.6 发布；Phase 3-B3 / B4 / B5 / B6 / C1 / C2 / C3 / C4 / C5 已完成，D1 最终集成审查进入推送后 CI 验证
 ```
 
 当前完成度估算：
@@ -48,7 +48,7 @@ Release: https://github.com/choneer/nsfwtrack/releases/tag/v1.0.6
 ```text
 核心业务能力：已完成
 代码发布状态：v1.0.6 已正式发布，tag 与正式 GitHub Release 均已验证
-当前开发状态：Phase 3-C5 位于 Unreleased，main 保持应用版本 1.0.6 与 Schema 2
+当前开发状态：Phase 3-D1 冻结 B3-C5 Unreleased 范围，main 保持应用版本 1.0.6 与 Schema 2
 WSL 验收：已完成
 N100 部署：尚未开始，等待用户明确授权
 ```
@@ -1171,6 +1171,37 @@ K1 审计结论：
 
 ---
 
+### Phase 3-D1 — Unreleased 集成总审查与开发冻结
+
+目标：
+
+- 对 B3-B6 与 C1-C5 的路由、服务、模板、导航和状态闭环做最终审查
+- 为每类 Data Health finding 核对直接入口、安全拒绝或明确只读说明
+- 核对 GET 零写入以及写操作登录、确认、事务、身份、引用和失败报告
+- 验证备份、导入、Schema 2、设置、i18n、Docker 与 CI 无回归
+
+确认修复：
+
+- Data Health 根目录、未扫描引用和上传残留不再独立按可替换路径遍历，统一使用 `O_NOFOLLOW` 目录 fd 或 C3 已验证扫描记录
+- `media_duplicate_content` 现在按完整 SHA-256 直接进入唯一 B2 重复组
+- 认证媒体响应在验证 fd 链内读取并直接返回受限字节，不再验证路径后由 `FileResponse` 二次打开
+- B3-B6 的验证、锚点创建、恢复发布和身份删除保留根 / 父目录 fd 身份并复核当前映射
+- C2 保留上传残留父目录链身份，在 unlink 前复核父链和最终文件映射
+- 父目录改名并替换为外部 symlink、外部同 inode 硬链接等注入竞态均安全拒绝，不读写或删除外部目录项
+
+当前验证：
+
+- 19 个 B3-C5/Data Health 相关路由全部包含登录依赖
+- 110 个注册路由与 142 个模板字面量链接静态核对，缺失目标为 0
+- B3-B6/C2/C4 专项回归 `98 passed`
+- B3-C5、媒体响应、备份、导入、Schema 2、迁移、设置与 i18n 组合回归 `363 passed`
+- 全量 `582 passed`，`pip check` 无依赖冲突
+- Docker image build、隔离 Compose healthy、`/login` 与五个认证媒体/Data Health 页面 HTTP 200，资源已清理
+- 完整矩阵和结论见 `PHASE3_COMPLETION_AUDIT.md`；最终 Actions 证据在推送后补录
+- 保持应用版本 1.0.6、Schema 2、迁移、依赖、Docker/CI、旧 tag / Release 与 N100 状态不变
+
+---
+
 ## 七、有限执行顺序
 
 当前顺序：
@@ -1197,8 +1228,9 @@ K1 审计结论：
 19. Phase 3-C3 媒体扫描跳过项定位中心已完成并位于 Unreleased
 20. Phase 3-C4 损坏媒体文件手动清理已完成并位于 Unreleased
 21. Phase 3-C5 媒体根目录诊断与安全初始化已完成并位于 Unreleased
-22. N100 / 目标主机部署未开始，等待用户明确授权
-23. 其余仅按实际问题做可选维护
+22. Phase 3-D1 最终集成审查本地完成，等待推送后 Actions 证据
+23. N100 / 目标主机部署未开始，等待用户明确授权
+24. 其余仅按实际问题做可选维护
 ```
 
 已完成依据：
@@ -1271,6 +1303,9 @@ K1 审计结论：
 - Phase 3-C4 已完成损坏普通媒体 finding、媒体库 / Data Health 双入口、零写入完整身份预览、C1 引用指引、锁内零引用重验、身份删除和目录 fsync
 - Phase 3-C4 专项 17 passed、媒体链与数据回归 280 passed、全量 557 passed 且 pip check 无冲突；Docker build、healthy Compose、`/login` 200 与 down 清理通过
 - Phase 3-C4 功能提交 `1e686f3` 已推送 main，Actions run `29336790587` 的 test / Docker production smoke 均通过
+- Phase 3-D1 已完成 B3-C5 finding / 导航 / 身份 / 引用 / GET / POST / 失败状态总审查，完整证据见 `PHASE3_COMPLETION_AUDIT.md`
+- Phase 3-D1 修复 Data Health 路径重走、重复 finding 缺少直接入口、B3-B6 共享验证媒体父路径重解析及 C2 父链身份丢失四类真实问题
+- Phase 3-D1 组合回归 363 passed、全量 582 passed、pip check 与隔离 Docker healthy / HTTP 验收通过；Actions 待推送后补录
 - 当前发布准备与本地验收完成后仍需单独发布指令；N100 部署须等待用户明确授权
 
 ---

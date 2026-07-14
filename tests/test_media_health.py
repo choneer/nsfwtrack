@@ -7,7 +7,7 @@ from fastapi.testclient import TestClient
 
 from app.database import SessionLocal
 from app.models import Creator, Item
-from app.services import local_media
+from app.services import local_media, media_health
 from app.services.data_health import DATA_HEALTH_DETAIL_LIMIT, build_data_health_report
 from app.services.data_health_fixes import build_data_health_fix_options
 from app.services.media_health import audit_local_media
@@ -174,6 +174,93 @@ def test_media_root_unavailable_is_reported_without_500(
     assert "媒体根目录不可用" in response.text
 
 
+def test_media_root_readability_check_rejects_path_replaced_by_symlink(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    media_root = tmp_path / "media"
+    media_root.mkdir()
+    moved_root = tmp_path / "moved-media"
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    sentinel = outside / "private.txt"
+    sentinel.write_text("outside", encoding="utf-8")
+    original_open = media_health.os.open
+    raced = False
+
+    def replace_root_before_open(
+        path: object,
+        flags: int,
+        mode: int = 0o777,
+        *,
+        dir_fd: int | None = None,
+    ) -> int:
+        nonlocal raced
+        if Path(path) == media_root and dir_fd is None and not raced:
+            media_root.rename(moved_root)
+            media_root.symlink_to(outside, target_is_directory=True)
+            raced = True
+        return original_open(path, flags, mode, dir_fd=dir_fd)
+
+    monkeypatch.setattr(media_health.os, "open", replace_root_before_open)
+    state = media_health._root_state(media_root, has_references=True)
+
+    assert raced is True
+    assert state == "unreadable"
+    assert media_root.is_symlink()
+    assert sentinel.read_text(encoding="utf-8") == "outside"
+
+
+def test_unscanned_reference_parent_symlink_race_never_inspects_target(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    media_root = tmp_path / "media"
+    parent = media_root / "nested"
+    parent.mkdir(parents=True)
+    moved_parent = media_root / "moved-nested"
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    outside_file = outside / "external.gif"
+    outside_file.write_bytes(_gif_bytes(17))
+    original_stat = media_health.os.stat
+    raced = False
+    external_inspected = False
+
+    def replace_parent_after_lstat(
+        path: object,
+        *,
+        dir_fd: int | None = None,
+        follow_symlinks: bool = True,
+    ) -> object:
+        nonlocal raced, external_inspected
+        if path == "external.gif":
+            external_inspected = True
+            raise AssertionError("external symlink target must not be inspected")
+        result = original_stat(
+            path,
+            dir_fd=dir_fd,
+            follow_symlinks=follow_symlinks,
+        )
+        if path == "nested" and dir_fd is not None and not raced:
+            parent.rename(moved_parent)
+            parent.symlink_to(outside, target_is_directory=True)
+            raced = True
+        return result
+
+    monkeypatch.setattr(media_health.os, "stat", replace_parent_after_lstat)
+    code = media_health._classify_unscanned_reference(
+        media_root,
+        "/media/nested/external.gif",
+    )
+
+    assert raced is True
+    assert external_inspected is False
+    assert code == "media_reference_damaged"
+    assert parent.is_symlink()
+    assert outside_file.read_bytes() == _gif_bytes(17)
+
+
 def test_upload_residue_duplicate_content_and_scan_skips_are_warning_only(
     auth_client: TestClient,
     monkeypatch: pytest.MonkeyPatch,
@@ -227,11 +314,94 @@ def test_upload_residue_duplicate_content_and_scan_skips_are_warning_only(
     assert 'action="/data-health/fix"' not in response.text
     assert "发现上传临时残留" in response.text
     assert "不同路径存在相同 SHA-256 内容" in response.text
+    assert (
+        'href="/media-library/duplicates?duplicate_q='
+        f'{by_code["media_duplicate_content"].object_id}"'
+    ) in response.text
     assert "媒体扫描跳过了符号链接" in response.text
     assert "媒体扫描跳过了不支持文件" in response.text
     assert after_db == before_db
     assert {path: path.read_bytes() for path in before_files} == before_files
     assert (media_root / "skipped.gif").is_symlink()
+
+    duplicate_page = auth_client.get(
+        "/media-library/duplicates",
+        params={"duplicate_q": by_code["media_duplicate_content"].object_id},
+    )
+    assert duplicate_page.status_code == 200
+    assert 'data-duplicate-total-groups>1<' in duplicate_page.text
+    assert by_code["media_duplicate_content"].object_id in duplicate_page.text
+
+
+def test_upload_residue_findings_reuse_verified_scan_without_path_rewalk(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    media_root = tmp_path / "media"
+    media_root.mkdir()
+    monkeypatch.setattr(local_media, "LOCAL_MEDIA_ROOT", media_root)
+    scan = local_media.LocalMediaScan(
+        (),
+        1,
+        3,
+        0,
+        (
+            local_media.LocalMediaScanSkip(
+                path="nested/.upload-safe.tmp",
+                reason="unsupported_extension",
+                extension=".tmp",
+                size=7,
+                device=1,
+                inode=2,
+                modified_ns=3,
+                changed_ns=4,
+            ),
+            local_media.LocalMediaScanSkip(
+                path="linked/.upload-outside.tmp",
+                reason="symlink",
+                extension=".tmp",
+                size=9,
+                device=5,
+                inode=6,
+                modified_ns=7,
+                changed_ns=8,
+            ),
+            local_media.LocalMediaScanSkip(
+                path="notes.txt",
+                reason="unsupported_extension",
+                extension=".txt",
+                size=11,
+                device=9,
+                inode=10,
+                modified_ns=11,
+                changed_ns=12,
+            ),
+        ),
+    )
+    monkeypatch.setattr(local_media, "scan_local_media", lambda **kwargs: scan)
+    original_scandir = media_health.os.scandir
+    path_scans = 0
+
+    def reject_independent_path_rewalk(path: object) -> object:
+        nonlocal path_scans
+        if not isinstance(path, int):
+            path_scans += 1
+            raise AssertionError("Data Health must use verified directory FDs")
+        return original_scandir(path)
+
+    monkeypatch.setattr(media_health.os, "scandir", reject_independent_path_rewalk)
+    with SessionLocal() as db:
+        findings = audit_local_media(db)
+
+    residues = [
+        finding
+        for finding in findings
+        if finding.code == "media_upload_residue"
+    ]
+    assert path_scans == 0
+    assert [(finding.object_id, finding.detail) for finding in residues] == [
+        ("nested/.upload-safe.tmp", "size=7")
+    ]
 
 
 def test_media_findings_share_the_existing_global_two_hundred_detail_limit(

@@ -2,18 +2,40 @@
 
 按顺序执行，每完成一项打个 [x]。
 
-## 当前状态（v1.0.6 已发布，Phase 3-C5 已完成于 Unreleased）
+## 当前状态（v1.0.6 已发布，Phase 3-D1 最终集成审查）
 
 当前稳定版与最新 Release：`v1.0.6`。Phase 3-B1 / B2 已正式发布，
-Phase 3-B3 / B4 / B5 / B6 / C1 / C2 / C3 / C4 / C5 已完成并位于 Unreleased，应用 Schema 仍为 `2`。
+Phase 3-B3 / B4 / B5 / B6 / C1 / C2 / C3 / C4 / C5 已完成并位于 Unreleased；D1 本地审查与验收完成，等待推送后 Actions 证据，应用 Schema 仍为 `2`。
 
 - Annotated tag object：`d4d5c31cd5b2fed9a90ad69742d54b4c9dbed0b4`
 - Peeled commit：`961a3d0cc169e82b261d83207b0ec802007e292b`
 - Release：`https://github.com/choneer/nsfwtrack/releases/tag/v1.0.6`
 
 N100 / 目标主机部署尚未开始，**不是当前开发任务**，必须等待用户明确授权。
-完整证据见 `COMPLETION_AUDIT.md`。历史任务保留在本文后半部分，
+历史审计见 `COMPLETION_AUDIT.md`，当前 Phase 3 证据见
+`PHASE3_COMPLETION_AUDIT.md`。历史任务保留在本文后半部分，
 不再作为新增开发路线。
+
+### Phase 3-D1 Unreleased 集成总审查与开发冻结
+
+- [x] 审查 B3-B6、C1-C5 的页面、服务、路由、模板、导航和状态闭环
+- [x] 建立每类 Data Health finding 的入口、拒绝边界和处理后状态矩阵
+- [x] 19 个相关路由全部确认登录保护；GET 零写入与 POST 确认 / 事务 / 报告均有测试证据
+- [x] 110 个注册路由与 142 个模板字面量链接静态核对，缺失目标为 0
+- [x] 未发现真实 TODO / FIXME / HACK / XXX、占位实现、501 或缺失双语 key
+- [x] Data Health 上传残留复用 C3 已验证扫描，不再独立按路径重走
+- [x] Data Health 根目录与未扫描引用使用 `O_NOFOLLOW` 目录 fd 和身份复核，拒绝父路径替换
+- [x] 为 `media_duplicate_content` 增加完整 SHA-256 的唯一 B2 重复组入口
+- [x] 认证媒体响应在验证 FD 链内读取并直接返回内容，不再由 `FileResponse` 二次按路径打开
+- [x] B3-B6 验证、锚点创建、恢复发布与删除保留并复核根 / 父目录 fd 身份
+- [x] C2 保留残留父目录链身份，在 unlink 前重验当前父链和文件映射
+- [x] 新增外部 symlink / 同 inode 硬链接竞态测试，拒绝路径不读取、不创建且不删除外部目录项
+- [x] 备份导出 / 校验 / 恢复、导入、Schema 2、迁移、设置、确认策略与 i18n 组合回归 `363 passed`
+- [x] 全量 `582 passed in 142.47s`；`pip check` 无依赖冲突
+- [x] Docker build、隔离 Compose healthy、`/login` 和认证媒体/Data Health 页面 HTTP 200，临时资源已清理
+- [x] 新增 `PHASE3_COMPLETION_AUDIT.md` 并同步 README / PLAN / TASKS / REVIEW / GOAL / CHANGELOG
+- [x] 保持应用版本 1.0.6、Schema 2、迁移、依赖、Docker/CI、旧 tag / Release 和 N100 状态不变
+- [ ] 提交推送并确认 GitHub Actions test / Docker production smoke
 
 ### Phase 3-C5 媒体根目录诊断与安全初始化（Unreleased）
 

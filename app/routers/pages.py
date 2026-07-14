@@ -15,7 +15,7 @@ from fastapi import (
     UploadFile,
     status,
 )
-from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, Response
+from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
@@ -117,6 +117,7 @@ from app.services.local_media import (
     is_cleanup_anchor_filename,
     local_media_url,
     normalize_local_media_path,
+    read_local_media_file,
     resolve_local_media_file,
     scan_local_media,
     store_media_uploads,
@@ -353,15 +354,15 @@ def _parse_extra_json(value: str | None) -> dict[str, Any] | None:
 
 @router.get(
     "/media/{media_path:path}",
-    response_class=FileResponse,
+    response_class=Response,
     dependencies=[Depends(require_page_auth)],
 )
-def local_media_file_page(media_path: str) -> FileResponse:
+def local_media_file_page(media_path: str) -> Response:
     try:
-        path = resolve_local_media_file(media_path)
+        content, media_type = read_local_media_file(media_path)
     except LocalMediaPathError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND) from exc
-    return FileResponse(path)
+    return Response(content=content, media_type=media_type)
 
 
 @router.get(
@@ -1972,6 +1973,15 @@ def data_health_page(request: Request, db: Session = Depends(get_db)) -> HTMLRes
         if issue.code == "media_damaged_file"
         and issue.object_type == "media_file"
     }
+    media_duplicate_group_urls = {
+        issue.object_id: (
+            "/media-library/duplicates?"
+            + urlencode({"duplicate_q": issue.object_id})
+        )
+        for issue in report.issues
+        if issue.code == "media_duplicate_content"
+        and issue.object_type == "media_content"
+    }
     media_scan_skip_urls = {
         "media_scan_skipped_symlinks": (
             "/media-library/skipped?skip_type=symlink"
@@ -2000,6 +2010,7 @@ def data_health_page(request: Request, db: Session = Depends(get_db)) -> HTMLRes
             media_reference_repair_urls=media_reference_repair_urls,
             upload_residue_cleanup_urls=upload_residue_cleanup_urls,
             damaged_media_cleanup_urls=damaged_media_cleanup_urls,
+            media_duplicate_group_urls=media_duplicate_group_urls,
             media_scan_skip_urls=media_scan_skip_urls,
             media_root_diagnostic_url=media_root_diagnostic_url,
         ),

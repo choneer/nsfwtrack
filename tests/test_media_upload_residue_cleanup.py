@@ -466,6 +466,56 @@ def test_identity_race_after_locked_reference_check_is_rejected(
     assert _database_snapshot() == ((), ())
 
 
+def test_parent_symlink_race_never_unlinks_external_hardlink(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    media_root = tmp_path / "media"
+    parent = media_root / "nested"
+    target = _write_residue(
+        media_root,
+        "nested/.upload-parent-race.tmp",
+        b"same inode must remain",
+    )
+    external = tmp_path / "external"
+    external.mkdir()
+    external_target = external / target.name
+    os.link(target, external_target)
+    moved = media_root / "moved"
+    monkeypatch.setattr(local_media, "LOCAL_MEDIA_ROOT", media_root)
+    with SessionLocal() as db:
+        preview = build_media_upload_residue_cleanup_preview(
+            db,
+            residue_path="nested/.upload-parent-race.tmp",
+        )
+
+    original_verify = media_upload_residue_cleanup._verify_residue_mapping
+    verifications = 0
+
+    def replace_parent_before_final_mapping_check(residue: object) -> None:
+        nonlocal verifications
+        verifications += 1
+        if verifications == 2:
+            parent.rename(moved)
+            parent.symlink_to(external, target_is_directory=True)
+        original_verify(residue)
+
+    monkeypatch.setattr(
+        media_upload_residue_cleanup,
+        "_verify_residue_mapping",
+        replace_parent_before_final_mapping_check,
+    )
+
+    with pytest.raises(media_upload_residue_cleanup._ResidueDeleteError) as error:
+        media_upload_residue_cleanup._delete_residue(preview.residue)
+
+    assert error.value.code == "changed"
+    assert verifications == 2
+    assert parent.is_symlink()
+    assert (moved / target.name).exists()
+    assert external_target.exists()
+
+
 def test_unlink_failure_retains_file_and_database_with_clear_reason(
     auth_client: TestClient,
     monkeypatch: pytest.MonkeyPatch,

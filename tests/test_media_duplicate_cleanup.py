@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import os
 import re
 from pathlib import Path
 
@@ -714,3 +715,182 @@ def test_validated_delete_rejects_same_content_inode_replacement(
 
     assert error.value.code == "changed"
     assert media_file.exists()
+
+
+def test_validation_rejects_parent_replaced_by_external_symlink_after_fd_read(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    media_root = tmp_path / "media"
+    parent = media_root / "Nested"
+    media_file = _write_gif(media_root, "Nested/File.gif", extra=2)
+    original_content = media_file.read_bytes()
+    external = tmp_path / "external"
+    external_file = _write_gif(external, "File.gif", extra=19)
+    moved = media_root / "Moved"
+    monkeypatch.setattr(local_media, "LOCAL_MEDIA_ROOT", media_root)
+    original_read = local_media._read_scan_file_descriptor
+    observed_content: list[bytes] = []
+
+    def replace_parent_after_fd_read(file_descriptor: int) -> bytes:
+        content = original_read(file_descriptor)
+        observed_content.append(content)
+        parent.rename(moved)
+        parent.symlink_to(external, target_is_directory=True)
+        return content
+
+    monkeypatch.setattr(
+        local_media,
+        "_read_scan_file_descriptor",
+        replace_parent_after_fd_read,
+    )
+
+    with pytest.raises(local_media.LocalMediaPathError):
+        local_media.validate_local_media_file(
+            "/media/Nested/File.gif",
+            expected_sha256=hashlib.sha256(original_content).hexdigest(),
+        )
+
+    assert observed_content == [original_content]
+    assert parent.is_symlink()
+    assert (moved / "File.gif").read_bytes() == original_content
+    assert external_file.read_bytes() == _gif_bytes(19)
+
+
+def test_validated_delete_rejects_parent_symlink_race_without_external_unlink(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    media_root = tmp_path / "media"
+    parent = media_root / "Nested"
+    media_file = _write_gif(media_root, "Nested/Delete.gif", extra=3)
+    external = tmp_path / "external"
+    external.mkdir()
+    external_file = external / media_file.name
+    os.link(media_file, external_file)
+    moved = media_root / "Moved"
+    monkeypatch.setattr(local_media, "LOCAL_MEDIA_ROOT", media_root)
+    record = local_media.validate_local_media_file(
+        "/media/Nested/Delete.gif",
+        expected_sha256=_digest(media_file),
+    )
+    original_read = local_media._read_scan_file_descriptor
+    reads = 0
+
+    def replace_parent_during_final_delete_read(file_descriptor: int) -> bytes:
+        nonlocal reads
+        content = original_read(file_descriptor)
+        reads += 1
+        if reads == 2:
+            parent.rename(moved)
+            parent.symlink_to(external, target_is_directory=True)
+        return content
+
+    monkeypatch.setattr(
+        local_media,
+        "_read_scan_file_descriptor",
+        replace_parent_during_final_delete_read,
+    )
+
+    with pytest.raises(local_media.LocalMediaDeleteError) as error:
+        local_media.delete_validated_local_media_file(record)
+
+    assert error.value.code == "changed"
+    assert reads == 2
+    assert parent.is_symlink()
+    assert (moved / media_file.name).exists()
+    assert external_file.exists()
+
+
+def test_safety_anchor_creation_rejects_parent_symlink_race(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    media_root = tmp_path / "media"
+    parent = media_root / "Nested"
+    media_file = _write_gif(media_root, "Nested/Keeper.gif", extra=4)
+    external = tmp_path / "external"
+    external.mkdir()
+    moved = media_root / "Moved"
+    monkeypatch.setattr(local_media, "LOCAL_MEDIA_ROOT", media_root)
+    record = local_media.validate_local_media_file(
+        "/media/Nested/Keeper.gif",
+        expected_sha256=_digest(media_file),
+    )
+    original_read = local_media._read_validated_record_content
+
+    def replace_parent_after_source_read(
+        source: local_media.ValidatedLocalMediaFile,
+    ) -> bytes:
+        content = original_read(source)
+        parent.rename(moved)
+        parent.symlink_to(external, target_is_directory=True)
+        return content
+
+    monkeypatch.setattr(
+        local_media,
+        "_read_validated_record_content",
+        replace_parent_after_source_read,
+    )
+
+    with pytest.raises(local_media.LocalMediaSafetyAnchorError) as error:
+        local_media.create_local_media_safety_anchor(record)
+
+    assert error.value.code == "create_failed"
+    assert parent.is_symlink()
+    assert (moved / media_file.name).exists()
+    assert list(external.iterdir()) == []
+    assert _anchor_files(moved) == []
+
+
+def test_safety_anchor_publication_rejects_parent_symlink_race(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    media_root = tmp_path / "media"
+    parent = media_root / "Nested"
+    anchor_file = _write_gif(
+        media_root,
+        "Nested/.cleanup-anchor-race.gif",
+        extra=5,
+    )
+    external = tmp_path / "external"
+    external.mkdir()
+    external_anchor = external / anchor_file.name
+    os.link(anchor_file, external_anchor)
+    moved = media_root / "Moved"
+    monkeypatch.setattr(local_media, "LOCAL_MEDIA_ROOT", media_root)
+    anchor = local_media.validate_local_media_file(
+        "/media/Nested/.cleanup-anchor-race.gif",
+        expected_sha256=_digest(anchor_file),
+    )
+    original_open = local_media._open_validated_record
+    replaced = False
+
+    def replace_parent_before_anchor_open(
+        record: local_media.ValidatedLocalMediaFile,
+    ) -> tuple[list[int], int]:
+        nonlocal replaced
+        if not replaced:
+            parent.rename(moved)
+            parent.symlink_to(external, target_is_directory=True)
+            replaced = True
+        return original_open(record)
+
+    monkeypatch.setattr(
+        local_media,
+        "_open_validated_record",
+        replace_parent_before_anchor_open,
+    )
+
+    with pytest.raises(local_media.LocalMediaSafetyAnchorError) as error:
+        local_media.publish_local_media_safety_anchor(
+            anchor,
+            "/media/Nested/recovered-race.gif",
+        )
+
+    assert error.value.code == "publish_failed"
+    assert parent.is_symlink()
+    assert (moved / anchor_file.name).exists()
+    assert external_anchor.exists()
+    assert not (external / "recovered-race.gif").exists()

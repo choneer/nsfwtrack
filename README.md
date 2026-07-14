@@ -2,16 +2,16 @@
 
 NSFWTrack is a local single-user content record manager / collection tracker.
 
-Current application version: `v1.0.6 / Phase 3-B3 through C5 in Unreleased`.
+Current application version: `v1.0.6 / Phase 3-B3 through D1 in Unreleased`.
 
 Current stable version: `v1.0.6 / Phase 3-B1 and B2`.
 
 Latest Release: [NSFWTrack v1.0.6](https://github.com/choneer/nsfwtrack/releases/tag/v1.0.6).
 
-Current status: `v1.0.6 is released; Phase 3-B3 through B6 media cleanup and Phase 3-C1 through C5 Data Health maintenance are complete in Unreleased`.
+Current status: `v1.0.6 is released; Phase 3-B3 through C5 are complete and the Phase 3-D1 integration audit is in final CI verification`.
 
-Current development: `Phase 3-B1 and B2 are published; Phase 3-C5 keeps
-application version 1.0.6 and Schema 2`.
+Current development: `Phase 3-B1 and B2 are published; Phase 3-D1 freezes the
+current Unreleased scope while keeping application version 1.0.6 and Schema 2`.
 
 N100 deployment: `not started; waits for explicit user authorization`.
 
@@ -28,6 +28,9 @@ archived `v1.0.4` suite contains 358 passing tests.
 The `v1.0.6` release is the current stable tag. Code development and WSL
 acceptance through Phase 3-B1 and B2 are complete. See
 [COMPLETION_AUDIT.md](COMPLETION_AUDIT.md) for the archived K1 / K2 evidence.
+The current B3-C5 integration, finding-state matrix, confirmed D1 fixes, and
+582-test local freeze evidence are recorded in
+[PHASE3_COMPLETION_AUDIT.md](PHASE3_COMPLETION_AUDIT.md).
 
 - Phase 2-K2 closed the local media-path, bulk / clear confirmation, deployment
   placeholder-secret, focused F4 test, and upgrade-runbook gaps.
@@ -47,6 +50,22 @@ C4 adds explicit permanent deletion of one still-damaged, zero-reference
 ordinary-media file after a write-free preview and locked safety rechecks.
 C5 adds read-only media-root diagnostics and explicit missing-only safe
 initialization without restoring media or changing broken references.
+
+Phase 3-D1 audited the complete B3-C5 navigation and state closure. It adds the
+missing exact-SHA duplicate-finding entry and closes confirmed parent-path
+replacement races in Data Health scanning, shared B3-B6 validated-media
+create/publish/delete operations, authenticated media serving, and C2 residue
+deletion. Media responses and mutations now retain and recheck root/parent
+directory fd identities before reading, linking, or unlinking; injected
+external-symlink/hard-link races fail closed without returning or touching the
+external entry.
+
+Local D1 acceptance passes 363 integrated compatibility tests and all 582
+tests. `pip check` is clean. The production image builds, isolated Compose is
+healthy with the existing non-root/read-only/capability security boundaries,
+and login plus the authenticated Data Health/media navigation pages return
+HTTP 200. Final GitHub Actions evidence is recorded after push in the Phase 3
+completion audit and final delivery report.
 
 ## v1.0.6 Release
 

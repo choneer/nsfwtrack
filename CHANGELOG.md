@@ -78,6 +78,22 @@
 
 ### Fixed
 
+- Closed D1 read-side namespace races in Data Health. Media-root readability
+  and unscanned-reference classification now use identity-checked directory
+  fds with `O_NOFOLLOW`, while upload-residue findings are derived only from
+  C3's already verified skip records instead of an independent path rewalk.
+- Authenticated media responses now read and validate bounded image bytes
+  inside the verified root/parent/file fd chain and return them directly. They
+  no longer validate one path and let `FileResponse` reopen a potentially
+  replaced parent path.
+- Closed shared B3-B6 validated-media parent replacement races. Validation now
+  retains the configured root and every parent directory identity; content
+  reads, safety-anchor creation, recovery publication, and identity-bound
+  deletion reopen and recheck that fd chain before reading, linking, or
+  unlinking.
+- Closed the C2 observation/deletion parent-chain gap. Upload residue snapshots
+  retain each parent identity and reject a changed current mapping before the
+  final unlink, including an external symlink with a same-inode hard link.
 - Closed the Phase 3-C3 scan-candidate parent-path replacement race. Media
   candidates now retain traversal-time device, inode, size, mtime, and ctime
   identities for the root, every parent directory, and the final file; reads
@@ -98,6 +114,12 @@
 
 ### Changed
 
+- Data Health `media_duplicate_content` rows now link by complete SHA-256 to
+  the exact B2 duplicate group, preserving the explicit B3 keeper workflow.
+- Phase 3-D1 freezes the B3-C5 Unreleased scope after route, finding, GET/POST,
+  file/reference identity, backup/import, Schema 2, settings, i18n, Docker, and
+  integration regression review. The detailed matrix is recorded in
+  `PHASE3_COMPLETION_AUDIT.md`.
 - Confirmed cleanup commits every affected cover/avatar reference to the
   verified safety anchor before removing redundant files, then commits them to
   the final safe keeper/recovery path. Each deletion revalidates the path,
@@ -145,6 +167,12 @@
 
 ### Security
 
+- Parent-directory rename/symlink races are now fail-closed across Data Health,
+  authenticated media serving, shared validated-media create/publish/delete
+  operations, and C2 residue deletion. Regression injection with external
+  same-name and same-inode hard links proves that external content is not
+  returned or parsed and external directory entries are not created,
+  overwritten, or unlinked.
 - Cleanup requires login, POST, browser confirmation, server confirmation, and
   exact `CONFIRM` text in strict mode. Submission rescans the shared B1/B2 group
   and rejects stale membership, changed hashes, missing or damaged files,

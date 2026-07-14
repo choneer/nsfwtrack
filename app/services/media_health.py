@@ -125,6 +125,28 @@ def _normalize_references(
     return valid, findings
 
 
+def _directory_open_flags() -> int:
+    flags = os.O_RDONLY
+    if hasattr(os, "O_DIRECTORY"):
+        flags |= os.O_DIRECTORY
+    if hasattr(os, "O_CLOEXEC"):
+        flags |= os.O_CLOEXEC
+    if hasattr(os, "O_NOFOLLOW"):
+        flags |= os.O_NOFOLLOW
+    return flags
+
+
+def _same_identity(first: os.stat_result, second: os.stat_result) -> bool:
+    return (
+        first.st_mode == second.st_mode
+        and first.st_dev == second.st_dev
+        and first.st_ino == second.st_ino
+        and first.st_size == second.st_size
+        and first.st_mtime_ns == second.st_mtime_ns
+        and first.st_ctime_ns == second.st_ctime_ns
+    )
+
+
 def _root_state(root: Path, *, has_references: bool) -> str | None:
     try:
         root_stat = root.lstat()
@@ -136,58 +158,81 @@ def _root_state(root: Path, *, has_references: bool) -> str | None:
         return "symlink"
     if not stat.S_ISDIR(root_stat.st_mode):
         return "not_directory"
+    descriptor: int | None = None
     try:
-        with os.scandir(root):
+        descriptor = os.open(root, _directory_open_flags())
+        if not _same_identity(root_stat, os.fstat(descriptor)):
+            return "unreadable"
+        with os.scandir(descriptor):
             pass
     except OSError:
         return "unreadable"
+    finally:
+        if descriptor is not None:
+            try:
+                os.close(descriptor)
+            except OSError:
+                pass
     return "ready"
 
 
 def _classify_unscanned_reference(root: Path, media_path: str) -> str:
-    candidate = root
     segments = media_path.removeprefix(local_media.LOCAL_MEDIA_PREFIX).split("/")
-    for index, segment in enumerate(segments):
-        candidate = candidate / segment
+    descriptors: list[int] = []
+    try:
         try:
-            candidate_stat = candidate.lstat()
-        except FileNotFoundError:
-            return "media_reference_missing"
+            descriptor = os.open(root, _directory_open_flags())
         except OSError:
             return "media_reference_damaged"
-        if stat.S_ISLNK(candidate_stat.st_mode):
-            return "media_reference_symlink"
-        if index < len(segments) - 1 and not stat.S_ISDIR(candidate_stat.st_mode):
-            return "media_reference_damaged"
-        if index == len(segments) - 1 and not stat.S_ISREG(candidate_stat.st_mode):
-            return "media_reference_damaged"
-    return "media_reference_damaged"
-
-
-def _find_upload_residues(root: Path) -> list[tuple[str, int]]:
-    residues: list[tuple[str, int]] = []
-    pending = [root]
-    while pending:
-        directory = pending.pop()
-        try:
-            entries = sorted(os.scandir(directory), key=lambda entry: entry.name.casefold())
-        except OSError:
-            continue
-        for entry in entries:
+        descriptors.append(descriptor)
+        for index, segment in enumerate(segments):
             try:
-                if entry.is_symlink():
-                    continue
-                if entry.is_dir(follow_symlinks=False):
-                    pending.append(Path(entry.path))
-                elif (
-                    entry.is_file(follow_symlinks=False)
-                    and local_media.is_upload_residue_filename(entry.name)
-                ):
-                    path = Path(entry.path)
-                    relative = path.relative_to(root).as_posix()
-                    residues.append((relative, entry.stat(follow_symlinks=False).st_size))
-            except (OSError, ValueError):
-                continue
+                candidate_stat = os.stat(
+                    segment,
+                    dir_fd=descriptor,
+                    follow_symlinks=False,
+                )
+            except FileNotFoundError:
+                return "media_reference_missing"
+            except OSError:
+                return "media_reference_damaged"
+            if stat.S_ISLNK(candidate_stat.st_mode):
+                return "media_reference_symlink"
+            if index == len(segments) - 1:
+                return "media_reference_damaged"
+            if not stat.S_ISDIR(candidate_stat.st_mode):
+                return "media_reference_damaged"
+            try:
+                child_descriptor = os.open(
+                    segment,
+                    _directory_open_flags(),
+                    dir_fd=descriptor,
+                )
+            except OSError:
+                return "media_reference_damaged"
+            descriptors.append(child_descriptor)
+            if not _same_identity(candidate_stat, os.fstat(child_descriptor)):
+                return "media_reference_damaged"
+            descriptor = child_descriptor
+        return "media_reference_damaged"
+    finally:
+        while descriptors:
+            try:
+                os.close(descriptors.pop())
+            except OSError:
+                pass
+
+
+def _find_upload_residues(
+    scan: local_media.LocalMediaScan,
+) -> list[tuple[str, int]]:
+    residues = [
+        (entry.path, entry.size)
+        for entry in scan.skipped_entries
+        if entry.reason == "unsupported_extension"
+        and entry.size is not None
+        and local_media.is_upload_residue_filename(entry.path)
+    ]
     residues.sort(key=lambda row: row[0].casefold())
     return residues
 
@@ -297,7 +342,7 @@ def audit_local_media(db: Session) -> list[MediaHealthFinding]:
             )
         )
 
-    for relative_path, size in _find_upload_residues(root):
+    for relative_path, size in _find_upload_residues(scan):
         findings.append(
             _finding(
                 "media_upload_residue",

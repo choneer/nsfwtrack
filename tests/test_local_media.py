@@ -141,6 +141,50 @@ def test_valid_local_cover_renders_and_is_served_only_after_login(
     assert unauthenticated.headers["location"] == "/login"
 
 
+def test_media_response_rejects_parent_symlink_race_without_external_read(
+    auth_client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    media_root = tmp_path / "media"
+    parent = media_root / "covers"
+    original = parent / "race.png"
+    parent.mkdir(parents=True)
+    original_content = _png_bytes(17)
+    original.write_bytes(original_content)
+    moved = media_root / "moved-covers"
+    external = tmp_path / "external"
+    external.mkdir()
+    external_file = external / "race.png"
+    external_content = _png_bytes(211)
+    external_file.write_bytes(external_content)
+    monkeypatch.setattr(local_media, "LOCAL_MEDIA_ROOT", media_root)
+    original_read = local_media._read_scan_file_descriptor
+    observed: list[bytes] = []
+
+    def replace_parent_after_fd_read(file_descriptor: int) -> bytes:
+        content = original_read(file_descriptor)
+        observed.append(content)
+        parent.rename(moved)
+        parent.symlink_to(external, target_is_directory=True)
+        return content
+
+    monkeypatch.setattr(
+        local_media,
+        "_read_scan_file_descriptor",
+        replace_parent_after_fd_read,
+    )
+
+    response = auth_client.get("/media/covers/race.png")
+
+    assert response.status_code == 404
+    assert observed == [original_content]
+    assert response.content != external_content
+    assert parent.is_symlink()
+    assert (moved / "race.png").read_bytes() == original_content
+    assert external_file.read_bytes() == external_content
+
+
 def test_legacy_external_cover_is_not_rendered(auth_client: TestClient) -> None:
     external_url = "https://example.invalid/legacy.png"
     with SessionLocal() as db:
