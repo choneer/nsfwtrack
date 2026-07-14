@@ -33,6 +33,7 @@ N100 / 目标主机部署尚未开始，**不是当前开发任务**，必须等
 - [x] C5 专项 `16 passed`；C1-C4、上传、扫描、Data Health、恢复、备份校验与导入组合回归 `240 passed`
 - [x] 全量 `573 passed`、`pip check`、Docker build / healthy / `/login` 200 / down 清理通过
 - [x] 独立 named volume 内初始化通过，容器重建后空目录保持且不再提供初始化，临时容器 / volume / 文件均已清理
+- [x] 功能提交 `9a3a546` 已推送 main，Actions run `29343264820` 的 test / Docker production smoke 均通过
 - [x] 同步中文 / English、模板、CHANGELOG Unreleased、README / PLAN / TASKS / REVIEW / GOAL
 - [x] 保持版本 1.0.6、Schema 2、迁移、依赖、Docker/CI、旧 tag / Release 和 N100 状态不变
 

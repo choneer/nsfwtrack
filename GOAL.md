@@ -50,3 +50,4 @@
 - Docker build、Compose healthy、`/login` 200 与 down 清理通过
 - named volume 内初始化成功，容器重建后空目录保持且不再提供初始化表单
 - 临时容器、网络、volume、cookie 与响应文件均已清理
+- 功能提交 `9a3a546` 已推送 main，Actions run `29343264820` 的 test / Docker production smoke 均通过

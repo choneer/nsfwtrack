@@ -845,7 +845,9 @@
 恢复、备份校验与导入组合回归 `240 passed`；全量 `573 passed`；
 `pip check` 无冲突。Docker build、Compose healthy、`/login` 200 与 down
 清理通过；独立 named volume 初始化及容器重建持久化通过，重建后诊断
-返回 root available 且无初始化表单，临时资源均已清理。
+返回 root available 且无初始化表单，临时资源均已清理。功能提交
+`9a3a546` 已推送 main，Actions run `29343264820` 的 test / Docker
+production smoke 均通过。
 
 ## 登录保护检查
 

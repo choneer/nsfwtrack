@@ -1166,6 +1166,7 @@ K1 审计结论：
 - 全量 `573 passed`，`pip check` 无依赖冲突
 - Docker image build、Compose healthy、`/login` 200 与 down 清理通过
 - 独立非 root / read-only 容器在 named volume 内完成 missing 初始化；容器重建后空目录保持，诊断返回 root available 且不再提供初始化表单，临时资源已清理
+- 功能提交 `9a3a546` 已推送 main，Actions run `29343264820` 的 test / Docker production smoke 均通过
 - C4 指定组合回归文档已从 281 更正为 280
 
 ---
