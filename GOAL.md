@@ -61,4 +61,5 @@
 - [x] 中文 / English、CHANGELOG Unreleased、README、PLAN、TASKS、REVIEW、GOAL 与专项测试已同步
 - [x] C1 专项 `7 passed`、B3-B6 / 媒体库 / Data Health / 备份 / 导入组合回归 `232 passed`
 - [x] 全量 `508 passed`、pip check 与隔离 Docker 双生命周期、真实替换 / 清除和媒体零变化验收通过
+- [x] 功能提交 `05adaf7` 已推送 main，Actions run `29314452641` 的 test / Docker production smoke 均通过
 - [x] 保持版本 1.0.6、Schema 2、迁移、依赖、Docker/CI、tag / Release 和 N100 状态不变

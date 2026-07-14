@@ -30,6 +30,7 @@ N100 / 目标主机部署尚未开始，**不是当前开发任务**，必须等
 - [x] 同步中文 / English、模板、CHANGELOG Unreleased、README / PLAN / TASKS / REVIEW / GOAL 和专项测试
 - [x] C1 专项 `7 passed`，B3-B6 / 媒体库 / Data Health / 备份 / 导入组合回归 `232 passed`
 - [x] 全量 `508 passed`、pip check 与隔离 Docker 双生命周期、真实替换 / 清除及媒体零变化验收通过
+- [x] 功能提交 `05adaf7` 已推送 main，Actions run `29314452641` 的 test / Docker production smoke 均通过
 - [x] 保持版本 1.0.6、Schema 2、迁移、依赖、Docker/CI、旧 tag / Release 和 N100 状态不变
 
 ### Phase 3-B6 无引用安全锚点手动清理（Unreleased）

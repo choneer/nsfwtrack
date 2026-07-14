@@ -1137,6 +1137,7 @@ K1 审计结论：
 - Phase 3-C1 提交在 `BEGIN IMMEDIATE` 内重验对象、原引用、问题与替代文件完整身份；陈旧 / 伪造 / cleanup anchor 请求拒绝，DB 失败整笔回滚且不操作文件
 - Phase 3-C1 专项 7 passed、B3-B6 / 媒体库 / Data Health / 备份 / 导入组合回归 232 passed、全量 508 passed 且 pip check 无冲突
 - Phase 3-C1 隔离 Docker 双生命周期 healthy，登录 / 认证 / Data Health / 预览 / 替换 / 清除 200，引用持久化、媒体 SHA 和 SQLite 重建校验和验收通过
+- Phase 3-C1 功能提交 `05adaf7` 已推送 main，Actions run `29314452641` 的 test / Docker production smoke 均通过
 - 当前发布准备与本地验收完成后仍需单独发布指令；N100 部署须等待用户明确授权
 
 ---
