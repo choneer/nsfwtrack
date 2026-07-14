@@ -1100,6 +1100,7 @@ K1 审计结论：
 - A3-A6、B1-B6、C1-C2、媒体库、上传、Data Health、备份与导入组合回归 `261 passed`
 - 全量 `538 passed`，`pip check` 无依赖冲突
 - 隔离 Docker image build 通过，Compose healthy，`/login` 200，未登录跳过项页 303，down 清理完成
+- 功能提交 `c591ca4` 已推送 main，Actions run `29321642902` 的 test / Docker production smoke 均通过
 
 ---
 

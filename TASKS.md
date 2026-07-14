@@ -35,6 +35,7 @@ N100 / 目标主机部署尚未开始，**不是当前开发任务**，必须等
 - [x] C3 专项 `8 passed`，目录替换竞态、零内容读取、汇总一致性与页面零写入均通过
 - [x] A3-A6、B1-B6、C1-C2、媒体库、上传、Data Health、备份与导入组合回归 `261 passed`
 - [x] 全量 `538 passed`、`pip check`、隔离 Docker build / healthy / `/login` 200 / 未登录跳过项页 303 / down 清理通过
+- [x] 功能提交 `c591ca4` 已推送 main，Actions run `29321642902` 的 test / Docker production smoke 均通过
 
 ### Phase 3-C2 上传残留文件手动清理（Unreleased）
 

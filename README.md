@@ -346,6 +346,10 @@ broken requirements. The production image builds, Compose reaches healthy,
 `/login` returns HTTP 200, the protected skip page redirects unauthenticated
 requests, and the isolated acceptance stack is removed cleanly.
 
+Feature commit `c591ca4` is pushed to `main`. GitHub Actions run
+[`29321642902`](https://github.com/choneer/nsfwtrack/actions/runs/29321642902)
+completed successfully for both `test` and `Docker production smoke`.
+
 ## Features in v1.0.5
 
 `v1.0.5` publishes the complete local-only Phase 3-A line while preserving the
