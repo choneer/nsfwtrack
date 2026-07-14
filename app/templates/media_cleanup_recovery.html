@@ -107,6 +107,13 @@
           <p class="muted">{{ t("media_recovery.no_references") }}</p>
         {% endif %}
       </div>
+      {% if row.entry.media_path in recovery_preview_urls %}
+        <div class="actions">
+          <a class="button" href="{{ recovery_preview_urls[row.entry.media_path] }}">{{ t("media_recovery.preview_restore") }}</a>
+        </div>
+      {% elif row.entry.is_cleanup_anchor %}
+        <p class="muted">{{ t("media_recovery.restore_unavailable") }}</p>
+      {% endif %}
     </article>
   {% else %}
     <section class="card empty-state">

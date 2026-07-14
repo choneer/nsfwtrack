@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from app import models
 from app.schemas import ItemCreate, ItemUpdate, StateCreate
+from app.services.local_media import is_cleanup_anchor_filename
 
 
 def clean_name(value: str) -> str:
@@ -143,6 +144,12 @@ def update_item(db: Session, item: models.Item, payload: ItemUpdate) -> models.I
     if "title" in update_data:
         item.title = update_data["title"]
     if "cover_path" in update_data:
+        if (
+            update_data["cover_path"] != item.cover_path
+            and update_data["cover_path"] is not None
+            and is_cleanup_anchor_filename(update_data["cover_path"])
+        ):
+            raise ValueError("cleanup anchors are internal media")
         item.cover_path = update_data["cover_path"]
     if "summary" in update_data:
         item.summary = update_data["summary"]

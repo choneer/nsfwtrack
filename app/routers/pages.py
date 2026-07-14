@@ -114,6 +114,7 @@ from app.services.local_media import (
     LocalMediaPathError,
     LocalMediaScan,
     LocalMediaUploadError,
+    is_cleanup_anchor_filename,
     local_media_url,
     normalize_local_media_path,
     resolve_local_media_file,
@@ -141,6 +142,11 @@ from app.services.media_cleanup_recovery import (
     MEDIA_RECOVERY_STATUS_OPTIONS,
     media_recovery_filter_query_params,
     query_media_cleanup_recovery,
+)
+from app.services.media_cleanup_restore import (
+    MediaCleanupRestoreError,
+    build_media_cleanup_restore_preview,
+    execute_media_cleanup_restore,
 )
 from app.services.media_library_query import (
     MEDIA_SORT_OPTIONS,
@@ -459,6 +465,21 @@ def media_cleanup_recovery_page(
         sort=recovery_sort,
         page=recovery_page,
     )
+    recovery_preview_urls = {
+        row.entry.media_path: (
+            "/media-library/recovery/preview?"
+            + urlencode(
+                {
+                    "media_path": row.entry.media_path,
+                    "sha256": row.entry.sha256,
+                }
+            )
+        )
+        for row in result.rows
+        if row.entry.is_cleanup_anchor
+        and row.entry.available
+        and row.entry.sha256
+    }
     return templates.TemplateResponse(
         request,
         "media_cleanup_recovery.html",
@@ -468,6 +489,7 @@ def media_cleanup_recovery_page(
             recovery_result=result,
             recovery_status_options=MEDIA_RECOVERY_STATUS_OPTIONS,
             recovery_sort_options=MEDIA_RECOVERY_SORT_OPTIONS,
+            recovery_preview_urls=recovery_preview_urls,
             recovery_pagination=_page_context(
                 result.page_info,
                 "/media-library/recovery",
@@ -477,6 +499,118 @@ def media_cleanup_recovery_page(
             error_key=error_key,
         ),
     )
+
+
+def _media_cleanup_restore_preview_url(
+    media_path: str | None,
+    sha256: str | None,
+) -> str:
+    return "/media-library/recovery/preview?" + urlencode(
+        {"media_path": media_path or "", "sha256": sha256 or ""}
+    )
+
+
+@router.get(
+    "/media-library/recovery/preview",
+    response_class=HTMLResponse,
+    dependencies=[Depends(require_page_auth)],
+)
+def media_cleanup_restore_preview_page(
+    request: Request,
+    media_path: str | None = Query(default=None),
+    sha256: str | None = Query(default=None),
+    db: Session = Depends(get_db),
+) -> HTMLResponse:
+    preview = None
+    error_key = None
+    try:
+        preview = build_media_cleanup_restore_preview(
+            db,
+            media_path=media_path,
+            sha256=sha256,
+        )
+    except MediaCleanupRestoreError as exc:
+        error_key = f"media_cleanup_restore.error_{exc.code}"
+    return templates.TemplateResponse(
+        request,
+        "media_cleanup_restore_preview.html",
+        _base_context(
+            request,
+            db=db,
+            restore_preview=preview,
+            error_key=error_key,
+        ),
+        status_code=200 if preview is not None else 400,
+    )
+
+
+@router.post(
+    "/media-library/recovery/restore",
+    dependencies=[Depends(require_page_auth)],
+)
+def media_cleanup_restore_page(
+    request: Request,
+    media_path: str = Form(...),
+    sha256: str = Form(...),
+    expected_size: str = Form(...),
+    expected_device: str = Form(...),
+    expected_inode: str = Form(...),
+    expected_modified_ns: str = Form(...),
+    expected_changed_ns: str = Form(...),
+    confirm: str | None = Form(default=None),
+    confirmation_text: str | None = Form(default=None),
+    db: Session = Depends(get_db),
+) -> RedirectResponse:
+    preview_url = _media_cleanup_restore_preview_url(media_path, sha256)
+    if not _danger_confirmation_is_valid(
+        request,
+        get_danger_policy(db),
+        confirmation_text=confirmation_text,
+        base_confirmation_valid=confirm == "1",
+    ):
+        return _redirect(preview_url)
+    try:
+        result = execute_media_cleanup_restore(
+            db,
+            media_path=media_path,
+            sha256=sha256,
+            expected_size=expected_size,
+            expected_device=expected_device,
+            expected_inode=expected_inode,
+            expected_modified_ns=expected_modified_ns,
+            expected_changed_ns=expected_changed_ns,
+        )
+    except MediaCleanupRestoreError as exc:
+        add_flash(
+            request,
+            "error",
+            f"flash.media_cleanup_restore_{exc.code}",
+        )
+        return _redirect("/media-library/recovery")
+    add_flash(
+        request,
+        "success",
+        "flash.media_cleanup_restore_success",
+        recovered_path=result.recovered_path,
+        items=result.migrated_items,
+        creators=result.migrated_creators,
+    )
+    if not result.anchor_removed:
+        add_flash(
+            request,
+            "info",
+            "flash.media_cleanup_restore_anchor_retained",
+            anchor_path=result.anchor_retained_path or result.anchor_path,
+            code=result.anchor_removal_code or "delete_failed",
+        )
+    elif result.anchor_removal_code:
+        add_flash(
+            request,
+            "info",
+            "flash.media_cleanup_restore_anchor_warning",
+            code=result.anchor_removal_code,
+        )
+    return _redirect("/media-library/recovery")
 
 
 @router.get(
@@ -955,6 +1089,8 @@ def _validated_library_media_path(media_path: str) -> str:
     normalized = normalize_local_media_path(media_path)
     if normalized is None:
         raise LocalMediaPathError("invalid local media path")
+    if is_cleanup_anchor_filename(normalized):
+        raise LocalMediaPathError("cleanup anchors are internal media")
     resolve_local_media_file(normalized.removeprefix("/media/"))
     return normalized
 

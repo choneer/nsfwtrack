@@ -17,6 +17,13 @@
   path/SHA search, stable sorting, status filters, and 20-row pagination.
 - Added data-health findings for referenced, unreferenced, and damaged cleanup
   anchors, with a direct link to the recovery center and no automatic fix.
+- Added the authenticated Phase 3-B5 single-anchor restore preview. It shows
+  the complete SHA-256, path, device, inode, size, mtime, ctime, current item
+  cover / creator avatar references, and explicit restore consequences without
+  writing on GET.
+- Added manually confirmed restoration of one valid cleanup anchor to a unique
+  no-overwrite `recovered-*` ordinary-media path, including transactional
+  migration of every current cover/avatar reference.
 
 ### Fixed
 
@@ -44,6 +51,13 @@
 - Files whose basename starts exactly with `recovered-` remain ordinary media,
   participate in existing duplicate/candidate behavior, and gain a dedicated
   library filter, badge, and recovery-center status.
+- Recovery publication now verifies the submitted anchor's complete identity,
+  fsyncs the published file and containing directory, rechecks both hard-link
+  identities around the database transaction, and removes the original anchor
+  only after a final zero-reference check.
+- Ordinary interactive item/creator create, edit, and media-assignment paths
+  cannot create new references to internal cleanup anchors. Existing internal
+  references and backup/B3 compatibility remain intact.
 
 ### Security
 
@@ -62,8 +76,17 @@
 - B4 classification is anchored to the case-sensitive basename prefix rather
   than a fuzzy contains check; lookalike filenames and prefix-named directories
   remain ordinary media. Recovery-center and data-health GET requests perform
-  no file or database mutation and expose no delete, move, rename, migration,
-  or automatic-repair operation.
+  no file or database mutation. B5 restoration is isolated behind its own
+  preview and confirmed POST; neither view adds move, rename, or automatic
+  repair.
+- B5 restore execution requires login, POST, browser/server confirmation, and
+  exact `CONFIRM` in strict mode. Submission rescans and rejects damaged,
+  symlinked, wrong-extension, stale, forged, changed, non-anchor, and
+  `recovered-*` targets before publication or reference migration.
+- Database failure rolls back every reference and identity-check deletes the
+  newly published recovery path. If final anchor deletion fails, references
+  remain committed to the valid same-SHA recovery file and the retained anchor
+  is reported instead of discarding content or retrying automatically.
 
 ## [1.0.6] - 2026-07-13
 

@@ -72,7 +72,14 @@ def update_item_endpoint(
     db: Session = Depends(get_db),
 ) -> dict[str, object]:
     item = get_item_or_404(db, item_id)
-    return item_to_dict(update_item(db, item, payload))
+    try:
+        updated = update_item(db, item, payload)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="Invalid cover path",
+        ) from exc
+    return item_to_dict(updated)
 
 
 @router.delete("/{item_id}")

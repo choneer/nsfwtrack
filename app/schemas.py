@@ -5,7 +5,10 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from app.services.local_media import normalize_local_media_path
+from app.services.local_media import (
+    normalize_interactive_local_media_path,
+    normalize_local_media_path,
+)
 
 
 StatusValue = Literal["wish", "watching", "watched", "like", "dislike", "ignore"]
@@ -72,7 +75,10 @@ class CreatorBase(BaseModel):
 
 
 class CreatorCreate(CreatorBase):
-    pass
+    @field_validator("avatar_path")
+    @classmethod
+    def reject_internal_avatar_path(cls, value: str | None) -> str | None:
+        return normalize_interactive_local_media_path(value)
 
 
 class CreatorUpdate(BaseModel):
@@ -150,6 +156,11 @@ class ItemBase(BaseModel):
 class ItemCreate(ItemBase):
     tags: list[str] = Field(default_factory=list)
     creators: list[str] = Field(default_factory=list)
+
+    @field_validator("cover_path")
+    @classmethod
+    def reject_internal_cover_path(cls, value: str | None) -> str | None:
+        return normalize_interactive_local_media_path(value)
 
 
 class ItemUpdate(BaseModel):

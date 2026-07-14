@@ -351,6 +351,22 @@ def _record_matches_stat(
     )
 
 
+def same_local_media_file_identity(
+    first: ValidatedLocalMediaFile,
+    second: ValidatedLocalMediaFile,
+) -> bool:
+    return (
+        first.media_path == second.media_path
+        and first.path == second.path
+        and first.sha256 == second.sha256
+        and first.size == second.size
+        and first.device == second.device
+        and first.inode == second.inode
+        and first.modified_ns == second.modified_ns
+        and first.changed_ns == second.changed_ns
+    )
+
+
 def _read_validated_record_content(record: ValidatedLocalMediaFile) -> bytes:
     flags = os.O_RDONLY
     if hasattr(os, "O_CLOEXEC"):
@@ -454,6 +470,8 @@ def publish_local_media_safety_anchor(
         )
     except LocalMediaPathError as exc:
         raise LocalMediaSafetyAnchorError("anchor_changed") from exc
+    if not same_local_media_file_identity(anchor, current_anchor):
+        raise LocalMediaSafetyAnchorError("anchor_changed")
     target_path = current_anchor.path.parent / target_pure_path.name
     flags = os.O_RDONLY
     if hasattr(os, "O_DIRECTORY"):
@@ -480,7 +498,31 @@ def publish_local_media_safety_anchor(
         except OSError as exc:
             raise LocalMediaSafetyAnchorError("publish_failed") from exc
         try:
+            target_fd_flags = os.O_RDONLY
+            if hasattr(os, "O_CLOEXEC"):
+                target_fd_flags |= os.O_CLOEXEC
+            if hasattr(os, "O_NOFOLLOW"):
+                target_fd_flags |= os.O_NOFOLLOW
+            target_fd = os.open(
+                target_path.name,
+                target_fd_flags,
+                dir_fd=directory_fd,
+            )
+            try:
+                target_stat = os.fstat(target_fd)
+                if (
+                    not stat.S_ISREG(target_stat.st_mode)
+                    or target_stat.st_dev != current_anchor.device
+                    or target_stat.st_ino != current_anchor.inode
+                    or target_stat.st_size != current_anchor.size
+                ):
+                    raise LocalMediaSafetyAnchorError("publish_failed")
+                os.fsync(target_fd)
+            finally:
+                os.close(target_fd)
             os.fsync(directory_fd)
+        except LocalMediaSafetyAnchorError:
+            raise
         except OSError as exc:
             raise LocalMediaSafetyAnchorError("sync_failed") from exc
     except Exception:
@@ -638,6 +680,13 @@ def is_cleanup_anchor_filename(value: str) -> bool:
 
 def is_recovered_media_filename(value: str) -> bool:
     return _has_exact_media_prefix(value, LOCAL_MEDIA_RECOVERY_PREFIX)
+
+
+def normalize_interactive_local_media_path(value: str | None) -> str | None:
+    normalized = normalize_local_media_path(value)
+    if normalized is not None and is_cleanup_anchor_filename(normalized):
+        raise LocalMediaPathError("cleanup anchors are internal media")
+    return normalized
 
 
 def _iter_media_files(
