@@ -1104,6 +1104,7 @@ K1 审计结论：
 - 全量 `540 passed`，`pip check` 无依赖冲突
 - 隔离 Docker image build 通过，Compose healthy，`/login` 200，未登录跳过项页 303，down 清理完成
 - 功能提交 `c591ca4` 已推送 main，Actions run `29321642902` 的 test / Docker production smoke 均通过
+- 父路径竞态修复提交 `c27676f` 已推送 main，Actions run `29332762558` 的 test / Docker production smoke 均通过
 
 ---
 

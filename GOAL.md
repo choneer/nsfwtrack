@@ -56,3 +56,5 @@
 - Docker：修复后 image build、Compose healthy、`/login` 200、未登录跳过项页 303、down 清理均通过
 - 功能提交：`c591ca4`，已推送 `main`
 - GitHub Actions：run `29321642902` 的 `test` 与 `Docker production smoke` 均通过
+- 父路径竞态修复提交：`c27676f`，已推送 `main`
+- 修复提交 Actions：run `29332762558` 的 `test` 与 `Docker production smoke` 均通过

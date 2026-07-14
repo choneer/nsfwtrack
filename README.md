@@ -359,6 +359,13 @@ Feature commit `c591ca4` is pushed to `main`. GitHub Actions run
 [`29321642902`](https://github.com/choneer/nsfwtrack/actions/runs/29321642902)
 completed successfully for both `test` and `Docker production smoke`.
 
+Parent-path race fix commit `c27676f` is pushed to `main`. The new regression
+proves that replacing an already opened child-directory path with an external
+symlink never reads or hashes the same-name external image and never adds it to
+`scan.entries`. GitHub Actions run
+[`29332762558`](https://github.com/choneer/nsfwtrack/actions/runs/29332762558)
+completed successfully for both jobs.
+
 ## Features in v1.0.5
 
 `v1.0.5` publishes the complete local-only Phase 3-A line while preserving the
