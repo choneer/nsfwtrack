@@ -38,6 +38,15 @@
   media. Replacement candidates support path/SHA search, stable ordering, and
   fixed 20-row pagination; valid `recovered-*` remains eligible while cleanup
   anchors are excluded.
+- Added the authenticated Phase 3-C2 single-upload-residue delete preview for
+  Data Health `media_upload_residue` findings. GET shows the exact relative
+  path, size, device, inode, mtime, ctime, current cover/avatar references, and
+  irreversible consequences without reading temporary-file content or writing
+  to the file system or database.
+- Added manually confirmed deletion of exactly one regular non-symlink file
+  whose basename case-sensitively matches `.upload-*.tmp`, including a locked
+  zero-reference recheck, complete-identity revalidation, identity-bound
+  unlink, and containing-directory fsync.
 
 ### Fixed
 
@@ -80,6 +89,10 @@
   behind its own single-object preview and confirmed POST. Submission uses a
   conditional update for exactly one `item.cover_path` or
   `creator.avatar_path`; no media file operation is part of the transaction.
+- Data Health now exposes a separate C2 action only for exact upload-residue
+  findings. Referenced residues show C1 guidance and no delete form; C2 never
+  reads, parses, restores, or copies temporary content, changes a reference,
+  creates `recovered-*`, or performs automatic or batch cleanup.
 
 ### Security
 
@@ -125,6 +138,16 @@
   conditional update. Stale, forged, healthy-target, changed-file, and cleanup
   anchor requests are rejected; database failure rolls back the update and no
   file is modified, deleted, moved, or renamed.
+- C2 deletion requires login, POST, browser/server confirmation, and exact
+  `CONFIRM` in strict mode. It accepts only a Data Health-reported exact
+  `.upload-*.tmp` basename and rejects lookalikes, illegal/escaping paths,
+  directories, symlinks, missing files, forged snapshots, and stale identity.
+- C2 releases the preview transaction before `BEGIN IMMEDIATE`, then rechecks
+  both relative and `/media/` cover/avatar reference forms under the write
+  lock. A racing reference, lock/query failure, identity change, or unlink
+  failure leaves the target and database unchanged. If unlink succeeds but
+  directory fsync fails, the response accurately reports the removed file and
+  durability warning.
 
 ## [1.0.6] - 2026-07-13
 

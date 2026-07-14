@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% from "_danger_notice.html" import danger_notice %}
+{% block title %}{{ t("media_upload_residue_cleanup.title") }} - NSFWTrack{% endblock %}
+{% block content %}
+<div class="toolbar">
+  <div>
+    <p class="muted">{{ t("media_upload_residue_cleanup.local_only") }}</p>
+    <h1>{{ t("media_upload_residue_cleanup.title") }}</h1>
+    <p class="muted">{{ t("media_upload_residue_cleanup.description") }}</p>
+  </div>
+  <div class="actions">
+    <a class="button secondary" href="/data-health">{{ t("media_upload_residue_cleanup.back") }}</a>
+  </div>
+</div>
+
+{% if error_key %}
+  <div class="flash error">{{ t(error_key) }}</div>
+{% endif %}
+
+{% if residue_preview %}
+  <section class="notice warning">
+    <strong>{{ t("media_upload_residue_cleanup.warning_title") }}</strong>
+    <p>{{ t("media_upload_residue_cleanup.warning_detail") }}</p>
+  </section>
+
+  <section class="card stack" data-upload-residue-preview>
+    <div class="toolbar">
+      <h2>{{ t("media_upload_residue_cleanup.identity_title") }}</h2>
+      <span class="pill">{{ t("media_upload_residue_cleanup.valid_residue") }}</span>
+    </div>
+    <dl class="settings-summary">
+      <dt>{{ t("media_upload_residue_cleanup.path") }}</dt>
+      <dd><code data-residue-path>{{ residue_preview.residue.residue_path }}</code></dd>
+      <dt>{{ t("media_upload_residue_cleanup.reference_path") }}</dt>
+      <dd><code>{{ residue_preview.residue.media_path }}</code></dd>
+      <dt>{{ t("media_upload_residue_cleanup.size") }}</dt>
+      <dd data-residue-size>{{ residue_preview.residue.size }} B</dd>
+      <dt>{{ t("media_upload_residue_cleanup.device") }}</dt>
+      <dd><code data-residue-device>{{ residue_preview.residue.device }}</code></dd>
+      <dt>{{ t("media_upload_residue_cleanup.inode") }}</dt>
+      <dd><code data-residue-inode>{{ residue_preview.residue.inode }}</code></dd>
+      <dt>{{ t("media_upload_residue_cleanup.modified_ns") }}</dt>
+      <dd><code data-residue-modified>{{ residue_preview.residue.modified_ns }}</code></dd>
+      <dt>{{ t("media_upload_residue_cleanup.changed_ns") }}</dt>
+      <dd><code data-residue-changed>{{ residue_preview.residue.changed_ns }}</code></dd>
+    </dl>
+  </section>
+
+  <section class="card stack">
+    <h2>{{ t("media_upload_residue_cleanup.references_title", count=residue_preview.reference_count) }}</h2>
+    {% if residue_preview.reference_count %}
+      <div class="notice">
+        <strong>{{ t("media_upload_residue_cleanup.referenced_warning") }}</strong>
+        <p>{{ t("media_upload_residue_cleanup.referenced_hint") }}</p>
+      </div>
+      {% for item in residue_preview.item_references %}
+        <div class="relation-row">
+          <span>{{ t("data_health.object_item_cover") }} #{{ item.id }} · {{ item.title }}</span>
+          <code>{{ item.value }}</code>
+        </div>
+      {% endfor %}
+      {% for creator in residue_preview.creator_references %}
+        <div class="relation-row">
+          <span>{{ t("data_health.object_creator_avatar") }} #{{ creator.id }} · {{ creator.name }}</span>
+          <code>{{ creator.value }}</code>
+        </div>
+      {% endfor %}
+    {% else %}
+      <p class="muted">{{ t("media_upload_residue_cleanup.no_references") }}</p>
+    {% endif %}
+  </section>
+
+  <section class="card stack">
+    <h2>{{ t("media_upload_residue_cleanup.consequences_title") }}</h2>
+    <ul>
+      <li>{{ t("media_upload_residue_cleanup.consequence_permanent") }}</li>
+      <li>{{ t("media_upload_residue_cleanup.consequence_no_content_read") }}</li>
+      <li>{{ t("media_upload_residue_cleanup.consequence_no_references") }}</li>
+      <li>{{ t("media_upload_residue_cleanup.consequence_recheck") }}</li>
+    </ul>
+    {{ danger_notice(t, danger_policy, "danger.object_upload_residue", "danger.consequence_upload_residue", "danger.deletion_upload_residue", "danger.recovery_upload_residue", true, "danger.backup_media_body") }}
+    {% if not residue_preview.reference_count %}
+      <form action="/data-health/upload-residue/delete" method="post">
+        <input type="hidden" name="residue_path" value="{{ residue_preview.residue.residue_path }}">
+        <input type="hidden" name="expected_size" value="{{ residue_preview.residue.size }}">
+        <input type="hidden" name="expected_device" value="{{ residue_preview.residue.device }}">
+        <input type="hidden" name="expected_inode" value="{{ residue_preview.residue.inode }}">
+        <input type="hidden" name="expected_modified_ns" value="{{ residue_preview.residue.modified_ns }}">
+        <input type="hidden" name="expected_changed_ns" value="{{ residue_preview.residue.changed_ns }}">
+        <input type="hidden" name="confirm" value="1">
+        <button
+          class="danger"
+          type="submit"
+          data-confirm-message="{{ t('media_upload_residue_cleanup.confirm') }}"
+          {% if danger_policy.is_strict %}data-strict-confirm-message="{{ t('danger.strict_prompt') }}"{% endif %}
+        >{{ t("media_upload_residue_cleanup.submit") }}</button>
+      </form>
+    {% endif %}
+  </section>
+{% endif %}
+{% endblock %}

@@ -172,6 +172,11 @@ from app.services.media_reference_repair import (
     execute_media_reference_repair,
     is_repairable_media_reference_issue,
 )
+from app.services.media_upload_residue_cleanup import (
+    MediaUploadResidueCleanupError,
+    build_media_upload_residue_cleanup_preview,
+    execute_media_upload_residue_cleanup,
+)
 from app.services.metadata_cleanup import (
     MetadataCleanupError,
     find_metadata_cleanup_candidates,
@@ -1871,6 +1876,15 @@ def data_health_page(request: Request, db: Session = Depends(get_db)) -> HTMLRes
             issue_code=issue.code,
         )
     }
+    upload_residue_cleanup_urls = {
+        issue.object_id: (
+            "/data-health/upload-residue/delete-preview?"
+            + urlencode({"residue_path": issue.object_id})
+        )
+        for issue in report.issues
+        if issue.code == "media_upload_residue"
+        and issue.object_type == "media_file"
+    }
     return templates.TemplateResponse(
         request,
         "data_health.html",
@@ -1880,8 +1894,105 @@ def data_health_page(request: Request, db: Session = Depends(get_db)) -> HTMLRes
             report=report,
             fix_options=build_data_health_fix_options(report),
             media_reference_repair_urls=media_reference_repair_urls,
+            upload_residue_cleanup_urls=upload_residue_cleanup_urls,
         ),
     )
+
+
+def _upload_residue_delete_preview_url(residue_path: str | None) -> str:
+    return "/data-health/upload-residue/delete-preview?" + urlencode(
+        {"residue_path": residue_path or ""}
+    )
+
+
+@router.get(
+    "/data-health/upload-residue/delete-preview",
+    response_class=HTMLResponse,
+    dependencies=[Depends(require_page_auth)],
+)
+def media_upload_residue_cleanup_preview_page(
+    request: Request,
+    residue_path: str | None = Query(default=None),
+    db: Session = Depends(get_db),
+) -> HTMLResponse:
+    preview = None
+    error_key = None
+    try:
+        preview = build_media_upload_residue_cleanup_preview(
+            db,
+            residue_path=residue_path,
+        )
+    except MediaUploadResidueCleanupError as exc:
+        error_key = f"media_upload_residue_cleanup.error_{exc.code}"
+    return templates.TemplateResponse(
+        request,
+        "media_upload_residue_cleanup_preview.html",
+        _base_context(
+            request,
+            db=db,
+            residue_preview=preview,
+            error_key=error_key,
+        ),
+        status_code=200 if preview is not None else 400,
+    )
+
+
+@router.post(
+    "/data-health/upload-residue/delete",
+    dependencies=[Depends(require_page_auth)],
+)
+def media_upload_residue_cleanup_page(
+    request: Request,
+    residue_path: str = Form(...),
+    expected_size: str = Form(...),
+    expected_device: str = Form(...),
+    expected_inode: str = Form(...),
+    expected_modified_ns: str = Form(...),
+    expected_changed_ns: str = Form(...),
+    confirm: str | None = Form(default=None),
+    confirmation_text: str | None = Form(default=None),
+    db: Session = Depends(get_db),
+) -> RedirectResponse:
+    preview_url = _upload_residue_delete_preview_url(residue_path)
+    if not _danger_confirmation_is_valid(
+        request,
+        get_danger_policy(db),
+        confirmation_text=confirmation_text,
+        base_confirmation_valid=confirm == "1",
+    ):
+        return _redirect(preview_url)
+    try:
+        result = execute_media_upload_residue_cleanup(
+            db,
+            residue_path=residue_path,
+            expected_size=expected_size,
+            expected_device=expected_device,
+            expected_inode=expected_inode,
+            expected_modified_ns=expected_modified_ns,
+            expected_changed_ns=expected_changed_ns,
+        )
+    except MediaUploadResidueCleanupError as exc:
+        add_flash(
+            request,
+            "error",
+            f"flash.media_upload_residue_cleanup_{exc.code}",
+        )
+        return _redirect("/data-health")
+    add_flash(
+        request,
+        "success",
+        "flash.media_upload_residue_cleanup_success",
+        deleted_path=result.deleted_path,
+        size=result.size,
+    )
+    if result.warning_code:
+        add_flash(
+            request,
+            "info",
+            "flash.media_upload_residue_cleanup_warning",
+            code=result.warning_code,
+        )
+    return _redirect("/data-health")
 
 
 def _media_reference_repair_preview_url(

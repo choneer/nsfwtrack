@@ -21,6 +21,8 @@ MAX_MEDIA_UPLOAD_BYTES = 10 * 1024 * 1024
 MAX_MEDIA_UPLOAD_FILES = 20
 LOCAL_MEDIA_CLEANUP_ANCHOR_PREFIX = ".cleanup-anchor-"
 LOCAL_MEDIA_RECOVERY_PREFIX = "recovered-"
+LOCAL_MEDIA_UPLOAD_RESIDUE_PREFIX = ".upload-"
+LOCAL_MEDIA_UPLOAD_RESIDUE_SUFFIX = ".tmp"
 _MIME_BY_FORMAT = {
     "avif": "image/avif",
     "gif": "image/gif",
@@ -680,6 +682,17 @@ def is_cleanup_anchor_filename(value: str) -> bool:
 
 def is_recovered_media_filename(value: str) -> bool:
     return _has_exact_media_prefix(value, LOCAL_MEDIA_RECOVERY_PREFIX)
+
+
+def is_upload_residue_filename(value: str) -> bool:
+    name = PurePosixPath(value).name
+    return (
+        name.startswith(LOCAL_MEDIA_UPLOAD_RESIDUE_PREFIX)
+        and name.endswith(LOCAL_MEDIA_UPLOAD_RESIDUE_SUFFIX)
+        and len(name)
+        > len(LOCAL_MEDIA_UPLOAD_RESIDUE_PREFIX)
+        + len(LOCAL_MEDIA_UPLOAD_RESIDUE_SUFFIX)
+    )
 
 
 def normalize_interactive_local_media_path(value: str | None) -> str | None:

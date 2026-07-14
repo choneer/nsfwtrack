@@ -2,15 +2,15 @@
 
 NSFWTrack is a local single-user content record manager / collection tracker.
 
-Current application version: `v1.0.6 / Phase 3-B3 through C1 in Unreleased`.
+Current application version: `v1.0.6 / Phase 3-B3 through C2 in Unreleased`.
 
 Current stable version: `v1.0.6 / Phase 3-B1 and B2`.
 
 Latest Release: [NSFWTrack v1.0.6](https://github.com/choneer/nsfwtrack/releases/tag/v1.0.6).
 
-Current status: `v1.0.6 is released; Phase 3-B3 through B6 media cleanup and Phase 3-C1 broken-reference repair are complete in Unreleased`.
+Current status: `v1.0.6 is released; Phase 3-B3 through B6 media cleanup and Phase 3-C1/C2 Data Health manual maintenance are complete in Unreleased`.
 
-Current development: `Phase 3-B1 and B2 are published; Phase 3-C1 keeps
+Current development: `Phase 3-B1 and B2 are published; Phase 3-C2 keeps
 application version 1.0.6 and Schema 2`.
 
 N100 deployment: `not started; waits for explicit user authorization`.
@@ -39,7 +39,9 @@ Phase 3-B1 and B2 duplicate-media views shipped in `v1.0.6`. Phase 3-B3 is
 complete in Unreleased; Phase 3-B4 adds read-only recovery visibility and B5
 adds explicit single-anchor restoration. B6 adds confirmed permanent deletion
 only for legal zero-reference anchors. C1 adds explicit single cover/avatar
-reference replacement or clearing without changing any media file.
+reference replacement or clearing without changing any media file. C2 adds
+explicit deletion of one exact, unreferenced `.upload-*.tmp` residue without
+reading its content or modifying database references.
 
 ## v1.0.6 Release
 
@@ -260,6 +262,44 @@ passes two healthy lifecycles with login, authentication, Data Health, preview,
 confirmed replacement, and confirmed clearing returning HTTP 200. The repaired
 references persist across recreation, every media checksum remains unchanged,
 the SQLite checksum is stable, and runtime hardening remains active.
+
+### Phase 3-C2 Upload Residue Manual Cleanup
+
+The current Unreleased Phase 3-C2 gives each exact `media_upload_residue`
+finding in Data Health a deliberately narrow, manual permanent-delete flow:
+
+- Only a regular, non-symlink file whose basename case-sensitively matches
+  `.upload-*.tmp` is eligible. Empty-middle names, lookalikes, directories,
+  symbolic links, missing paths, escaping paths, and forged targets are denied.
+- The authenticated GET preview displays the relative path, size, device,
+  inode, mtime, ctime, current cover/avatar references, and exact consequences.
+  It writes nothing and never reads, parses, restores, or copies temporary-file
+  content.
+- A referenced residue exposes C1 guidance rather than a delete form. C2 never
+  migrates, clears, or otherwise changes a database reference.
+- Confirmed POST uses the existing standard/strict danger policy and compares
+  every submitted identity field against a fresh observation.
+- The service ends the preview transaction, acquires `BEGIN IMMEDIATE`, and
+  checks both item-cover and creator-avatar references again under the write
+  lock. A reference added after preview rejects the operation before unlink.
+- It revalidates the complete identity under the same lock, unlinks only the
+  selected directory entry by directory fd, then fsyncs the containing
+  directory. No `recovered-*` copy is created.
+- A lock, reference-query, identity, or unlink failure retains the target and
+  leaves the database unchanged. If unlink succeeds but directory fsync fails,
+  the result explicitly reports that the file was removed with a durability
+  warning.
+
+C2 adds no automatic or batch cleanup, content recovery, network request,
+AI/image recognition, dependency, database change, or migration. Application
+version 1.0.6, Schema 2, Docker/CI, tags, Releases, backup formats, and N100
+deployment remain unchanged.
+
+C2 focused acceptance passes 22 tests. The explicit C1/B3-B6/upload/Data
+Health/backup/import regression passes 253 tests, the full suite passes 530
+tests, and `pip check` reports no conflicts. The production Docker image builds
+successfully; Compose reaches healthy state, `/login` returns HTTP 200, and the
+acceptance stack is removed cleanly.
 
 ## Features in v1.0.5
 

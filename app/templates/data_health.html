@@ -148,8 +148,11 @@
               </td>
               <td>
                 {% set repair_url = media_reference_repair_urls.get((issue.object_type, issue.object_id, issue.code)) %}
+                {% set residue_url = upload_residue_cleanup_urls.get(issue.object_id) if issue.code == "media_upload_residue" else none %}
                 {% if repair_url %}
                   <a class="button secondary" href="{{ repair_url }}">{{ t("data_health.repair_media_reference") }}</a>
+                {% elif residue_url %}
+                  <a class="button danger" href="{{ residue_url }}">{{ t("data_health.preview_upload_residue_cleanup") }}</a>
                 {% else %}
                   <span class="muted">{{ t("common.none") }}</span>
                 {% endif %}

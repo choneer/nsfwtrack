@@ -2,10 +2,10 @@
 
 按顺序执行，每完成一项打个 [x]。
 
-## 当前状态（v1.0.6 已发布，Phase 3-C1 已完成于 Unreleased）
+## 当前状态（v1.0.6 已发布，Phase 3-C2 已完成于 Unreleased）
 
 当前稳定版与最新 Release：`v1.0.6`。Phase 3-B1 / B2 已正式发布，
-Phase 3-B3 / B4 / B5 / B6 / C1 已完成并位于 Unreleased，应用 Schema 仍为 `2`。
+Phase 3-B3 / B4 / B5 / B6 / C1 / C2 已完成并位于 Unreleased，应用 Schema 仍为 `2`。
 
 - Annotated tag object：`d4d5c31cd5b2fed9a90ad69742d54b4c9dbed0b4`
 - Peeled commit：`961a3d0cc169e82b261d83207b0ec802007e292b`
@@ -14,6 +14,25 @@ Phase 3-B3 / B4 / B5 / B6 / C1 已完成并位于 Unreleased，应用 Schema 仍
 N100 / 目标主机部署尚未开始，**不是当前开发任务**，必须等待用户明确授权。
 完整证据见 `COMPLETION_AUDIT.md`。历史任务保留在本文后半部分，
 不再作为新增开发路线。
+
+### Phase 3-C2 上传残留文件手动清理（Unreleased）
+
+- [x] Data Health 仅为 exact basename `.upload-*.tmp` 普通非符号链接残留提供单项入口
+- [x] 登录保护 GET 展示 path、size、device、inode、mtime、ctime、引用与后果并保持零写入
+- [x] GET 与 POST 均不读取、解析、恢复或复制临时文件内容
+- [x] 已引用目标显示 C1 指引且无删除表单，不自动迁移、清除或修改引用
+- [x] POST 复用 standard / strict `CONFIRM`，并逐字段重验完整身份快照
+- [x] 结束预览读事务后获取 `BEGIN IMMEDIATE`，锁内复核封面 / 头像引用均为零
+- [x] 最终身份重验后按目录 fd unlink 单个目标，并 fsync 所在目录
+- [x] 拒绝空中段、近似名称、目录、符号链接、非法 / 越界、缺失、陈旧、伪造和同路径替换
+- [x] 引用竞态在写锁内拒绝；目标与数据库引用均保持不变
+- [x] 锁、引用查询、身份和 unlink 失败均保留目标；fsync 失败明确报告目标已删除
+- [x] 成功后 Data Health 不再报告目标，非目标文件和全部数据库记录保持不变
+- [x] 不自动或批量清理，不创建恢复文件，不触碰普通媒体、cleanup anchor 或 `recovered-*`
+- [x] 同步中文 / English、模板、CHANGELOG Unreleased、README / PLAN / TASKS / REVIEW / GOAL 和专项测试
+- [x] C2 专项 `22 passed`，C1 / B3-B6 / 上传 / Data Health / 备份 / 导入组合回归 `253 passed`
+- [x] 全量 `530 passed`、pip check、Docker image build、Compose healthy、`/login` 200 与 down 清理通过
+- [x] 保持版本 1.0.6、Schema 2、迁移、依赖、Docker/CI、旧 tag / Release 和 N100 状态不变
 
 ### Phase 3-C1 断裂媒体引用手动修复（Unreleased）
 

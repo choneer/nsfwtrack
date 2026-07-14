@@ -181,8 +181,7 @@ def _find_upload_residues(root: Path) -> list[tuple[str, int]]:
                     pending.append(Path(entry.path))
                 elif (
                     entry.is_file(follow_symlinks=False)
-                    and entry.name.startswith(".upload-")
-                    and entry.name.endswith(".tmp")
+                    and local_media.is_upload_residue_filename(entry.name)
                 ):
                     path = Path(entry.path)
                     relative = path.relative_to(root).as_posix()
