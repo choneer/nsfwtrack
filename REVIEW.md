@@ -867,13 +867,15 @@ production smoke 均通过。
 - [x] **12.673. 本地验收是否通过** — B3-B6/C2/C4 98 passed、组合 363 passed、全量 582 passed、pip check 与 Docker/HTTP 冒烟通过
 - [x] **12.674. 范围边界是否保持** — 版本 1.0.6、Schema 2、迁移、依赖、Docker/CI、tag、Release 与 N100 均未改变
 - [x] **12.675. 完成度审计是否可复核** — `PHASE3_COMPLETION_AUDIT.md` 包含 workflow/finding 矩阵、真实修复、静态检查、回归与结论
-- [ ] **12.676. 远端交付是否闭合** — D1 提交需推送 main，GitHub Actions test / Docker production smoke 均成功后才能最终冻结
+- [x] **12.676. 远端交付是否闭合** — D1 提交 `d22d9d7` 已推送 main，Actions run `29350252749` 的 test / Docker production smoke 均成功
 
 本地证据：B3-B6/C2/C4 专项 `98 passed`；B3-C5、备份、导入、
 Schema 2、迁移、设置和 i18n 组合回归 `363 passed in 60.80s`；全量
 `582 passed in 142.47s`；`pip check` 无冲突。Docker build 通过，隔离
 Compose 为 healthy，`/login` 与认证后的 Data Health、媒体库、重复组、
 恢复中心和跳过项均为 HTTP 200，临时容器、网络和数据已清理。
+GitHub Actions run `29350252749` 的 `test` 与 `Docker production smoke`
+均为 success，D1 无剩余发布阻塞。
 
 ## 登录保护检查
 

@@ -5,7 +5,7 @@
 ## 当前状态（v1.0.6 已发布，Phase 3-D1 最终集成审查）
 
 当前稳定版与最新 Release：`v1.0.6`。Phase 3-B1 / B2 已正式发布，
-Phase 3-B3 / B4 / B5 / B6 / C1 / C2 / C3 / C4 / C5 已完成并位于 Unreleased；D1 本地审查与验收完成，等待推送后 Actions 证据，应用 Schema 仍为 `2`。
+Phase 3-B3 / B4 / B5 / B6 / C1 / C2 / C3 / C4 / C5 与 D1 最终集成审查均已完成并位于 Unreleased，应用 Schema 仍为 `2`。
 
 - Annotated tag object：`d4d5c31cd5b2fed9a90ad69742d54b4c9dbed0b4`
 - Peeled commit：`961a3d0cc169e82b261d83207b0ec802007e292b`
@@ -35,7 +35,7 @@ N100 / 目标主机部署尚未开始，**不是当前开发任务**，必须等
 - [x] Docker build、隔离 Compose healthy、`/login` 和认证媒体/Data Health 页面 HTTP 200，临时资源已清理
 - [x] 新增 `PHASE3_COMPLETION_AUDIT.md` 并同步 README / PLAN / TASKS / REVIEW / GOAL / CHANGELOG
 - [x] 保持应用版本 1.0.6、Schema 2、迁移、依赖、Docker/CI、旧 tag / Release 和 N100 状态不变
-- [ ] 提交推送并确认 GitHub Actions test / Docker production smoke
+- [x] 提交 `d22d9d7` 已推送，Actions run `29350252749` 的 test / Docker production smoke 均成功
 
 ### Phase 3-C5 媒体根目录诊断与安全初始化（Unreleased）
 

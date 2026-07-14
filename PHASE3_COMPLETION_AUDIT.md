@@ -140,14 +140,17 @@ external hard-link entries remain intact on every rejected path.
   `/media-library/duplicates`, `/media-library/recovery`, and
   `/media-library/skipped` all returned HTTP 200.
 - Compose container/network and isolated temporary data were removed.
-- GitHub Actions: `PENDING_AFTER_PUSH`.
+- GitHub Actions run
+  [`29350252749`](https://github.com/choneer/nsfwtrack/actions/runs/29350252749)
+  completed successfully for both `test` and `Docker production smoke` on D1
+  audit commit `d22d9d7`.
 
 ## Conclusion
 
-The reviewed Phase 3-B3 through C5 scope is locally complete and has no known
+The reviewed Phase 3-B3 through C5 scope is complete and has no known
 release-blocking functional, safety, navigation, i18n, backup/import, Schema 2,
-settings, dependency, or Docker regression. Development is frozen for release
-preparation after the pushed GitHub Actions test and Docker smoke jobs pass.
+settings, dependency, Docker, or CI regression. Development is frozen for
+separate release preparation.
 
 Release preparation remains a separate user-approved task. This audit creates
 no tag, GitHub Release, version change, or N100 deployment.
