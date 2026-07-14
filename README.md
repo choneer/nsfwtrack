@@ -301,6 +301,10 @@ tests, and `pip check` reports no conflicts. The production Docker image builds
 successfully; Compose reaches healthy state, `/login` returns HTTP 200, and the
 acceptance stack is removed cleanly.
 
+Feature commit `ab373b3` is pushed to `main`. GitHub Actions run
+[`29317914417`](https://github.com/choneer/nsfwtrack/actions/runs/29317914417)
+completed successfully for both `test` and `Docker production smoke`.
+
 ## Features in v1.0.5
 
 `v1.0.5` publishes the complete local-only Phase 3-A line while preserving the

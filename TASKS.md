@@ -32,6 +32,7 @@ N100 / 目标主机部署尚未开始，**不是当前开发任务**，必须等
 - [x] 同步中文 / English、模板、CHANGELOG Unreleased、README / PLAN / TASKS / REVIEW / GOAL 和专项测试
 - [x] C2 专项 `22 passed`，C1 / B3-B6 / 上传 / Data Health / 备份 / 导入组合回归 `253 passed`
 - [x] 全量 `530 passed`、pip check、Docker image build、Compose healthy、`/login` 200 与 down 清理通过
+- [x] 功能提交 `ab373b3` 已推送 main，Actions run `29317914417` 的 test / Docker production smoke 均通过
 - [x] 保持版本 1.0.6、Schema 2、迁移、依赖、Docker/CI、旧 tag / Release 和 N100 状态不变
 
 ### Phase 3-C1 断裂媒体引用手动修复（Unreleased）

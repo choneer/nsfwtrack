@@ -52,5 +52,7 @@
 - `pip check`：无依赖冲突
 - Docker image build：通过
 - Docker Compose：healthy，`/login` HTTP 200，验收后已完整 down
+- 功能提交：`ab373b3`，已推送 `main`
+- GitHub Actions：run `29317914417` 的 test / Docker production smoke 均通过
 - 版本保持 `1.0.6`，Schema 保持 `2`
 - 迁移、依赖、Docker/CI、旧 tag / Release 与 N100 状态未修改

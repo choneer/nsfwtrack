@@ -1166,6 +1166,7 @@ K1 审计结论：
 - Phase 3-C2 专项覆盖精确 / 近似名称、目录 / 符号链接 / FIFO、非法 / 缺失 / 陈旧 / 伪造 / 同路径替换、standard / strict、引用与身份竞态、写锁 / 查询 / unlink / fsync 失败
 - Phase 3-C2 专项 22 passed、C1 / B3-B6 / 上传 / Data Health / 备份 / 导入组合回归 253 passed、全量 530 passed 且 pip check 无冲突
 - Phase 3-C2 Docker image build 通过，Compose healthy、`/login` 200，并已完整 down 清理
+- Phase 3-C2 功能提交 `ab373b3` 已推送 main，Actions run `29317914417` 的 test / Docker production smoke 均通过
 - 当前发布准备与本地验收完成后仍需单独发布指令；N100 部署须等待用户明确授权
 
 ---
