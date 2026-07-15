@@ -2,16 +2,17 @@
 
 NSFWTrack is a local single-user content record manager / collection tracker.
 
-Current application version: `v1.0.6 / Phase 3-B3 through D1 in Unreleased`.
+Current application version: `v1.0.6 / Phase 4-A1 in Unreleased`.
 
 Current stable version: `v1.0.6 / Phase 3-B1 and B2`.
 
 Latest Release: [NSFWTrack v1.0.6](https://github.com/choneer/nsfwtrack/releases/tag/v1.0.6).
 
-Current status: `v1.0.6 is released; Phase 3-B3 through C5 and the Phase 3-D1 final integration freeze are complete in Unreleased`.
+Current status: `v1.0.6 is released; Phase 4-A1 ordinary local-media file details have passed local acceptance in Unreleased and are awaiting GitHub Actions`.
 
-Current development: `Phase 3-B1 and B2 are published; Phase 3-D1 freezes the
-current Unreleased scope with application version 1.0.6 and Schema 2 unchanged`.
+Current development: `Phase 3-B1 and B2 are published; Phase 4-A1 adds one
+authenticated read-only view while application version 1.0.6 and Schema 2 stay
+unchanged`.
 
 N100 deployment: `not started; waits for explicit user authorization`.
 
@@ -75,6 +76,31 @@ HTTP 200. Repair commit `db0048d` is pushed, and GitHub Actions run
 [`29386547600`](https://github.com/choneer/nsfwtrack/actions/runs/29386547600)
 passed both `test` and `Docker production smoke`. No known D1 release blocker
 remains, so the reviewed Unreleased development scope is frozen.
+
+## Phase 4-A1 Local Media File Details
+
+Phase 4-A1 adds `/media-library/detail` as the unified, login-protected,
+read-only view for one ordinary local media file. The page accepts only a
+normalized `/media/` path represented by the existing ordinary-media scan;
+external paths, traversal, missing entries, symlinks, special files, unsupported
+files, scan races, and internal `.cleanup-anchor-*` records fail closed.
+
+The view consumes the existing identity-checked directory/file FD scan result
+instead of reopening the target through `Path.stat` or `Path.read_bytes`. It
+shows the logical path, basename, extension, safely confirmed MIME, size,
+complete SHA-256 when available, validity, recovered status, exact item-cover
+and creator-avatar references, and current complete-SHA duplicate-group totals.
+Damaged references link only to the existing C1 flow, while damaged files link
+only to the existing C4 preview; A1 adds no write route or operation.
+
+Media-library cards, duplicate-group members, and recovered ordinary-media rows
+link to the detail page. Their normalized search, status, sort, and pagination
+state is carried in a restricted local return URL. Focused A1 tests pass `17`
+cases, the media/Data Health/backup/UI regression passes `252` tests, and the
+full suite passes all `601` tests. `pip check` is clean. The production image
+builds; isolated Compose is healthy with the existing non-root/read-only/
+capability boundaries, `/login` returns 200, anonymous detail access redirects,
+and authenticated detail/library pages return 200. GitHub Actions is pending.
 
 ## v1.0.6 Release
 

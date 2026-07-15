@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+{% block title %}{{ media_detail.filename }} - NSFWTrack{% endblock %}
+{% block content %}
+{% set entry = media_detail.entry %}
+<div class="toolbar" data-media-detail-path="{{ entry.media_path }}">
+  <div>
+    <p class="muted">{{ t("media_detail.local_only") }}</p>
+    <h1>{{ media_detail.filename }}</h1>
+    <p><code>{{ entry.media_path }}</code></p>
+  </div>
+  <div class="actions">
+    <a class="button secondary" href="{{ return_url }}">{{ t("media_detail.back") }}</a>
+  </div>
+</div>
+
+<section class="notice">
+  <strong>{{ t("media_detail.readonly_title") }}</strong>
+  <p>{{ t("media_detail.readonly_detail") }}</p>
+</section>
+
+<div class="detail-layout">
+  <section class="card detail-section">
+    <h2>{{ t("media_detail.identity_title") }}</h2>
+    <div class="detail-overview">
+      <div class="cover">
+        {% if entry.available %}
+          <img src="{{ entry.media_path }}" alt="">
+        {% else %}
+          {{ t("media.invalid_image") }}
+        {% endif %}
+      </div>
+      <div class="detail-meta-grid">
+        <div class="detail-field">
+          <span class="muted">{{ t("media_detail.path") }}</span>
+          <code data-media-detail-logical-path>{{ entry.media_path }}</code>
+        </div>
+        <div class="detail-field">
+          <span class="muted">{{ t("media_detail.filename") }}</span>
+          <strong data-media-detail-filename>{{ media_detail.filename }}</strong>
+        </div>
+        <div class="detail-field">
+          <span class="muted">{{ t("media_detail.extension") }}</span>
+          <code data-media-detail-extension>{{ media_detail.extension }}</code>
+        </div>
+        <div class="detail-field">
+          <span class="muted">{{ t("media_detail.mime") }}</span>
+          <span data-media-detail-mime>{{ entry.mime_type or t("media_detail.mime_unavailable") }}</span>
+        </div>
+        <div class="detail-field">
+          <span class="muted">{{ t("media_detail.size") }}</span>
+          <span data-media-detail-size>{{ entry.size }} B</span>
+        </div>
+      </div>
+    </div>
+    <div class="detail-field">
+      <span class="muted">{{ t("media_detail.sha256") }}</span>
+      {% if entry.sha256 %}
+        <code data-media-detail-sha256>{{ entry.sha256 }}</code>
+      {% else %}
+        <span class="muted" data-media-detail-sha-unavailable>{{ t("media_detail.sha_unavailable") }}</span>
+      {% endif %}
+    </div>
+  </section>
+
+  <section class="card detail-section">
+    <h2>{{ t("media_detail.status_title") }}</h2>
+    <div class="detail-current">
+      <span class="pill" data-media-detail-validity="{{ 'valid' if entry.available else 'damaged' }}">
+        {{ t("media_detail.status_valid" if entry.available else "media_detail.status_damaged") }}
+      </span>
+      <span class="pill" data-media-detail-recovery="{{ 'recovered' if entry.is_recovered else 'ordinary' }}">
+        {{ t("media_detail.status_recovered" if entry.is_recovered else "media_detail.status_ordinary") }}
+      </span>
+      <span class="pill" data-media-detail-reference-status="{{ 'referenced' if media_detail.reference_count else 'unreferenced' }}">
+        {{ t("media_detail.status_referenced", count=media_detail.reference_count) if media_detail.reference_count else t("media_detail.status_unreferenced") }}
+      </span>
+      <span class="pill" data-media-detail-duplicate-status="{{ 'duplicate' if media_detail.is_duplicate else 'unique' }}">
+        {{ t("media_detail.status_duplicate") if media_detail.is_duplicate else t("media_detail.status_unique") }}
+      </span>
+    </div>
+    <p class="muted">{{ t("media_detail.status_detail") }}</p>
+  </section>
+
+  <section class="card detail-section">
+    <h2>{{ t("media_detail.references_title", count=media_detail.reference_count) }}</h2>
+    {% if media_detail.item_references %}
+      <div class="detail-field">
+        <h3>{{ t("media_detail.item_references") }}</h3>
+        <ul class="relation-list">
+          {% for item in media_detail.item_references %}
+            <li class="relation-row">
+              <a href="/items/{{ item.id }}">{{ t("media.item_cover_reference", title=item.title) }}</a>
+              {% if item.id in item_repair_urls %}
+                <a class="button secondary compact" href="{{ item_repair_urls[item.id] }}">{{ t("media_detail.open_c1") }}</a>
+              {% endif %}
+            </li>
+          {% endfor %}
+        </ul>
+      </div>
+    {% endif %}
+    {% if media_detail.creator_references %}
+      <div class="detail-field">
+        <h3>{{ t("media_detail.creator_references") }}</h3>
+        <ul class="relation-list">
+          {% for creator in media_detail.creator_references %}
+            <li class="relation-row">
+              <a href="/creators/{{ creator.id }}">{{ t("media.creator_avatar_reference", name=creator.name) }}</a>
+              {% if creator.id in creator_repair_urls %}
+                <a class="button secondary compact" href="{{ creator_repair_urls[creator.id] }}">{{ t("media_detail.open_c1") }}</a>
+              {% endif %}
+            </li>
+          {% endfor %}
+        </ul>
+      </div>
+    {% endif %}
+    {% if not media_detail.reference_count %}
+      <p class="muted">{{ t("media_detail.no_references") }}</p>
+    {% elif not entry.available %}
+      <p class="muted">{{ t("media_detail.reference_issue_hint") }}</p>
+    {% endif %}
+  </section>
+
+  <section class="card detail-section">
+    <h2>{{ t("media_detail.duplicate_title") }}</h2>
+    {% if media_detail.duplicate_group %}
+      {% set group = media_detail.duplicate_group %}
+      <div class="metric-grid compact-metrics">
+        <div class="metric"><strong data-media-detail-duplicate-members>{{ group.member_count }}</strong><span>{{ t("media_detail.member_count") }}</span></div>
+        <div class="metric"><strong data-media-detail-file-size>{{ group.file_size }} B</strong><span>{{ t("media_detail.file_size") }}</span></div>
+        <div class="metric"><strong data-media-detail-total-bytes>{{ group.total_bytes }} B</strong><span>{{ t("media_detail.total_size") }}</span></div>
+        <div class="metric"><strong data-media-detail-reclaimable-bytes>{{ group.reclaimable_bytes }} B</strong><span>{{ t("media_detail.reclaimable") }}</span></div>
+      </div>
+      <ul>
+        {% for member in group.entries %}
+          <li data-media-detail-duplicate-path="{{ member.media_path }}">
+            <code>{{ member.media_path }}</code>{% if member.media_path == entry.media_path %} <span class="pill">{{ t("media_detail.current_file") }}</span>{% endif %}
+          </li>
+        {% endfor %}
+      </ul>
+      <a class="button secondary" href="{{ duplicate_group_url }}">{{ t("media_detail.open_duplicate_group") }}</a>
+    {% else %}
+      <p class="muted">{{ t("media_detail.no_duplicate") }}</p>
+    {% endif %}
+  </section>
+
+  {% if not entry.available %}
+    <section class="card detail-section detail-actions-panel">
+      <h2>{{ t("media_detail.existing_actions_title") }}</h2>
+      <p>{{ t("media_detail.existing_actions_detail") }}</p>
+      <div class="actions">
+        {% if damaged_cleanup_url %}
+          <a class="button danger" href="{{ damaged_cleanup_url }}">{{ t("media_detail.open_c4") }}</a>
+        {% endif %}
+        <a class="button secondary" href="/data-health">{{ t("media_detail.open_data_health") }}</a>
+      </div>
+    </section>
+  {% endif %}
+</div>
+{% endblock %}

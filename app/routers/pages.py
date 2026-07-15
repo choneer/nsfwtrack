@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 from typing import Any
-from urllib.parse import quote, urlencode
+from urllib.parse import quote, urlencode, urlsplit
 
 from fastapi import (
     APIRouter,
@@ -116,6 +116,7 @@ from app.services.local_media import (
     LocalMediaUploadError,
     is_cleanup_anchor_filename,
     local_media_url,
+    normalize_interactive_local_media_path,
     normalize_local_media_path,
     read_local_media_file,
     resolve_local_media_file,
@@ -127,6 +128,10 @@ from app.services.media_item_candidates import (
     create_items_from_media_candidates,
     find_media_item_candidates,
     paginate_media_item_candidates,
+)
+from app.services.media_file_detail import (
+    MediaFileDetailError,
+    build_media_file_detail,
 )
 from app.services.media_duplicate_groups import (
     MEDIA_DUPLICATE_SORT_OPTIONS,
@@ -265,6 +270,40 @@ def _redirect(url: str) -> RedirectResponse:
 
 def _safe_next_url(next_url: str | None) -> str:
     return safe_local_path(next_url, fallback="/items")
+
+
+_MEDIA_DETAIL_RETURN_PATHS = frozenset(
+    {
+        "/media-library",
+        "/media-library/duplicates",
+        "/media-library/recovery",
+    }
+)
+
+
+def _safe_media_detail_return_url(value: str | None) -> str:
+    target = safe_local_path(value, fallback="/media-library")
+    try:
+        path = urlsplit(target).path
+    except ValueError:
+        return "/media-library"
+    return target if path in _MEDIA_DETAIL_RETURN_PATHS else "/media-library"
+
+
+def _media_file_detail_url(media_path: str, return_url: str) -> str:
+    return "/media-library/detail?" + urlencode(
+        {"media_path": media_path, "next": return_url}
+    )
+
+
+def _media_source_url(
+    path: str,
+    params: dict[str, str | int],
+    *,
+    fragment: str = "",
+) -> str:
+    query = urlencode(params)
+    return f"{path}?{query}{fragment}" if query else f"{path}{fragment}"
 
 
 def _item_detail_url(item_id: int, next_url: str | None = None) -> str:
@@ -431,6 +470,22 @@ def media_library_page(
         **media_filter_query_params(media_result.filters),
         "media_page": media_result.page_info.page,
     }
+    media_return_url = _media_source_url(
+        "/media-library",
+        {
+            **media_params,
+            "match_page": candidate_page.page_info.page,
+            "create_page": item_candidate_page.page_info.page,
+        },
+        fragment="#media-files",
+    )
+    media_detail_urls = {
+        row.entry.media_path: _media_file_detail_url(
+            row.entry.media_path,
+            media_return_url,
+        )
+        for row in media_result.rows
+    }
     return templates.TemplateResponse(
         request,
         "media_library.html",
@@ -480,9 +535,75 @@ def media_library_page(
                 },
             ),
             damaged_cleanup_preview_urls=damaged_cleanup_preview_urls,
+            media_detail_urls=media_detail_urls,
             max_media_upload_mb=MAX_MEDIA_UPLOAD_BYTES // (1024 * 1024),
             max_media_upload_files=MAX_MEDIA_UPLOAD_FILES,
             error_key=error_key,
+        ),
+    )
+
+
+@router.get(
+    "/media-library/detail",
+    response_class=HTMLResponse,
+    dependencies=[Depends(require_page_auth)],
+)
+def media_file_detail_page(
+    request: Request,
+    media_path: str | None = Query(default=None),
+    next_url: str | None = Query(default=None, alias="next"),
+    db: Session = Depends(get_db),
+) -> HTMLResponse:
+    try:
+        detail = build_media_file_detail(db, media_path=media_path)
+    except MediaFileDetailError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND) from exc
+
+    return_url = _safe_media_detail_return_url(next_url)
+    duplicate_group_url = None
+    if detail.duplicate_group is not None:
+        duplicate_group_url = _media_source_url(
+            "/media-library/duplicates",
+            {"duplicate_q": detail.duplicate_group.sha256},
+            fragment=f"#media-duplicate-{detail.duplicate_group.sha256}",
+        )
+    damaged_cleanup_url = None
+    item_repair_urls: dict[int, str] = {}
+    creator_repair_urls: dict[int, str] = {}
+    if not detail.entry.available:
+        if detail.entry.sha256:
+            damaged_cleanup_url = "/data-health/damaged-media/delete-preview?" + urlencode(
+                {
+                    "media_path": detail.entry.media_path,
+                    "sha256": detail.entry.sha256,
+                }
+            )
+        item_repair_urls = {
+            reference.id: "/data-health/media-reference/repair?"
+            + urlencode(
+                {"object_type": "item_cover", "object_id": reference.id}
+            )
+            for reference in detail.item_references
+        }
+        creator_repair_urls = {
+            reference.id: "/data-health/media-reference/repair?"
+            + urlencode(
+                {"object_type": "creator_avatar", "object_id": reference.id}
+            )
+            for reference in detail.creator_references
+        }
+    return templates.TemplateResponse(
+        request,
+        "media_file_detail.html",
+        _base_context(
+            request,
+            db=db,
+            media_detail=detail,
+            return_url=return_url,
+            duplicate_group_url=duplicate_group_url,
+            damaged_cleanup_url=damaged_cleanup_url,
+            item_repair_urls=item_repair_urls,
+            creator_repair_urls=creator_repair_urls,
         ),
     )
 
@@ -590,6 +711,36 @@ def media_cleanup_recovery_page(
         and row.entry.available
         and row.entry.sha256
     }
+    recovery_return_url = _media_source_url(
+        "/media-library/recovery",
+        {
+            **media_recovery_filter_query_params(result.filters),
+            "recovery_page": result.page_info.page,
+        },
+    )
+    skipped_media_paths = {
+        f"/media/{entry.path}"
+        for entry in scan.skipped_entries
+    }
+    media_detail_urls: dict[str, str] = {}
+    for row in result.rows:
+        if (
+            not row.entry.is_recovered
+            or row.entry.is_cleanup_anchor
+            or row.entry.media_path in skipped_media_paths
+        ):
+            continue
+        try:
+            normalized = normalize_interactive_local_media_path(
+                row.entry.media_path
+            )
+        except LocalMediaPathError:
+            continue
+        if normalized == row.entry.media_path:
+            media_detail_urls[row.entry.media_path] = _media_file_detail_url(
+                row.entry.media_path,
+                recovery_return_url,
+            )
     return templates.TemplateResponse(
         request,
         "media_cleanup_recovery.html",
@@ -601,6 +752,7 @@ def media_cleanup_recovery_page(
             recovery_sort_options=MEDIA_RECOVERY_SORT_OPTIONS,
             recovery_preview_urls=recovery_preview_urls,
             cleanup_delete_preview_urls=cleanup_delete_preview_urls,
+            media_detail_urls=media_detail_urls,
             recovery_pagination=_page_context(
                 result.page_info,
                 "/media-library/recovery",
@@ -884,6 +1036,22 @@ def media_duplicate_groups_page(
         + "#media-files"
         for group in result.groups
     }
+    duplicate_params = {
+        **media_duplicate_filter_query_params(result.filters),
+        "duplicate_page": result.page_info.page,
+    }
+    media_detail_urls = {
+        entry.media_path: _media_file_detail_url(
+            entry.media_path,
+            _media_source_url(
+                "/media-library/duplicates",
+                duplicate_params,
+                fragment=f"#media-duplicate-{group.sha256}",
+            ),
+        )
+        for group in result.groups
+        for entry in group.entries
+    }
     return templates.TemplateResponse(
         request,
         "media_duplicate_groups.html",
@@ -903,6 +1071,7 @@ def media_duplicate_groups_page(
             item_references=item_references,
             creator_references=creator_references,
             media_library_urls=library_urls,
+            media_detail_urls=media_detail_urls,
             error_key=error_key,
         ),
     )

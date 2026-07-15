@@ -54,7 +54,7 @@
 
 <div class="media-duplicate-group-list">
   {% for group in duplicate_groups %}
-    <article class="card stack media-duplicate-group" data-duplicate-sha="{{ group.sha256 }}">
+    <article class="card stack media-duplicate-group" id="media-duplicate-{{ group.sha256 }}" data-duplicate-sha="{{ group.sha256 }}">
       <div class="toolbar media-duplicate-group-heading">
         <div class="stack">
           <span class="muted">{{ t("media_duplicates.sha256") }}</span>
@@ -84,6 +84,7 @@
                 <span class="stack media-match-details">
                   <code>{{ entry.media_path }}</code>
                   <span class="pill">{{ t("media_duplicates.available") }}</span>
+                  <a class="button secondary compact" href="{{ media_detail_urls[entry.media_path] }}">{{ t("media_detail.open") }}</a>
                   <span>
                     <strong>{{ t("media_duplicates.references") }}</strong>
                     {% set item_refs = item_references.get(entry.media_path, []) %}

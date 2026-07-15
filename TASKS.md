@@ -2,10 +2,10 @@
 
 按顺序执行，每完成一项打个 [x]。
 
-## 当前状态（v1.0.6 已发布，Phase 3-D1 最终集成审查）
+## 当前状态（v1.0.6 已发布，Phase 4-A1 最终验收）
 
 当前稳定版与最新 Release：`v1.0.6`。Phase 3-B1 / B2 已正式发布，
-Phase 3-B3 / B4 / B5 / B6 / C1 / C2 / C3 / C4 / C5 与 D1 最终集成审查均已完成并位于 Unreleased，应用 Schema 仍为 `2`。
+Phase 3-B3 / B4 / B5 / B6 / C1 / C2 / C3 / C4 / C5 与 D1 最终集成审查均已完成并位于 Unreleased；Phase 4-A1 普通媒体详情页已实现并进入最终验收，应用 Schema 仍为 `2`。
 
 - Annotated tag object：`d4d5c31cd5b2fed9a90ad69742d54b4c9dbed0b4`
 - Peeled commit：`961a3d0cc169e82b261d83207b0ec802007e292b`
@@ -15,6 +15,22 @@ N100 / 目标主机部署尚未开始，**不是当前开发任务**，必须等
 历史审计见 `COMPLETION_AUDIT.md`，当前 Phase 3 证据见
 `PHASE3_COMPLETION_AUDIT.md`。历史任务保留在本文后半部分，
 不再作为新增开发路线。
+
+### Phase 4-A1 本地媒体单文件详情页（Unreleased）
+
+- [x] 新增登录保护、仅 GET 的普通媒体详情页；POST 为 405
+- [x] 只接受规范化 `/media/` 精确扫描记录，拒绝外部路径、转义、missing、symlink、目录 / FIFO 等特殊文件及 cleanup anchor
+- [x] 复用安全扫描的目录 / 文件 FD、哈希和当前映射复验，不通过目标 `Path.stat` / `Path.read_bytes` 二次打开
+- [x] 展示逻辑路径、文件名、扩展名、MIME、size、完整 SHA、有效 / 损坏、recovered、引用与重复状态
+- [x] 展示全部 item cover / creator avatar 引用和对象链接
+- [x] 展示准确重复组成员数、单文件 / 总占用 / 可释放空间、成员路径及完整 SHA 组入口
+- [x] 损坏文件与异常引用只链接现有 C4 / C1，不新增写操作
+- [x] 从媒体库、重复组和恢复中心 recovered 普通媒体进入详情，并保留筛选 / 排序 / 分页返回状态
+- [x] GET 捕获 SQL 写语句为 0，文件、目录身份和目录项前后不变；父目录替换不读取外部目标
+- [x] 中文 / English 与 i18n 对称，A1 专项 `17 passed`、媒体链组合 `252 passed`
+- [x] 全量 `601 passed in 91.96s`、pip check、隔离 Docker healthy 与 `/login` / 详情 / 媒体库 HTTP 验收通过，临时资源已清理
+- [ ] 提交推送并等待 Actions 的 test / Docker production smoke 均成功
+- [x] 保持版本 1.0.6、Schema 2、迁移、依赖、Docker/CI、tag、Release 与 N100 不变
 
 ### Phase 3-D1 Unreleased 集成总审查与开发冻结
 

@@ -351,6 +351,9 @@
       </div>
       {% if entry.is_recovered %}<span class="pill" data-media-recovered>{{ t("media.recovered_badge") }}</span>{% endif %}
       <strong>{{ entry.filename }}</strong>
+      <div class="actions">
+        <a class="button secondary compact" href="{{ media_detail_urls[entry.media_path] }}">{{ t("media_detail.open") }}</a>
+      </div>
       <small class="muted">{{ entry.mime_type or t("media.unavailable") }} · {{ entry.size }} B</small>
       {% if entry.sha256 %}<code>{{ entry.sha256 }}</code>{% endif %}
       {% if row.duplicate_count > 1 %}

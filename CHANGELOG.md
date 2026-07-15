@@ -4,6 +4,13 @@
 
 ### Added
 
+- Added the authenticated, read-only Phase 4-A1 ordinary local-media file
+  detail page. It reports the logical `/media/` path, basename, extension,
+  safely confirmed MIME, size, complete SHA-256 when available, valid/damaged,
+  recovered/ordinary, referenced/unreferenced, and duplicate/unique status.
+- Added complete item-cover and creator-avatar reference lists with object
+  links, plus exact complete-SHA duplicate-group counts, file/total/reclaimable
+  bytes, member paths, and a link to the matching duplicate group.
 - Added the authenticated Phase 3-B3 manual duplicate-media cleanup flow.
   Duplicate-group rows require an explicit keeper with no default or automatic
   recommendation, followed by a read-only preview of reference migrations,
@@ -123,6 +130,14 @@
 
 ### Changed
 
+- Media-library cards, duplicate-group members, and recovered ordinary-media
+  rows now link to the A1 detail page while preserving each source page's
+  normalized search, status, sort, and pagination state. Internal cleanup
+  anchors and scan-skipped entries never receive an ordinary-detail link.
+- A1 consumes the existing identity-checked scan/FD result and performs only
+  exact reference queries. It does not reopen the target through `Path.stat`
+  or `Path.read_bytes`, and damaged/reference actions remain the existing C4
+  preview and C1 single-reference flows rather than new writes.
 - Data Health `media_duplicate_content` rows now link by complete SHA-256 to
   the exact B2 duplicate group, preserving the explicit B3 keeper workflow.
 - Phase 3-D1 keeps the B3-C5 Unreleased scope closed to new development after

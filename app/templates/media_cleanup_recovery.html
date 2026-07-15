@@ -107,6 +107,12 @@
           <p class="muted">{{ t("media_recovery.no_references") }}</p>
         {% endif %}
       </div>
+      {% set media_detail_url = media_detail_urls.get(row.entry.media_path) %}
+      {% if media_detail_url %}
+        <div class="actions">
+          <a class="button secondary" href="{{ media_detail_url }}">{{ t("media_detail.open") }}</a>
+        </div>
+      {% endif %}
       {% if row.entry.media_path in recovery_preview_urls %}
         <div class="actions">
           <a class="button" href="{{ recovery_preview_urls[row.entry.media_path] }}">{{ t("media_recovery.preview_restore") }}</a>
