@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import PurePosixPath
 from typing import Any
 from urllib.parse import quote, urlencode, urlsplit
 
@@ -116,12 +117,18 @@ from app.services.local_media import (
     LocalMediaUploadError,
     is_cleanup_anchor_filename,
     local_media_url,
+    local_media_directory_identity_token,
     normalize_interactive_local_media_path,
     normalize_local_media_path,
     read_local_media_file,
     resolve_local_media_file,
     scan_local_media,
+    scan_local_media_directories,
     store_media_uploads,
+)
+from app.services.media_directory_browser import (
+    media_directory_query_params,
+    query_media_directory,
 )
 from app.services.media_item_candidates import (
     MediaItemCandidateError,
@@ -137,6 +144,16 @@ from app.services.media_file_rename import (
     MediaFileRenameError,
     build_media_file_rename_preview,
     execute_media_file_rename,
+)
+from app.services.media_hardlink_aliases import (
+    MEDIA_HARDLINK_ALIAS_SORT_OPTIONS,
+    media_hardlink_alias_query_params,
+    query_media_hardlink_aliases,
+)
+from app.services.media_reference_management import (
+    MediaReferenceManagementError,
+    build_media_reference_management_preview,
+    execute_media_reference_management,
 )
 from app.services.media_duplicate_groups import (
     MEDIA_DUPLICATE_SORT_OPTIONS,
@@ -281,6 +298,8 @@ _MEDIA_DETAIL_RETURN_PATHS = frozenset(
     {
         "/media-library",
         "/media-library/duplicates",
+        "/media-library/directories",
+        "/media-library/aliases",
         "/media-library/recovery",
     }
 )
@@ -310,6 +329,40 @@ def _media_file_rename_preview_url(
         {
             "media_path": media_path,
             "target_basename": target_basename,
+            "next": return_url,
+        }
+    )
+
+
+def _media_file_move_preview_url(
+    media_path: str,
+    target_directory: str,
+    target_basename: str,
+    return_url: str,
+) -> str:
+    return "/media-library/detail/move?" + urlencode(
+        {
+            "media_path": media_path,
+            "target_directory": target_directory,
+            "target_basename": target_basename,
+            "next": return_url,
+        }
+    )
+
+
+def _media_reference_preview_url(
+    media_path: str,
+    object_type: str,
+    object_id: str | int,
+    operation: str,
+    return_url: str,
+) -> str:
+    return "/media-library/detail/reference?" + urlencode(
+        {
+            "media_path": media_path,
+            "object_type": object_type,
+            "object_id": object_id,
+            "operation": operation,
             "next": return_url,
         }
     )
@@ -369,6 +422,7 @@ def _base_context(
         "status_label": status_translator(language),
         "status_options": STATUS_OPTIONS,
         "local_media_url": local_media_url,
+        "local_media_directory_identity_token": local_media_directory_identity_token,
         "max_backup_upload_mb": get_settings().max_backup_upload_mb,
         "max_import_upload_mb": get_settings().max_import_upload_mb,
         "danger_policy": (
@@ -563,6 +617,165 @@ def media_library_page(
 
 
 @router.get(
+    "/media-library/directories",
+    response_class=HTMLResponse,
+    dependencies=[Depends(require_page_auth)],
+)
+def media_directory_page(
+    request: Request,
+    directory: str | None = Query(default=None),
+    dir_page: str | None = Query(default=None),
+    dir_q: str | None = Query(default=None),
+    dir_status: str | None = Query(default=None),
+    dir_sort: str | None = Query(default=None),
+    db: Session = Depends(get_db),
+) -> HTMLResponse:
+    try:
+        scan = scan_local_media()
+        directories = scan_local_media_directories()
+        used_paths = set(
+            db.scalars(
+                select(Item.cover_path).where(Item.cover_path.is_not(None))
+            ).all()
+        ) | set(
+            db.scalars(
+                select(Creator.avatar_path).where(Creator.avatar_path.is_not(None))
+            ).all()
+        )
+        result = query_media_directory(
+            scan,
+            directories,
+            used_paths,
+            directory=directory,
+            q=dir_q,
+            status=dir_status,
+            sort=dir_sort,
+            page=dir_page,
+        )
+    except (LocalMediaPathError, OSError):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND) from None
+
+    params = media_directory_query_params(result)
+    current_return_url = _media_source_url(
+        "/media-library/directories",
+        {**params, "dir_page": result.page_info.page},
+    )
+    child_urls = {
+        child.media_path: _media_source_url(
+            "/media-library/directories",
+            {**params, "directory": child.media_path, "dir_page": 1},
+        )
+        for child in result.children
+    }
+    breadcrumb_urls = {
+        breadcrumb.media_path: _media_source_url(
+            "/media-library/directories",
+            {**params, "directory": breadcrumb.media_path, "dir_page": 1},
+        )
+        for breadcrumb in result.breadcrumbs
+    }
+    detail_urls = {
+        row.entry.media_path: _media_file_detail_url(
+            row.entry.media_path,
+            current_return_url,
+        )
+        for row in result.rows
+    }
+    return templates.TemplateResponse(
+        request,
+        "media_directories.html",
+        _base_context(
+            request,
+            db=db,
+            directory_result=result,
+            directory_status_options=MEDIA_STATUS_OPTIONS,
+            directory_sort_options=MEDIA_SORT_OPTIONS,
+            directory_pagination=_page_context(
+                result.page_info,
+                "/media-library/directories",
+                page_param="dir_page",
+                params=params,
+            ),
+            child_urls=child_urls,
+            breadcrumb_urls=breadcrumb_urls,
+            detail_urls=detail_urls,
+        ),
+    )
+
+
+@router.get(
+    "/media-library/aliases",
+    response_class=HTMLResponse,
+    dependencies=[Depends(require_page_auth)],
+)
+def media_hardlink_alias_page(
+    request: Request,
+    alias_page: str | None = Query(default=None),
+    alias_q: str | None = Query(default=None),
+    alias_sort: str | None = Query(default=None),
+    db: Session = Depends(get_db),
+) -> HTMLResponse:
+    try:
+        scan = scan_local_media()
+    except (LocalMediaPathError, OSError):
+        scan = LocalMediaScan((), 0, 0, 0)
+        error_key = "media.error_storage_unavailable"
+    else:
+        error_key = None
+    result = query_media_hardlink_aliases(
+        db,
+        scan,
+        q=alias_q,
+        sort=alias_sort,
+        page=alias_page,
+    )
+    params = media_hardlink_alias_query_params(result.filters)
+    current_return_url = _media_source_url(
+        "/media-library/aliases",
+        {**params, "alias_page": result.page_info.page},
+    )
+    entries = {
+        entry.media_path: entry
+        for group in result.groups
+        for entry in (
+            *(path.entry for path in group.paths),
+            *group.same_sha_independent_paths,
+        )
+    }
+    detail_urls = {
+        media_path: _media_file_detail_url(media_path, current_return_url)
+        for media_path in entries
+    }
+    duplicate_urls = {
+        group.sha256: _media_source_url(
+            "/media-library/duplicates",
+            {"duplicate_q": group.sha256},
+            fragment=f"#media-duplicate-{group.sha256}",
+        )
+        for group in result.groups
+    }
+    return templates.TemplateResponse(
+        request,
+        "media_hardlink_aliases.html",
+        _base_context(
+            request,
+            db=db,
+            alias_result=result,
+            alias_sort_options=MEDIA_HARDLINK_ALIAS_SORT_OPTIONS,
+            alias_pagination=_page_context(
+                result.page_info,
+                "/media-library/aliases",
+                page_param="alias_page",
+                params=params,
+            ),
+            detail_urls=detail_urls,
+            duplicate_urls=duplicate_urls,
+            error_key=error_key,
+        ),
+    )
+
+
+@router.get(
     "/media-library/detail",
     response_class=HTMLResponse,
     dependencies=[Depends(require_page_auth)],
@@ -611,6 +824,49 @@ def media_file_detail_page(
             )
             for reference in detail.creator_references
         }
+    move_directories = ()
+    reference_items = ()
+    reference_creators = ()
+    item_reference_clear_urls: dict[int, str] = {}
+    creator_reference_clear_urls: dict[int, str] = {}
+    if detail.entry.available:
+        try:
+            source_directory = PurePosixPath(detail.entry.media_path).parent.as_posix()
+            move_directories = tuple(
+                directory
+                for directory in scan_local_media_directories()
+                if directory.media_path != source_directory
+            )
+        except (LocalMediaPathError, OSError):
+            move_directories = ()
+        reference_items = tuple(
+            db.execute(select(Item.id, Item.title).order_by(Item.title, Item.id)).all()
+        )
+        reference_creators = tuple(
+            db.execute(
+                select(Creator.id, Creator.name).order_by(Creator.name, Creator.id)
+            ).all()
+        )
+        item_reference_clear_urls = {
+            reference.id: _media_reference_preview_url(
+                detail.entry.media_path,
+                "item_cover",
+                reference.id,
+                "clear",
+                return_url,
+            )
+            for reference in detail.item_references
+        }
+        creator_reference_clear_urls = {
+            reference.id: _media_reference_preview_url(
+                detail.entry.media_path,
+                "creator_avatar",
+                reference.id,
+                "clear",
+                return_url,
+            )
+            for reference in detail.creator_references
+        }
     return templates.TemplateResponse(
         request,
         "media_file_detail.html",
@@ -624,6 +880,11 @@ def media_file_detail_page(
             item_repair_urls=item_repair_urls,
             creator_repair_urls=creator_repair_urls,
             rename_enabled=detail.entry.available,
+            move_directories=move_directories,
+            reference_items=reference_items,
+            reference_creators=reference_creators,
+            item_reference_clear_urls=item_reference_clear_urls,
+            creator_reference_clear_urls=creator_reference_clear_urls,
         ),
     )
 
@@ -782,6 +1043,291 @@ def media_file_rename_apply_page(
         else result.target_path
     )
     return _redirect(_media_file_detail_url(detail_path, return_url))
+
+
+def _media_file_move_error_flash(
+    request: Request,
+    exc: MediaFileRenameError,
+) -> None:
+    add_flash(request, "error", f"flash.media_file_move_{exc.code}")
+
+
+@router.get(
+    "/media-library/detail/move",
+    response_class=HTMLResponse,
+    dependencies=[Depends(require_page_auth)],
+)
+def media_file_move_preview_page(
+    request: Request,
+    media_path: str | None = Query(default=None),
+    target_directory: str | None = Query(default=None),
+    target_basename: str | None = Query(default=None),
+    next_url: str | None = Query(default=None, alias="next"),
+    db: Session = Depends(get_db),
+) -> Response:
+    return_url = _safe_media_detail_return_url(next_url)
+    try:
+        preview = build_media_file_rename_preview(
+            db,
+            media_path=media_path,
+            target_directory=target_directory,
+            target_basename=target_basename,
+        )
+    except MediaFileRenameError as exc:
+        _media_file_move_error_flash(request, exc)
+        return _media_file_rename_error_redirect(media_path, return_url)
+    return templates.TemplateResponse(
+        request,
+        "media_file_move_preview.html",
+        _base_context(
+            request,
+            db=db,
+            move_preview=preview,
+            return_url=return_url,
+            source_detail_url=_media_file_detail_url(
+                preview.source.media_path,
+                return_url,
+            ),
+        ),
+    )
+
+
+@router.post(
+    "/media-library/detail/move",
+    dependencies=[Depends(require_page_auth)],
+)
+def media_file_move_apply_page(
+    request: Request,
+    media_path: str | None = Form(default=None),
+    target_directory: str | None = Form(default=None),
+    target_basename: str | None = Form(default=None),
+    next_url: str | None = Form(default=None, alias="next"),
+    expected_sha256: str | None = Form(default=None),
+    expected_mode: str | None = Form(default=None),
+    expected_size: str | None = Form(default=None),
+    expected_device: str | None = Form(default=None),
+    expected_inode: str | None = Form(default=None),
+    expected_modified_ns: str | None = Form(default=None),
+    expected_changed_ns: str | None = Form(default=None),
+    expected_source_directory_token: str | None = Form(default=None),
+    expected_target_directory_token: str | None = Form(default=None),
+    item_reference_id: list[str] | None = Form(default=None),
+    creator_reference_id: list[str] | None = Form(default=None),
+    confirm: str | None = Form(default=None),
+    confirmation_text: str | None = Form(default=None),
+    db: Session = Depends(get_db),
+) -> RedirectResponse:
+    return_url = _safe_media_detail_return_url(next_url)
+    preview_url = _media_file_move_preview_url(
+        media_path or "",
+        target_directory or "",
+        target_basename or "",
+        return_url,
+    )
+    if not _danger_confirmation_is_valid(
+        request,
+        get_danger_policy(db),
+        confirmation_text=confirmation_text,
+        base_confirmation_valid=confirm == "1",
+    ):
+        return _redirect(preview_url)
+    try:
+        result = execute_media_file_rename(
+            db,
+            media_path=media_path,
+            target_directory=target_directory,
+            target_basename=target_basename,
+            expected_sha256=expected_sha256,
+            expected_mode=expected_mode,
+            expected_size=expected_size,
+            expected_device=expected_device,
+            expected_inode=expected_inode,
+            expected_modified_ns=expected_modified_ns,
+            expected_changed_ns=expected_changed_ns,
+            expected_source_directory_token=expected_source_directory_token,
+            expected_target_directory_token=expected_target_directory_token,
+            expected_item_reference_ids=item_reference_id,
+            expected_creator_reference_ids=creator_reference_id,
+        )
+    except MediaFileRenameError as exc:
+        _media_file_move_error_flash(request, exc)
+        return _media_file_rename_error_redirect(media_path, return_url)
+
+    if result.warning_code != "commit_outcome_unknown":
+        add_flash(
+            request,
+            "success",
+            "flash.media_file_move_completed",
+            source=result.source_path,
+            target=result.target_path,
+            items=result.migrated_items,
+            creators=result.migrated_creators,
+        )
+    if result.warning_code:
+        known_warning_codes = {
+            "commit_outcome_unknown",
+            "committed_source_retained",
+            "delete_failed",
+            "link_changed",
+            "lock_release_failed",
+            "reference_check_failed",
+            "references_remaining",
+            "source_missing",
+            "sync_failed",
+            "target_references_changed",
+        }
+        warning_code = (
+            result.warning_code
+            if result.warning_code in known_warning_codes
+            else "source_retained"
+        )
+        add_flash(
+            request,
+            "error" if warning_code == "commit_outcome_unknown" else "info",
+            f"flash.media_file_move_warning_{warning_code}",
+            source=result.source_path,
+            target=result.target_path,
+        )
+    detail_path = (
+        result.source_path
+        if result.warning_code == "commit_outcome_unknown"
+        else result.target_path
+    )
+    return _redirect(_media_file_detail_url(detail_path, return_url))
+
+
+def _media_reference_error_redirect(
+    media_path: str | None,
+    return_url: str,
+) -> RedirectResponse:
+    return _media_file_rename_error_redirect(media_path, return_url)
+
+
+@router.get(
+    "/media-library/detail/reference",
+    response_class=HTMLResponse,
+    dependencies=[Depends(require_page_auth)],
+)
+def media_reference_management_preview_page(
+    request: Request,
+    media_path: str | None = Query(default=None),
+    object_type: str | None = Query(default=None),
+    object_id: str | None = Query(default=None),
+    operation: str | None = Query(default=None),
+    next_url: str | None = Query(default=None, alias="next"),
+    db: Session = Depends(get_db),
+) -> Response:
+    return_url = _safe_media_detail_return_url(next_url)
+    try:
+        preview = build_media_reference_management_preview(
+            db,
+            media_path=media_path,
+            object_type=object_type,
+            object_id=object_id,
+            operation=operation,
+        )
+    except MediaReferenceManagementError as exc:
+        add_flash(request, "error", f"flash.media_reference_management_{exc.code}")
+        return _media_reference_error_redirect(media_path, return_url)
+    return templates.TemplateResponse(
+        request,
+        "media_reference_management_preview.html",
+        _base_context(
+            request,
+            db=db,
+            reference_preview=preview,
+            return_url=return_url,
+            source_detail_url=_media_file_detail_url(
+                preview.media.media_path,
+                return_url,
+            ),
+        ),
+    )
+
+
+@router.post(
+    "/media-library/detail/reference",
+    dependencies=[Depends(require_page_auth)],
+)
+def media_reference_management_apply_page(
+    request: Request,
+    media_path: str | None = Form(default=None),
+    object_type: str | None = Form(default=None),
+    object_id: str | None = Form(default=None),
+    operation: str | None = Form(default=None),
+    next_url: str | None = Form(default=None, alias="next"),
+    expected_object_token: str | None = Form(default=None),
+    expected_action: str | None = Form(default=None),
+    expected_sha256: str | None = Form(default=None),
+    expected_mode: str | None = Form(default=None),
+    expected_size: str | None = Form(default=None),
+    expected_device: str | None = Form(default=None),
+    expected_inode: str | None = Form(default=None),
+    expected_modified_ns: str | None = Form(default=None),
+    expected_changed_ns: str | None = Form(default=None),
+    confirm: str | None = Form(default=None),
+    confirmation_text: str | None = Form(default=None),
+    db: Session = Depends(get_db),
+) -> RedirectResponse:
+    return_url = _safe_media_detail_return_url(next_url)
+    preview_url = _media_reference_preview_url(
+        media_path or "",
+        object_type or "",
+        object_id or "",
+        operation or "",
+        return_url,
+    )
+    if not _danger_confirmation_is_valid(
+        request,
+        get_danger_policy(db),
+        confirmation_text=confirmation_text,
+        base_confirmation_valid=confirm == "1",
+    ):
+        return _redirect(preview_url)
+    try:
+        result = execute_media_reference_management(
+            db,
+            media_path=media_path,
+            object_type=object_type,
+            object_id=object_id,
+            operation=operation,
+            expected_object_token=expected_object_token,
+            expected_action=expected_action,
+            expected_sha256=expected_sha256,
+            expected_mode=expected_mode,
+            expected_size=expected_size,
+            expected_device=expected_device,
+            expected_inode=expected_inode,
+            expected_modified_ns=expected_modified_ns,
+            expected_changed_ns=expected_changed_ns,
+        )
+    except MediaReferenceManagementError as exc:
+        add_flash(request, "error", f"flash.media_reference_management_{exc.code}")
+        return _media_reference_error_redirect(media_path, return_url)
+
+    if result.warning_code == "commit_outcome_unknown":
+        add_flash(
+            request,
+            "error",
+            "flash.media_reference_management_commit_outcome_unknown",
+            name=result.target.object_name,
+        )
+    else:
+        add_flash(
+            request,
+            "success",
+            f"flash.media_reference_management_{result.action}_completed",
+            name=result.target.object_name,
+            path=result.new_path or result.target.original_path or "",
+        )
+        if result.warning_code == "committed_after_error":
+            add_flash(
+                request,
+                "info",
+                "flash.media_reference_management_committed_after_error",
+                name=result.target.object_name,
+            )
+    return _redirect(_media_file_detail_url(media_path or "", return_url))
 
 
 @router.get(

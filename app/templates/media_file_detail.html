@@ -93,6 +93,9 @@
               {% if item.id in item_repair_urls %}
                 <a class="button secondary compact" href="{{ item_repair_urls[item.id] }}">{{ t("media_detail.open_c1") }}</a>
               {% endif %}
+              {% if item.id in item_reference_clear_urls %}
+                <a class="button danger compact" href="{{ item_reference_clear_urls[item.id] }}">{{ t("media_reference_management.preview_clear") }}</a>
+              {% endif %}
             </li>
           {% endfor %}
         </ul>
@@ -107,6 +110,9 @@
               <a href="/creators/{{ creator.id }}">{{ t("media.creator_avatar_reference", name=creator.name) }}</a>
               {% if creator.id in creator_repair_urls %}
                 <a class="button secondary compact" href="{{ creator_repair_urls[creator.id] }}">{{ t("media_detail.open_c1") }}</a>
+              {% endif %}
+              {% if creator.id in creator_reference_clear_urls %}
+                <a class="button danger compact" href="{{ creator_reference_clear_urls[creator.id] }}">{{ t("media_reference_management.preview_clear") }}</a>
               {% endif %}
             </li>
           {% endfor %}
@@ -158,6 +164,56 @@
           <button class="secondary" type="submit">{{ t("media_file_rename.preview_submit") }}</button>
         </div>
       </form>
+    </section>
+
+    {% if move_directories %}
+      <section class="card detail-section" data-media-move-entry>
+        <h2>{{ t("media_file_move.entry_title") }}</h2>
+        <p>{{ t("media_file_move.entry_detail") }}</p>
+        <form class="stack" action="/media-library/detail/move" method="get">
+          <input type="hidden" name="media_path" value="{{ entry.media_path }}">
+          <input type="hidden" name="next" value="{{ return_url }}">
+          <label>{{ t("media_file_move.target_directory") }}
+            <select name="target_directory" required>
+              {% for directory in move_directories %}<option value="{{ directory.media_path }}">{{ directory.media_path }}</option>{% endfor %}
+            </select>
+          </label>
+          <label>{{ t("media_file_move.optional_basename") }}
+            <input type="text" name="target_basename" value="{{ media_detail.filename }}" maxlength="255">
+          </label>
+          <button class="secondary" type="submit">{{ t("media_file_move.preview_submit") }}</button>
+        </form>
+      </section>
+    {% endif %}
+
+    <section class="card detail-section" data-media-reference-entry>
+      <h2>{{ t("media_reference_management.entry_title") }}</h2>
+      <p>{{ t("media_reference_management.entry_detail") }}</p>
+      {% if reference_items %}
+        <form class="stack" action="/media-library/detail/reference" method="get">
+          <input type="hidden" name="media_path" value="{{ entry.media_path }}">
+          <input type="hidden" name="object_type" value="item_cover">
+          <input type="hidden" name="operation" value="set">
+          <input type="hidden" name="next" value="{{ return_url }}">
+          <label>{{ t("media_reference_management.choose_item") }}
+            <select name="object_id" required>{% for item in reference_items %}<option value="{{ item.id }}">{{ item.title }}</option>{% endfor %}</select>
+          </label>
+          <button class="secondary" type="submit">{{ t("media_reference_management.preview_item") }}</button>
+        </form>
+      {% endif %}
+      {% if reference_creators %}
+        <form class="stack" action="/media-library/detail/reference" method="get">
+          <input type="hidden" name="media_path" value="{{ entry.media_path }}">
+          <input type="hidden" name="object_type" value="creator_avatar">
+          <input type="hidden" name="operation" value="set">
+          <input type="hidden" name="next" value="{{ return_url }}">
+          <label>{{ t("media_reference_management.choose_creator") }}
+            <select name="object_id" required>{% for creator in reference_creators %}<option value="{{ creator.id }}">{{ creator.name }}</option>{% endfor %}</select>
+          </label>
+          <button class="secondary" type="submit">{{ t("media_reference_management.preview_creator") }}</button>
+        </form>
+      {% endif %}
+      {% if not reference_items and not reference_creators %}<p class="muted">{{ t("media_reference_management.no_objects") }}</p>{% endif %}
     </section>
   {% endif %}
 

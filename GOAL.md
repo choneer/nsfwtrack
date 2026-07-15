@@ -1,68 +1,72 @@
 # GOAL.md
 
-# 当前目标：Phase 4-A2 — 修复数据库 commit 结果歧义
+# 当前目标：Phase 4-M1 — 媒体管理增强包
 
 ## 目标
 
-允许用户从普通媒体详情页预览并手动确认修改文件名，
-同时安全迁移全部封面和头像引用；commit 调用结果不确定时不得产生损坏引用。
+一次补齐普通媒体的目录浏览、安全移动、手动引用管理和硬链接别名审计。
 
-## 任务
+## 功能范围
 
-- 为有效普通媒体增加登录保护的重命名预览 GET
-- 只允许修改同目录下的 basename，扩展名必须保持不变
-- 展示源路径、目标路径、完整 SHA、身份、引用和后果
-- 目标名称执行严格校验，不接受路径段、控制字符、保留前缀或过长名称
-- 禁止覆盖现有文件、symlink、目录或其他对象
-- confirmed POST 复用 standard / strict CONFIRM
-- 通过验证父目录 FD 创建目标硬链接，不重新解析可替换路径
-- 事务内将全部 item cover 和 creator avatar 引用迁移到目标路径
-- 数据库失败时删除新目标并保留原文件和原引用
-- `db.commit()` 抛错后必须使用独立 Session 重查 source / target 全部引用，禁止无条件删除目标
-- 只有精确确认全部引用仍在 source 且 target 零引用时才清理自建 target
-- 已提交时保留双路径并返回 `committed_source_retained`；混合、无引用歧义或查询失败返回 `commit_outcome_unknown` 并禁止删除
-- 提交后再安全删除原路径；删除失败时准确报告双路径保留
-- 从 A1 详情页进入，完成后返回新文件详情页
-- 同步双语、测试和 Unreleased 文档
+### 1. 目录浏览
+
+- 增加登录保护的媒体目录视图
+- 支持面包屑、目录层级和当前目录筛选
+- 展示文件数、总大小、损坏数、重复数、未引用数
+- 保留搜索、排序和分页状态
+
+### 2. 安全移动
+
+- 从媒体详情页选择媒体根目录内的现有目标目录
+- 支持移动时保持原名或输入新 basename
+- 禁止越界、覆盖、symlink 目录、cleanup anchor 和不存在目录
+- 复用 A2 的完整身份快照、父目录 FD、无覆盖硬链接和 commit 结果复核
+- 事务迁移全部 item cover 和 creator avatar 引用
+- 所有失败和不确定结果必须保留至少一个有效引用路径
+
+### 3. 手动引用管理
+
+- 从媒体详情页将有效普通媒体设为条目封面或创作者头像
+- 支持替换现有引用和解除当前引用
+- GET 预览展示旧路径、新路径、对象和执行后果
+- POST 使用 standard / strict CONFIRM
+- 仅修改指定引用字段，不修改其他对象元数据
+
+### 4. 硬链接别名审计
+
+- 增加只读硬链接别名列表
+- 按 dev/inode 聚合同一文件的多个逻辑路径
+- 展示每个路径的 item/creator 引用数量和完整引用明细
+- 区分硬链接别名与相同 SHA 的独立重复文件
+- 提供媒体详情和重复组入口
+- 本阶段不自动删除、统一引用或选择 keeper
 
 ## 边界
 
-- 仅允许有效普通媒体和 recovered 普通媒体
-- 不允许 cleanup anchor、上传残留、损坏、symlink、特殊文件或扫描跳过项
-- 不允许跨目录移动、目录创建、扩展名修改、覆盖或批量操作
-- 不修改条目标题、创作者名称、标签、来源或其他元数据
-- 不请求网络资源，不增加识别、AI、爬虫或远程图片
+- 不创建、删除或重命名目录
+- 不做批量移动、批量重命名或批量关联
+- 不允许跨媒体根目录操作
+- 不覆盖任何已有对象
+- 不请求网络，不增加爬虫、远程图片、识别、推荐或 AI
 - 不修改版本 1.0.6、Schema 2、迁移、依赖或 Docker/CI
 - 不创建 tag、Release，不部署 N100
 
 ## 完成标准
 
-- 有引用和无引用文件都能安全改名
-- 全部封面和头像引用准确迁移
-- SHA、内容和重复组关系保持不变
-- 目标抢占、父目录替换、文件身份变化和伪造请求全部拒绝
-- 数据库失败保留原状态，不产生目标残留
-- commit 结果不确定时所有 cover / avatar 引用始终指向存在的合法媒体，且不删除任一路径
-- 原路径删除失败时目标和引用仍有效，并给出准确结果
-- GET 零写入，所有失败路径不覆盖或删除外部对象
+- 目录导航、移动和返回状态完整
+- 同目录重命名和跨目录移动共享一致安全语义
+- 所有封面和头像引用准确迁移、替换或解除
+- 目标抢占、父目录替换、身份变化、commit 歧义和查询失败安全处理
+- 硬链接别名审计准确且保持零写入
+- 所有引用始终指向存在的合法媒体，或保持原状态
+- 双语、文档和测试完整
 - pytest、pip check、Docker 和 Actions 通过
 
-## A2 当前结果
+## 当前验收状态
 
-- 已新增 A1 详情入口、登录保护 GET 预览和 confirmed POST；仅有效普通 / recovered 媒体可进入
-- basename、原扩展名、保留前缀、长度、目标对象和目标引用均严格校验，不允许跨目录、覆盖或批量操作
-- 预览展示源 / 目标、完整 SHA、mode / size / dev / inode / mtime / ctime、全部引用与后果，SQL / 文件 / 目录写入为零
-- POST 在 `BEGIN IMMEDIATE` 内重验源、目标与全部引用，通过 held verified parent FD 创建 no-overwrite 同 inode 目标
-- 全部 cover / avatar 引用精确迁移；数据库失败 rollback 并按 inode 清理自建目标，commit 后才身份绑定删除源
-- unlink / fsync / 删除复核失败均保留有效目标和引用，并按实际状态报告源路径；成功返回保留来源状态的新详情
-- 目标抢占、源 / 目标替换、普通目录 / symlink 父替换、同 inode hardlink、引用变化、commit / unlink 失败均有专项覆盖
-- SHA、内容、inode 与完整 SHA 重复组关系保持，不通过目标 `Path.stat` / `Path.read_bytes` 二次打开
-- A2 专项 `43 passed`；local-media / B3 / B5 / C1/C2/C4 / A1 / i18n 回归 `144 passed`；媒体 / Data Health / 备份 / UI 组合 `309 passed`
-- 全量 `644 passed in 119.82s`，`pip check` 无冲突；Docker build、隔离 Compose healthy、`/login` / 匿名 rename / API login / 认证媒体库 HTTP 验收通过，临时资源已清理
-- 实现提交 `b32e848` 已推送；Actions run `29396021693` 的 `test` 与 `Docker production smoke` 均为 success
-- commit 歧义修复已使用独立 Session 精确区分未提交 / 已提交 / 未知；只有确认未提交才清理 target
-- 真实 `original_commit()` 后抛错、混合引用、无引用歧义、查询失败、unlink / fsync 与双语提示均有覆盖；A2 / i18n `50 passed`
-- 修复后核心媒体链 `193 passed in 27.83s`、广泛组合 `315 passed in 46.38s`、全量 `650 passed in 106.83s`，`pip check` 无冲突
-- 隔离 Docker build、Compose healthy、安全边界与 `/login` 200 验收通过并清理
-- 修复提交 `09be556` 已推送；Actions run `29399210087` 的 `test` 与 `Docker production smoke` 均为 success
-- 版本 1.0.6、Schema 2、迁移、依赖、Docker/CI、tag、Release 与 N100 均未改变
+- M1 四组专项：`29 passed`
+- local-media、A2、A1 详情、M1 与 i18n 核心组合：`140 passed`
+- 全量 pytest：`679 passed in 113.51s`
+- `pip check`：无依赖冲突
+- Docker：image build 通过，Compose healthy，`/login` HTTP 200，down 清理完成
+- GitHub Actions：待提交并推送后验证

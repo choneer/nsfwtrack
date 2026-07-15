@@ -32,6 +32,7 @@ class MediaFileRenameCreatorReference:
 @dataclass(frozen=True)
 class MediaFileRenamePreview:
     source: local_media.ValidatedLocalMediaFile
+    target_directory: local_media.ValidatedLocalMediaDirectory
     target_media_path: str
     target_basename: str
     mime_type: str
@@ -89,9 +90,12 @@ def _normalize_source_path(value: str | None) -> str:
 def _normalize_target(
     source_media_path: str,
     target_basename: str | None,
-) -> tuple[str, str]:
+    target_directory: str | None,
+) -> tuple[str, str, str]:
     if target_basename is None or not target_basename:
-        raise MediaFileRenameError("basename_required")
+        if target_directory is None:
+            raise MediaFileRenameError("basename_required")
+        target_basename = PurePosixPath(source_media_path).name
     if target_basename != target_basename.strip():
         raise MediaFileRenameError("invalid_basename")
     if (
@@ -119,7 +123,18 @@ def _normalize_target(
     source_path = PurePosixPath(source_media_path)
     if PurePosixPath(target_basename).suffix != source_path.suffix:
         raise MediaFileRenameError("extension_changed")
-    target_path = f"{source_path.parent.as_posix()}/{target_basename}"
+    source_directory = source_path.parent.as_posix()
+    if source_directory == "/media":
+        source_directory = "/media"
+    try:
+        normalized_directory = local_media.normalize_local_media_directory_path(
+            target_directory or source_directory
+        )
+    except local_media.LocalMediaPathError as exc:
+        raise MediaFileRenameError("invalid_target_directory") from exc
+    if normalized_directory is None:
+        raise MediaFileRenameError("invalid_target_directory")
+    target_path = f"{normalized_directory}/{target_basename}"
     try:
         normalized_target = local_media.normalize_local_media_path(target_path)
     except local_media.LocalMediaPathError as exc:
@@ -128,7 +143,7 @@ def _normalize_target(
         raise MediaFileRenameError("invalid_basename")
     if normalized_target == source_media_path:
         raise MediaFileRenameError("basename_unchanged")
-    return normalized_target, target_basename
+    return normalized_target, target_basename, normalized_directory
 
 
 def _entry_matches_record(
@@ -198,11 +213,13 @@ def build_media_file_rename_preview(
     *,
     media_path: str | None,
     target_basename: str | None,
+    target_directory: str | None = None,
 ) -> MediaFileRenamePreview:
     source_path = _normalize_source_path(media_path)
-    target_path, normalized_basename = _normalize_target(
+    target_path, normalized_basename, normalized_directory = _normalize_target(
         source_path,
         target_basename,
+        target_directory,
     )
     try:
         scan = local_media.scan_local_media()
@@ -230,7 +247,17 @@ def build_media_file_rename_preview(
     if not _entry_matches_record(entry, source):
         raise MediaFileRenameError("source_changed")
     try:
-        local_media.ensure_local_media_target_absent(source, target_path)
+        target_directory_record = local_media.validate_local_media_directory(
+            normalized_directory
+        )
+    except local_media.LocalMediaPathError as exc:
+        raise MediaFileRenameError("target_directory_unavailable") from exc
+    try:
+        local_media.ensure_local_media_target_absent(
+            source,
+            target_path,
+            target_directory=target_directory_record,
+        )
     except local_media.LocalMediaSafetyAnchorError as exc:
         code = "target_exists" if exc.code == "target_exists" else "source_changed"
         raise MediaFileRenameError(code) from exc
@@ -241,6 +268,7 @@ def build_media_file_rename_preview(
     items, creators = _load_references(db, source_path)
     return MediaFileRenamePreview(
         source=source,
+        target_directory=target_directory_record,
         target_media_path=target_path,
         target_basename=normalized_basename,
         mime_type=entry.mime_type,
@@ -286,8 +314,11 @@ def _snapshot_matches(
     expected_changed_ns: str | int | None,
     expected_item_ids: tuple[int, ...],
     expected_creator_ids: tuple[int, ...],
+    expected_source_directory_token: str | None = None,
+    expected_target_directory_token: str | None = None,
+    require_directory_tokens: bool = False,
 ) -> bool:
-    return (
+    identities_match = (
         expected_sha256 == preview.source.sha256
         and _parse_identity_number(expected_mode) == preview.source.mode
         and _parse_identity_number(expected_size) == preview.source.size
@@ -298,6 +329,16 @@ def _snapshot_matches(
         and _parse_identity_number(expected_changed_ns) == preview.source.changed_ns
         and expected_item_ids == preview.item_reference_ids
         and expected_creator_ids == preview.creator_reference_ids
+    )
+    if not identities_match:
+        return False
+    if not require_directory_tokens:
+        return True
+    return (
+        expected_source_directory_token
+        == local_media.local_media_directory_identity_token(preview.source)
+        and expected_target_directory_token
+        == local_media.local_media_directory_identity_token(preview.target_directory)
     )
 
 
@@ -405,6 +446,7 @@ def execute_media_file_rename(
     *,
     media_path: str | None,
     target_basename: str | None,
+    target_directory: str | None = None,
     expected_sha256: str | None,
     expected_mode: str | int | None,
     expected_size: str | int | None,
@@ -414,6 +456,8 @@ def execute_media_file_rename(
     expected_changed_ns: str | int | None,
     expected_item_reference_ids: list[str] | tuple[str, ...] | None,
     expected_creator_reference_ids: list[str] | tuple[str, ...] | None,
+    expected_source_directory_token: str | None = None,
+    expected_target_directory_token: str | None = None,
 ) -> MediaFileRenameResult:
     expected_item_ids = _parse_reference_ids(expected_item_reference_ids)
     expected_creator_ids = _parse_reference_ids(expected_creator_reference_ids)
@@ -429,6 +473,7 @@ def execute_media_file_rename(
             db,
             media_path=media_path,
             target_basename=target_basename,
+            target_directory=target_directory,
         )
         if not _snapshot_matches(
             preview,
@@ -441,6 +486,9 @@ def execute_media_file_rename(
             expected_changed_ns=expected_changed_ns,
             expected_item_ids=expected_item_ids,
             expected_creator_ids=expected_creator_ids,
+            expected_source_directory_token=expected_source_directory_token,
+            expected_target_directory_token=expected_target_directory_token,
+            require_directory_tokens=target_directory is not None,
         ):
             raise MediaFileRenameError("stale_preview")
     except Exception:
@@ -448,10 +496,17 @@ def execute_media_file_rename(
         raise
 
     try:
-        link_context = local_media.create_validated_local_media_hardlink(
-            preview.source,
-            preview.target_media_path,
-        )
+        if preview.target_directory.parts == preview.source.parts[:-1]:
+            link_context = local_media.create_validated_local_media_hardlink(
+                preview.source,
+                preview.target_media_path,
+            )
+        else:
+            link_context = local_media.create_validated_local_media_hardlink(
+                preview.source,
+                preview.target_media_path,
+                target_directory=preview.target_directory,
+            )
         with link_context as link:
             try:
                 link.verify()

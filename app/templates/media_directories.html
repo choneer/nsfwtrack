@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% from "_pagination.html" import pagination_nav %}
+{% block title %}{{ t("media_directories.title") }} - NSFWTrack{% endblock %}
+{% block content %}
+<div class="toolbar">
+  <div>
+    <p class="muted">{{ t("media_directories.local_only") }}</p>
+    <h1>{{ t("media_directories.title") }}</h1>
+    <p class="muted">{{ t("media_directories.description") }}</p>
+  </div>
+  <div class="actions">
+    <a class="button secondary" href="/media-library/aliases">{{ t("media_directories.open_aliases") }}</a>
+    <a class="button secondary" href="/media-library">{{ t("media_directories.back") }}</a>
+  </div>
+</div>
+
+<nav class="relation-list" aria-label="{{ t('media_directories.breadcrumbs') }}" data-media-directory-breadcrumbs>
+  {% for breadcrumb in directory_result.breadcrumbs %}
+    <a href="{{ breadcrumb_urls[breadcrumb.media_path] }}"{% if breadcrumb.media_path == directory_result.current.media_path %} aria-current="page"{% endif %}>{{ breadcrumb.name }}</a>
+    {% if not loop.last %}<span>/</span>{% endif %}
+  {% endfor %}
+</nav>
+
+<section class="stats-section">
+  <div class="metric-grid compact-metrics" data-media-directory-summary>
+    <div class="metric"><strong>{{ directory_result.summary.file_count }}</strong><span>{{ t("media_directories.file_count") }}</span></div>
+    <div class="metric"><strong>{{ directory_result.summary.total_size }} B</strong><span>{{ t("media_directories.total_size") }}</span></div>
+    <div class="metric"><strong>{{ directory_result.summary.damaged_count }}</strong><span>{{ t("media_directories.damaged_count") }}</span></div>
+    <div class="metric"><strong>{{ directory_result.summary.duplicate_count }}</strong><span>{{ t("media_directories.duplicate_count") }}</span></div>
+    <div class="metric"><strong>{{ directory_result.summary.unreferenced_count }}</strong><span>{{ t("media_directories.unreferenced_count") }}</span></div>
+  </div>
+</section>
+
+<section class="card stack">
+  <h2>{{ t("media_directories.child_directories") }}</h2>
+  {% if directory_result.children %}
+    <ul class="relation-list" data-media-directory-children>
+      {% for child in directory_result.children %}
+        <li class="relation-row">
+          <a href="{{ child_urls[child.media_path] }}"><strong>{{ child.name }}/</strong></a>
+          <span class="muted">{{ t("media_directories.child_summary", count=child.file_count, size=child.total_size) }}</span>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="muted">{{ t("media_directories.no_children") }}</p>
+  {% endif %}
+</section>
+
+<section class="card stack">
+  <h2>{{ t("media_directories.current_files") }}</h2>
+  <form action="/media-library/directories" method="get" class="form-grid">
+    <input type="hidden" name="directory" value="{{ directory_result.current.media_path }}">
+    <input type="hidden" name="dir_page" value="1">
+    <label>{{ t("media_directories.search") }}
+      <input type="search" name="dir_q" value="{{ directory_result.filters.q }}" maxlength="200" placeholder="{{ t('media_directories.search_placeholder') }}">
+    </label>
+    <label>{{ t("media_directories.status") }}
+      <select name="dir_status">
+        {% for option in directory_status_options %}
+          <option value="{{ option }}"{% if directory_result.filters.status == option %} selected{% endif %}>{{ t("media.list_status_" ~ option) }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>{{ t("media_directories.sort") }}
+      <select name="dir_sort">
+        {% for option in directory_sort_options %}
+          <option value="{{ option }}"{% if directory_result.filters.sort == option %} selected{% endif %}>{{ t("media.list_sort_" ~ option) }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <div class="filter-actions">
+      <button type="submit">{{ t("media_directories.apply") }}</button>
+      <a class="button secondary" href="/media-library/directories?directory={{ directory_result.current.media_path | urlencode }}">{{ t("media_directories.clear") }}</a>
+    </div>
+  </form>
+</section>
+
+<div class="media-match-list" data-media-directory-files>
+  {% for row in directory_result.rows %}
+    <article class="candidate-row">
+      <span class="media-match-preview">
+        {% if row.entry.available %}<img src="{{ row.entry.media_path }}" alt="">{% else %}{{ t("media.invalid_image") }}{% endif %}
+      </span>
+      <div class="stack media-match-details">
+        <strong>{{ row.entry.filename }}</strong>
+        <code>{{ row.entry.media_path }}</code>
+        <div class="tag-row">
+          <span class="pill">{{ t("media_detail.status_valid" if row.entry.available else "media_detail.status_damaged") }}</span>
+          <span class="pill">{{ t("media_detail.status_referenced", count=1) if row.used else t("media_detail.status_unreferenced") }}</span>
+          {% if row.duplicate_count > 1 %}<span class="pill">{{ t("media_directories.duplicate_members", count=row.duplicate_count) }}</span>{% endif %}
+        </div>
+        <span class="muted">{{ row.entry.size }} B</span>
+      </div>
+      <div class="media-match-actions">
+        <a class="button secondary compact" href="{{ detail_urls[row.entry.media_path] }}">{{ t("media_detail.open") }}</a>
+      </div>
+    </article>
+  {% else %}
+    <section class="card"><p class="muted">{{ t("media_directories.no_results") }}</p></section>
+  {% endfor %}
+</div>
+
+{{ pagination_nav(t, directory_pagination) }}
+{% endblock %}

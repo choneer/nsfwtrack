@@ -4,6 +4,26 @@
 
 ### Added
 
+- Added the authenticated Phase 4-M1 media directory browser. It exposes only
+  existing ordinary directories beneath the media root, with breadcrumbs,
+  direct-child directory summaries, current-directory file/byte/damaged/
+  duplicate/unreferenced totals, search, status filtering, stable sorting,
+  fixed pagination, and restricted return-state links to media details.
+- Added a safe cross-directory move entry for eligible ordinary media. Users
+  choose an existing verified target directory and may preserve the filename
+  or supply a basename with the exact original extension. The shared A2 path
+  change engine performs no-overwrite hard linking, exact migration of every
+  item-cover and creator-avatar reference, commit-outcome inspection, and
+  identity-bound source removal across separate retained directory-FD chains.
+- Added single-reference management from valid media details. A write-free GET
+  preview classifies setting an empty field, replacing an existing field, or
+  clearing the current field; confirmed POST changes exactly one
+  `Item.cover_path` or `Creator.avatar_path` and leaves every other object field,
+  relationship, timestamp, and media file unchanged.
+- Added the read-only hardlink alias audit. It groups logical media paths by
+  `device/inode`, lists exact item-cover and creator-avatar references for every
+  path, and labels complete-SHA matches with different identities as independent
+  duplicate files rather than hardlink aliases.
 - Added the authenticated Phase 4-A2 ordinary-media safe-rename flow from the
   A1 detail page. Its write-free GET preview reports source and target logical
   paths, MIME, complete SHA-256, mode, size, device, inode, mtime, ctime, every
@@ -99,6 +119,15 @@
 
 ### Fixed
 
+- Generalized the A2 verified-parent hardlink primitive to independent source
+  and target directory chains. Source, target, and every parent mapping are
+  revalidated before link creation and reference commit; cleanup uses retained
+  directory FDs plus exact inode ownership, so a raced target claim or replaced
+  directory is never overwritten or removed.
+- Added directory-chain preview tokens for cross-directory moves and explicit
+  commit-ambiguity inspection for single-reference updates. Unknown outcomes
+  retain safe file paths or report the reference as unknown without deleting or
+  modifying any media object.
 - Fixed the Phase 4-A2 ambiguous-commit failure path. If `db.commit()` raises,
   a new independent database session now reloads every item-cover and
   creator-avatar reference for both source and target before any file cleanup.
@@ -159,6 +188,14 @@
 
 ### Changed
 
+- Media details now link to M1 safe move and single-reference previews for valid
+  ordinary media. The media library links to directory browsing and hardlink
+  alias audit; all new GET views remain read-only and preserve normalized local
+  return state.
+- M1 does not create, delete, or rename directories; perform bulk operations;
+  choose an alias keeper; automatically merge references; change application
+  version 1.0.6 or Schema 2; add a migration, index, dependency, tag, Release,
+  deployment, network source, recognition, recommendation, or AI behavior.
 - Media-library cards, duplicate-group members, and recovered ordinary-media
   rows now link to the A1 detail page while preserving each source page's
   normalized search, status, sort, and pagination state. Internal cleanup

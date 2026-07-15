@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% from "_danger_notice.html" import danger_notice %}
+{% block title %}{{ t("media_reference_management.title") }} - NSFWTrack{% endblock %}
+{% block content %}
+{% set target = reference_preview.target %}
+{% set media = reference_preview.media %}
+<div class="toolbar">
+  <div>
+    <p class="muted">{{ t("media_reference_management.local_only") }}</p>
+    <h1>{{ t("media_reference_management.title") }}</h1>
+    <p class="muted">{{ t("media_reference_management.description") }}</p>
+  </div>
+  <a class="button secondary" href="{{ source_detail_url }}">{{ t("media_reference_management.back") }}</a>
+</div>
+
+<section class="notice warning">
+  <strong>{{ t("media_reference_management.warning_title") }}</strong>
+  <p>{{ t("media_reference_management.warning_detail") }}</p>
+</section>
+
+<section class="card stack" data-media-reference-management-preview data-reference-action="{{ reference_preview.action }}">
+  <div class="cover"><img src="{{ media.media_path }}" alt=""></div>
+  <dl class="settings-summary">
+    <dt>{{ t("media_reference_management.object_type") }}</dt><dd>{{ t("media_reference_management.type_" ~ target.object_type) }}</dd>
+    <dt>{{ t("media_reference_management.object") }}</dt><dd><a href="/{{ 'items' if target.object_type == 'item_cover' else 'creators' }}/{{ target.object_id }}">{{ target.object_name }}</a></dd>
+    <dt>{{ t("media_reference_management.action") }}</dt><dd><strong>{{ t("media_reference_management.action_" ~ reference_preview.action) }}</strong></dd>
+    <dt>{{ t("media_reference_management.old_path") }}</dt><dd>{% if target.original_path %}<code>{{ target.original_path }}</code>{% else %}<span class="muted">{{ t("media_reference_management.empty_path") }}</span>{% endif %}</dd>
+    <dt>{{ t("media_reference_management.new_path") }}</dt><dd>{% if reference_preview.action == "clear" %}<span class="muted">{{ t("media_reference_management.empty_path") }}</span>{% else %}<code>{{ media.media_path }}</code>{% endif %}</dd>
+    <dt>{{ t("media_reference_management.media_identity") }}</dt><dd><code>{{ media.sha256 }}</code><br><code>dev={{ media.device }} · inode={{ media.inode }}</code></dd>
+  </dl>
+  <p>{{ t("media_reference_management.consequence_" ~ reference_preview.action) }}</p>
+  <p class="muted">{{ t("media_reference_management.only_field") }}</p>
+  {{ danger_notice(t, danger_policy, "danger.object_media_reference_management", "danger.consequence_media_reference_management", "danger.deletion_none", "danger.recovery_media_reference_management", false) }}
+  <form class="stack" action="/media-library/detail/reference" method="post">
+    <input type="hidden" name="media_path" value="{{ media.media_path }}">
+    <input type="hidden" name="object_type" value="{{ target.object_type }}">
+    <input type="hidden" name="object_id" value="{{ target.object_id }}">
+    <input type="hidden" name="operation" value="{{ 'clear' if reference_preview.action == 'clear' else 'set' }}">
+    <input type="hidden" name="next" value="{{ return_url }}">
+    <input type="hidden" name="expected_object_token" value="{{ target.object_token }}">
+    <input type="hidden" name="expected_action" value="{{ reference_preview.action }}">
+    <input type="hidden" name="expected_sha256" value="{{ media.sha256 }}">
+    <input type="hidden" name="expected_mode" value="{{ media.mode }}">
+    <input type="hidden" name="expected_size" value="{{ media.size }}">
+    <input type="hidden" name="expected_device" value="{{ media.device }}">
+    <input type="hidden" name="expected_inode" value="{{ media.inode }}">
+    <input type="hidden" name="expected_modified_ns" value="{{ media.modified_ns }}">
+    <input type="hidden" name="expected_changed_ns" value="{{ media.changed_ns }}">
+    <div class="actions">
+      <button class="danger" type="submit" data-confirm-message="{{ t('media_reference_management.confirm_' ~ reference_preview.action) }}"{% if danger_policy.is_strict %} data-strict-confirm-message="{{ t('danger.strict_prompt') }}"{% endif %}>{{ t("media_reference_management.execute_" ~ reference_preview.action) }}</button>
+      <a class="button secondary" href="{{ source_detail_url }}">{{ t("common.back") }}</a>
+    </div>
+  </form>
+</section>
+{% endblock %}

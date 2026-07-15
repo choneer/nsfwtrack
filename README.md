@@ -2,17 +2,18 @@
 
 NSFWTrack is a local single-user content record manager / collection tracker.
 
-Current application version: `v1.0.6 / Phase 4-A2 in Unreleased`.
+Current application version: `v1.0.6 / Phase 4-M1 in Unreleased`.
 
 Current stable version: `v1.0.6 / Phase 3-B1 and B2`.
 
 Latest Release: [NSFWTrack v1.0.6](https://github.com/choneer/nsfwtrack/releases/tag/v1.0.6).
 
-Current status: `v1.0.6 is released; Phase 4-A2 ordinary-media safe rename is complete in Unreleased`.
+Current status: `v1.0.6 is released; Phase 4-M1 media management enhancements are implemented in Unreleased`.
 
-Current development: `Phase 3-B1 and B2 are published; Phase 4-A1 is complete,
-and Phase 4-A2 adds one authenticated, manually confirmed same-directory
-rename while application version 1.0.6 and Schema 2 stay unchanged`.
+Current development: `Phase 3-B1 and B2 are published; Phase 4-A1/A2 are
+complete, and Phase 4-M1 adds directory browsing, safe cross-directory moves,
+single-reference management, and read-only hardlink alias auditing while
+application version 1.0.6 and Schema 2 stay unchanged`.
 
 N100 deployment: `not started; waits for explicit user authorization`.
 
@@ -149,6 +150,46 @@ The original implementation commit `b32e848` is
 pushed, and GitHub Actions run
 [`29396021693`](https://github.com/choneer/nsfwtrack/actions/runs/29396021693)
 passed both `test` and `Docker production smoke`.
+
+## Phase 4-M1 Media Management Enhancements
+
+Phase 4-M1 adds authenticated `/media-library/directories` and
+`/media-library/aliases` read-only views. Directory browsing uses only verified
+ordinary directories beneath the media root and retains breadcrumbs, direct
+statistics, search, status, sort, pagination, and detail return state. Alias
+audit groups multiple logical paths by exact `device/inode`, reports every
+cover/avatar reference per path, and separately labels same-SHA files with a
+different identity. Neither view writes SQL or offers automatic cleanup.
+
+Eligible media details now offer a cross-directory move preview. The target
+must be an existing ordinary directory under the same media root; symlink,
+missing, internal-reserved, escaping, and replaced directories fail closed.
+The optional basename preserves the exact extension, and every occupied target
+object blocks execution. M1 extends the A2 path-change engine rather than
+duplicating it: separate verified source/target FD chains, no-overwrite
+hardlink creation, exact item-cover/creator-avatar migration, independent
+commit inspection, identity-bound cleanup, and post-commit source removal use
+the same safety semantics for rename and move.
+
+The same detail page can preview setting, replacing, or clearing one
+`Item.cover_path` or `Creator.avatar_path`. Confirmed POST uses the configured
+standard/strict confirmation policy, validates the complete object snapshot
+and media identity under `BEGIN IMMEDIATE`, and executes one conditional SQL
+field update. Titles, names, types, summaries, dates, extra data, timestamps,
+relationships, other objects, and all media files remain unchanged. Commit
+exceptions are rechecked through an independent session; an unknown result is
+reported without a false success claim.
+
+M1 creates or deletes no directory, performs no bulk operation, selects no
+alias keeper, and adds no automatic merge. It leaves version 1.0.6, Schema 2,
+migrations, indexes, dependencies, Docker/CI, tags, Releases, N100 deployment,
+network access, recognition, recommendation, and AI behavior unchanged.
+
+Current M1 local acceptance: the four focused suites pass `29` tests, the
+local-media/A2/A1/M1/i18n combination passes `140` tests, the full suite passes
+`679` tests, and `pip check` reports no broken requirements. The production
+Docker image builds, Compose reaches healthy, `/login` returns HTTP `200`, and
+the stack shuts down cleanly. Remote Actions verification follows the M1 push.
 
 ## v1.0.6 Release
 

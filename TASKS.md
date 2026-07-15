@@ -2,10 +2,10 @@
 
 按顺序执行，每完成一项打个 [x]。
 
-## 当前状态（v1.0.6 已发布，Phase 4-A2 最终验收）
+## 当前状态（v1.0.6 已发布，Phase 4-M1 实现与验收）
 
 当前稳定版与最新 Release：`v1.0.6`。Phase 3-B1 / B2 已正式发布，
-Phase 3-B3 / B4 / B5 / B6 / C1 / C2 / C3 / C4 / C5 与 D1 最终集成审查均已完成并位于 Unreleased；Phase 4-A1 / A2 已完成，应用 Schema 仍为 `2`。
+Phase 3-B3 / B4 / B5 / B6 / C1 / C2 / C3 / C4 / C5 与 D1 最终集成审查均已完成并位于 Unreleased；Phase 4-A1 / A2 已完成，Phase 4-M1 已实现并进入最终验收，应用 Schema 仍为 `2`。
 
 - Annotated tag object：`d4d5c31cd5b2fed9a90ad69742d54b4c9dbed0b4`
 - Peeled commit：`961a3d0cc169e82b261d83207b0ec802007e292b`
@@ -15,6 +15,23 @@ N100 / 目标主机部署尚未开始，**不是当前开发任务**，必须等
 历史审计见 `COMPLETION_AUDIT.md`，当前 Phase 3 证据见
 `PHASE3_COMPLETION_AUDIT.md`。历史任务保留在本文后半部分，
 不再作为新增开发路线。
+
+### Phase 4-M1 媒体管理增强包（Unreleased）
+
+- [x] 新增登录保护的媒体目录浏览，支持面包屑、子目录、当前目录五项统计、搜索、状态、排序、分页和详情返回状态
+- [x] 目录扫描与移动目标仅接受媒体根内现有普通目录，拒绝越界、missing、symlink、文件及 cleanup / upload 内部保留目录
+- [x] 扩展 A2 为同一安全路径变更引擎，跨目录保持独立源 / 目标目录 FD 链、身份快照、无覆盖硬链接、事务和 commit 歧义语义
+- [x] 移动可保留原名或使用同扩展名 basename，精确迁移全部 item cover / creator avatar 引用
+- [x] 跨目录预览携带源 / 目标完整目录链 token，目标抢占、目录替换或引用变化均在写入前拒绝
+- [x] 媒体详情支持预览设置、替换或清除一个 `cover_path` / `avatar_path`，复用 standard / strict `CONFIRM`
+- [x] 引用操作只执行指定字段的条件 SQL 更新，其他元数据、时间、关系、对象和媒体文件保持不变
+- [x] 引用 commit 异常由独立 Session 复核 committed / not committed / unknown，不以未知状态冒充成功
+- [x] 新增按 dev/inode 聚合的只读硬链接别名审计，逐路径显示完整引用并区分相同 SHA 的独立文件
+- [x] 目录与别名 GET 捕获 SQL 写入为 0，不提供 keeper、删除、统一引用或其他写入口
+- [x] 覆盖目标抢占、目录替换、引用变化、commit 后异常、独立查询失败、fsync / unlink 失败及外部目标保留
+- [x] 中文 / English、模板、CHANGELOG Unreleased、README / TASKS / REVIEW / PLAN / GOAL 同步
+- [ ] 本地专项 `29 passed`、核心组合 `140 passed`、全量 `679 passed`、pip check 与 Docker healthy / `/login` 200 已通过；Actions 待提交推送后验收
+- [x] 保持版本 1.0.6、Schema 2、迁移、索引、依赖、旧 tag / Release 与 N100 不变
 
 ### Phase 4-A2 普通媒体安全重命名（Unreleased）
 
