@@ -8,7 +8,7 @@ Current stable version: `v1.0.6 / Phase 3-B1 and B2`.
 
 Latest Release: [NSFWTrack v1.0.6](https://github.com/choneer/nsfwtrack/releases/tag/v1.0.6).
 
-Current status: `v1.0.6 is released; Phase 4-A1 ordinary local-media file details have passed local acceptance in Unreleased and are awaiting GitHub Actions`.
+Current status: `v1.0.6 is released; Phase 4-A1 ordinary local-media file details have passed local and GitHub Actions acceptance in Unreleased`.
 
 Current development: `Phase 3-B1 and B2 are published; Phase 4-A1 adds one
 authenticated read-only view while application version 1.0.6 and Schema 2 stay
@@ -100,7 +100,9 @@ cases, the media/Data Health/backup/UI regression passes `252` tests, and the
 full suite passes all `601` tests. `pip check` is clean. The production image
 builds; isolated Compose is healthy with the existing non-root/read-only/
 capability boundaries, `/login` returns 200, anonymous detail access redirects,
-and authenticated detail/library pages return 200. GitHub Actions is pending.
+and authenticated detail/library pages return 200. Implementation commit
+`c8cfb99` is pushed, and GitHub Actions run `29389862206` passed both `test`
+and `Docker production smoke`.
 
 ## v1.0.6 Release
 

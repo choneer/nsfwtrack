@@ -51,5 +51,5 @@
 - SQL 写捕获为 0，文件 / 目录快照不变，父目录替换竞态不读取外部目标
 - A1 专项 `17 passed`，媒体 / 恢复 / C1/C4 / Data Health / 备份 / UI 组合 `252 passed`
 - 全量 `601 passed in 91.96s`，`pip check` 无冲突；Docker build、隔离 Compose healthy、`/login` / 匿名详情 / 认证详情与媒体库 HTTP 验收通过，临时资源已清理
-- 提交推送与 Actions 待完成
+- 实现提交 `c8cfb99` 已推送；Actions run `29389862206` 的 `test` 与 `Docker production smoke` 均为 success
 - 版本 1.0.6、Schema 2、迁移、依赖、Docker/CI、tag、Release 与 N100 均未改变

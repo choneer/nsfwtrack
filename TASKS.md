@@ -2,10 +2,10 @@
 
 按顺序执行，每完成一项打个 [x]。
 
-## 当前状态（v1.0.6 已发布，Phase 4-A1 最终验收）
+## 当前状态（v1.0.6 已发布，Phase 4-A1 已完成）
 
 当前稳定版与最新 Release：`v1.0.6`。Phase 3-B1 / B2 已正式发布，
-Phase 3-B3 / B4 / B5 / B6 / C1 / C2 / C3 / C4 / C5 与 D1 最终集成审查均已完成并位于 Unreleased；Phase 4-A1 普通媒体详情页已实现并进入最终验收，应用 Schema 仍为 `2`。
+Phase 3-B3 / B4 / B5 / B6 / C1 / C2 / C3 / C4 / C5 与 D1 最终集成审查均已完成并位于 Unreleased；Phase 4-A1 普通媒体详情页已完成本地与 Actions 验收，应用 Schema 仍为 `2`。
 
 - Annotated tag object：`d4d5c31cd5b2fed9a90ad69742d54b4c9dbed0b4`
 - Peeled commit：`961a3d0cc169e82b261d83207b0ec802007e292b`
@@ -29,7 +29,7 @@ N100 / 目标主机部署尚未开始，**不是当前开发任务**，必须等
 - [x] GET 捕获 SQL 写语句为 0，文件、目录身份和目录项前后不变；父目录替换不读取外部目标
 - [x] 中文 / English 与 i18n 对称，A1 专项 `17 passed`、媒体链组合 `252 passed`
 - [x] 全量 `601 passed in 91.96s`、pip check、隔离 Docker healthy 与 `/login` / 详情 / 媒体库 HTTP 验收通过，临时资源已清理
-- [ ] 提交推送并等待 Actions 的 test / Docker production smoke 均成功
+- [x] 实现提交 `c8cfb99` 已推送，Actions run `29389862206` 的 test / Docker production smoke 均成功
 - [x] 保持版本 1.0.6、Schema 2、迁移、依赖、Docker/CI、tag、Release 与 N100 不变
 
 ### Phase 3-D1 Unreleased 集成总审查与开发冻结
