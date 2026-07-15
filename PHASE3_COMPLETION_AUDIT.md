@@ -103,10 +103,19 @@ parent fd, and rechecks the current mapping before content use or unlink.
 5. C2 observed a residue and later reopened its parent chain without retaining
    the original parent identities. It now retains and revalidates the complete
    parent mapping before the identity-bound unlink.
+6. A final create/publish validation could accept the expected inode through an
+   ordinary replacement parent populated with hard links without proving that
+   the returned records retained the original parent chain. Created anchors,
+   refreshed anchors, and published targets now require the same root, logical
+   parent parts, and stable directory type/device/inode chain as the initiating
+   record, followed by a fresh current-mapping check. File ctime is deliberately
+   not compared across hard-link creation.
 
-Regression tests inject parent rename/symlink races after fd reads and before
-create, publish, and unlink. The original selected inode, moved directory, and
-external hard-link entries remain intact on every rejected path.
+Regression tests inject parent rename/symlink races after fd reads and exact
+post-create/post-link races before final validation. The latter replace the
+parent with an ordinary external directory populated with same-inode hard
+links. The original selected inode, moved directory, unrelated media, database
+references, and external entries remain intact on every rejected path.
 
 ## Static And Compatibility Audit
 
@@ -118,7 +127,7 @@ external hard-link entries remain intact on every rejected path.
   or expected compatibility classes; none is an unfinished implementation.
 - Chinese/English translation dictionaries remain symmetric and template
   translation tests pass.
-- The combined 363-test regression covers B3-C5, media library, media serving,
+- The combined 365-test regression covers B3-C5, media library, media serving,
   upload, recovery, Data Health, backup export/validation/restore, import,
   Schema 2, migrations, settings, danger confirmation, and i18n.
 - Backup payloads still exclude media bytes and internal `schema_migrations`;
@@ -127,11 +136,11 @@ external hard-link entries remain intact on every rejected path.
 
 ## Verification
 
-- Focused B3-B6/C2/C4 regression: `98 passed`.
-- D1 media-health and new race regressions: included in the combined and full
-  suites.
-- Combined integration/compatibility regression: `363 passed in 60.80s`.
-- Full suite: `582 passed in 142.47s` on Python 3.12.13.
+- Exact final create/publish parent-chain races: `2 passed`.
+- B3-B6/C1/C2/C4, authenticated media response, and Data Health core
+  regression: `177 passed in 28.65s`.
+- Combined integration/compatibility regression: `365 passed in 55.41s`.
+- Full suite: `584 passed in 115.46s` on Python 3.12.13.
 - `pip check`: `No broken requirements found.`
 - Production image: build passed.
 - Isolated Compose: container reached `healthy`, user `10001:10001`, read-only
@@ -140,17 +149,19 @@ external hard-link entries remain intact on every rejected path.
   `/media-library/duplicates`, `/media-library/recovery`, and
   `/media-library/skipped` all returned HTTP 200.
 - Compose container/network and isolated temporary data were removed.
-- GitHub Actions run
+- Historical GitHub Actions run
   [`29350252749`](https://github.com/choneer/nsfwtrack/actions/runs/29350252749)
   completed successfully for both `test` and `Docker production smoke` on D1
-  audit commit `d22d9d7`.
+  audit commit `d22d9d7`; the final parent-chain repair still requires a new run.
 
 ## Conclusion
 
-The reviewed Phase 3-B3 through C5 scope is complete and has no known
-release-blocking functional, safety, navigation, i18n, backup/import, Schema 2,
-settings, dependency, Docker, or CI regression. Development is frozen for
-separate release preparation.
+The local release blocker is closed: final create/publish results are bound to
+the initiating root/parent identity chain, the exact ordinary-directory
+hard-link races reject success, and all local acceptance gates pass. The final
+completion/freeze conclusion remains temporarily withdrawn only until the repair
+is pushed and its new GitHub Actions `test` and `Docker production smoke` jobs
+both succeed.
 
 Release preparation remains a separate user-approved task. This audit creates
 no tag, GitHub Release, version change, or N100 deployment.

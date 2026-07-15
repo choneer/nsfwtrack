@@ -8,10 +8,11 @@ Current stable version: `v1.0.6 / Phase 3-B1 and B2`.
 
 Latest Release: [NSFWTrack v1.0.6](https://github.com/choneer/nsfwtrack/releases/tag/v1.0.6).
 
-Current status: `v1.0.6 is released; Phase 3-B3 through C5 and the Phase 3-D1 integration freeze are complete in Unreleased`.
+Current status: `v1.0.6 is released; Phase 3-B3 through C5 remain in Unreleased and the Phase 3-D1 final parent-chain fix has passed local acceptance, pending GitHub Actions`.
 
-Current development: `Phase 3-B1 and B2 are published; Phase 3-D1 freezes the
-current Unreleased scope while keeping application version 1.0.6 and Schema 2`.
+Current development: `Phase 3-B1 and B2 are published; Phase 3-D1 keeps the
+current Unreleased scope closed to new development while final remote acceptance
+is pending, with application version 1.0.6 and Schema 2 unchanged`.
 
 N100 deployment: `not started; waits for explicit user authorization`.
 
@@ -29,7 +30,7 @@ The `v1.0.6` release is the current stable tag. Code development and WSL
 acceptance through Phase 3-B1 and B2 are complete. See
 [COMPLETION_AUDIT.md](COMPLETION_AUDIT.md) for the archived K1 / K2 evidence.
 The current B3-C5 integration, finding-state matrix, confirmed D1 fixes, and
-582-test local freeze evidence are recorded in
+584-test local acceptance evidence are recorded in
 [PHASE3_COMPLETION_AUDIT.md](PHASE3_COMPLETION_AUDIT.md).
 
 - Phase 2-K2 closed the local media-path, bulk / clear confirmation, deployment
@@ -60,13 +61,22 @@ directory fd identities before reading, linking, or unlinking; injected
 external-symlink/hard-link races fail closed without returning or touching the
 external entry.
 
-Local D1 acceptance passes 363 integrated compatibility tests and all 582
+The final create/publish checks also require every returned record to retain the
+original root, logical parent path, and stable directory identity chain. Exact
+post-create and post-link races replace the parent with an ordinary external
+directory containing same-inode hard links; both reject success while preserving
+the original directory, external entries, database references, and other media.
+Hard-link ctime changes are intentionally not compared as an immutable snapshot.
+
+Local D1 acceptance passes 365 integrated compatibility tests and all 584
 tests. `pip check` is clean. The production image builds, isolated Compose is
 healthy with the existing non-root/read-only/capability security boundaries,
 and login plus the authenticated Data Health/media navigation pages return
-HTTP 200. GitHub Actions run
+HTTP 200. The earlier GitHub Actions run
 [`29350252749`](https://github.com/choneer/nsfwtrack/actions/runs/29350252749)
-passed both `test` and `Docker production smoke` on the D1 audit commit.
+passed both jobs before the final parent-chain finding. The local blocker is now
+closed; the freeze remains withdrawn only until the new repair commit and its
+complete GitHub Actions gates pass.
 
 ## v1.0.6 Release
 

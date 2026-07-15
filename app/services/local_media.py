@@ -532,6 +532,20 @@ def _same_directory_identity_chain(
     )
 
 
+def _same_validated_parent_chain(
+    first: ValidatedLocalMediaFile,
+    second: ValidatedLocalMediaFile,
+) -> bool:
+    return (
+        first.root == second.root
+        and first.parts[:-1] == second.parts[:-1]
+        and _same_directory_identity_chain(
+            first.directory_identities,
+            second.directory_identities,
+        )
+    )
+
+
 def _open_validated_directories(
     record: ValidatedLocalMediaFile,
 ) -> list[int]:
@@ -690,10 +704,14 @@ def create_local_media_safety_anchor(
             f"{PurePosixPath(record.media_path).parent.as_posix()}/"
             f"{anchor_name}"
         )
-        return validate_local_media_file(
+        created = validate_local_media_file(
             anchor_media_path,
             expected_sha256=record.sha256,
         )
+        if not _same_validated_parent_chain(record, created):
+            raise LocalMediaSafetyAnchorError("create_failed")
+        _verify_validated_record_mapping(created)
+        return created
     except Exception as exc:
         if anchor_fd >= 0:
             os.close(anchor_fd)
@@ -810,7 +828,9 @@ def publish_local_media_safety_anchor(
             expected_sha256=anchor.sha256,
         )
         if (
-            refreshed_anchor.device != current_anchor.device
+            not _same_validated_parent_chain(current_anchor, refreshed_anchor)
+            or not _same_validated_parent_chain(current_anchor, published)
+            or refreshed_anchor.device != current_anchor.device
             or refreshed_anchor.inode != current_anchor.inode
             or refreshed_anchor.size != current_anchor.size
             or refreshed_anchor.modified_ns != current_anchor.modified_ns
@@ -820,6 +840,8 @@ def publish_local_media_safety_anchor(
             or published.modified_ns != refreshed_anchor.modified_ns
         ):
             raise LocalMediaSafetyAnchorError("publish_failed")
+        _verify_validated_record_mapping(refreshed_anchor)
+        _verify_validated_record_mapping(published)
         return published
     except Exception as exc:
         if linked and directories:

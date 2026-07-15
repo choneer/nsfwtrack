@@ -40,7 +40,7 @@ Release: https://github.com/choneer/nsfwtrack/releases/tag/v1.0.6
 稳定性收尾：Phase 2-I1 基线、I2 查询优化、I3 错误处理、I4 发布冻结审查已随 v1.0.0 发布
 完成度审计：Phase 2-K1 / K2 已随 v1.0.1 发布；代码开发与 WSL 验收已完成
 维护与 CI：Phase 2-L1 至 L6 已随 v1.0.2 发布；L7 已随 v1.0.3 发布；L8 固定非 root 容器用户已随 v1.0.4 发布
-产品功能重启：Phase 3-A1 至 A6 已随 v1.0.5 发布；Phase 3-B1 / B2 已随 v1.0.6 发布；Phase 3-B3 / B4 / B5 / B6 / C1 / C2 / C3 / C4 / C5 与 D1 最终集成审查均已完成并位于 Unreleased
+产品功能重启：Phase 3-A1 至 A6 已随 v1.0.5 发布；Phase 3-B1 / B2 已随 v1.0.6 发布；Phase 3-B3 / B4 / B5 / B6 / C1 / C2 / C3 / C4 / C5 位于 Unreleased；D1 最终父链修复与本地验收已完成，等待新 Actions
 ```
 
 当前完成度估算：
@@ -1186,18 +1186,19 @@ K1 审计结论：
 - `media_duplicate_content` 现在按完整 SHA-256 直接进入唯一 B2 重复组
 - 认证媒体响应在验证 fd 链内读取并直接返回受限字节，不再验证路径后由 `FileResponse` 二次打开
 - B3-B6 的验证、锚点创建、恢复发布和身份删除保留根 / 父目录 fd 身份并复核当前映射
+- create 最终返回的新锚点与 publish 最终返回前的刷新锚点 / 目标均绑定原 root、逻辑父路径和逐级目录类型 / dev / inode 身份链，并再次复核当前映射
 - C2 保留上传残留父目录链身份，在 unlink 前复核父链和最终文件映射
-- 父目录改名并替换为外部 symlink、外部同 inode 硬链接等注入竞态均安全拒绝，不读写或删除外部目录项
+- 父目录改名并替换为外部 symlink，或替换为含同 inode 硬链接的普通外部目录等注入竞态均安全拒绝，不读写或删除外部目录项
 
 当前验证：
 
 - 19 个 B3-C5/Data Health 相关路由全部包含登录依赖
 - 110 个注册路由与 142 个模板字面量链接静态核对，缺失目标为 0
-- B3-B6/C2/C4 专项回归 `98 passed`
-- B3-C5、媒体响应、备份、导入、Schema 2、迁移、设置与 i18n 组合回归 `363 passed`
-- 全量 `582 passed`，`pip check` 无依赖冲突
+- 最终 create / publish 精确竞态 `2 passed`；B3-B6/C1/C2/C4、媒体响应与 Data Health 核心回归 `177 passed`
+- B3-C5、媒体响应、备份、导入、Schema 2、迁移、设置与 i18n 组合回归 `365 passed`
+- 全量 `584 passed`，`pip check` 无依赖冲突
 - Docker image build、隔离 Compose healthy、`/login` 与五个认证媒体/Data Health 页面 HTTP 200，资源已清理
-- 完整矩阵和结论见 `PHASE3_COMPLETION_AUDIT.md`；D1 提交 `d22d9d7` 的 Actions run `29350252749` 两个 job 均成功
+- 完整矩阵和结论见 `PHASE3_COMPLETION_AUDIT.md`；旧 D1 提交 `d22d9d7` 的 Actions run `29350252749` 两个 job 曾成功，最终父链修复仍等待新提交与 Actions
 - 保持应用版本 1.0.6、Schema 2、迁移、依赖、Docker/CI、旧 tag / Release 与 N100 状态不变
 
 ---
@@ -1228,7 +1229,7 @@ K1 审计结论：
 19. Phase 3-C3 媒体扫描跳过项定位中心已完成并位于 Unreleased
 20. Phase 3-C4 损坏媒体文件手动清理已完成并位于 Unreleased
 21. Phase 3-C5 媒体根目录诊断与安全初始化已完成并位于 Unreleased
-22. Phase 3-D1 最终集成审查完成，Actions test / Docker production smoke 均成功
+22. Phase 3-D1 最终父链修复与本地全套验收完成，待提交、推送及新 Actions 后重新冻结
 23. N100 / 目标主机部署未开始，等待用户明确授权
 24. 其余仅按实际问题做可选维护
 ```
@@ -1305,7 +1306,7 @@ K1 审计结论：
 - Phase 3-C4 功能提交 `1e686f3` 已推送 main，Actions run `29336790587` 的 test / Docker production smoke 均通过
 - Phase 3-D1 已完成 B3-C5 finding / 导航 / 身份 / 引用 / GET / POST / 失败状态总审查，完整证据见 `PHASE3_COMPLETION_AUDIT.md`
 - Phase 3-D1 修复 Data Health 路径重走、重复 finding 缺少直接入口、B3-B6 共享验证媒体父路径重解析及 C2 父链身份丢失四类真实问题
-- Phase 3-D1 组合回归 363 passed、全量 582 passed、pip check 与隔离 Docker healthy / HTTP 验收通过；提交 `d22d9d7` 的 Actions run `29350252749` 两个 job 均成功
+- Phase 3-D1 最终父链精确竞态 2 passed、核心回归 177 passed、组合回归 365 passed、全量 584 passed，pip check 与隔离 Docker healthy / HTTP 验收通过；待新提交 Actions 后重新记录最终冻结
 - 当前发布准备与本地验收完成后仍需单独发布指令；N100 部署须等待用户明确授权
 
 ---

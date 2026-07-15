@@ -45,6 +45,23 @@ def _anchor_files(media_root: Path) -> list[Path]:
     )
 
 
+def _database_reference_snapshot() -> tuple[
+    tuple[tuple[int, str | None], ...],
+    tuple[tuple[int, str | None], ...],
+]:
+    with SessionLocal() as db:
+        return (
+            tuple(
+                (row.id, row.cover_path)
+                for row in db.query(Item).order_by(Item.id)
+            ),
+            tuple(
+                (row.id, row.avatar_path)
+                for row in db.query(Creator).order_by(Creator.id)
+            ),
+        )
+
+
 def _assert_database_references_are_valid(digest: str) -> set[str]:
     with SessionLocal() as db:
         paths = {
@@ -894,3 +911,173 @@ def test_safety_anchor_publication_rejects_parent_symlink_race(
     assert (moved / anchor_file.name).exists()
     assert external_anchor.exists()
     assert not (external / "recovered-race.gif").exists()
+
+
+def test_safety_anchor_creation_rejects_final_validate_parent_chain_replacement(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    media_root = tmp_path / "media"
+    parent = media_root / "Nested"
+    keeper = _write_gif(media_root, "Nested/Keeper.gif", extra=6)
+    other = _write_gif(media_root, "Nested/Other.gif", extra=7)
+    external = tmp_path / "external"
+    external.mkdir()
+    marker = external / "external-marker.txt"
+    marker.write_text("external", encoding="utf-8")
+    moved = media_root / "Moved"
+    monkeypatch.setattr(local_media, "LOCAL_MEDIA_ROOT", media_root)
+    keeper_path = _media_path(keeper, media_root)
+    other_path = _media_path(other, media_root)
+    with SessionLocal() as db:
+        db.add_all(
+            [
+                Item(title="Keeper Reference", cover_path=keeper_path),
+                Creator(
+                    name="Other Reference",
+                    type="person",
+                    avatar_path=other_path,
+                ),
+            ]
+        )
+        db.commit()
+    before_db = _database_reference_snapshot()
+    record = local_media.validate_local_media_file(
+        keeper_path,
+        expected_sha256=_digest(keeper),
+    )
+    anchor_name = ".cleanup-anchor-final-create.gif"
+    monkeypatch.setattr(
+        local_media.secrets,
+        "token_hex",
+        lambda _: "final-create",
+    )
+    original_validate = local_media.validate_local_media_file
+    raced = False
+
+    def replace_parent_before_final_validate(
+        media_path: str,
+        *,
+        expected_sha256: str,
+    ) -> local_media.ValidatedLocalMediaFile:
+        nonlocal raced
+        if media_path.endswith(anchor_name) and not raced:
+            parent.rename(moved)
+            external.rename(parent)
+            os.link(moved / anchor_name, parent / anchor_name)
+            os.link(moved / keeper.name, parent / keeper.name)
+            os.link(moved / other.name, parent / other.name)
+            raced = True
+        return original_validate(
+            media_path,
+            expected_sha256=expected_sha256,
+        )
+
+    monkeypatch.setattr(
+        local_media,
+        "validate_local_media_file",
+        replace_parent_before_final_validate,
+    )
+
+    with pytest.raises(local_media.LocalMediaSafetyAnchorError) as error:
+        local_media.create_local_media_safety_anchor(record)
+
+    assert error.value.code == "create_failed"
+    assert raced is True
+    assert parent.is_dir() and not parent.is_symlink()
+    assert moved.is_dir() and not moved.is_symlink()
+    assert (parent / anchor_name).read_bytes() == _gif_bytes(6)
+    assert (parent / marker.name).read_text(encoding="utf-8") == "external"
+    assert not (moved / anchor_name).exists()
+    assert (moved / keeper.name).read_bytes() == _gif_bytes(6)
+    assert (moved / other.name).read_bytes() == _gif_bytes(7)
+    assert (parent / keeper.name).samefile(moved / keeper.name)
+    assert (parent / other.name).samefile(moved / other.name)
+    assert _database_reference_snapshot() == before_db
+
+
+def test_safety_anchor_publication_rejects_final_validate_parent_chain_replacement(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    media_root = tmp_path / "media"
+    parent = media_root / "Nested"
+    anchor_file = _write_gif(
+        media_root,
+        "Nested/.cleanup-anchor-final-publish.gif",
+        extra=8,
+    )
+    other = _write_gif(media_root, "Nested/Other.gif", extra=9)
+    external = tmp_path / "external"
+    external.mkdir()
+    marker = external / "external-marker.txt"
+    marker.write_text("external", encoding="utf-8")
+    moved = media_root / "Moved"
+    target_name = "recovered-final-publish.gif"
+    target_media_path = f"/media/Nested/{target_name}"
+    monkeypatch.setattr(local_media, "LOCAL_MEDIA_ROOT", media_root)
+    anchor_path = _media_path(anchor_file, media_root)
+    other_path = _media_path(other, media_root)
+    with SessionLocal() as db:
+        db.add_all(
+            [
+                Item(title="Anchor Reference", cover_path=anchor_path),
+                Creator(
+                    name="Other Reference",
+                    type="person",
+                    avatar_path=other_path,
+                ),
+            ]
+        )
+        db.commit()
+    before_db = _database_reference_snapshot()
+    anchor = local_media.validate_local_media_file(
+        anchor_path,
+        expected_sha256=_digest(anchor_file),
+    )
+    original_validate = local_media.validate_local_media_file
+    validate_calls = 0
+
+    def replace_parent_before_final_validate(
+        media_path: str,
+        *,
+        expected_sha256: str,
+    ) -> local_media.ValidatedLocalMediaFile:
+        nonlocal validate_calls
+        validate_calls += 1
+        if validate_calls == 2:
+            parent.rename(moved)
+            external.rename(parent)
+            os.link(moved / anchor_file.name, parent / anchor_file.name)
+            os.link(moved / target_name, parent / target_name)
+            os.link(moved / other.name, parent / other.name)
+        return original_validate(
+            media_path,
+            expected_sha256=expected_sha256,
+        )
+
+    monkeypatch.setattr(
+        local_media,
+        "validate_local_media_file",
+        replace_parent_before_final_validate,
+    )
+
+    with pytest.raises(local_media.LocalMediaSafetyAnchorError) as error:
+        local_media.publish_local_media_safety_anchor(
+            anchor,
+            target_media_path,
+        )
+
+    assert error.value.code == "publish_failed"
+    assert validate_calls == 3
+    assert parent.is_dir() and not parent.is_symlink()
+    assert moved.is_dir() and not moved.is_symlink()
+    assert (parent / anchor_file.name).samefile(moved / anchor_file.name)
+    assert (parent / target_name).samefile(moved / anchor_file.name)
+    assert (parent / target_name).read_bytes() == _gif_bytes(8)
+    assert (parent / marker.name).read_text(encoding="utf-8") == "external"
+    assert not (moved / target_name).exists()
+    assert (moved / anchor_file.name).read_bytes() == _gif_bytes(8)
+    assert (moved / other.name).read_bytes() == _gif_bytes(9)
+    assert (parent / other.name).samefile(moved / other.name)
+    assert _database_reference_snapshot() == before_db

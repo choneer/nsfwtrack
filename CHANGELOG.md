@@ -78,6 +78,15 @@
 
 ### Fixed
 
+- Closed the final safety-anchor create/publish parent replacement gap. A newly
+  created anchor, refreshed anchor, and published target must retain the
+  original root, logical parent parts, and stable directory type/device/inode
+  chain before success can be returned, followed by a fresh mapping check.
+- Added exact post-create and post-link race coverage using an ordinary external
+  replacement directory populated with same-inode hard links. Both paths fail
+  closed while preserving the moved original directory, external entries,
+  unrelated media, and database references. Expected hard-link ctime changes
+  are not treated as immutable pre/post file identity.
 - Closed D1 read-side namespace races in Data Health. Media-root readability
   and unscanned-reference classification now use identity-checked directory
   fds with `O_NOFOLLOW`, while upload-residue findings are derived only from
@@ -116,10 +125,11 @@
 
 - Data Health `media_duplicate_content` rows now link by complete SHA-256 to
   the exact B2 duplicate group, preserving the explicit B3 keeper workflow.
-- Phase 3-D1 freezes the B3-C5 Unreleased scope after route, finding, GET/POST,
-  file/reference identity, backup/import, Schema 2, settings, i18n, Docker, and
-  integration regression review. The detailed matrix is recorded in
-  `PHASE3_COMPLETION_AUDIT.md`.
+- Phase 3-D1 keeps the B3-C5 Unreleased scope closed to new development after
+  route, finding, GET/POST, file/reference identity, backup/import, Schema 2,
+  settings, i18n, Docker, and integration regression review. The final freeze
+  record remains pending until the new GitHub Actions run passes; the detailed
+  matrix is recorded in `PHASE3_COMPLETION_AUDIT.md`.
 - Confirmed cleanup commits every affected cover/avatar reference to the
   verified safety anchor before removing redundant files, then commits them to
   the final safe keeper/recovery path. Each deletion revalidates the path,

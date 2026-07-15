@@ -5,7 +5,7 @@
 ## 当前状态（v1.0.6 已发布，Phase 3-D1 最终集成审查）
 
 当前稳定版与最新 Release：`v1.0.6`。Phase 3-B1 / B2 已正式发布，
-Phase 3-B3 / B4 / B5 / B6 / C1 / C2 / C3 / C4 / C5 与 D1 最终集成审查均已完成并位于 Unreleased，应用 Schema 仍为 `2`。
+Phase 3-B3 / B4 / B5 / B6 / C1 / C2 / C3 / C4 / C5 位于 Unreleased；D1 最终父链修复与本地验收已完成、等待新 Actions，应用 Schema 仍为 `2`。
 
 - Annotated tag object：`d4d5c31cd5b2fed9a90ad69742d54b4c9dbed0b4`
 - Peeled commit：`961a3d0cc169e82b261d83207b0ec802007e292b`
@@ -30,12 +30,14 @@ N100 / 目标主机部署尚未开始，**不是当前开发任务**，必须等
 - [x] B3-B6 验证、锚点创建、恢复发布与删除保留并复核根 / 父目录 fd 身份
 - [x] C2 保留残留父目录链身份，在 unlink 前重验当前父链和文件映射
 - [x] 新增外部 symlink / 同 inode 硬链接竞态测试，拒绝路径不读取、不创建且不删除外部目录项
-- [x] 备份导出 / 校验 / 恢复、导入、Schema 2、迁移、设置、确认策略与 i18n 组合回归 `363 passed`
-- [x] 全量 `582 passed in 142.47s`；`pip check` 无依赖冲突
+- [x] 备份导出 / 校验 / 恢复、导入、Schema 2、迁移、设置、确认策略与 i18n 组合回归 `365 passed`
+- [x] 全量 `584 passed in 115.46s`；`pip check` 无依赖冲突
 - [x] Docker build、隔离 Compose healthy、`/login` 和认证媒体/Data Health 页面 HTTP 200，临时资源已清理
 - [x] 新增 `PHASE3_COMPLETION_AUDIT.md` 并同步 README / PLAN / TASKS / REVIEW / GOAL / CHANGELOG
 - [x] 保持应用版本 1.0.6、Schema 2、迁移、依赖、Docker/CI、旧 tag / Release 和 N100 状态不变
-- [x] 提交 `d22d9d7` 已推送，Actions run `29350252749` 的 test / Docker production smoke 均成功
+- [x] 修复 create / publish 最终 validate 前普通外部目录替换 + 同 inode 硬链接竞态，绑定原 root、逻辑父路径和稳定目录身份链
+- [x] 精确竞态 `2 passed`、核心回归 `177 passed`，隔离 Docker / HTTP 验收通过且临时资源已清理
+- [ ] 提交并推送最终父链修复，等待新 Actions 的 test / Docker production smoke 均成功后重新冻结 D1
 
 ### Phase 3-C5 媒体根目录诊断与安全初始化（Unreleased）
 

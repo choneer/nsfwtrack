@@ -863,19 +863,21 @@ production smoke 均通过。
 - [x] **12.670. 重复 finding 是否可达** — `media_duplicate_content` 按完整 SHA-256 进入唯一 B2 组，并可继续 B3 手动 keeper 流程
 - [x] **12.670a. 媒体响应是否身份绑定** — 认证媒体内容是否在验证 FD 链内读取并直接响应，父路径替换时是否返回 404 且不读取外部同名文件
 - [x] **12.671. 占位与双语是否完整** — 无真实 TODO / FIXME / HACK / XXX、占位、501、缺失模板目标或不对称 zh / en key
-- [x] **12.672. 兼容回归是否完整** — 媒体响应、备份、校验、恢复、导入、Schema 2、迁移、设置、危险确认与 i18n 均包含于 363 项组合回归
-- [x] **12.673. 本地验收是否通过** — B3-B6/C2/C4 98 passed、组合 363 passed、全量 582 passed、pip check 与 Docker/HTTP 冒烟通过
+- [x] **12.672. 兼容回归是否完整** — 媒体响应、备份、校验、恢复、导入、Schema 2、迁移、设置、危险确认与 i18n 均包含于 365 项组合回归
+- [x] **12.673. 本地验收是否通过** — 最终竞态 2 passed、核心回归 177 passed、组合 365 passed、全量 584 passed、pip check 与 Docker/HTTP 冒烟通过
 - [x] **12.674. 范围边界是否保持** — 版本 1.0.6、Schema 2、迁移、依赖、Docker/CI、tag、Release 与 N100 均未改变
 - [x] **12.675. 完成度审计是否可复核** — `PHASE3_COMPLETION_AUDIT.md` 包含 workflow/finding 矩阵、真实修复、静态检查、回归与结论
-- [x] **12.676. 远端交付是否闭合** — D1 提交 `d22d9d7` 已推送 main，Actions run `29350252749` 的 test / Docker production smoke 均成功
+- [ ] **12.676. 远端交付是否闭合** — create / publish 最终父链修复与本地验收已完成，仍需提交推送并完成新 main / Actions 闭环
+- [x] **12.677. 最终父链是否绑定** — create 返回的新 anchor，以及 publish 返回前的 refreshed anchor / target，均保持原 root、父级 parts 和逐级目录类型 / dev / inode 身份链并重新验证映射；未以相同文件 dev / inode / size / mtime 代替，亦未错误固定 hard-link ctime
 
-本地证据：B3-B6/C2/C4 专项 `98 passed`；B3-C5、备份、导入、
-Schema 2、迁移、设置和 i18n 组合回归 `363 passed in 60.80s`；全量
-`582 passed in 142.47s`；`pip check` 无冲突。Docker build 通过，隔离
+本地证据：最终 create / publish 精确竞态 `2 passed`；B3-B6/C1/C2/C4、
+媒体响应与 Data Health 核心回归 `177 passed in 28.65s`；B3-C5、备份、
+导入、Schema 2、迁移、设置和 i18n 组合回归 `365 passed in 55.41s`；
+全量 `584 passed in 115.46s`；`pip check` 无冲突。Docker build 通过，隔离
 Compose 为 healthy，`/login` 与认证后的 Data Health、媒体库、重复组、
 恢复中心和跳过项均为 HTTP 200，临时容器、网络和数据已清理。
-GitHub Actions run `29350252749` 的 `test` 与 `Docker production smoke`
-均为 success，D1 无剩余发布阻塞。
+GitHub Actions run `29350252749` 的两个 job 曾通过，但后续父链审查已撤回
+D1 冻结结论；本地阻塞现已关闭，待新修复提交的 Actions 通过后重新冻结。
 
 ## 登录保护检查
 

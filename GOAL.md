@@ -49,10 +49,11 @@
 - 已修复认证媒体响应验证路径后由 `FileResponse` 二次打开造成的父路径替换读取竞态
 - 已修复 B3-B6 共享验证媒体在读取、锚点创建、发布与删除时重新解析父路径的竞态
 - 已修复 C2 观察与删除之间丢失父目录链身份的问题
-- 外部 symlink 与同 inode 硬链接竞态回归证明拒绝路径不读写或删除外部目录项
-- 备份、校验、恢复、导入、Schema 2、迁移、设置、确认策略与 i18n 组合回归 `363 passed`
-- 全量 `582 passed in 142.47s`，`pip check` 无冲突
+- 外部 symlink，以及普通外部替换目录中的同 inode 硬链接竞态回归证明拒绝路径不读写或删除外部目录项
+- create / publish 最终结果已绑定原 root、逻辑父路径和逐级目录类型 / dev / inode 身份链，并在返回前重验当前映射；未将 hard-link ctime 当作不可变快照
+- 最终竞态 `2 passed`、核心回归 `177 passed`；备份、校验、恢复、导入、Schema 2、迁移、设置、确认策略与 i18n 组合回归 `365 passed`
+- 全量 `584 passed in 115.46s`，`pip check` 无冲突
 - Docker build、隔离 Compose healthy、`/login` 与认证媒体 / Data Health 页面 HTTP 200，资源已清理
 - 完整证据见 `PHASE3_COMPLETION_AUDIT.md`
 - 应用版本保持 1.0.6，Schema 保持 2；迁移、依赖、Docker/CI、tag、Release 与 N100 未改变
-- 本地审查无剩余发布阻塞；提交 `d22d9d7` 已推送，Actions run `29350252749` 的 test / Docker production smoke 均成功，D1 已完成冻结
+- create / publish 最终父链阻塞已修复且本地全套验收通过；D1 冻结结论暂时仍撤回，待修复提交推送及新 Actions 通过后再记录
