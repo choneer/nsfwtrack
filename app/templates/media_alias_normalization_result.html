@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% set result = alias_normalization_result %}
+{% block title %}{{ t("media_alias_normalization.result_title") }} - NSFWTrack{% endblock %}
+{% block content %}
+<div class="toolbar">
+  <div>
+    <p class="muted">{{ t("media_alias_normalization.local_only") }}</p>
+    <h1>{{ t("media_alias_normalization.result_title") }}</h1>
+    <p class="muted">{{ t("media_alias_normalization.result_detail") }}</p>
+  </div>
+  <a class="button secondary" href="{{ return_url }}">{{ t("media_alias_normalization.back") }}</a>
+</div>
+
+<section class="card stack" data-alias-normalization-result="{{ result.database_outcome }}">
+  <dl class="settings-summary">
+    <dt>{{ t("media_alias_normalization.keeper") }}</dt><dd><code>{{ result.keeper_path }}</code></dd>
+    <dt>{{ t("media_alias_normalization.database_outcome") }}</dt><dd>{{ t("media_alias_normalization.outcome_" ~ result.database_outcome) }}</dd>
+    <dt>{{ t("media_alias_normalization.migrate_items") }}</dt><dd>{{ result.migrated_items }}</dd>
+    <dt>{{ t("media_alias_normalization.migrate_creators") }}</dt><dd>{{ result.migrated_creators }}</dd>
+  </dl>
+  {% if result.warning_code %}<div class="flash error"><code>{{ result.warning_code }}</code></div>{% endif %}
+  <ul class="relation-list">
+    {% for path in result.paths %}
+      <li class="relation-row" data-alias-result-status="{{ path.status }}">
+        <code>{{ path.media_path }}</code>
+        <div class="stack">
+          <strong>{{ t("media_alias_normalization.status_" ~ path.status) }}</strong>
+          {% if path.code %}<code>{{ path.code }}</code>{% endif %}
+        </div>
+      </li>
+    {% endfor %}
+  </ul>
+</section>
+{% endblock %}

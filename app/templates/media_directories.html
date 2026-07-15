@@ -76,9 +76,32 @@
   </form>
 </section>
 
+{% if directory_result.rows %}
+  <form id="directory-media-batch-form" method="get" class="bulk-panel">
+    <input type="hidden" name="next" value="{{ directory_return_url }}">
+    <div class="bulk-heading">
+      <div class="actions">
+        <button type="button" class="secondary" id="directory-batch-select-page">{{ t("media_batch.select_page") }}</button>
+        <button type="button" class="secondary" id="directory-batch-clear-selection">{{ t("media_batch.clear_selection") }}</button>
+        <span class="pill" id="directory-batch-selected-count">{{ t("media_batch.selected", count=0, maximum=max_media_batch_size) }}</span>
+      </div>
+      <div class="actions">
+        <button type="submit" id="directory-batch-move" formaction="/media-library/batch/move" disabled>{{ t("media_batch.preview_move") }}</button>
+        <button type="submit" id="directory-batch-rename" formaction="/media-library/batch/rename" disabled>{{ t("media_batch.preview_rename") }}</button>
+      </div>
+    </div>
+  </form>
+{% endif %}
+
 <div class="media-match-list" data-media-directory-files>
   {% for row in directory_result.rows %}
     <article class="candidate-row">
+      {% if row.entry.available %}
+        <label class="bulk-card-select">
+          <input type="checkbox" name="media_path" value="{{ row.entry.media_path }}" form="directory-media-batch-form" class="directory-media-batch-checkbox">
+          {{ t("media_batch.select_file") }}
+        </label>
+      {% endif %}
       <span class="media-match-preview">
         {% if row.entry.available %}<img src="{{ row.entry.media_path }}" alt="">{% else %}{{ t("media.invalid_image") }}{% endif %}
       </span>
@@ -102,4 +125,33 @@
 </div>
 
 {{ pagination_nav(t, directory_pagination) }}
+<script>
+  (() => {
+    const checkboxes = Array.from(document.querySelectorAll(".directory-media-batch-checkbox"));
+    const selectPage = document.getElementById("directory-batch-select-page");
+    const clearSelection = document.getElementById("directory-batch-clear-selection");
+    const selectedCount = document.getElementById("directory-batch-selected-count");
+    const buttons = [
+      document.getElementById("directory-batch-move"),
+      document.getElementById("directory-batch-rename")
+    ].filter(Boolean);
+    if (!selectedCount || !buttons.length) return;
+    const countTemplate = {{ t("media_batch.selected", count="__COUNT__", maximum=max_media_batch_size)|tojson }};
+    const update = () => {
+      const count = checkboxes.filter((checkbox) => checkbox.checked).length;
+      selectedCount.textContent = countTemplate.replace("__COUNT__", String(count));
+      buttons.forEach((button) => { button.disabled = count === 0; });
+    };
+    checkboxes.forEach((checkbox) => checkbox.addEventListener("change", update));
+    selectPage?.addEventListener("click", () => {
+      checkboxes.forEach((checkbox) => { checkbox.checked = true; });
+      update();
+    });
+    clearSelection?.addEventListener("click", () => {
+      checkboxes.forEach((checkbox) => { checkbox.checked = false; });
+      update();
+    });
+    update();
+  })();
+</script>
 {% endblock %}

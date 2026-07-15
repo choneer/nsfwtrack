@@ -340,10 +340,33 @@
   </div>
 </section>
 
+{% if media_rows %}
+  <form id="media-batch-form" method="get" class="bulk-panel">
+    <input type="hidden" name="next" value="{{ media_return_url }}">
+    <div class="bulk-heading">
+      <div class="actions">
+        <button type="button" class="secondary" id="media-batch-select-page">{{ t("media_batch.select_page") }}</button>
+        <button type="button" class="secondary" id="media-batch-clear-selection">{{ t("media_batch.clear_selection") }}</button>
+        <span class="pill" id="media-batch-selected-count">{{ t("media_batch.selected", count=0, maximum=max_media_batch_size) }}</span>
+      </div>
+      <div class="actions">
+        <button type="submit" id="media-batch-move" formaction="/media-library/batch/move" disabled>{{ t("media_batch.preview_move") }}</button>
+        <button type="submit" id="media-batch-rename" formaction="/media-library/batch/rename" disabled>{{ t("media_batch.preview_rename") }}</button>
+      </div>
+    </div>
+  </form>
+{% endif %}
+
 <div class="item-grid">
   {% for row in media_rows %}
     {% set entry = row.entry %}
     <article class="card stack" data-media-path="{{ entry.media_path }}">
+      {% if entry.available %}
+        <label class="bulk-card-select">
+          <input type="checkbox" name="media_path" value="{{ entry.media_path }}" form="media-batch-form" class="media-batch-checkbox">
+          {{ t("media_batch.select_file") }}
+        </label>
+      {% endif %}
       <div class="cover">
         {% if entry.available %}
           <img src="{{ entry.media_path }}" alt="">
@@ -485,6 +508,33 @@
         if (bulkTitle) bulkTitle.value = input.value;
       });
     });
+    selectPage?.addEventListener("click", () => {
+      checkboxes.forEach((checkbox) => { checkbox.checked = true; });
+      update();
+    });
+    clearSelection?.addEventListener("click", () => {
+      checkboxes.forEach((checkbox) => { checkbox.checked = false; });
+      update();
+    });
+    update();
+  })();
+  (() => {
+    const checkboxes = Array.from(document.querySelectorAll(".media-batch-checkbox"));
+    const selectPage = document.getElementById("media-batch-select-page");
+    const clearSelection = document.getElementById("media-batch-clear-selection");
+    const selectedCount = document.getElementById("media-batch-selected-count");
+    const buttons = [
+      document.getElementById("media-batch-move"),
+      document.getElementById("media-batch-rename")
+    ].filter(Boolean);
+    if (!selectedCount || !buttons.length) return;
+    const countTemplate = {{ t("media_batch.selected", count="__COUNT__", maximum=max_media_batch_size)|tojson }};
+    const update = () => {
+      const count = checkboxes.filter((checkbox) => checkbox.checked).length;
+      selectedCount.textContent = countTemplate.replace("__COUNT__", String(count));
+      buttons.forEach((button) => { button.disabled = count === 0; });
+    };
+    checkboxes.forEach((checkbox) => checkbox.addEventListener("change", update));
     selectPage?.addEventListener("click", () => {
       checkboxes.forEach((checkbox) => { checkbox.checked = true; });
       update();

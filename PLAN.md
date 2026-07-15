@@ -2,7 +2,7 @@
 
 > NSFWTrack 是本地单用户媒体记录器 / 收藏管理器。  
 > 当前开发边界：本地管理、本地数据维护、手动确认操作、SQLite、FastAPI、Jinja2、轻量原生 JavaScript、Docker Compose。
-> Phase 3-A1 允许保存用户提供的 URL；Phase 3-A2 允许校验和保存用户上传的本地栅格图片；Phase 3-A3 允许基于本地文件名生成并手动确认媒体关联候选；Phase 3-A4 允许从未匹配本地图片手动确认创建条目；Phase 3-A5 允许对完整本地媒体扫描结果进行只读检索与分页；Phase 3-A6 允许在数据健康页只读审计本地媒体完整性；Phase 3-B1 允许按完整 SHA-256 只读定位重复媒体；Phase 3-B2 允许按重复组只读浏览路径与引用；Phase 3-B3 允许用户明确选择 keeper 后，在重扫、确认和引用安全迁移后删除同组冗余文件；Phase 3-B4 允许只读隔离和审计内部清理锚点与恢复文件；Phase 3-B5 允许用户逐项预览并手动确认将合法锚点恢复为普通媒体；Phase 3-B6 允许用户逐项确认永久删除合法且零引用的锚点残留；Phase 3-C1 允许用户逐项替换或清除 Data Health 报告的无效封面 / 头像引用；Phase 3-C2 允许用户逐项确认删除 Data Health 报告的精确 `.upload-*.tmp` 零引用残留；Phase 3-C3 允许用户只读定位媒体扫描逐项跳过路径和稳定原因；Phase 3-C4 允许用户逐项预览并确认删除仍损坏且零引用的普通媒体；Phase 3-C5 允许只读诊断不可用媒体根目录，并在真实 missing 状态下手动安全初始化；Phase 4-A1 允许登录用户通过现有安全扫描结果只读查看单个普通媒体的文件事实、引用和重复组；Phase 4-A2 允许用户预览并确认同目录安全修改普通媒体 basename，同时迁移全部封面 / 头像引用；Phase 4-M1 允许登录用户浏览现有媒体目录、跨目录安全移动单个媒体、手动管理单个封面 / 头像引用并只读审计硬链接别名。仍禁止请求外部网页、远程图片、爬虫、站点 adapter、自动同步、识别、推荐、AI、多用户或云同步。
+> Phase 3-A1 允许保存用户提供的 URL；Phase 3-A2 允许校验和保存用户上传的本地栅格图片；Phase 3-A3 允许基于本地文件名生成并手动确认媒体关联候选；Phase 3-A4 允许从未匹配本地图片手动确认创建条目；Phase 3-A5 允许对完整本地媒体扫描结果进行只读检索与分页；Phase 3-A6 允许在数据健康页只读审计本地媒体完整性；Phase 3-B1 允许按完整 SHA-256 只读定位重复媒体；Phase 3-B2 允许按重复组只读浏览路径与引用；Phase 3-B3 允许用户明确选择 keeper 后，在重扫、确认和引用安全迁移后删除同组冗余文件；Phase 3-B4 允许只读隔离和审计内部清理锚点与恢复文件；Phase 3-B5 允许用户逐项预览并手动确认将合法锚点恢复为普通媒体；Phase 3-B6 允许用户逐项确认永久删除合法且零引用的锚点残留；Phase 3-C1 允许用户逐项替换或清除 Data Health 报告的无效封面 / 头像引用；Phase 3-C2 允许用户逐项确认删除 Data Health 报告的精确 `.upload-*.tmp` 零引用残留；Phase 3-C3 允许用户只读定位媒体扫描逐项跳过路径和稳定原因；Phase 3-C4 允许用户逐项预览并确认删除仍损坏且零引用的普通媒体；Phase 3-C5 允许只读诊断不可用媒体根目录，并在真实 missing 状态下手动安全初始化；Phase 4-A1 允许登录用户通过现有安全扫描结果只读查看单个普通媒体的文件事实、引用和重复组；Phase 4-A2 允许用户预览并确认同目录安全修改普通媒体 basename，同时迁移全部封面 / 头像引用；Phase 4-M1 允许登录用户浏览现有媒体目录、跨目录安全移动单个媒体、手动管理单个封面 / 头像引用并只读审计硬链接别名；Phase 4-M2 允许当前页多选普通媒体后安全批量移动 / 重命名，并允许用户明确选择 keeper 后归一化真实硬链接别名组。仍禁止请求外部网页、远程图片、爬虫、站点 adapter、自动同步、识别、推荐、AI、多用户或云同步。
 
 ---
 
@@ -11,7 +11,7 @@
 当前应用版本与开发阶段：
 
 ```text
-v1.0.6 / Phase 4-M1 media management enhancements in Unreleased
+v1.0.6 / Phase 4-M2 batch organization and alias normalization in Unreleased
 ```
 
 当前最新稳定版本为 `v1.0.6`，发布范围为 Phase 3-B1 与 B2。
@@ -40,7 +40,7 @@ Release: https://github.com/choneer/nsfwtrack/releases/tag/v1.0.6
 稳定性收尾：Phase 2-I1 基线、I2 查询优化、I3 错误处理、I4 发布冻结审查已随 v1.0.0 发布
 完成度审计：Phase 2-K1 / K2 已随 v1.0.1 发布；代码开发与 WSL 验收已完成
 维护与 CI：Phase 2-L1 至 L6 已随 v1.0.2 发布；L7 已随 v1.0.3 发布；L8 固定非 root 容器用户已随 v1.0.4 发布
-产品功能重启：Phase 3-A1 至 A6 已随 v1.0.5 发布；Phase 3-B1 / B2 已随 v1.0.6 发布；Phase 3-B3 / B4 / B5 / B6 / C1 / C2 / C3 / C4 / C5 与 D1 最终集成审查均已完成并位于 Unreleased；Phase 4-A1 / A2 已完成；Phase 4-M1 已实现并进入最终验收
+产品功能重启：Phase 3-A1 至 A6 已随 v1.0.5 发布；Phase 3-B1 / B2 已随 v1.0.6 发布；Phase 3-B3 / B4 / B5 / B6 / C1 / C2 / C3 / C4 / C5 与 D1 最终集成审查均已完成并位于 Unreleased；Phase 4-A1 / A2 / M1 已完成；Phase 4-M2 已实现并进入最终验收
 ```
 
 当前完成度估算：
@@ -48,7 +48,7 @@ Release: https://github.com/choneer/nsfwtrack/releases/tag/v1.0.6
 ```text
 核心业务能力：已完成
 代码发布状态：v1.0.6 已正式发布，tag 与正式 GitHub Release 均已验证
-当前开发状态：Phase 4-M1 四项媒体管理能力已实现，正在执行最终测试 / Docker / Actions；main 保持应用版本 1.0.6 与 Schema 2
+当前开发状态：Phase 4-M2 当前页批量整理和 keeper 归一化已实现，本地测试与 Docker 验收完成，等待提交推送和 Actions；main 保持应用版本 1.0.6 与 Schema 2
 WSL 验收：已完成
 N100 部署：尚未开始，等待用户明确授权
 ```
@@ -1252,6 +1252,28 @@ K1 审计结论：
 - 实现提交 `b32e848` 已推送；Actions run `29396021693` 的 `test` 与 `Docker production smoke` 均成功
 - commit 歧义修复后 A2 / i18n 专项 `50 passed`、核心媒体链 `193 passed in 27.83s`、广泛组合 `315 passed in 46.38s`、全量 `650 passed in 106.83s`，pip check 与隔离 Docker / HTTP 通过；修复提交 `09be556` 与 Actions run `29399210087` 两个 job 均成功
 - 保持版本 1.0.6、Schema 2、迁移、依赖、Docker/CI、tag、Release 与 N100 不变
+
+---
+
+### Phase 4-M2 — 批量整理与别名归一化
+
+目标与实现：
+
+- 媒体库 / 目录页仅多选当前页有效普通媒体，单批最多 20 项，无跨页全选
+- GET 预览服务端重算当前页并重扫全部路径、身份和引用，使用 HMAC 签名完整快照且零写入
+- 批量移动只到现有普通目录，逐项可修改 basename；批量重命名仅同目录并保持扩展名原样
+- 拒绝重复源 / 目标、占用、交换、循环、非法媒体、越页路径、父目录替换和伪造快照
+- 每项独立复用 M1 FD、hardlink、引用事务、commit outcome 与身份删除，逐项报告真实状态
+- alias 按完整 dev/inode 重验，用户明确选择 keeper；引用提交并复核后才删除零引用 alias
+- commit 未知、查询失败或混合引用时保留全部路径；同 SHA 不同 inode 独立文件永不参与
+- 不新增任务表、Schema、迁移、依赖、版本、tag、Release、N100、网络或自动合并
+
+当前验证：
+
+- M2 服务与 HTTP 专项 `21 passed`，含 i18n 为 `22 passed`
+- 目标抢占、父目录替换、引用漂移、commit unknown / mixed / query failure、fsync / unlink 故障均有覆盖
+- 核心组合 `165 passed`，全量 `700 passed in 107.28s`，pip check 无冲突
+- Docker image build、Compose healthy、`/login` 200 与 down 清理通过；Actions 待推送后记录
 
 ---
 

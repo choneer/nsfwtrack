@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% from "_danger_notice.html" import danger_notice %}
+{% set operation = batch_preview.operation %}
+{% block title %}{{ t("media_batch.title_" ~ operation) }} - NSFWTrack{% endblock %}
+{% block content %}
+<div class="toolbar">
+  <div>
+    <p class="muted">{{ t("media_batch.local_only") }}</p>
+    <h1>{{ t("media_batch.title_" ~ operation) }}</h1>
+    <p class="muted">{{ t("media_batch.description_" ~ operation) }}</p>
+  </div>
+  <a class="button secondary" href="{{ return_url }}">{{ t("media_batch.back") }}</a>
+</div>
+
+<section class="notice warning">
+  <strong>{{ t("media_batch.preview_warning_title") }}</strong>
+  <p>{{ t("media_batch.preview_warning_detail") }}</p>
+</section>
+
+<section class="card stack">
+  <h2>{{ t("media_batch.edit_title") }}</h2>
+  <p class="muted">{{ t("media_batch.edit_detail_" ~ operation) }}</p>
+  <form action="/media-library/batch/{{ operation }}" method="get" class="stack" data-media-batch-editor>
+    <input type="hidden" name="prepared" value="1">
+    <input type="hidden" name="next" value="{{ return_url }}">
+    {% for item in batch_preview.items %}<input type="hidden" name="media_path" value="{{ item.source_info.source.media_path }}">{% endfor %}
+    {% if operation == "move" %}
+      <label>{{ t("media_batch.target_directory") }}
+        <select name="target_directory" required>
+          <option value="">{{ t("media_batch.target_directory_required") }}</option>
+          {% for directory in batch_directories %}
+            <option value="{{ directory.media_path }}"{% if batch_preview.target_directory == directory.media_path %} selected{% endif %}>{{ directory.media_path }}</option>
+          {% endfor %}
+        </select>
+      </label>
+    {% endif %}
+    <div class="media-match-list">
+      {% for item in batch_preview.items %}
+        {% set source = item.source_info.source %}
+        <div class="candidate-row" data-batch-source="{{ source.media_path }}">
+          <span class="media-match-preview"><img src="{{ source.media_path }}" alt=""></span>
+          <div class="stack media-match-details">
+            <code>{{ source.media_path }}</code>
+            <small class="muted">SHA-256: {{ source.sha256 }}</small>
+            <small class="muted">dev={{ source.device }} · inode={{ source.inode }} · {{ source.size }} B</small>
+            <small class="muted">{{ t("media_batch.reference_count", count=item.source_info.reference_count) }}</small>
+            {% if item.source_info.item_references or item.source_info.creator_references %}
+              <ul>
+                {% for reference in item.source_info.item_references %}<li><a href="/items/{{ reference.id }}">{{ t("media.item_cover_reference", title=reference.title) }}</a></li>{% endfor %}
+                {% for reference in item.source_info.creator_references %}<li><a href="/creators/{{ reference.id }}">{{ t("media.creator_avatar_reference", name=reference.name) }}</a></li>{% endfor %}
+              </ul>
+            {% endif %}
+          </div>
+          <label>{{ t("media_batch.target_basename") }}
+            <input type="text" name="target_basename" value="{{ item.target_basename }}" maxlength="255" required>
+          </label>
+        </div>
+      {% endfor %}
+    </div>
+    <div class="actions">
+      <button type="submit">{{ t("media_batch.refresh_preview") }}</button>
+      <a class="button secondary" href="{{ return_url }}">{{ t("common.back") }}</a>
+    </div>
+  </form>
+</section>
+
+{% if batch_preview.prepared %}
+  <section class="card stack" data-media-batch-preview>
+    <h2>{{ t("media_batch.consequences_title") }}</h2>
+    <p>{{ t("media_batch.consequences_detail", count=batch_preview.items|length, references=batch_preview.total_references) }}</p>
+    <ul class="relation-list">
+      {% for item in batch_preview.items %}
+        <li class="relation-row" data-batch-target="{{ item.target_path }}">
+          <div class="stack">
+            <code>{{ item.source_info.source.media_path }}</code>
+            <span>→</span>
+            <code>{{ item.target_path }}</code>
+          </div>
+          <span class="pill">{{ t("media_batch.reference_count", count=item.source_info.reference_count) }}</span>
+        </li>
+      {% endfor %}
+    </ul>
+    <ul>
+      <li>{{ t("media_batch.consequence_independent") }}</li>
+      <li>{{ t("media_batch.consequence_revalidate") }}</li>
+      <li>{{ t("media_batch.consequence_unknown") }}</li>
+    </ul>
+    {{ danger_notice(t, danger_policy, "danger.object_media_batch", "danger.consequence_media_batch", "danger.deletion_media_batch", "danger.recovery_media_batch", true, "danger.backup_media_body") }}
+    <form action="/media-library/batch/{{ operation }}" method="post" class="stack">
+      <input type="hidden" name="next" value="{{ return_url }}">
+      {% for item in batch_preview.items %}<input type="hidden" name="snapshot_token" value="{{ item.snapshot_token }}">{% endfor %}
+      <div class="actions">
+        <button class="danger" type="submit" data-confirm-message="{{ t('media_batch.confirm_' ~ operation) }}"{% if danger_policy.is_strict %} data-strict-confirm-message="{{ t('danger.strict_prompt') }}"{% endif %}>{{ t("media_batch.execute_" ~ operation) }}</button>
+        <a class="button secondary" href="{{ return_url }}">{{ t("common.back") }}</a>
+      </div>
+    </form>
+  </section>
+{% endif %}
+{% endblock %}

@@ -30,6 +30,27 @@ class MediaFileRenameCreatorReference:
 
 
 @dataclass(frozen=True)
+class MediaFilePathSource:
+    source: local_media.ValidatedLocalMediaFile
+    mime_type: str
+    is_recovered: bool
+    item_references: tuple[MediaFileRenameItemReference, ...]
+    creator_references: tuple[MediaFileRenameCreatorReference, ...]
+
+    @property
+    def reference_count(self) -> int:
+        return len(self.item_references) + len(self.creator_references)
+
+    @property
+    def item_reference_ids(self) -> tuple[int, ...]:
+        return tuple(reference.id for reference in self.item_references)
+
+    @property
+    def creator_reference_ids(self) -> tuple[int, ...]:
+        return tuple(reference.id for reference in self.creator_references)
+
+
+@dataclass(frozen=True)
 class MediaFileRenamePreview:
     source: local_media.ValidatedLocalMediaFile
     target_directory: local_media.ValidatedLocalMediaDirectory
@@ -87,7 +108,7 @@ def _normalize_source_path(value: str | None) -> str:
     return normalized
 
 
-def _normalize_target(
+def normalize_media_file_target(
     source_media_path: str,
     target_basename: str | None,
     target_directory: str | None,
@@ -208,19 +229,12 @@ def _reference_ids(
     return item_ids, creator_ids
 
 
-def build_media_file_rename_preview(
+def build_media_file_path_source(
     db: Session,
     *,
     media_path: str | None,
-    target_basename: str | None,
-    target_directory: str | None = None,
-) -> MediaFileRenamePreview:
+) -> MediaFilePathSource:
     source_path = _normalize_source_path(media_path)
-    target_path, normalized_basename, normalized_directory = _normalize_target(
-        source_path,
-        target_basename,
-        target_directory,
-    )
     try:
         scan = local_media.scan_local_media()
     except (local_media.LocalMediaPathError, OSError) as exc:
@@ -246,6 +260,32 @@ def build_media_file_rename_preview(
         raise MediaFileRenameError("source_changed") from exc
     if not _entry_matches_record(entry, source):
         raise MediaFileRenameError("source_changed")
+    items, creators = _load_references(db, source_path)
+    return MediaFilePathSource(
+        source=source,
+        mime_type=entry.mime_type,
+        is_recovered=entry.is_recovered,
+        item_references=items,
+        creator_references=creators,
+    )
+
+
+def build_media_file_rename_preview(
+    db: Session,
+    *,
+    media_path: str | None,
+    target_basename: str | None,
+    target_directory: str | None = None,
+) -> MediaFileRenamePreview:
+    source_info = build_media_file_path_source(db, media_path=media_path)
+    source_path = source_info.source.media_path
+    target_path, normalized_basename, normalized_directory = (
+        normalize_media_file_target(
+            source_path,
+            target_basename,
+            target_directory,
+        )
+    )
     try:
         target_directory_record = local_media.validate_local_media_directory(
             normalized_directory
@@ -254,7 +294,7 @@ def build_media_file_rename_preview(
         raise MediaFileRenameError("target_directory_unavailable") from exc
     try:
         local_media.ensure_local_media_target_absent(
-            source,
+            source_info.source,
             target_path,
             target_directory=target_directory_record,
         )
@@ -265,16 +305,15 @@ def build_media_file_rename_preview(
     target_item_ids, target_creator_ids = _reference_ids(db, target_path)
     if target_item_ids or target_creator_ids:
         raise MediaFileRenameError("target_referenced")
-    items, creators = _load_references(db, source_path)
     return MediaFileRenamePreview(
-        source=source,
+        source=source_info.source,
         target_directory=target_directory_record,
         target_media_path=target_path,
         target_basename=normalized_basename,
-        mime_type=entry.mime_type,
-        is_recovered=entry.is_recovered,
-        item_references=items,
-        creator_references=creators,
+        mime_type=source_info.mime_type,
+        is_recovered=source_info.is_recovered,
+        item_references=source_info.item_references,
+        creator_references=source_info.creator_references,
     )
 
 

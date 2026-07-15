@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}{{ t("media_batch.result_title") }} - NSFWTrack{% endblock %}
+{% block content %}
+<div class="toolbar">
+  <div>
+    <p class="muted">{{ t("media_batch.local_only") }}</p>
+    <h1>{{ t("media_batch.result_title") }}</h1>
+    <p class="muted">{{ t("media_batch.result_detail") }}</p>
+  </div>
+  <a class="button secondary" href="{{ return_url }}">{{ t("media_batch.back") }}</a>
+</div>
+
+<section class="stats-section">
+  <div class="metric-grid compact-metrics" data-media-batch-summary>
+    {% for state in ("success", "failed", "source_retained", "unknown") %}
+      <div class="metric"><strong>{{ batch_result.count(state) }}</strong><span>{{ t("media_batch.status_" ~ state) }}</span></div>
+    {% endfor %}
+  </div>
+</section>
+
+<div class="media-match-list" data-media-batch-results>
+  {% for item in batch_result.items %}
+    <article class="candidate-row" data-batch-result-status="{{ item.status }}">
+      <div class="stack media-match-details">
+        <strong>{{ t("media_batch.status_" ~ item.status) }}</strong>
+        <code>{{ item.source_path }}</code>
+        <span>→</span>
+        <code>{{ item.target_path }}</code>
+        <span class="muted">{{ t("media_batch.migrated", items=item.migrated_items, creators=item.migrated_creators) }}</span>
+        {% if item.code %}<span class="muted">{{ t("media_batch.result_code") }}: <code>{{ item.code }}</code></span>{% endif %}
+      </div>
+    </article>
+  {% endfor %}
+</div>
+{% endblock %}

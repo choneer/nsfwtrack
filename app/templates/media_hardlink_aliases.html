@@ -81,6 +81,19 @@
           </li>
         {% endfor %}
       </ul>
+      <form action="/media-library/aliases/normalize" method="get" class="form-grid" data-alias-normalization-form>
+        <input type="hidden" name="next" value="{{ alias_return_url }}">
+        {% for path in group.paths %}<input type="hidden" name="alias_path" value="{{ path.entry.media_path }}">{% endfor %}
+        <label>{{ t("media_alias_normalization.choose_keeper") }}
+          <select name="keeper_path" required>
+            <option value="">{{ t("media_alias_normalization.keeper_required") }}</option>
+            {% for path in group.paths %}<option value="{{ path.entry.media_path }}">{{ path.entry.media_path }}</option>{% endfor %}
+          </select>
+        </label>
+        <div class="filter-actions">
+          <button type="submit">{{ t("media_alias_normalization.preview_submit") }}</button>
+        </div>
+      </form>
       {% if group.same_sha_independent_paths %}
         <div class="notice" data-same-sha-independent>
           <strong>{{ t("media_aliases.same_sha_title") }}</strong>

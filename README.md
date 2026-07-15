@@ -2,17 +2,17 @@
 
 NSFWTrack is a local single-user content record manager / collection tracker.
 
-Current application version: `v1.0.6 / Phase 4-M1 in Unreleased`.
+Current application version: `v1.0.6 / Phase 4-M2 in Unreleased`.
 
 Current stable version: `v1.0.6 / Phase 3-B1 and B2`.
 
 Latest Release: [NSFWTrack v1.0.6](https://github.com/choneer/nsfwtrack/releases/tag/v1.0.6).
 
-Current status: `v1.0.6 is released; Phase 4-M1 media management enhancements are implemented in Unreleased`.
+Current status: `v1.0.6 is released; Phase 4-M2 batch organization and alias normalization are implemented in Unreleased`.
 
-Current development: `Phase 3-B1 and B2 are published; Phase 4-A1/A2 are
-complete, and Phase 4-M1 adds directory browsing, safe cross-directory moves,
-single-reference management, and read-only hardlink alias auditing while
+Current development: `Phase 3-B1 and B2 are published; Phase 4-A1/A2 and M1 are
+complete, and Phase 4-M2 adds current-page media multiselect, safe batch move,
+safe batch rename, and explicit hardlink-alias keeper normalization while
 application version 1.0.6 and Schema 2 stay unchanged`.
 
 N100 deployment: `not started; waits for explicit user authorization`.
@@ -193,6 +193,44 @@ the stack shuts down cleanly. Implementation commit `4e350bf` is pushed, and
 GitHub Actions run
 [`29405923933`](https://github.com/choneer/nsfwtrack/actions/runs/29405923933)
 passed both `test` and `Docker production smoke`.
+
+## Phase 4-M2 Batch Organization and Alias Normalization
+
+Phase 4-M2 adds current-page multiselect controls to both the media library and
+directory browser. Only valid ordinary media rows are selectable, with a hard
+20-file limit and no cross-page select-all. The server reconstructs the source
+page from its normalized search, status, sort, directory, and pagination state;
+paths outside that recomputed page, duplicates, damaged or reserved media, and
+invalid paths are rejected before preview.
+
+Batch move and rename use write-free authenticated GET previews. Users can edit
+each basename before confirmation. Move accepts only an existing ordinary
+directory beneath the media root; rename stays in each source directory. Exact
+extension spelling is preserved, and duplicate targets, occupied paths, name
+swaps, cycles, traversal, reserved names, and forged signed snapshots fail
+closed. The confirmed POST processes each file independently through the M1
+verified source/target directory FDs, no-overwrite hardlink publication, exact
+item-cover and creator-avatar migration, transaction outcome inspection, and
+identity-bound source removal. The result page distinguishes success, failure,
+committed-with-source-retained, and unknown outcomes for every file.
+
+The hardlink alias audit now offers an explicit keeper selector for one complete
+device/inode group. Its GET preview rescans every path and reference without
+writing. Confirmed normalization migrates all non-keeper cover/avatar references
+to the keeper in one transaction, independently verifies the commit, then
+deletes only still-matching zero-reference aliases. Unknown commits, query
+failure, or mixed references retain every path. Files with the same complete
+SHA-256 but a different device/inode identity are listed as independent and are
+never migrated or deleted.
+
+M2 adds no task table, schema, migration, dependency, version, tag, Release,
+network access, automatic merge, recommendation, recognition, AI behavior, or
+N100 deployment. The 21 focused service and HTTP cases pass; the complete
+local-media/A1/A2/M1/M2/i18n core passes `165` tests, and the full suite passes
+`700` tests. `pip check` is clean. The production image builds, Compose reaches
+healthy with user `10001:10001`, read-only root and `cap_drop: ALL`, `/login`
+returns HTTP `200`, and the stack shuts down cleanly. Push and Actions evidence
+is recorded after the final repository steps complete.
 
 ## v1.0.6 Release
 

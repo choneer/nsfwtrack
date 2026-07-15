@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import PurePosixPath
 from typing import Any
-from urllib.parse import quote, urlencode, urlsplit
+from urllib.parse import parse_qs, quote, urlencode, urlsplit
 
 from fastapi import (
     APIRouter,
@@ -144,6 +144,17 @@ from app.services.media_file_rename import (
     MediaFileRenameError,
     build_media_file_rename_preview,
     execute_media_file_rename,
+)
+from app.services.media_alias_normalization import (
+    MediaAliasNormalizationError,
+    build_media_alias_normalization_preview,
+    execute_media_alias_normalization,
+)
+from app.services.media_batch_management import (
+    MAX_MEDIA_BATCH_SIZE,
+    MediaBatchError,
+    build_media_batch_preview,
+    execute_media_batch,
 )
 from app.services.media_hardlink_aliases import (
     MEDIA_HARDLINK_ALIAS_SORT_OPTIONS,
@@ -378,6 +389,66 @@ def _media_source_url(
     return f"{path}?{query}{fragment}" if query else f"{path}{fragment}"
 
 
+_MEDIA_BATCH_RETURN_PATHS = frozenset(
+    {"/media-library", "/media-library/directories"}
+)
+
+
+def _safe_media_batch_return_url(value: str | None) -> str:
+    target = safe_local_path(value, fallback="/media-library")
+    try:
+        path = urlsplit(target).path
+    except ValueError:
+        return "/media-library"
+    return target if path in _MEDIA_BATCH_RETURN_PATHS else "/media-library"
+
+
+def _query_value(params: dict[str, list[str]], key: str) -> str | None:
+    values = params.get(key)
+    return values[-1] if values else None
+
+
+def _media_reference_paths(db: Session) -> set[str]:
+    return set(
+        db.scalars(select(Item.cover_path).where(Item.cover_path.is_not(None))).all()
+    ) | set(
+        db.scalars(
+            select(Creator.avatar_path).where(Creator.avatar_path.is_not(None))
+        ).all()
+    )
+
+
+def _media_batch_allowed_paths(db: Session, return_url: str) -> set[str]:
+    parsed = urlsplit(return_url)
+    params = parse_qs(parsed.query, keep_blank_values=True)
+    try:
+        scan = scan_local_media()
+        used_paths = _media_reference_paths(db)
+        if parsed.path == "/media-library/directories":
+            result = query_media_directory(
+                scan,
+                scan_local_media_directories(),
+                used_paths,
+                directory=_query_value(params, "directory"),
+                q=_query_value(params, "dir_q"),
+                status=_query_value(params, "dir_status"),
+                sort=_query_value(params, "dir_sort"),
+                page=_query_value(params, "dir_page"),
+            )
+        else:
+            result = query_media_library(
+                scan,
+                used_paths,
+                q=_query_value(params, "media_q"),
+                status=_query_value(params, "media_status"),
+                sort=_query_value(params, "media_sort"),
+                page=_query_value(params, "media_page"),
+            )
+    except (LocalMediaPathError, OSError) as exc:
+        raise MediaBatchError("storage_unavailable") from exc
+    return {row.entry.media_path for row in result.rows if row.entry.available}
+
+
 def _item_detail_url(item_id: int, next_url: str | None = None) -> str:
     target = _safe_next_url(next_url)
     if target == "/items":
@@ -609,6 +680,8 @@ def media_library_page(
             ),
             damaged_cleanup_preview_urls=damaged_cleanup_preview_urls,
             media_detail_urls=media_detail_urls,
+            media_return_url=media_return_url,
+            max_media_batch_size=MAX_MEDIA_BATCH_SIZE,
             max_media_upload_mb=MAX_MEDIA_UPLOAD_BYTES // (1024 * 1024),
             max_media_upload_files=MAX_MEDIA_UPLOAD_FILES,
             error_key=error_key,
@@ -699,6 +772,8 @@ def media_directory_page(
             child_urls=child_urls,
             breadcrumb_urls=breadcrumb_urls,
             detail_urls=detail_urls,
+            directory_return_url=current_return_url,
+            max_media_batch_size=MAX_MEDIA_BATCH_SIZE,
         ),
     )
 
@@ -770,7 +845,200 @@ def media_hardlink_alias_page(
             ),
             detail_urls=detail_urls,
             duplicate_urls=duplicate_urls,
+            alias_return_url=current_return_url,
             error_key=error_key,
+        ),
+    )
+
+
+def _media_batch_error_flash(request: Request, exc: MediaBatchError) -> None:
+    add_flash(request, "error", "flash.media_batch_error", code=exc.code)
+
+
+@router.get(
+    "/media-library/batch/{operation}",
+    response_class=HTMLResponse,
+    dependencies=[Depends(require_page_auth)],
+)
+def media_batch_preview_page(
+    request: Request,
+    operation: str,
+    media_path: list[str] | None = Query(default=None),
+    target_directory: str | None = Query(default=None),
+    target_basename: list[str] | None = Query(default=None),
+    prepared: str | None = Query(default=None),
+    next_url: str | None = Query(default=None, alias="next"),
+    db: Session = Depends(get_db),
+) -> Response:
+    return_url = _safe_media_batch_return_url(next_url)
+    try:
+        allowed_paths = _media_batch_allowed_paths(db, return_url)
+        preview = build_media_batch_preview(
+            db,
+            operation=operation,
+            media_paths=media_path,
+            target_directory=target_directory,
+            target_basenames=(target_basename if prepared == "1" else None),
+            allowed_paths=allowed_paths,
+            secret_key=get_settings().secret_key,
+        )
+        directories = (
+            scan_local_media_directories() if operation == "move" else ()
+        )
+    except MediaBatchError as exc:
+        _media_batch_error_flash(request, exc)
+        return _redirect(return_url)
+    except (LocalMediaPathError, OSError):
+        _media_batch_error_flash(request, MediaBatchError("storage_unavailable"))
+        return _redirect(return_url)
+    return templates.TemplateResponse(
+        request,
+        "media_batch_preview.html",
+        _base_context(
+            request,
+            db=db,
+            batch_preview=preview,
+            batch_directories=directories,
+            return_url=return_url,
+        ),
+    )
+
+
+@router.post(
+    "/media-library/batch/{operation}",
+    response_class=HTMLResponse,
+    dependencies=[Depends(require_page_auth)],
+)
+def media_batch_apply_page(
+    request: Request,
+    operation: str,
+    snapshot_token: list[str] | None = Form(default=None),
+    next_url: str | None = Form(default=None, alias="next"),
+    confirm: str | None = Form(default=None),
+    confirmation_text: str | None = Form(default=None),
+    db: Session = Depends(get_db),
+) -> Response:
+    return_url = _safe_media_batch_return_url(next_url)
+    if not _danger_confirmation_is_valid(
+        request,
+        get_danger_policy(db),
+        confirmation_text=confirmation_text,
+        base_confirmation_valid=confirm == "1",
+    ):
+        return _redirect(return_url)
+    try:
+        result = execute_media_batch(
+            db,
+            operation=operation,
+            snapshot_tokens=snapshot_token,
+            secret_key=get_settings().secret_key,
+        )
+    except MediaBatchError as exc:
+        _media_batch_error_flash(request, exc)
+        return _redirect(return_url)
+    return templates.TemplateResponse(
+        request,
+        "media_batch_result.html",
+        _base_context(
+            request,
+            db=db,
+            batch_result=result,
+            return_url=return_url,
+        ),
+    )
+
+
+def _media_alias_normalization_error_flash(
+    request: Request,
+    exc: MediaAliasNormalizationError,
+) -> None:
+    add_flash(
+        request,
+        "error",
+        "flash.media_alias_normalization_error",
+        code=exc.code,
+    )
+
+
+@router.get(
+    "/media-library/aliases/normalize",
+    response_class=HTMLResponse,
+    dependencies=[Depends(require_page_auth)],
+)
+def media_alias_normalization_preview_page(
+    request: Request,
+    alias_path: list[str] | None = Query(default=None),
+    keeper_path: str | None = Query(default=None),
+    next_url: str | None = Query(default=None, alias="next"),
+    db: Session = Depends(get_db),
+) -> Response:
+    return_url = _safe_media_detail_return_url(next_url)
+    try:
+        preview = build_media_alias_normalization_preview(
+            db,
+            alias_paths=alias_path,
+            keeper_path=keeper_path,
+            secret_key=get_settings().secret_key,
+        )
+    except MediaAliasNormalizationError as exc:
+        _media_alias_normalization_error_flash(request, exc)
+        return _redirect(return_url)
+    return templates.TemplateResponse(
+        request,
+        "media_alias_normalization_preview.html",
+        _base_context(
+            request,
+            db=db,
+            alias_normalization_preview=preview,
+            return_url=return_url,
+        ),
+    )
+
+
+@router.post(
+    "/media-library/aliases/normalize",
+    response_class=HTMLResponse,
+    dependencies=[Depends(require_page_auth)],
+)
+def media_alias_normalization_apply_page(
+    request: Request,
+    snapshot_token: str | None = Form(default=None),
+    next_url: str | None = Form(default=None, alias="next"),
+    confirm: str | None = Form(default=None),
+    confirmation_text: str | None = Form(default=None),
+    db: Session = Depends(get_db),
+) -> Response:
+    return_url = _safe_media_detail_return_url(next_url)
+    if not _danger_confirmation_is_valid(
+        request,
+        get_danger_policy(db),
+        confirmation_text=confirmation_text,
+        base_confirmation_valid=confirm == "1",
+    ):
+        return _redirect(return_url)
+    if snapshot_token is None:
+        _media_alias_normalization_error_flash(
+            request,
+            MediaAliasNormalizationError("invalid_snapshot"),
+        )
+        return _redirect(return_url)
+    try:
+        result = execute_media_alias_normalization(
+            db,
+            snapshot_token=snapshot_token,
+            secret_key=get_settings().secret_key,
+        )
+    except MediaAliasNormalizationError as exc:
+        _media_alias_normalization_error_flash(request, exc)
+        return _redirect(return_url)
+    return templates.TemplateResponse(
+        request,
+        "media_alias_normalization_result.html",
+        _base_context(
+            request,
+            db=db,
+            alias_normalization_result=result,
+            return_url=return_url,
         ),
     )
 

@@ -946,6 +946,31 @@ Compose healthy、运行安全边界与 `/login` 200 均通过，临时资源已
 修复提交 `09be556` 已推送；GitHub Actions run `29399210087` 的
 `test` 与 `Docker production smoke` 均为 success。
 
+## Phase 4-M2 批量整理与别名归一化检查
+
+- [x] **12.725. 当前页选择边界** — 媒体库 / 目录页是否只选择服务端重算的当前页有效普通媒体，限制 20 项且无跨页全选
+- [x] **12.726. GET 零写入** — 批量和 alias 预览是否要求登录、重扫路径与引用，且捕获 SQL / 文件写入为 0
+- [x] **12.727. 批量移动边界** — 是否只接受现有普通目录、逐项 basename、精确保留扩展名并拒绝任何目标占用
+- [x] **12.728. 批量重命名边界** — 是否只在同目录修改 basename，拒绝重复目标、覆盖、名称交换、循环和中间名
+- [x] **12.729. 签名与重验** — 是否签名全部身份、目录映射、目标与引用，并拒绝重复、越页、非法、缺失和伪造快照
+- [x] **12.730. M1 复用** — 每项是否独立复用 verified FD、hardlink、事务、引用迁移、commit outcome 和身份删除
+- [x] **12.731. 失败隔离与结果** — 单项失败是否不影响已完成 / 后续项，结果是否逐项区分成功、失败、源保留和未知
+- [x] **12.732. Keeper 显式选择** — alias 是否只接受完整 dev/inode 组，keeper 无默认且必须由用户明确选择
+- [x] **12.733. 引用先于删除** — 是否先事务迁移全部 cover / avatar 引用到 keeper，提交并复核后才删除零引用 alias
+- [x] **12.734. 未知状态零删除** — commit 未知、查询失败或混合引用是否保留全部路径，同 SHA 不同 inode 是否完全排除
+- [x] **12.735. 竞态 / 故障矩阵** — 目标抢占、父目录替换、引用变化、commit 后异常、fsync / unlink 是否覆盖且不错误删除
+- [x] **12.736. HTTP / i18n** — 登录、current-page、防伪、strict `CONFIRM`、逐项结果和中英文是否有测试
+- [x] **12.737. 最终门禁** — 核心组合 `165 passed`、全量 `700 passed`、pip check、Docker healthy / `/login` 200 已通过并 down 清理
+- [ ] **12.738. 推送与 Actions** — main 是否提交推送，Actions `test` 与 `Docker production smoke` 是否成功
+- [x] **12.739. 范围保持** — 是否未新增任务表、Schema、迁移、依赖、版本、tag、Release、N100、网络或自动合并
+
+当前专项证据：M2 服务与 HTTP 四组 `21 passed`（含 i18n 为 `22 passed`），覆盖当前页防伪、GET
+零写入、HMAC 篡改、strict 确认、逐项结果、目标抢占、父目录替换、引用
+变化、commit unknown / mixed / query failure、fsync 与 unlink 故障。核心组合
+`165 passed`，全量 `700 passed in 107.28s`，pip check 无冲突；Docker image
+build、Compose healthy、`/login` 200、user `10001:10001`、read-only root 与
+`cap_drop: ALL` 均通过，资源已 down 清理。
+
 ## Phase 4-M1 媒体管理增强包检查
 
 - [x] **12.710. 目录路径边界** — 是否只枚举媒体根内现有普通目录，拒绝越界、missing、symlink、文件及内部 cleanup / upload 目录

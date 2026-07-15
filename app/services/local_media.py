@@ -221,6 +221,19 @@ def local_media_directory_identity_token(
     return hashlib.sha256(payload).hexdigest()
 
 
+def local_media_directory_mapping_token(
+    record: ValidatedLocalMediaFile | ValidatedLocalMediaDirectory,
+) -> str:
+    payload = json.dumps(
+        [
+            [stat.S_IFMT(identity.mode), identity.device, identity.inode]
+            for identity in record.directory_identities
+        ],
+        separators=(",", ":"),
+    ).encode("ascii")
+    return hashlib.sha256(payload).hexdigest()
+
+
 @dataclass(frozen=True)
 class _PublishedMedia:
     path: Path

@@ -4,6 +4,28 @@
 
 ### Added
 
+- Added authenticated current-page multiselect controls to the media library
+  and directory browser, with a 20-file batch limit and write-free GET previews
+  for batch move and same-directory batch rename. The server recomputes the
+  complete current page from normalized filter, sort, and pagination state;
+  duplicate, outside-page, missing, damaged, reserved, or forged selections
+  fail closed.
+- Added per-file batch target editing and HMAC-signed snapshots. Batch moves
+  accept only existing ordinary directories beneath the media root and allow
+  each basename to change while preserving its exact extension. Batch renames
+  stay in the source directory and reject duplicate targets, occupied targets,
+  name swaps, and cycles without temporary names.
+- Added independent per-file batch execution and results. Every item reuses the
+  M1 verified-directory-FD, no-overwrite hardlink, exact cover/avatar migration,
+  transaction, commit-outcome, and identity-bound source-removal path; one
+  failure never rolls back a completed item, and retained-source or unknown
+  outcomes remain explicit.
+- Added manual hardlink-alias keeper normalization. Users explicitly select one
+  keeper from a complete group revalidated by exact device/inode identity. A
+  confirmed POST migrates every non-keeper item-cover and creator-avatar
+  reference to the keeper before attempting identity-bound deletion of each
+  zero-reference alias.
+
 - Added the authenticated Phase 4-M1 media directory browser. It exposes only
   existing ordinary directories beneath the media root, with breadcrumbs,
   direct-child directory summaries, current-directory file/byte/damaged/
@@ -118,6 +140,19 @@
   reference.
 
 ### Fixed
+
+- Added stable directory-mapping snapshots for multi-item execution. Directory
+  timestamp changes caused by an earlier completed item do not stale later
+  items, while replaced root/parent mappings still reject the affected item.
+- Alias deletion now requires a confirmed committed reference state before any
+  unlink. Unknown commit outcomes, independent verification failures, and mixed
+  reference states retain every path; per-alias unlink or fsync failures retain
+  that path without invalidating keeper references or blocking other aliases.
+- Same-SHA files with different device/inode identities remain independent and
+  are never included in keeper normalization, reference migration, or deletion.
+- Added batch and alias race coverage for target claims, parent replacement,
+  reference drift, forged snapshots, post-commit exceptions, independent-query
+  failure, mixed references, fsync failure, and unlink failure.
 
 - Generalized the A2 verified-parent hardlink primitive to independent source
   and target directory chains. Source, target, and every parent mapping are
