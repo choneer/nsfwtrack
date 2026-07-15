@@ -5,7 +5,7 @@
 ## 当前状态（v1.0.6 已发布，Phase 4-M2 实现与验收）
 
 当前稳定版与最新 Release：`v1.0.6`。Phase 3-B1 / B2 已正式发布，
-Phase 3-B3 / B4 / B5 / B6 / C1 / C2 / C3 / C4 / C5 与 D1 最终集成审查均已完成并位于 Unreleased；Phase 4-A1 / A2 / M1 已完成，Phase 4-M2 已实现并进入最终验收，应用 Schema 仍为 `2`。
+Phase 3-B3 / B4 / B5 / B6 / C1 / C2 / C3 / C4 / C5 与 D1 最终集成审查均已完成并位于 Unreleased；Phase 4-A1 / A2 / M1 / M2 的实现与验收已完成，应用 Schema 仍为 `2`。
 
 - Annotated tag object：`d4d5c31cd5b2fed9a90ad69742d54b4c9dbed0b4`
 - Peeled commit：`961a3d0cc169e82b261d83207b0ec802007e292b`
@@ -32,7 +32,7 @@ N100 / 目标主机部署尚未开始，**不是当前开发任务**，必须等
 - [x] 中文 / English、模板和 CHANGELOG / README / TASKS / REVIEW / PLAN 已同步
 - [x] M2 服务与 HTTP 专项 `21 passed`，含 i18n 为 `22 passed`
 - [x] 核心组合 `165 passed`、全量 `700 passed`、pip check、Docker healthy / `/login` 200 验收完成
-- [ ] 提交并推送 main，确认 GitHub Actions `test` 与 `Docker production smoke` 均成功
+- [x] 实现提交 `a6b2d7b` 已推送 main，Actions run `29432471537` 的 `test` 与 `Docker production smoke` 均成功
 - [x] 保持版本 1.0.6、Schema 2、迁移、依赖、旧 tag / Release、Docker/CI 与 N100 不变
 
 ### Phase 4-M1 媒体管理增强包（Unreleased）

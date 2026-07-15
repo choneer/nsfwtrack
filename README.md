@@ -229,8 +229,10 @@ N100 deployment. The 21 focused service and HTTP cases pass; the complete
 local-media/A1/A2/M1/M2/i18n core passes `165` tests, and the full suite passes
 `700` tests. `pip check` is clean. The production image builds, Compose reaches
 healthy with user `10001:10001`, read-only root and `cap_drop: ALL`, `/login`
-returns HTTP `200`, and the stack shuts down cleanly. Push and Actions evidence
-is recorded after the final repository steps complete.
+returns HTTP `200`, and the stack shuts down cleanly. Implementation commit
+`a6b2d7b` is pushed, and GitHub Actions run
+[`29432471537`](https://github.com/choneer/nsfwtrack/actions/runs/29432471537)
+passed both `test` and `Docker production smoke`.
 
 ## v1.0.6 Release
 

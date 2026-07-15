@@ -961,7 +961,7 @@ Compose healthy、运行安全边界与 `/login` 200 均通过，临时资源已
 - [x] **12.735. 竞态 / 故障矩阵** — 目标抢占、父目录替换、引用变化、commit 后异常、fsync / unlink 是否覆盖且不错误删除
 - [x] **12.736. HTTP / i18n** — 登录、current-page、防伪、strict `CONFIRM`、逐项结果和中英文是否有测试
 - [x] **12.737. 最终门禁** — 核心组合 `165 passed`、全量 `700 passed`、pip check、Docker healthy / `/login` 200 已通过并 down 清理
-- [ ] **12.738. 推送与 Actions** — main 是否提交推送，Actions `test` 与 `Docker production smoke` 是否成功
+- [x] **12.738. 推送与 Actions** — 实现提交 `a6b2d7b` 已推送 main，Actions run `29432471537` 的 `test` 与 `Docker production smoke` 均成功
 - [x] **12.739. 范围保持** — 是否未新增任务表、Schema、迁移、依赖、版本、tag、Release、N100、网络或自动合并
 
 当前专项证据：M2 服务与 HTTP 四组 `21 passed`（含 i18n 为 `22 passed`），覆盖当前页防伪、GET
@@ -969,7 +969,8 @@ Compose healthy、运行安全边界与 `/login` 200 均通过，临时资源已
 变化、commit unknown / mixed / query failure、fsync 与 unlink 故障。核心组合
 `165 passed`，全量 `700 passed in 107.28s`，pip check 无冲突；Docker image
 build、Compose healthy、`/login` 200、user `10001:10001`、read-only root 与
-`cap_drop: ALL` 均通过，资源已 down 清理。
+`cap_drop: ALL` 均通过，资源已 down 清理。实现提交 `a6b2d7b` 已推送，
+Actions run `29432471537` 两个 job 均成功。
 
 ## Phase 4-M1 媒体管理增强包检查
 

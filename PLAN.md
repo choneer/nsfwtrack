@@ -40,7 +40,7 @@ Release: https://github.com/choneer/nsfwtrack/releases/tag/v1.0.6
 稳定性收尾：Phase 2-I1 基线、I2 查询优化、I3 错误处理、I4 发布冻结审查已随 v1.0.0 发布
 完成度审计：Phase 2-K1 / K2 已随 v1.0.1 发布；代码开发与 WSL 验收已完成
 维护与 CI：Phase 2-L1 至 L6 已随 v1.0.2 发布；L7 已随 v1.0.3 发布；L8 固定非 root 容器用户已随 v1.0.4 发布
-产品功能重启：Phase 3-A1 至 A6 已随 v1.0.5 发布；Phase 3-B1 / B2 已随 v1.0.6 发布；Phase 3-B3 / B4 / B5 / B6 / C1 / C2 / C3 / C4 / C5 与 D1 最终集成审查均已完成并位于 Unreleased；Phase 4-A1 / A2 / M1 已完成；Phase 4-M2 已实现并进入最终验收
+产品功能重启：Phase 3-A1 至 A6 已随 v1.0.5 发布；Phase 3-B1 / B2 已随 v1.0.6 发布；Phase 3-B3 / B4 / B5 / B6 / C1 / C2 / C3 / C4 / C5 与 D1 最终集成审查均已完成并位于 Unreleased；Phase 4-A1 / A2 / M1 / M2 的实现与验收已完成
 ```
 
 当前完成度估算：
@@ -48,7 +48,7 @@ Release: https://github.com/choneer/nsfwtrack/releases/tag/v1.0.6
 ```text
 核心业务能力：已完成
 代码发布状态：v1.0.6 已正式发布，tag 与正式 GitHub Release 均已验证
-当前开发状态：Phase 4-M2 当前页批量整理和 keeper 归一化已实现，本地测试与 Docker 验收完成，等待提交推送和 Actions；main 保持应用版本 1.0.6 与 Schema 2
+当前开发状态：Phase 4-M2 当前页批量整理和 keeper 归一化实现、本地验收、推送与 Actions 已完成；main 保持应用版本 1.0.6 与 Schema 2
 WSL 验收：已完成
 N100 部署：尚未开始，等待用户明确授权
 ```
@@ -1273,7 +1273,8 @@ K1 审计结论：
 - M2 服务与 HTTP 专项 `21 passed`，含 i18n 为 `22 passed`
 - 目标抢占、父目录替换、引用漂移、commit unknown / mixed / query failure、fsync / unlink 故障均有覆盖
 - 核心组合 `165 passed`，全量 `700 passed in 107.28s`，pip check 无冲突
-- Docker image build、Compose healthy、`/login` 200 与 down 清理通过；Actions 待推送后记录
+- Docker image build、Compose healthy、`/login` 200 与 down 清理通过
+- 实现提交 `a6b2d7b` 已推送；Actions run `29432471537` 的 `test` 与 `Docker production smoke` 均成功
 
 ---
 
