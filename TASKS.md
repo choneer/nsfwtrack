@@ -30,7 +30,7 @@ N100 / 目标主机部署尚未开始，**不是当前开发任务**，必须等
 - [x] 目录与别名 GET 捕获 SQL 写入为 0，不提供 keeper、删除、统一引用或其他写入口
 - [x] 覆盖目标抢占、目录替换、引用变化、commit 后异常、独立查询失败、fsync / unlink 失败及外部目标保留
 - [x] 中文 / English、模板、CHANGELOG Unreleased、README / TASKS / REVIEW / PLAN / GOAL 同步
-- [ ] 本地专项 `29 passed`、核心组合 `140 passed`、全量 `679 passed`、pip check 与 Docker healthy / `/login` 200 已通过；Actions 待提交推送后验收
+- [x] 本地专项 `29 passed`、核心组合 `140 passed`、全量 `679 passed`、pip check 与 Docker healthy / `/login` 200 已通过；实现提交 `4e350bf` 已推送，Actions run `29405923933` 两个 job 均成功
 - [x] 保持版本 1.0.6、Schema 2、迁移、索引、依赖、旧 tag / Release 与 N100 不变
 
 ### Phase 4-A2 普通媒体安全重命名（Unreleased）

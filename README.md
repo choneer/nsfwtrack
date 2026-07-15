@@ -189,7 +189,10 @@ Current M1 local acceptance: the four focused suites pass `29` tests, the
 local-media/A2/A1/M1/i18n combination passes `140` tests, the full suite passes
 `679` tests, and `pip check` reports no broken requirements. The production
 Docker image builds, Compose reaches healthy, `/login` returns HTTP `200`, and
-the stack shuts down cleanly. Remote Actions verification follows the M1 push.
+the stack shuts down cleanly. Implementation commit `4e350bf` is pushed, and
+GitHub Actions run
+[`29405923933`](https://github.com/choneer/nsfwtrack/actions/runs/29405923933)
+passed both `test` and `Docker production smoke`.
 
 ## v1.0.6 Release
 

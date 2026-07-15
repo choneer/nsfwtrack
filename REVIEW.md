@@ -962,7 +962,7 @@ Compose healthy、运行安全边界与 `/login` 200 均通过，临时资源已
 - [x] **12.721. 别名语义** — 是否按 dev/inode 聚合，逐路径显示全部引用，并把同 SHA 不同身份明确列为独立文件
 - [x] **12.722. 故障矩阵** — 源 / 目标 / 父目录替换、目标抢占、引用变化、commit 后异常、查询失败、fsync / unlink 失败是否覆盖且不删除外部对象
 - [x] **12.723. 范围保持** — 是否没有批量操作、目录创建删除、keeper、自动合并、Schema 3、索引、版本发布或 N100
-- [ ] **12.724. 最终交付** — 本地专项 `29 passed`、核心组合 `140 passed`、全量 `679 passed`、pip check 与 Docker healthy / `/login` 200 已通过；Actions 与提交推送待完成
+- [x] **12.724. 最终交付** — 本地专项 `29 passed`、核心组合 `140 passed`、全量 `679 passed`、pip check 与 Docker healthy / `/login` 200 已通过；实现提交 `4e350bf` 已推送，Actions run `29405923933` 的 test / Docker job 均成功
 
 ## 登录保护检查
 

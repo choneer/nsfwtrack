@@ -69,4 +69,5 @@
 - 全量 pytest：`679 passed in 113.51s`
 - `pip check`：无依赖冲突
 - Docker：image build 通过，Compose healthy，`/login` HTTP 200，down 清理完成
-- GitHub Actions：待提交并推送后验证
+- 实现提交：`4e350bf` 已推送 main
+- GitHub Actions：run `29405923933` 的 `test` 与 `Docker production smoke` 均成功

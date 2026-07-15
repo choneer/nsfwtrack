@@ -1273,7 +1273,8 @@ K1 审计结论：
 - M1 目录 / 移动 / 单项引用 / 别名四组专项 `29 passed`，直接覆盖源 / 目标目录替换、目标抢占、引用变化、strict 拒绝、commit / 查询 / fsync / unlink 故障
 - local-media、A2、A1 详情、M1 四组与 i18n 核心组合 `140 passed`
 - 最终全量 `679 passed in 113.51s`，`pip check` 无冲突
-- Docker image build、Compose healthy、`/login` 200 与 down 清理通过；Actions 待 M1 提交推送后验收
+- Docker image build、Compose healthy、`/login` 200 与 down 清理通过
+- 实现提交 `4e350bf` 已推送 main；Actions run `29405923933` 的 `test` 与 `Docker production smoke` 均成功
 - 保持应用版本 1.0.6、Schema 2、迁移注册、依赖、Docker/CI、旧 tag / Release 与 N100 不变
 
 ---
