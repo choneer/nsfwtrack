@@ -6,6 +6,7 @@ from pathlib import PurePosixPath
 from sqlalchemy import select, text, update
 from sqlalchemy.orm import Session
 
+from app.database import SessionLocal
 from app.models import Creator, Item
 from app.services import local_media
 
@@ -307,6 +308,54 @@ def _rollback_quietly(db: Session) -> None:
         pass
 
 
+def _inspect_commit_outcome(
+    *,
+    source_path: str,
+    target_path: str,
+    expected_item_ids: tuple[int, ...],
+    expected_creator_ids: tuple[int, ...],
+) -> str:
+    try:
+        with SessionLocal() as verification_db:
+            source_item_ids, source_creator_ids = _reference_ids(
+                verification_db,
+                source_path,
+            )
+            target_item_ids, target_creator_ids = _reference_ids(
+                verification_db,
+                target_path,
+            )
+    except Exception:
+        return "unknown"
+
+    if not expected_item_ids and not expected_creator_ids:
+        return "unknown"
+    if (
+        source_item_ids == expected_item_ids
+        and source_creator_ids == expected_creator_ids
+        and not target_item_ids
+        and not target_creator_ids
+    ):
+        return "not_committed"
+    if (
+        not source_item_ids
+        and not source_creator_ids
+        and target_item_ids == expected_item_ids
+        and target_creator_ids == expected_creator_ids
+    ):
+        return "committed"
+    return "unknown"
+
+
+def _remove_rolled_back_target(
+    link: local_media.ValidatedLocalMediaHardlink,
+) -> None:
+    try:
+        link.remove_target()
+    except local_media.LocalMediaSafetyAnchorError as exc:
+        raise MediaFileRenameError("target_cleanup_failed") from exc
+
+
 def _remove_source_after_commit(
     db: Session,
     link: local_media.ValidatedLocalMediaHardlink,
@@ -435,25 +484,46 @@ def execute_media_file_rename(
                 ):
                     raise MediaFileRenameError("reference_migration_failed")
                 link.verify()
-                db.commit()
             except Exception as exc:
                 _rollback_quietly(db)
-                try:
-                    link.remove_target()
-                except local_media.LocalMediaSafetyAnchorError as cleanup_exc:
-                    raise MediaFileRenameError("target_cleanup_failed") from cleanup_exc
+                _remove_rolled_back_target(link)
                 if isinstance(exc, MediaFileRenameError):
                     raise
                 if isinstance(exc, local_media.LocalMediaSafetyAnchorError):
                     raise MediaFileRenameError("stale_source") from exc
                 raise MediaFileRenameError("database_failed") from exc
 
-            removal = _remove_source_after_commit(
-                db,
-                link,
-                expected_item_ids=expected_item_ids,
-                expected_creator_ids=expected_creator_ids,
-            )
+            try:
+                db.commit()
+            except Exception as exc:
+                _rollback_quietly(db)
+                commit_outcome = _inspect_commit_outcome(
+                    source_path=preview.source.media_path,
+                    target_path=preview.target_media_path,
+                    expected_item_ids=expected_item_ids,
+                    expected_creator_ids=expected_creator_ids,
+                )
+                if commit_outcome == "not_committed":
+                    _remove_rolled_back_target(link)
+                    raise MediaFileRenameError("database_failed") from exc
+                if commit_outcome == "committed":
+                    try:
+                        link.verify()
+                    except local_media.LocalMediaSafetyAnchorError:
+                        commit_outcome = "unknown"
+                removal = local_media.LocalMediaLinkRemoval(
+                    False,
+                    "committed_source_retained"
+                    if commit_outcome == "committed"
+                    else "commit_outcome_unknown",
+                )
+            else:
+                removal = _remove_source_after_commit(
+                    db,
+                    link,
+                    expected_item_ids=expected_item_ids,
+                    expected_creator_ids=expected_creator_ids,
+                )
     except local_media.LocalMediaSafetyAnchorError as exc:
         _rollback_quietly(db)
         code = {

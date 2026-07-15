@@ -10,10 +10,12 @@ from urllib.parse import parse_qs, urlsplit
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import event
+from sqlalchemy import event, select, update
 
 from app.database import SessionLocal, engine
+from app.i18n import translate
 from app.models import Creator, Item
+from app.routers import pages as page_routes
 from app.services import local_media, media_file_rename
 from app.services.media_file_rename import (
     MediaFileRenameError,
@@ -82,6 +84,34 @@ def _database_snapshot() -> tuple[
                 for row in db.query(Creator).order_by(Creator.id)
             ),
         )
+
+
+def _assert_all_media_references_resolve() -> None:
+    with SessionLocal() as db:
+        paths = tuple(
+            path
+            for path in db.scalars(
+                select(Item.cover_path).where(Item.cover_path.is_not(None))
+            ).all()
+            if path is not None
+        ) + tuple(
+            path
+            for path in db.scalars(
+                select(Creator.avatar_path).where(Creator.avatar_path.is_not(None))
+            ).all()
+            if path is not None
+        )
+    scan_entries = {
+        entry.media_path: entry for entry in local_media.scan_local_media().entries
+    }
+    for path in paths:
+        entry = scan_entries.get(path)
+        assert entry is not None and entry.available and entry.sha256
+        record = local_media.validate_local_media_file(
+            path,
+            expected_sha256=entry.sha256,
+        )
+        assert record.sha256
 
 
 def _form(preview: media_file_rename.MediaFileRenamePreview) -> dict[str, object]:
@@ -835,6 +865,234 @@ def test_database_commit_failure_removes_created_target_and_preserves_state(
     assert _database_snapshot()[0][0][1] == source_path
 
 
+def test_commit_applied_before_exception_preserves_both_paths_and_references(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "media"
+    source = _write_gif(root, "Source.gif", extra=10)
+    source_path = _media_path(source, root)
+    target = root / "Target.gif"
+    with SessionLocal() as setup_db:
+        setup_db.add_all(
+            [
+                Item(title="Referenced item", cover_path=source_path),
+                Creator(
+                    name="Referenced creator",
+                    type="person",
+                    avatar_path=source_path,
+                ),
+            ]
+        )
+        setup_db.commit()
+    monkeypatch.setattr(local_media, "LOCAL_MEDIA_ROOT", root)
+    preview = _preview(root, source, target.name)
+
+    with SessionLocal() as db:
+        original_commit = db.commit
+
+        def commit_then_raise() -> None:
+            original_commit()
+            raise RuntimeError("injected error after real commit")
+
+        monkeypatch.setattr(db, "commit", commit_then_raise)
+        result = execute_media_file_rename(db, **_service_args(preview))
+
+    assert result.source_removed is False
+    assert result.warning_code == "committed_source_retained"
+    assert source.exists() and target.exists()
+    assert source.stat().st_ino == target.stat().st_ino
+    item_rows, creator_rows = _database_snapshot()
+    assert item_rows[0][1] == "/media/Target.gif"
+    assert creator_rows[0][1] == "/media/Target.gif"
+    _assert_all_media_references_resolve()
+
+
+def test_mixed_commit_outcome_preserves_both_paths_and_valid_references(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "media"
+    source = _write_gif(root, "Source.gif", extra=12)
+    source_path = _media_path(source, root)
+    target = root / "Target.gif"
+    with SessionLocal() as setup_db:
+        item = Item(title="Referenced item", cover_path=source_path)
+        creator = Creator(
+            name="Referenced creator",
+            type="person",
+            avatar_path=source_path,
+        )
+        setup_db.add_all([item, creator])
+        setup_db.commit()
+        creator_id = creator.id
+    monkeypatch.setattr(local_media, "LOCAL_MEDIA_ROOT", root)
+    preview = _preview(root, source, target.name)
+
+    with SessionLocal() as db:
+        original_commit = db.commit
+
+        def commit_mixed_then_raise() -> None:
+            db.execute(
+                update(Creator)
+                .where(Creator.id == creator_id)
+                .values(avatar_path=source_path)
+            )
+            original_commit()
+            raise RuntimeError("injected mixed commit outcome")
+
+        monkeypatch.setattr(db, "commit", commit_mixed_then_raise)
+        result = execute_media_file_rename(db, **_service_args(preview))
+
+    assert result.source_removed is False
+    assert result.warning_code == "commit_outcome_unknown"
+    assert source.exists() and target.exists()
+    assert source.stat().st_ino == target.stat().st_ino
+    item_rows, creator_rows = _database_snapshot()
+    assert item_rows[0][1] == "/media/Target.gif"
+    assert creator_rows[0][1] == source_path
+    _assert_all_media_references_resolve()
+
+
+def test_unreferenced_commit_exception_is_unknown_and_preserves_both_paths(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "media"
+    source = _write_gif(root, "Source.gif", extra=13)
+    target = root / "Target.gif"
+    monkeypatch.setattr(local_media, "LOCAL_MEDIA_ROOT", root)
+    preview = _preview(root, source, target.name)
+
+    with SessionLocal() as db:
+        original_commit = db.commit
+
+        def commit_then_raise() -> None:
+            original_commit()
+            raise RuntimeError("injected unreferenced commit ambiguity")
+
+        monkeypatch.setattr(db, "commit", commit_then_raise)
+        result = execute_media_file_rename(db, **_service_args(preview))
+
+    assert result.source_removed is False
+    assert result.warning_code == "commit_outcome_unknown"
+    assert source.exists() and target.exists()
+    assert source.stat().st_ino == target.stat().st_ino
+    assert _database_snapshot() == ((), ())
+
+
+def test_commit_outcome_query_failure_preserves_all_files_and_references(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "media"
+    source = _write_gif(root, "Source.gif", extra=14)
+    source_path = _media_path(source, root)
+    target = root / "Target.gif"
+    concurrent_link = root / "Concurrent-link.gif"
+    outside = _write_gif(tmp_path / "outside", "External.gif", extra=40)
+    outside_before = _file_snapshot(outside)
+    with SessionLocal() as setup_db:
+        setup_db.add_all(
+            [
+                Item(title="Referenced item", cover_path=source_path),
+                Creator(
+                    name="Referenced creator",
+                    type="person",
+                    avatar_path=source_path,
+                ),
+            ]
+        )
+        setup_db.commit()
+    monkeypatch.setattr(local_media, "LOCAL_MEDIA_ROOT", root)
+    preview = _preview(root, source, target.name)
+
+    with SessionLocal() as db:
+        def fail_commit_before_apply() -> None:
+            os.link(source, concurrent_link)
+            raise RuntimeError("injected pre-commit failure")
+
+        def fail_verification_session() -> None:
+            raise RuntimeError("injected independent query failure")
+
+        monkeypatch.setattr(db, "commit", fail_commit_before_apply)
+        monkeypatch.setattr(
+            media_file_rename,
+            "SessionLocal",
+            fail_verification_session,
+        )
+        result = execute_media_file_rename(db, **_service_args(preview))
+
+    assert result.source_removed is False
+    assert result.warning_code == "commit_outcome_unknown"
+    assert source.exists() and target.exists() and concurrent_link.exists()
+    assert source.stat().st_ino == target.stat().st_ino
+    assert source.stat().st_ino == concurrent_link.stat().st_ino
+    assert _file_snapshot(outside) == outside_before
+    item_rows, creator_rows = _database_snapshot()
+    assert item_rows[0][1] == source_path
+    assert creator_rows[0][1] == source_path
+    _assert_all_media_references_resolve()
+
+
+def test_commit_outcome_warnings_are_explicit_and_unknown_is_not_success(
+    auth_client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "media"
+    source = _write_gif(root, "Source.gif", extra=16)
+    target = root / "Target.gif"
+    monkeypatch.setattr(local_media, "LOCAL_MEDIA_ROOT", root)
+    preview = _preview(root, source, target.name)
+    os.link(source, target)
+    unknown_result = media_file_rename.MediaFileRenameResult(
+        source_path=preview.source.media_path,
+        target_path=preview.target_media_path,
+        sha256=preview.source.sha256,
+        migrated_items=0,
+        migrated_creators=0,
+        source_removed=False,
+        warning_code="commit_outcome_unknown",
+    )
+    monkeypatch.setattr(
+        page_routes,
+        "execute_media_file_rename",
+        lambda *_args, **_kwargs: unknown_result,
+    )
+
+    zh_response = auth_client.post(
+        "/media-library/detail/rename",
+        data=_form(preview),
+        follow_redirects=True,
+    )
+    auth_client.get(
+        "/set-language",
+        params={"lang": "en", "next": "/media-library"},
+    )
+    en_response = auth_client.post(
+        "/media-library/detail/rename",
+        data=_form(preview),
+        follow_redirects=True,
+    )
+
+    assert zh_response.status_code == 200
+    assert "数据库提交结果无法安全判断" in zh_response.text
+    assert "媒体路径已迁移" not in zh_response.text
+    assert en_response.status_code == 200
+    assert "database commit outcome cannot be determined safely" in en_response.text
+    assert "Media path migrated" not in en_response.text
+    for language in ("zh", "en"):
+        committed_message = translate(
+            language,
+            "flash.media_file_rename_warning_committed_source_retained",
+            source="/media/Source.gif",
+            target="/media/Target.gif",
+        )
+        assert "/media/Source.gif" in committed_message
+        assert "/media/Target.gif" in committed_message
+
+
 def test_source_delete_failure_commits_target_and_reports_both_paths(
     auth_client: TestClient,
     monkeypatch: pytest.MonkeyPatch,
@@ -868,6 +1126,53 @@ def test_source_delete_failure_commits_target_and_reports_both_paths(
     assert "/media/Source.gif" in page and "/media/Target.gif" in page
     assert "两个路径均保留" in page
     assert _database_snapshot()[0][0][1] == "/media/Target.gif"
+
+
+def test_source_directory_fsync_failure_keeps_target_and_valid_references(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "media"
+    source = _write_gif(root, "Source.gif", extra=18)
+    source_path = _media_path(source, root)
+    target = root / "Target.gif"
+    with SessionLocal() as db:
+        db.add_all(
+            [
+                Item(title="Referenced item", cover_path=source_path),
+                Creator(
+                    name="Referenced creator",
+                    type="person",
+                    avatar_path=source_path,
+                ),
+            ]
+        )
+        db.commit()
+    monkeypatch.setattr(local_media, "LOCAL_MEDIA_ROOT", root)
+    preview = _preview(root, source, target.name)
+    original_fsync = local_media.os.fsync
+    fsync_calls = 0
+
+    def fail_source_directory_sync(descriptor: int) -> None:
+        nonlocal fsync_calls
+        fsync_calls += 1
+        if fsync_calls == 3:
+            raise OSError("injected source directory fsync failure")
+        original_fsync(descriptor)
+
+    monkeypatch.setattr(local_media.os, "fsync", fail_source_directory_sync)
+    with SessionLocal() as db:
+        result = execute_media_file_rename(db, **_service_args(preview))
+
+    assert fsync_calls == 3
+    assert result.source_removed is True
+    assert result.warning_code == "sync_failed"
+    assert not source.exists()
+    assert target.exists()
+    item_rows, creator_rows = _database_snapshot()
+    assert item_rows[0][1] == "/media/Target.gif"
+    assert creator_rows[0][1] == "/media/Target.gif"
+    _assert_all_media_references_resolve()
 
 
 def test_source_path_replacement_after_commit_is_not_deleted(

@@ -121,20 +121,28 @@ under `BEGIN IMMEDIATE`, creates the target with `os.link` through a retained
 verified parent-directory FD, migrates every exact source reference, verifies
 both directory entries and open FDs, and commits before attempting the
 identity-bound source unlink. Database failure rolls references back and
-removes only the self-created target. If source unlink fails, the valid target
-and committed references remain, the source is retained, and the UI reports
-both paths for review.
+removes only the self-created target when an independent Session proves all
+expected references still point to the source and the target has zero
+references. If the commit call raises after the database actually commits, the
+verified target and source are both retained and the UI reports the committed
+result accurately. Mixed references, an unreferenced ambiguous transaction, or
+a failed independent query are treated as unknown: both files remain and the
+UI does not claim success. If source unlink fails after a normal commit, the
+valid target and committed references remain, the source is retained, and the
+UI reports both paths for review.
 
-Focused A2 coverage currently passes 43 tests, including valid referenced and
+The original focused A2 coverage passed 43 tests, including valid referenced and
 unreferenced/recovered files, strict `CONFIRM`, exact reference changes,
 target claims and same-inode links, source/target/parent replacements,
 commit-failure cleanup, source-delete failure, SHA/content/duplicate-group
-preservation, and prohibition of target `Path.stat` / `Path.read_bytes`
-reopens. The media/Data Health/backup/UI regression passes `309` tests, the
-full suite passes all `644` tests, and `pip check` is clean. The production
-image builds; isolated Compose is healthy with the existing runtime security
-boundaries, `/login` returns 200, anonymous rename redirects, and authenticated
-login/media-library requests return 200. Implementation commit `b32e848` is
+preservation, and prohibition of target `Path.stat` / `Path.read_bytes` reopens.
+The commit-outcome correction expands the rename suite to 49 tests; rename plus
+i18n passes 50, the core media chain passes 193, and the broad media/Data
+Health/backup/UI regression passes 315. The full suite passes all 650 tests and
+`pip check` is clean. The production image rebuilds; isolated Compose is
+healthy with the existing runtime security boundaries, `/login` returns 200,
+and temporary resources are removed. The correction's Actions run is pending.
+The original implementation commit `b32e848` is
 pushed, and GitHub Actions run
 [`29396021693`](https://github.com/choneer/nsfwtrack/actions/runs/29396021693)
 passed both `test` and `Docker production smoke`.

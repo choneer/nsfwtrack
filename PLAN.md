@@ -48,7 +48,7 @@ Release: https://github.com/choneer/nsfwtrack/releases/tag/v1.0.6
 ```text
 核心业务能力：已完成
 代码发布状态：v1.0.6 已正式发布，tag 与正式 GitHub Release 均已验证
-当前开发状态：Phase 4-A2 普通媒体安全重命名实现、本地验收、推送与 Actions 均完成；main 保持应用版本 1.0.6 与 Schema 2
+当前开发状态：Phase 4-A2 commit 结果歧义修复已完成本地验收，等待提交推送与 Actions；main 保持应用版本 1.0.6 与 Schema 2
 WSL 验收：已完成
 N100 部署：尚未开始，等待用户明确授权
 ```
@@ -1238,7 +1238,8 @@ K1 审计结论：
 - confirmed POST 复用 standard / strict `CONFIRM`，在 `BEGIN IMMEDIATE` 内重验完整源身份、目标不存在且零引用和全部源引用 ID
 - 保持已验证父目录 / 源 FD，通过 `os.link(..., follow_symlinks=False)` no-overwrite 创建并持有目标 FD
 - 精确迁移全部 cover / avatar 引用并复核 rowcount、源零引用、目标引用集合与源 / 目标 / 父链身份后提交
-- DB 失败 rollback 并按 held-FD inode 清理自建目标；commit 后在第二个写锁复核中身份绑定删除源
+- 提交前失败 rollback 并按 held-FD inode 清理自建目标；`db.commit()` 抛错后先由独立 Session 重查两条路径的全部引用，仅确认未提交时清理 target
+- commit 已实际落盘时保留 target / source 并报告 `committed_source_retained`；混合、无引用歧义或查询失败保留双路径并报告 `commit_outcome_unknown`
 - 源删除失败时有效目标和引用保持，按实际状态报告源 / 双路径；成功携带来源状态返回新详情
 
 当前验证：
@@ -1249,6 +1250,7 @@ K1 审计结论：
 - 全量 `644 passed in 119.82s`，`pip check` 无冲突
 - Docker image build、隔离 Compose healthy；user `10001:10001`、read-only root、`cap_drop: ALL`、`no-new-privileges` 保持，`/login` 200、匿名 rename 303、API login / 认证媒体库 200，临时资源已清理
 - 实现提交 `b32e848` 已推送；Actions run `29396021693` 的 `test` 与 `Docker production smoke` 均成功
+- commit 歧义修复后 A2 / i18n 专项 `50 passed`、核心媒体链 `193 passed in 27.83s`、广泛组合 `315 passed in 46.38s`、全量 `650 passed in 106.83s`，pip check 与隔离 Docker / HTTP 通过；提交推送与 Actions 待完成
 - 保持版本 1.0.6、Schema 2、迁移、依赖、Docker/CI、tag、Release 与 N100 不变
 
 ---

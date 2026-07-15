@@ -99,6 +99,15 @@
 
 ### Fixed
 
+- Fixed the Phase 4-A2 ambiguous-commit failure path. If `db.commit()` raises,
+  a new independent database session now reloads every item-cover and
+  creator-avatar reference for both source and target before any file cleanup.
+- A target hard link is removed after a commit exception only when the
+  independent check proves that every expected reference remains on the source
+  and the target has zero references. A fully committed target keeps both hard
+  links and reports `committed_source_retained`; mixed, unreferenced, failed,
+  or otherwise indeterminate checks keep both files and report
+  `commit_outcome_unknown` without claiming success.
 - Added Phase 4-A2 race rejection for target claims by any object (including a
   same-inode hard link), source/target identity replacement, ordinary-directory
   or symlink parent replacement, changed reference snapshots, and database

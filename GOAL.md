@@ -1,11 +1,11 @@
 # GOAL.md
 
-# 当前目标：Phase 4-A2 — 普通媒体安全重命名
+# 当前目标：Phase 4-A2 — 修复数据库 commit 结果歧义
 
 ## 目标
 
 允许用户从普通媒体详情页预览并手动确认修改文件名，
-同时安全迁移全部封面和头像引用。
+同时安全迁移全部封面和头像引用；commit 调用结果不确定时不得产生损坏引用。
 
 ## 任务
 
@@ -18,6 +18,9 @@
 - 通过验证父目录 FD 创建目标硬链接，不重新解析可替换路径
 - 事务内将全部 item cover 和 creator avatar 引用迁移到目标路径
 - 数据库失败时删除新目标并保留原文件和原引用
+- `db.commit()` 抛错后必须使用独立 Session 重查 source / target 全部引用，禁止无条件删除目标
+- 只有精确确认全部引用仍在 source 且 target 零引用时才清理自建 target
+- 已提交时保留双路径并返回 `committed_source_retained`；混合、无引用歧义或查询失败返回 `commit_outcome_unknown` 并禁止删除
 - 提交后再安全删除原路径；删除失败时准确报告双路径保留
 - 从 A1 详情页进入，完成后返回新文件详情页
 - 同步双语、测试和 Unreleased 文档
@@ -39,6 +42,7 @@
 - SHA、内容和重复组关系保持不变
 - 目标抢占、父目录替换、文件身份变化和伪造请求全部拒绝
 - 数据库失败保留原状态，不产生目标残留
+- commit 结果不确定时所有 cover / avatar 引用始终指向存在的合法媒体，且不删除任一路径
 - 原路径删除失败时目标和引用仍有效，并给出准确结果
 - GET 零写入，所有失败路径不覆盖或删除外部对象
 - pytest、pip check、Docker 和 Actions 通过
@@ -56,4 +60,8 @@
 - A2 专项 `43 passed`；local-media / B3 / B5 / C1/C2/C4 / A1 / i18n 回归 `144 passed`；媒体 / Data Health / 备份 / UI 组合 `309 passed`
 - 全量 `644 passed in 119.82s`，`pip check` 无冲突；Docker build、隔离 Compose healthy、`/login` / 匿名 rename / API login / 认证媒体库 HTTP 验收通过，临时资源已清理
 - 实现提交 `b32e848` 已推送；Actions run `29396021693` 的 `test` 与 `Docker production smoke` 均为 success
+- commit 歧义修复已使用独立 Session 精确区分未提交 / 已提交 / 未知；只有确认未提交才清理 target
+- 真实 `original_commit()` 后抛错、混合引用、无引用歧义、查询失败、unlink / fsync 与双语提示均有覆盖；A2 / i18n `50 passed`
+- 修复后核心媒体链 `193 passed in 27.83s`、广泛组合 `315 passed in 46.38s`、全量 `650 passed in 106.83s`，`pip check` 无冲突
+- 隔离 Docker build、Compose healthy、安全边界与 `/login` 200 验收通过并清理；提交推送与 Actions 待完成
 - 版本 1.0.6、Schema 2、迁移、依赖、Docker/CI、tag、Release 与 N100 均未改变

@@ -741,17 +741,20 @@ def media_file_rename_apply_page(
         _media_file_rename_error_flash(request, exc)
         return _media_file_rename_error_redirect(media_path, return_url)
 
-    add_flash(
-        request,
-        "success",
-        "flash.media_file_rename_completed",
-        source=result.source_path,
-        target=result.target_path,
-        items=result.migrated_items,
-        creators=result.migrated_creators,
-    )
+    if result.warning_code != "commit_outcome_unknown":
+        add_flash(
+            request,
+            "success",
+            "flash.media_file_rename_completed",
+            source=result.source_path,
+            target=result.target_path,
+            items=result.migrated_items,
+            creators=result.migrated_creators,
+        )
     if result.warning_code:
         known_warning_codes = {
+            "commit_outcome_unknown",
+            "committed_source_retained",
             "delete_failed",
             "link_changed",
             "lock_release_failed",
@@ -768,12 +771,17 @@ def media_file_rename_apply_page(
         )
         add_flash(
             request,
-            "info",
+            "error" if warning_code == "commit_outcome_unknown" else "info",
             f"flash.media_file_rename_warning_{warning_code}",
             source=result.source_path,
             target=result.target_path,
         )
-    return _redirect(_media_file_detail_url(result.target_path, return_url))
+    detail_path = (
+        result.source_path
+        if result.warning_code == "commit_outcome_unknown"
+        else result.target_path
+    )
+    return _redirect(_media_file_detail_url(detail_path, return_url))
 
 
 @router.get(
