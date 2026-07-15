@@ -8,7 +8,7 @@ Current stable version: `v1.0.6 / Phase 3-B1 and B2`.
 
 Latest Release: [NSFWTrack v1.0.6](https://github.com/choneer/nsfwtrack/releases/tag/v1.0.6).
 
-Current status: `v1.0.6 is released; Phase 4-A2 ordinary-media safe rename is implemented in Unreleased and is undergoing final acceptance`.
+Current status: `v1.0.6 is released; Phase 4-A2 ordinary-media safe rename is complete in Unreleased`.
 
 Current development: `Phase 3-B1 and B2 are published; Phase 4-A1 is complete,
 and Phase 4-A2 adds one authenticated, manually confirmed same-directory
@@ -134,7 +134,10 @@ reopens. The media/Data Health/backup/UI regression passes `309` tests, the
 full suite passes all `644` tests, and `pip check` is clean. The production
 image builds; isolated Compose is healthy with the existing runtime security
 boundaries, `/login` returns 200, anonymous rename redirects, and authenticated
-login/media-library requests return 200. GitHub Actions is pending.
+login/media-library requests return 200. Implementation commit `b32e848` is
+pushed, and GitHub Actions run
+[`29396021693`](https://github.com/choneer/nsfwtrack/actions/runs/29396021693)
+passed both `test` and `Docker production smoke`.
 
 ## v1.0.6 Release
 

@@ -40,7 +40,7 @@ Release: https://github.com/choneer/nsfwtrack/releases/tag/v1.0.6
 稳定性收尾：Phase 2-I1 基线、I2 查询优化、I3 错误处理、I4 发布冻结审查已随 v1.0.0 发布
 完成度审计：Phase 2-K1 / K2 已随 v1.0.1 发布；代码开发与 WSL 验收已完成
 维护与 CI：Phase 2-L1 至 L6 已随 v1.0.2 发布；L7 已随 v1.0.3 发布；L8 固定非 root 容器用户已随 v1.0.4 发布
-产品功能重启：Phase 3-A1 至 A6 已随 v1.0.5 发布；Phase 3-B1 / B2 已随 v1.0.6 发布；Phase 3-B3 / B4 / B5 / B6 / C1 / C2 / C3 / C4 / C5 与 D1 最终集成审查均已完成并位于 Unreleased；Phase 4-A1 已完成，Phase 4-A2 已实现并进入最终验收
+产品功能重启：Phase 3-A1 至 A6 已随 v1.0.5 发布；Phase 3-B1 / B2 已随 v1.0.6 发布；Phase 3-B3 / B4 / B5 / B6 / C1 / C2 / C3 / C4 / C5 与 D1 最终集成审查均已完成并位于 Unreleased；Phase 4-A1 / A2 已完成
 ```
 
 当前完成度估算：
@@ -48,7 +48,7 @@ Release: https://github.com/choneer/nsfwtrack/releases/tag/v1.0.6
 ```text
 核心业务能力：已完成
 代码发布状态：v1.0.6 已正式发布，tag 与正式 GitHub Release 均已验证
-当前开发状态：Phase 4-A2 普通媒体安全重命名本地验收完成，等待提交推送与 Actions；main 保持应用版本 1.0.6 与 Schema 2
+当前开发状态：Phase 4-A2 普通媒体安全重命名实现、本地验收、推送与 Actions 均完成；main 保持应用版本 1.0.6 与 Schema 2
 WSL 验收：已完成
 N100 部署：尚未开始，等待用户明确授权
 ```
@@ -1248,7 +1248,7 @@ K1 审计结论：
 - local-media、B3、B5、C1/C2/C4、A1 与 i18n 回归 `144 passed`；媒体 / Data Health / 备份 / 页面 / 响应式 / i18n 组合 `309 passed in 56.52s`
 - 全量 `644 passed in 119.82s`，`pip check` 无冲突
 - Docker image build、隔离 Compose healthy；user `10001:10001`、read-only root、`cap_drop: ALL`、`no-new-privileges` 保持，`/login` 200、匿名 rename 303、API login / 认证媒体库 200，临时资源已清理
-- 提交推送与 Actions 待完成
+- 实现提交 `b32e848` 已推送；Actions run `29396021693` 的 `test` 与 `Docker production smoke` 均成功
 - 保持版本 1.0.6、Schema 2、迁移、依赖、Docker/CI、tag、Release 与 N100 不变
 
 ---
@@ -1281,7 +1281,7 @@ K1 审计结论：
 21. Phase 3-C5 媒体根目录诊断与安全初始化已完成并位于 Unreleased
 22. Phase 3-D1 最终父链修复、本地全套验收与 Actions 完成，Unreleased 开发范围已冻结
 23. Phase 4-A1 普通媒体单文件详情页实现、本地验收与 Actions 已完成
-24. Phase 4-A2 普通媒体安全重命名本地验收完成，等待提交推送与 Actions
+24. Phase 4-A2 普通媒体安全重命名实现、本地验收、推送与 Actions 已完成
 25. N100 / 目标主机部署未开始，等待用户明确授权
 26. 其余仅按实际问题做可选维护
 ```
@@ -1360,7 +1360,7 @@ K1 审计结论：
 - Phase 3-D1 修复 Data Health 路径重走、重复 finding 缺少直接入口、B3-B6 共享验证媒体父路径重解析及 C2 父链身份丢失四类真实问题
 - Phase 3-D1 最终父链精确竞态 2 passed、核心回归 177 passed、组合回归 365 passed、全量 584 passed，pip check 与隔离 Docker healthy / HTTP 验收通过；修复提交 `db0048d` 的 Actions run `29386547600` 两个 job 均成功，已重新记录最终冻结
 - Phase 4-A1 已完成安全只读详情聚合、全部引用与完整 SHA 重复组展示、三类来源状态返回、C1/C4 复用及外部路径 / symlink / 特殊文件 / anchor / 竞态拒绝；专项 17 passed、媒体链组合 252 passed、全量 601 passed、pip check 与隔离 Docker / HTTP 通过；提交 `c8cfb99` 与 Actions run `29389862206` 两个 job 均成功
-- Phase 4-A2 已完成同目录 basename 预览、完整身份 / 引用快照、写锁重验、verified-parent-FD no-overwrite hardlink、事务引用迁移、DB 失败补偿与 commit 后身份删除；专项 43 passed、媒体组合 309 passed、全量 644 passed、pip check 与隔离 Docker / HTTP 通过，等待提交推送与 Actions
+- Phase 4-A2 已完成同目录 basename 预览、完整身份 / 引用快照、写锁重验、verified-parent-FD no-overwrite hardlink、事务引用迁移、DB 失败补偿与 commit 后身份删除；专项 43 passed、媒体组合 309 passed、全量 644 passed、pip check 与隔离 Docker / HTTP 通过；提交 `b32e848` 与 Actions run `29396021693` 两个 job 均成功
 - 当前发布准备与本地验收完成后仍需单独发布指令；N100 部署须等待用户明确授权
 
 ---

@@ -55,5 +55,5 @@
 - SHA、内容、inode 与完整 SHA 重复组关系保持，不通过目标 `Path.stat` / `Path.read_bytes` 二次打开
 - A2 专项 `43 passed`；local-media / B3 / B5 / C1/C2/C4 / A1 / i18n 回归 `144 passed`；媒体 / Data Health / 备份 / UI 组合 `309 passed`
 - 全量 `644 passed in 119.82s`，`pip check` 无冲突；Docker build、隔离 Compose healthy、`/login` / 匿名 rename / API login / 认证媒体库 HTTP 验收通过，临时资源已清理
-- 提交推送与 Actions 待完成
+- 实现提交 `b32e848` 已推送；Actions run `29396021693` 的 `test` 与 `Docker production smoke` 均为 success
 - 版本 1.0.6、Schema 2、迁移、依赖、Docker/CI、tag、Release 与 N100 均未改变
