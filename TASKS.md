@@ -41,7 +41,7 @@ N100 / 目标主机部署尚未开始，**不是当前开发任务**，必须等
 - [x] 真实 `original_commit()` 后抛错、混合引用、无引用歧义、独立查询失败、外部对象与中英文结果提示均有精确测试
 - [x] 修复后 A2 / i18n 专项 `50 passed`，核心媒体链组合 `193 passed in 27.83s`
 - [x] 修复后广泛媒体 / Data Health / 备份 / UI 组合 `315 passed in 46.38s`，全量 `650 passed in 106.83s`、pip check 与隔离 Docker `/login` 200 通过并清理
-- [ ] 提交推送 commit 歧义修复并等待 Actions 的 test / Docker production smoke 均成功
+- [x] 修复提交 `09be556` 已推送，Actions run `29399210087` 的 test / Docker production smoke 均成功
 
 ### Phase 4-A1 本地媒体单文件详情页（Unreleased）
 

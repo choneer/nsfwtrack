@@ -141,7 +141,10 @@ i18n passes 50, the core media chain passes 193, and the broad media/Data
 Health/backup/UI regression passes 315. The full suite passes all 650 tests and
 `pip check` is clean. The production image rebuilds; isolated Compose is
 healthy with the existing runtime security boundaries, `/login` returns 200,
-and temporary resources are removed. The correction's Actions run is pending.
+and temporary resources are removed. Correction commit `09be556` is pushed,
+and GitHub Actions run
+[`29399210087`](https://github.com/choneer/nsfwtrack/actions/runs/29399210087)
+passed both `test` and `Docker production smoke`.
 The original implementation commit `b32e848` is
 pushed, and GitHub Actions run
 [`29396021693`](https://github.com/choneer/nsfwtrack/actions/runs/29396021693)

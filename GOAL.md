@@ -63,5 +63,6 @@
 - commit 歧义修复已使用独立 Session 精确区分未提交 / 已提交 / 未知；只有确认未提交才清理 target
 - 真实 `original_commit()` 后抛错、混合引用、无引用歧义、查询失败、unlink / fsync 与双语提示均有覆盖；A2 / i18n `50 passed`
 - 修复后核心媒体链 `193 passed in 27.83s`、广泛组合 `315 passed in 46.38s`、全量 `650 passed in 106.83s`，`pip check` 无冲突
-- 隔离 Docker build、Compose healthy、安全边界与 `/login` 200 验收通过并清理；提交推送与 Actions 待完成
+- 隔离 Docker build、Compose healthy、安全边界与 `/login` 200 验收通过并清理
+- 修复提交 `09be556` 已推送；Actions run `29399210087` 的 `test` 与 `Docker production smoke` 均为 success
 - 版本 1.0.6、Schema 2、迁移、依赖、Docker/CI、tag、Release 与 N100 均未改变
