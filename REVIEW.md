@@ -867,7 +867,7 @@ production smoke 均通过。
 - [x] **12.673. 本地验收是否通过** — 最终竞态 2 passed、核心回归 177 passed、组合 365 passed、全量 584 passed、pip check 与 Docker/HTTP 冒烟通过
 - [x] **12.674. 范围边界是否保持** — 版本 1.0.6、Schema 2、迁移、依赖、Docker/CI、tag、Release 与 N100 均未改变
 - [x] **12.675. 完成度审计是否可复核** — `PHASE3_COMPLETION_AUDIT.md` 包含 workflow/finding 矩阵、真实修复、静态检查、回归与结论
-- [ ] **12.676. 远端交付是否闭合** — create / publish 最终父链修复与本地验收已完成，仍需提交推送并完成新 main / Actions 闭环
+- [x] **12.676. 远端交付是否闭合** — 最终父链修复提交 `db0048d` 已推送 main，Actions run `29386547600` 的 test / Docker production smoke 均成功
 - [x] **12.677. 最终父链是否绑定** — create 返回的新 anchor，以及 publish 返回前的 refreshed anchor / target，均保持原 root、父级 parts 和逐级目录类型 / dev / inode 身份链并重新验证映射；未以相同文件 dev / inode / size / mtime 代替，亦未错误固定 hard-link ctime
 
 本地证据：最终 create / publish 精确竞态 `2 passed`；B3-B6/C1/C2/C4、
@@ -876,8 +876,8 @@ production smoke 均通过。
 全量 `584 passed in 115.46s`；`pip check` 无冲突。Docker build 通过，隔离
 Compose 为 healthy，`/login` 与认证后的 Data Health、媒体库、重复组、
 恢复中心和跳过项均为 HTTP 200，临时容器、网络和数据已清理。
-GitHub Actions run `29350252749` 的两个 job 曾通过，但后续父链审查已撤回
-D1 冻结结论；本地阻塞现已关闭，待新修复提交的 Actions 通过后重新冻结。
+最终父链修复提交 `db0048d` 已推送；GitHub Actions run `29386547600`
+的 `test` 与 `Docker production smoke` 均为 success，D1 无剩余发布阻塞。
 
 ## 登录保护检查
 

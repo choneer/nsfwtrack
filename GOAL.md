@@ -56,4 +56,4 @@
 - Docker build、隔离 Compose healthy、`/login` 与认证媒体 / Data Health 页面 HTTP 200，资源已清理
 - 完整证据见 `PHASE3_COMPLETION_AUDIT.md`
 - 应用版本保持 1.0.6，Schema 保持 2；迁移、依赖、Docker/CI、tag、Release 与 N100 未改变
-- create / publish 最终父链阻塞已修复且本地全套验收通过；D1 冻结结论暂时仍撤回，待修复提交推送及新 Actions 通过后再记录
+- create / publish 最终父链阻塞已修复；提交 `db0048d` 已推送，Actions run `29386547600` 的 test / Docker production smoke 均成功，D1 已重新完成冻结

@@ -5,7 +5,7 @@
 ## 当前状态（v1.0.6 已发布，Phase 3-D1 最终集成审查）
 
 当前稳定版与最新 Release：`v1.0.6`。Phase 3-B1 / B2 已正式发布，
-Phase 3-B3 / B4 / B5 / B6 / C1 / C2 / C3 / C4 / C5 位于 Unreleased；D1 最终父链修复与本地验收已完成、等待新 Actions，应用 Schema 仍为 `2`。
+Phase 3-B3 / B4 / B5 / B6 / C1 / C2 / C3 / C4 / C5 与 D1 最终集成审查均已完成并位于 Unreleased，应用 Schema 仍为 `2`。
 
 - Annotated tag object：`d4d5c31cd5b2fed9a90ad69742d54b4c9dbed0b4`
 - Peeled commit：`961a3d0cc169e82b261d83207b0ec802007e292b`
@@ -37,7 +37,7 @@ N100 / 目标主机部署尚未开始，**不是当前开发任务**，必须等
 - [x] 保持应用版本 1.0.6、Schema 2、迁移、依赖、Docker/CI、旧 tag / Release 和 N100 状态不变
 - [x] 修复 create / publish 最终 validate 前普通外部目录替换 + 同 inode 硬链接竞态，绑定原 root、逻辑父路径和稳定目录身份链
 - [x] 精确竞态 `2 passed`、核心回归 `177 passed`，隔离 Docker / HTTP 验收通过且临时资源已清理
-- [ ] 提交并推送最终父链修复，等待新 Actions 的 test / Docker production smoke 均成功后重新冻结 D1
+- [x] 最终父链修复提交 `db0048d` 已推送，Actions run `29386547600` 的 test / Docker production smoke 均成功，D1 已重新冻结
 
 ### Phase 3-C5 媒体根目录诊断与安全初始化（Unreleased）
 

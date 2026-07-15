@@ -128,8 +128,8 @@
 - Phase 3-D1 keeps the B3-C5 Unreleased scope closed to new development after
   route, finding, GET/POST, file/reference identity, backup/import, Schema 2,
   settings, i18n, Docker, and integration regression review. The final freeze
-  record remains pending until the new GitHub Actions run passes; the detailed
-  matrix is recorded in `PHASE3_COMPLETION_AUDIT.md`.
+  is recorded after the parent-chain repair and its GitHub Actions gates passed;
+  the detailed matrix is recorded in `PHASE3_COMPLETION_AUDIT.md`.
 - Confirmed cleanup commits every affected cover/avatar reference to the
   verified safety anchor before removing redundant files, then commits them to
   the final safe keeper/recovery path. Each deletion revalidates the path,
