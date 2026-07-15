@@ -1,55 +1,59 @@
 # GOAL.md
 
-# 当前目标：Phase 4-A1 — 本地媒体单文件详情页
+# 当前目标：Phase 4-A2 — 普通媒体安全重命名
 
 ## 目标
 
-为普通本地媒体增加统一、登录保护、只读的单文件详情页，
-集中展示文件身份、可用状态、引用、重复关系和相关安全入口。
+允许用户从普通媒体详情页预览并手动确认修改文件名，
+同时安全迁移全部封面和头像引用。
 
 ## 任务
 
-- 新增登录保护的普通媒体详情 GET 页面
-- 使用规范化媒体路径定位目标，不接受外部 URL、转义路径或 cleanup anchor
-- 复用现有安全扫描和 FD 验证结果，不直接通过 Path 重新读取目标
-- 展示逻辑媒体路径、文件名、扩展名、MIME、大小和完整 SHA-256
-- 展示有效、损坏、recovered、已引用、未引用和重复状态
-- 展示所有条目封面和创作者头像引用，并链接到对应对象
-- 展示重复组数量、组大小和可释放空间，并链接到准确重复组
-- 有损坏或引用问题时，仅链接到现有 C1/C4 安全流程
-- 从媒体库文件卡片、重复组成员和 recovered 普通媒体进入详情页
-- 同步中英文、测试和 Unreleased 文档
+- 为有效普通媒体增加登录保护的重命名预览 GET
+- 只允许修改同目录下的 basename，扩展名必须保持不变
+- 展示源路径、目标路径、完整 SHA、身份、引用和后果
+- 目标名称执行严格校验，不接受路径段、控制字符、保留前缀或过长名称
+- 禁止覆盖现有文件、symlink、目录或其他对象
+- confirmed POST 复用 standard / strict CONFIRM
+- 通过验证父目录 FD 创建目标硬链接，不重新解析可替换路径
+- 事务内将全部 item cover 和 creator avatar 引用迁移到目标路径
+- 数据库失败时删除新目标并保留原文件和原引用
+- 提交后再安全删除原路径；删除失败时准确报告双路径保留
+- 从 A1 详情页进入，完成后返回新文件详情页
+- 同步双语、测试和 Unreleased 文档
 
 ## 边界
 
-- GET 必须保持数据库和文件系统零写入
-- 不新增删除、移动、重命名、替换或批量操作
-- 不展示宿主机绝对路径或原始 OSError
-- cleanup anchor 继续只进入恢复中心，不进入普通详情页
-- 不请求网络资源，不增加爬虫、远程图片、识别或 AI
-- 不修改版本 1.0.6、Schema 2、迁移、依赖、Docker/CI
+- 仅允许有效普通媒体和 recovered 普通媒体
+- 不允许 cleanup anchor、上传残留、损坏、symlink、特殊文件或扫描跳过项
+- 不允许跨目录移动、目录创建、扩展名修改、覆盖或批量操作
+- 不修改条目标题、创作者名称、标签、来源或其他元数据
+- 不请求网络资源，不增加识别、AI、爬虫或远程图片
+- 不修改版本 1.0.6、Schema 2、迁移、依赖或 Docker/CI
 - 不创建 tag、Release，不部署 N100
 
 ## 完成标准
 
-- 有效、损坏、recovered、重复及有/无引用媒体均能准确展示
-- 非法路径、缺失、symlink、特殊文件和 anchor 请求安全拒绝
-- 页面不读取任何外部替换目标，不泄露主机路径或异常
-- 所有入口和返回链接保留原列表筛选状态
-- GET 前后数据库、目标文件和目录状态完全不变
-- 原有媒体、重复组、恢复、Data Health 和备份功能无回归
+- 有引用和无引用文件都能安全改名
+- 全部封面和头像引用准确迁移
+- SHA、内容和重复组关系保持不变
+- 目标抢占、父目录替换、文件身份变化和伪造请求全部拒绝
+- 数据库失败保留原状态，不产生目标残留
+- 原路径删除失败时目标和引用仍有效，并给出准确结果
+- GET 零写入，所有失败路径不覆盖或删除外部对象
 - pytest、pip check、Docker 和 Actions 通过
 
-## A1 当前结果
+## A2 当前结果
 
-- 已新增登录保护、仅 GET 的普通媒体详情页，非法 / 外部 / 转义 / missing / symlink / 特殊文件 / cleanup anchor 均安全 404
-- 文件事实复用现有安全扫描和验证 FD 链，不通过目标 `Path.stat` / `Path.read_bytes` 二次打开
-- 已展示路径、文件名、扩展名、MIME、size、完整 SHA、有效 / 损坏 / recovered / 引用 / 重复状态
-- 已展示全部 item cover / creator avatar 引用及对象链接，并按完整 SHA 展示准确重复组与入口
-- 损坏文件 / 引用只复用 C4 / C1；详情页未新增 POST 或其他写操作
-- 媒体库、重复组、恢复中心 recovered 普通媒体入口均保留规范化筛选、排序和分页返回状态
-- SQL 写捕获为 0，文件 / 目录快照不变，父目录替换竞态不读取外部目标
-- A1 专项 `17 passed`，媒体 / 恢复 / C1/C4 / Data Health / 备份 / UI 组合 `252 passed`
-- 全量 `601 passed in 91.96s`，`pip check` 无冲突；Docker build、隔离 Compose healthy、`/login` / 匿名详情 / 认证详情与媒体库 HTTP 验收通过，临时资源已清理
-- 实现提交 `c8cfb99` 已推送；Actions run `29389862206` 的 `test` 与 `Docker production smoke` 均为 success
+- 已新增 A1 详情入口、登录保护 GET 预览和 confirmed POST；仅有效普通 / recovered 媒体可进入
+- basename、原扩展名、保留前缀、长度、目标对象和目标引用均严格校验，不允许跨目录、覆盖或批量操作
+- 预览展示源 / 目标、完整 SHA、mode / size / dev / inode / mtime / ctime、全部引用与后果，SQL / 文件 / 目录写入为零
+- POST 在 `BEGIN IMMEDIATE` 内重验源、目标与全部引用，通过 held verified parent FD 创建 no-overwrite 同 inode 目标
+- 全部 cover / avatar 引用精确迁移；数据库失败 rollback 并按 inode 清理自建目标，commit 后才身份绑定删除源
+- unlink / fsync / 删除复核失败均保留有效目标和引用，并按实际状态报告源路径；成功返回保留来源状态的新详情
+- 目标抢占、源 / 目标替换、普通目录 / symlink 父替换、同 inode hardlink、引用变化、commit / unlink 失败均有专项覆盖
+- SHA、内容、inode 与完整 SHA 重复组关系保持，不通过目标 `Path.stat` / `Path.read_bytes` 二次打开
+- A2 专项 `43 passed`；local-media / B3 / B5 / C1/C2/C4 / A1 / i18n 回归 `144 passed`；媒体 / Data Health / 备份 / UI 组合 `309 passed`
+- 全量 `644 passed in 119.82s`，`pip check` 无冲突；Docker build、隔离 Compose healthy、`/login` / 匿名 rename / API login / 认证媒体库 HTTP 验收通过，临时资源已清理
+- 提交推送与 Actions 待完成
 - 版本 1.0.6、Schema 2、迁移、依赖、Docker/CI、tag、Release 与 N100 均未改变

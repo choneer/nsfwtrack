@@ -143,6 +143,24 @@
     {% endif %}
   </section>
 
+  {% if rename_enabled %}
+    <section class="card detail-section" data-media-rename-entry>
+      <h2>{{ t("media_file_rename.entry_title") }}</h2>
+      <p>{{ t("media_file_rename.entry_detail") }}</p>
+      <form class="stack" action="/media-library/detail/rename" method="get">
+        <input type="hidden" name="media_path" value="{{ entry.media_path }}">
+        <input type="hidden" name="next" value="{{ return_url }}">
+        <label>
+          {{ t("media_file_rename.target_basename") }}
+          <input type="text" name="target_basename" value="{{ media_detail.filename }}" maxlength="255" required>
+        </label>
+        <div class="actions">
+          <button class="secondary" type="submit">{{ t("media_file_rename.preview_submit") }}</button>
+        </div>
+      </form>
+    </section>
+  {% endif %}
+
   {% if not entry.available %}
     <section class="card detail-section detail-actions-panel">
       <h2>{{ t("media_detail.existing_actions_title") }}</h2>

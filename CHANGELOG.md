@@ -4,6 +4,20 @@
 
 ### Added
 
+- Added the authenticated Phase 4-A2 ordinary-media safe-rename flow from the
+  A1 detail page. Its write-free GET preview reports source and target logical
+  paths, MIME, complete SHA-256, mode, size, device, inode, mtime, ctime, every
+  item-cover / creator-avatar reference, and the exact operation consequences.
+- Added a confirmed same-directory basename rename for valid ordinary and
+  `recovered-*` media. The POST revalidates the complete source identity,
+  absent and unreferenced target, and exact reference-ID snapshot under
+  `BEGIN IMMEDIATE`, then creates the target as a no-overwrite hard link
+  through the retained verified parent-directory FD.
+- Added transactional migration of every source cover/avatar reference to the
+  target, database-failure target cleanup by held-FD inode identity, and
+  post-commit source unlink only while the source, target, and parent mapping
+  still match. A failed source unlink retains both paths and reports the
+  outcome without invalidating the committed target references.
 - Added the authenticated, read-only Phase 4-A1 ordinary local-media file
   detail page. It reports the logical `/media/` path, basename, extension,
   safely confirmed MIME, size, complete SHA-256 when available, valid/damaged,
@@ -85,6 +99,12 @@
 
 ### Fixed
 
+- Added Phase 4-A2 race rejection for target claims by any object (including a
+  same-inode hard link), source/target identity replacement, ordinary-directory
+  or symlink parent replacement, changed reference snapshots, and database
+  commit failure. Rollback never follows or deletes a mismatched external
+  target and removes its own hard-link target even if concurrent link-count
+  changes update the shared inode ctime.
 - Closed the final safety-anchor create/publish parent replacement gap. A newly
   created anchor, refreshed anchor, and published target must retain the
   original root, logical parent parts, and stable directory type/device/inode

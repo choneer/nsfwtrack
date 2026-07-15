@@ -6,9 +6,10 @@ import secrets
 import stat
 import tempfile
 import zlib
+from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
-from typing import Literal
+from typing import Iterator, Literal
 from urllib.parse import urlsplit
 
 from fastapi import UploadFile
@@ -190,6 +191,119 @@ class _PublishedMedia:
     path: Path
     device: int
     inode: int
+
+
+@dataclass(frozen=True)
+class LocalMediaLinkRemoval:
+    removed: bool
+    code: str | None = None
+
+
+@dataclass
+class ValidatedLocalMediaHardlink:
+    original_source: ValidatedLocalMediaFile
+    source: ValidatedLocalMediaFile
+    target: ValidatedLocalMediaFile
+    _directories: list[int]
+    _source_descriptor: int
+    _target_descriptor: int
+    _closed: bool = False
+
+    def _directory_fd(self) -> int:
+        if self._closed or not self._directories:
+            raise LocalMediaSafetyAnchorError("link_closed")
+        return self._directories[-1]
+
+    def verify(self) -> None:
+        if self._closed:
+            raise LocalMediaSafetyAnchorError("link_closed")
+        try:
+            _verify_open_validated_record(
+                self.source,
+                self._directories,
+                self._source_descriptor,
+            )
+            if not _record_matches_stat(
+                self.target,
+                os.fstat(self._target_descriptor),
+            ):
+                raise _MediaScanCandidateChanged()
+            directory_fd = self._directory_fd()
+            source_stat = os.stat(
+                self.source.parts[-1],
+                dir_fd=directory_fd,
+                follow_symlinks=False,
+            )
+            target_stat = os.stat(
+                self.target.parts[-1],
+                dir_fd=directory_fd,
+                follow_symlinks=False,
+            )
+            if (
+                not _record_matches_stat(self.source, source_stat)
+                or not _record_matches_stat(self.target, target_stat)
+                or source_stat.st_dev != target_stat.st_dev
+                or source_stat.st_ino != target_stat.st_ino
+            ):
+                raise _MediaScanCandidateChanged()
+            _verify_validated_parent_mapping(self.source)
+        except (OSError, _MediaScanCandidateChanged) as exc:
+            raise LocalMediaSafetyAnchorError("link_changed") from exc
+
+    def remove_target(self) -> None:
+        directory_fd = self._directory_fd()
+        try:
+            target_stat = os.stat(
+                self.target.parts[-1],
+                dir_fd=directory_fd,
+                follow_symlinks=False,
+            )
+        except FileNotFoundError:
+            return
+        except OSError as exc:
+            raise LocalMediaSafetyAnchorError("target_cleanup_failed") from exc
+        if (
+            not stat.S_ISREG(target_stat.st_mode)
+            or target_stat.st_dev != self.target.device
+            or target_stat.st_ino != self.target.inode
+        ):
+            return
+        try:
+            os.unlink(self.target.parts[-1], dir_fd=directory_fd)
+            os.fsync(directory_fd)
+        except OSError as exc:
+            raise LocalMediaSafetyAnchorError("target_cleanup_failed") from exc
+
+    def remove_source(self) -> LocalMediaLinkRemoval:
+        try:
+            self.verify()
+        except LocalMediaSafetyAnchorError:
+            return LocalMediaLinkRemoval(False, "link_changed")
+        directory_fd = self._directory_fd()
+        try:
+            os.unlink(self.source.parts[-1], dir_fd=directory_fd)
+        except FileNotFoundError:
+            return LocalMediaLinkRemoval(False, "source_missing")
+        except OSError:
+            return LocalMediaLinkRemoval(False, "delete_failed")
+        try:
+            os.fsync(directory_fd)
+        except OSError:
+            return LocalMediaLinkRemoval(True, "sync_failed")
+        return LocalMediaLinkRemoval(True)
+
+    def close(self) -> None:
+        if self._closed:
+            return
+        self._closed = True
+        try:
+            os.close(self._target_descriptor)
+        except OSError:
+            pass
+        _close_scan_descriptors(self._directories, self._source_descriptor)
+        self._directories = []
+        self._source_descriptor = -1
+        self._target_descriptor = -1
 
 
 def normalize_local_media_path(value: str | None) -> str | None:
@@ -654,6 +768,219 @@ def _read_validated_record_content(record: ValidatedLocalMediaFile) -> bytes:
     if hashlib.sha256(content).hexdigest() != record.sha256:
         raise LocalMediaSafetyAnchorError("source_changed")
     return content
+
+
+def _same_parent_target(
+    record: ValidatedLocalMediaFile,
+    target_media_path: str,
+) -> tuple[str, tuple[str, ...]]:
+    try:
+        normalized = normalize_local_media_path(target_media_path)
+    except LocalMediaPathError as exc:
+        raise LocalMediaSafetyAnchorError("invalid_target") from exc
+    if normalized is None:
+        raise LocalMediaSafetyAnchorError("invalid_target")
+    target_parts = tuple(normalized.removeprefix(LOCAL_MEDIA_PREFIX).split("/"))
+    if (
+        target_parts[:-1] != record.parts[:-1]
+        or target_parts[-1] == record.parts[-1]
+    ):
+        raise LocalMediaSafetyAnchorError("invalid_target")
+    return normalized, target_parts
+
+
+def ensure_local_media_target_absent(
+    record: ValidatedLocalMediaFile,
+    target_media_path: str,
+) -> None:
+    _, target_parts = _same_parent_target(record, target_media_path)
+    directories: list[int] = []
+    try:
+        directories = _open_validated_directories(record)
+        _verify_validated_parent_mapping(record)
+        try:
+            os.stat(
+                target_parts[-1],
+                dir_fd=directories[-1],
+                follow_symlinks=False,
+            )
+        except FileNotFoundError:
+            _verify_validated_parent_mapping(record)
+            return
+        except OSError as exc:
+            raise LocalMediaSafetyAnchorError("target_check_failed") from exc
+        raise LocalMediaSafetyAnchorError("target_exists")
+    except _MediaScanCandidateChanged as exc:
+        raise LocalMediaSafetyAnchorError("source_changed") from exc
+    finally:
+        _close_scan_descriptors(directories, None)
+
+
+def _linked_record(
+    source: ValidatedLocalMediaFile,
+    *,
+    media_path: str,
+    parts: tuple[str, ...],
+    file_stat: os.stat_result,
+) -> ValidatedLocalMediaFile:
+    return ValidatedLocalMediaFile(
+        media_path=media_path,
+        path=source.root / PurePosixPath(*parts),
+        root=source.root,
+        parts=parts,
+        directory_identities=source.directory_identities,
+        mode=file_stat.st_mode,
+        size=file_stat.st_size,
+        sha256=source.sha256,
+        device=file_stat.st_dev,
+        inode=file_stat.st_ino,
+        modified_ns=file_stat.st_mtime_ns,
+        changed_ns=file_stat.st_ctime_ns,
+    )
+
+
+def _remove_linked_target_if_owned(
+    *,
+    directory_fd: int,
+    source_descriptor: int,
+    target_name: str,
+) -> None:
+    try:
+        target_stat = os.stat(
+            target_name,
+            dir_fd=directory_fd,
+            follow_symlinks=False,
+        )
+    except FileNotFoundError:
+        return
+    except OSError as exc:
+        raise LocalMediaSafetyAnchorError("target_cleanup_failed") from exc
+    source_stat = os.fstat(source_descriptor)
+    if (
+        not stat.S_ISREG(target_stat.st_mode)
+        or target_stat.st_dev != source_stat.st_dev
+        or target_stat.st_ino != source_stat.st_ino
+    ):
+        return
+    try:
+        os.unlink(target_name, dir_fd=directory_fd)
+        os.fsync(directory_fd)
+    except OSError as exc:
+        raise LocalMediaSafetyAnchorError("target_cleanup_failed") from exc
+
+
+@contextmanager
+def create_validated_local_media_hardlink(
+    record: ValidatedLocalMediaFile,
+    target_media_path: str,
+) -> Iterator[ValidatedLocalMediaHardlink]:
+    normalized_target, target_parts = _same_parent_target(
+        record,
+        target_media_path,
+    )
+    directories: list[int] = []
+    source_descriptor: int | None = None
+    target_descriptor: int | None = None
+    linked = False
+    handle: ValidatedLocalMediaHardlink | None = None
+    try:
+        directories, source_descriptor = _open_validated_record(record)
+        _verify_validated_record_mapping(record)
+        directory_fd = directories[-1]
+        try:
+            os.link(
+                record.parts[-1],
+                target_parts[-1],
+                src_dir_fd=directory_fd,
+                dst_dir_fd=directory_fd,
+                follow_symlinks=False,
+            )
+            linked = True
+        except FileExistsError as exc:
+            raise LocalMediaSafetyAnchorError("target_exists") from exc
+        except OSError as exc:
+            raise LocalMediaSafetyAnchorError("publish_failed") from exc
+
+        target_descriptor = os.open(
+            target_parts[-1],
+            _scan_file_flags(),
+            dir_fd=directory_fd,
+        )
+        source_stat = os.fstat(source_descriptor)
+        target_stat = os.fstat(target_descriptor)
+        if (
+            not stat.S_ISREG(source_stat.st_mode)
+            or source_stat.st_dev != record.device
+            or source_stat.st_ino != record.inode
+            or source_stat.st_size != record.size
+            or source_stat.st_mtime_ns != record.modified_ns
+            or not stat.S_ISREG(target_stat.st_mode)
+            or source_stat.st_dev != target_stat.st_dev
+            or source_stat.st_ino != target_stat.st_ino
+            or source_stat.st_size != target_stat.st_size
+            or source_stat.st_mtime_ns != target_stat.st_mtime_ns
+        ):
+            raise LocalMediaSafetyAnchorError("source_changed")
+        refreshed_source = _linked_record(
+            record,
+            media_path=record.media_path,
+            parts=record.parts,
+            file_stat=source_stat,
+        )
+        target = _linked_record(
+            record,
+            media_path=normalized_target,
+            parts=target_parts,
+            file_stat=target_stat,
+        )
+        os.fsync(target_descriptor)
+        os.fsync(directory_fd)
+        handle = ValidatedLocalMediaHardlink(
+            original_source=record,
+            source=refreshed_source,
+            target=target,
+            _directories=directories,
+            _source_descriptor=source_descriptor,
+            _target_descriptor=target_descriptor,
+        )
+        directories = []
+        source_descriptor = None
+        target_descriptor = None
+        handle.verify()
+        yield handle
+    except LocalMediaSafetyAnchorError as exc:
+        try:
+            if handle is not None:
+                handle.remove_target()
+            elif linked and directories and source_descriptor is not None:
+                _remove_linked_target_if_owned(
+                    directory_fd=directories[-1],
+                    source_descriptor=source_descriptor,
+                    target_name=target_parts[-1],
+                )
+        except LocalMediaSafetyAnchorError as cleanup_exc:
+            raise cleanup_exc from exc
+        raise
+    except OSError as exc:
+        try:
+            if linked and directories and source_descriptor is not None:
+                _remove_linked_target_if_owned(
+                    directory_fd=directories[-1],
+                    source_descriptor=source_descriptor,
+                    target_name=target_parts[-1],
+                )
+        except LocalMediaSafetyAnchorError as cleanup_exc:
+            raise cleanup_exc from exc
+        raise LocalMediaSafetyAnchorError("publish_failed") from exc
+    finally:
+        if handle is not None:
+            handle.close()
+        if target_descriptor is not None:
+            try:
+                os.close(target_descriptor)
+            except OSError:
+                pass
+        _close_scan_descriptors(directories, source_descriptor)
 
 
 def create_local_media_safety_anchor(

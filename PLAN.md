@@ -2,7 +2,7 @@
 
 > NSFWTrack 是本地单用户媒体记录器 / 收藏管理器。  
 > 当前开发边界：本地管理、本地数据维护、手动确认操作、SQLite、FastAPI、Jinja2、轻量原生 JavaScript、Docker Compose。
-> Phase 3-A1 允许保存用户提供的 URL；Phase 3-A2 允许校验和保存用户上传的本地栅格图片；Phase 3-A3 允许基于本地文件名生成并手动确认媒体关联候选；Phase 3-A4 允许从未匹配本地图片手动确认创建条目；Phase 3-A5 允许对完整本地媒体扫描结果进行只读检索与分页；Phase 3-A6 允许在数据健康页只读审计本地媒体完整性；Phase 3-B1 允许按完整 SHA-256 只读定位重复媒体；Phase 3-B2 允许按重复组只读浏览路径与引用；Phase 3-B3 允许用户明确选择 keeper 后，在重扫、确认和引用安全迁移后删除同组冗余文件；Phase 3-B4 允许只读隔离和审计内部清理锚点与恢复文件；Phase 3-B5 允许用户逐项预览并手动确认将合法锚点恢复为普通媒体；Phase 3-B6 允许用户逐项确认永久删除合法且零引用的锚点残留；Phase 3-C1 允许用户逐项替换或清除 Data Health 报告的无效封面 / 头像引用；Phase 3-C2 允许用户逐项确认删除 Data Health 报告的精确 `.upload-*.tmp` 零引用残留；Phase 3-C3 允许用户只读定位媒体扫描逐项跳过路径和稳定原因；Phase 3-C4 允许用户逐项预览并确认删除仍损坏且零引用的普通媒体；Phase 3-C5 允许只读诊断不可用媒体根目录，并在真实 missing 状态下手动安全初始化；Phase 4-A1 允许登录用户通过现有安全扫描结果只读查看单个普通媒体的文件事实、引用和重复组。仍禁止请求外部网页、远程图片、爬虫、站点 adapter、自动同步、识别、推荐、AI、多用户或云同步。
+> Phase 3-A1 允许保存用户提供的 URL；Phase 3-A2 允许校验和保存用户上传的本地栅格图片；Phase 3-A3 允许基于本地文件名生成并手动确认媒体关联候选；Phase 3-A4 允许从未匹配本地图片手动确认创建条目；Phase 3-A5 允许对完整本地媒体扫描结果进行只读检索与分页；Phase 3-A6 允许在数据健康页只读审计本地媒体完整性；Phase 3-B1 允许按完整 SHA-256 只读定位重复媒体；Phase 3-B2 允许按重复组只读浏览路径与引用；Phase 3-B3 允许用户明确选择 keeper 后，在重扫、确认和引用安全迁移后删除同组冗余文件；Phase 3-B4 允许只读隔离和审计内部清理锚点与恢复文件；Phase 3-B5 允许用户逐项预览并手动确认将合法锚点恢复为普通媒体；Phase 3-B6 允许用户逐项确认永久删除合法且零引用的锚点残留；Phase 3-C1 允许用户逐项替换或清除 Data Health 报告的无效封面 / 头像引用；Phase 3-C2 允许用户逐项确认删除 Data Health 报告的精确 `.upload-*.tmp` 零引用残留；Phase 3-C3 允许用户只读定位媒体扫描逐项跳过路径和稳定原因；Phase 3-C4 允许用户逐项预览并确认删除仍损坏且零引用的普通媒体；Phase 3-C5 允许只读诊断不可用媒体根目录，并在真实 missing 状态下手动安全初始化；Phase 4-A1 允许登录用户通过现有安全扫描结果只读查看单个普通媒体的文件事实、引用和重复组；Phase 4-A2 允许用户预览并确认同目录安全修改普通媒体 basename，同时迁移全部封面 / 头像引用。仍禁止请求外部网页、远程图片、爬虫、站点 adapter、自动同步、识别、推荐、AI、多用户或云同步。
 
 ---
 
@@ -11,7 +11,7 @@
 当前应用版本与开发阶段：
 
 ```text
-v1.0.6 / Phase 4-A1 local media file details in Unreleased
+v1.0.6 / Phase 4-A2 ordinary media safe rename in Unreleased
 ```
 
 当前最新稳定版本为 `v1.0.6`，发布范围为 Phase 3-B1 与 B2。
@@ -40,7 +40,7 @@ Release: https://github.com/choneer/nsfwtrack/releases/tag/v1.0.6
 稳定性收尾：Phase 2-I1 基线、I2 查询优化、I3 错误处理、I4 发布冻结审查已随 v1.0.0 发布
 完成度审计：Phase 2-K1 / K2 已随 v1.0.1 发布；代码开发与 WSL 验收已完成
 维护与 CI：Phase 2-L1 至 L6 已随 v1.0.2 发布；L7 已随 v1.0.3 发布；L8 固定非 root 容器用户已随 v1.0.4 发布
-产品功能重启：Phase 3-A1 至 A6 已随 v1.0.5 发布；Phase 3-B1 / B2 已随 v1.0.6 发布；Phase 3-B3 / B4 / B5 / B6 / C1 / C2 / C3 / C4 / C5 与 D1 最终集成审查均已完成并位于 Unreleased；Phase 4-A1 已完成本地与 Actions 验收
+产品功能重启：Phase 3-A1 至 A6 已随 v1.0.5 发布；Phase 3-B1 / B2 已随 v1.0.6 发布；Phase 3-B3 / B4 / B5 / B6 / C1 / C2 / C3 / C4 / C5 与 D1 最终集成审查均已完成并位于 Unreleased；Phase 4-A1 已完成，Phase 4-A2 已实现并进入最终验收
 ```
 
 当前完成度估算：
@@ -48,7 +48,7 @@ Release: https://github.com/choneer/nsfwtrack/releases/tag/v1.0.6
 ```text
 核心业务能力：已完成
 代码发布状态：v1.0.6 已正式发布，tag 与正式 GitHub Release 均已验证
-当前开发状态：Phase 4-A1 只读普通媒体详情页已完成并推送；main 保持应用版本 1.0.6 与 Schema 2
+当前开发状态：Phase 4-A2 普通媒体安全重命名本地验收完成，等待提交推送与 Actions；main 保持应用版本 1.0.6 与 Schema 2
 WSL 验收：已完成
 N100 部署：尚未开始，等待用户明确授权
 ```
@@ -1227,6 +1227,32 @@ K1 审计结论：
 
 ---
 
+### Phase 4-A2 — 普通媒体安全重命名
+
+目标与实现：
+
+- A1 详情页为有效普通 / recovered 媒体提供同目录 basename 输入和零写入 GET 预览
+- 目标必须保留原扩展名与大小写，并拒绝路径段、控制字符、百分号、首尾空白、保留前缀、过长和未变化名称
+- 排除 anchor、上传残留、damaged、missing、skip、symlink、目录 / FIFO；任何目标对象、同 inode hardlink 或已有目标引用均阻止执行
+- 预览展示两条逻辑路径、MIME、完整 SHA、mode / size / device / inode / mtime / ctime、全部引用和后果
+- confirmed POST 复用 standard / strict `CONFIRM`，在 `BEGIN IMMEDIATE` 内重验完整源身份、目标不存在且零引用和全部源引用 ID
+- 保持已验证父目录 / 源 FD，通过 `os.link(..., follow_symlinks=False)` no-overwrite 创建并持有目标 FD
+- 精确迁移全部 cover / avatar 引用并复核 rowcount、源零引用、目标引用集合与源 / 目标 / 父链身份后提交
+- DB 失败 rollback 并按 held-FD inode 清理自建目标；commit 后在第二个写锁复核中身份绑定删除源
+- 源删除失败时有效目标和引用保持，按实际状态报告源 / 双路径；成功携带来源状态返回新详情
+
+当前验证：
+
+- A2 专项 `43 passed`，覆盖有 / 无引用、recovered、strict、全身份 / 引用伪造、目标抢占、同 inode link、源 / 目标 / 普通目录 / symlink 替换、commit / unlink / fsync 失败
+- SHA、内容、inode 和完整 SHA 重复组保持；目标 `Path.stat` / `Path.read_bytes` 禁用回归通过
+- local-media、B3、B5、C1/C2/C4、A1 与 i18n 回归 `144 passed`；媒体 / Data Health / 备份 / 页面 / 响应式 / i18n 组合 `309 passed in 56.52s`
+- 全量 `644 passed in 119.82s`，`pip check` 无冲突
+- Docker image build、隔离 Compose healthy；user `10001:10001`、read-only root、`cap_drop: ALL`、`no-new-privileges` 保持，`/login` 200、匿名 rename 303、API login / 认证媒体库 200，临时资源已清理
+- 提交推送与 Actions 待完成
+- 保持版本 1.0.6、Schema 2、迁移、依赖、Docker/CI、tag、Release 与 N100 不变
+
+---
+
 ## 七、有限执行顺序
 
 当前顺序：
@@ -1255,8 +1281,9 @@ K1 审计结论：
 21. Phase 3-C5 媒体根目录诊断与安全初始化已完成并位于 Unreleased
 22. Phase 3-D1 最终父链修复、本地全套验收与 Actions 完成，Unreleased 开发范围已冻结
 23. Phase 4-A1 普通媒体单文件详情页实现、本地验收与 Actions 已完成
-24. N100 / 目标主机部署未开始，等待用户明确授权
-25. 其余仅按实际问题做可选维护
+24. Phase 4-A2 普通媒体安全重命名本地验收完成，等待提交推送与 Actions
+25. N100 / 目标主机部署未开始，等待用户明确授权
+26. 其余仅按实际问题做可选维护
 ```
 
 已完成依据：
@@ -1333,6 +1360,7 @@ K1 审计结论：
 - Phase 3-D1 修复 Data Health 路径重走、重复 finding 缺少直接入口、B3-B6 共享验证媒体父路径重解析及 C2 父链身份丢失四类真实问题
 - Phase 3-D1 最终父链精确竞态 2 passed、核心回归 177 passed、组合回归 365 passed、全量 584 passed，pip check 与隔离 Docker healthy / HTTP 验收通过；修复提交 `db0048d` 的 Actions run `29386547600` 两个 job 均成功，已重新记录最终冻结
 - Phase 4-A1 已完成安全只读详情聚合、全部引用与完整 SHA 重复组展示、三类来源状态返回、C1/C4 复用及外部路径 / symlink / 特殊文件 / anchor / 竞态拒绝；专项 17 passed、媒体链组合 252 passed、全量 601 passed、pip check 与隔离 Docker / HTTP 通过；提交 `c8cfb99` 与 Actions run `29389862206` 两个 job 均成功
+- Phase 4-A2 已完成同目录 basename 预览、完整身份 / 引用快照、写锁重验、verified-parent-FD no-overwrite hardlink、事务引用迁移、DB 失败补偿与 commit 后身份删除；专项 43 passed、媒体组合 309 passed、全量 644 passed、pip check 与隔离 Docker / HTTP 通过，等待提交推送与 Actions
 - 当前发布准备与本地验收完成后仍需单独发布指令；N100 部署须等待用户明确授权
 
 ---

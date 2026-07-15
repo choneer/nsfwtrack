@@ -2,17 +2,17 @@
 
 NSFWTrack is a local single-user content record manager / collection tracker.
 
-Current application version: `v1.0.6 / Phase 4-A1 in Unreleased`.
+Current application version: `v1.0.6 / Phase 4-A2 in Unreleased`.
 
 Current stable version: `v1.0.6 / Phase 3-B1 and B2`.
 
 Latest Release: [NSFWTrack v1.0.6](https://github.com/choneer/nsfwtrack/releases/tag/v1.0.6).
 
-Current status: `v1.0.6 is released; Phase 4-A1 ordinary local-media file details have passed local and GitHub Actions acceptance in Unreleased`.
+Current status: `v1.0.6 is released; Phase 4-A2 ordinary-media safe rename is implemented in Unreleased and is undergoing final acceptance`.
 
-Current development: `Phase 3-B1 and B2 are published; Phase 4-A1 adds one
-authenticated read-only view while application version 1.0.6 and Schema 2 stay
-unchanged`.
+Current development: `Phase 3-B1 and B2 are published; Phase 4-A1 is complete,
+and Phase 4-A2 adds one authenticated, manually confirmed same-directory
+rename while application version 1.0.6 and Schema 2 stay unchanged`.
 
 N100 deployment: `not started; waits for explicit user authorization`.
 
@@ -103,6 +103,38 @@ capability boundaries, `/login` returns 200, anonymous detail access redirects,
 and authenticated detail/library pages return 200. Implementation commit
 `c8cfb99` is pushed, and GitHub Actions run `29389862206` passed both `test`
 and `Docker production smoke`.
+
+## Phase 4-A2 Safe Ordinary-Media Rename
+
+Phase 4-A2 adds a safe-rename entry to each eligible A1 detail page. Only the
+same-directory basename may change; the source extension and its letter case
+must remain exact. Empty, unchanged, path-bearing, control-character,
+percent-encoded, reserved-prefix, overlong, external, damaged, skipped,
+symlink, special-file, upload-residue, and cleanup-anchor requests fail closed.
+Any existing target file, hard link, symlink, directory, FIFO, other object, or
+database reference blocks the operation without overwrite.
+
+The authenticated GET preview is write-free and shows both logical paths,
+complete SHA-256 and file identity, every item-cover / creator-avatar
+reference, and consequences. The confirmed POST revalidates that snapshot
+under `BEGIN IMMEDIATE`, creates the target with `os.link` through a retained
+verified parent-directory FD, migrates every exact source reference, verifies
+both directory entries and open FDs, and commits before attempting the
+identity-bound source unlink. Database failure rolls references back and
+removes only the self-created target. If source unlink fails, the valid target
+and committed references remain, the source is retained, and the UI reports
+both paths for review.
+
+Focused A2 coverage currently passes 43 tests, including valid referenced and
+unreferenced/recovered files, strict `CONFIRM`, exact reference changes,
+target claims and same-inode links, source/target/parent replacements,
+commit-failure cleanup, source-delete failure, SHA/content/duplicate-group
+preservation, and prohibition of target `Path.stat` / `Path.read_bytes`
+reopens. The media/Data Health/backup/UI regression passes `309` tests, the
+full suite passes all `644` tests, and `pip check` is clean. The production
+image builds; isolated Compose is healthy with the existing runtime security
+boundaries, `/login` returns 200, anonymous rename redirects, and authenticated
+login/media-library requests return 200. GitHub Actions is pending.
 
 ## v1.0.6 Release
 

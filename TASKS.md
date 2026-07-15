@@ -2,10 +2,10 @@
 
 按顺序执行，每完成一项打个 [x]。
 
-## 当前状态（v1.0.6 已发布，Phase 4-A1 已完成）
+## 当前状态（v1.0.6 已发布，Phase 4-A2 最终验收）
 
 当前稳定版与最新 Release：`v1.0.6`。Phase 3-B1 / B2 已正式发布，
-Phase 3-B3 / B4 / B5 / B6 / C1 / C2 / C3 / C4 / C5 与 D1 最终集成审查均已完成并位于 Unreleased；Phase 4-A1 普通媒体详情页已完成本地与 Actions 验收，应用 Schema 仍为 `2`。
+Phase 3-B3 / B4 / B5 / B6 / C1 / C2 / C3 / C4 / C5 与 D1 最终集成审查均已完成并位于 Unreleased；Phase 4-A1 已完成，Phase 4-A2 普通媒体安全重命名已实现并进入最终验收，应用 Schema 仍为 `2`。
 
 - Annotated tag object：`d4d5c31cd5b2fed9a90ad69742d54b4c9dbed0b4`
 - Peeled commit：`961a3d0cc169e82b261d83207b0ec802007e292b`
@@ -15,6 +15,26 @@ N100 / 目标主机部署尚未开始，**不是当前开发任务**，必须等
 历史审计见 `COMPLETION_AUDIT.md`，当前 Phase 3 证据见
 `PHASE3_COMPLETION_AUDIT.md`。历史任务保留在本文后半部分，
 不再作为新增开发路线。
+
+### Phase 4-A2 普通媒体安全重命名（Unreleased）
+
+- [x] 从 A1 详情页为有效普通 / recovered 媒体提供登录保护的同目录 basename 重命名入口
+- [x] GET 预览展示源 / 目标逻辑路径、MIME、完整 SHA、mode / size / device / inode / mtime / ctime、全部引用和后果，保持数据库与文件系统零写入
+- [x] 严格拒绝路径段、控制字符、百分号、首尾空白、过长名称、保留前缀、原名和扩展名 / 大小写变化
+- [x] 排除 anchor、上传残留、损坏、missing、skip、symlink、目录 / FIFO 等特殊文件
+- [x] 任何目标文件、同 inode 硬链接、symlink、目录、FIFO、其他对象或已有数据库引用均阻止执行且不覆盖
+- [x] POST 复用 standard / strict `CONFIRM`，伪造或过期的身份 / 引用快照全部拒绝
+- [x] `BEGIN IMMEDIATE` 内重验源完整身份、目标不存在且零引用、全部源引用 ID
+- [x] 通过保持打开的已验证父目录 FD，以 `os.link(..., follow_symlinks=False)` 无覆盖创建目标并持续绑定源 / 目标 FD
+- [x] 精确迁移全部 item cover / creator avatar 引用，迁移后复核源零引用、目标引用集合和源 / 目标 / 父链身份再提交
+- [x] 数据库失败 rollback 引用并按 held-FD inode 清理自建目标，原路径、内容和引用保持
+- [x] commit 后在第二个写锁复核中按身份删除源；失败保留有效目标 / 引用并准确报告源路径状态
+- [x] SHA、内容、inode 与完整 SHA 重复组关系保持；成功后携带来源状态返回新文件详情
+- [x] 目标抢占、源 / 目标替换、普通目录 / symlink 父替换、同 inode hardlink、引用变化、commit 失败与源删除失败竞态覆盖
+- [x] A2 专项 `43 passed`；现有 local-media / B3 / B5 / C1/C2/C4 / A1 / i18n 回归 `144 passed`；媒体 / Data Health / 备份 / UI 组合 `309 passed`
+- [x] 全量 `644 passed in 119.82s`、pip check、隔离 Docker healthy 与 `/login` / 认证媒体库 HTTP 验收通过，临时资源已清理
+- [ ] 提交推送并等待 Actions 的 test / Docker production smoke 均成功
+- [x] 保持版本 1.0.6、Schema 2、迁移、依赖、Docker/CI、tag、Release 与 N100 不变
 
 ### Phase 4-A1 本地媒体单文件详情页（Unreleased）
 

@@ -133,6 +133,11 @@ from app.services.media_file_detail import (
     MediaFileDetailError,
     build_media_file_detail,
 )
+from app.services.media_file_rename import (
+    MediaFileRenameError,
+    build_media_file_rename_preview,
+    execute_media_file_rename,
+)
 from app.services.media_duplicate_groups import (
     MEDIA_DUPLICATE_SORT_OPTIONS,
     media_duplicate_filter_query_params,
@@ -293,6 +298,20 @@ def _safe_media_detail_return_url(value: str | None) -> str:
 def _media_file_detail_url(media_path: str, return_url: str) -> str:
     return "/media-library/detail?" + urlencode(
         {"media_path": media_path, "next": return_url}
+    )
+
+
+def _media_file_rename_preview_url(
+    media_path: str,
+    target_basename: str,
+    return_url: str,
+) -> str:
+    return "/media-library/detail/rename?" + urlencode(
+        {
+            "media_path": media_path,
+            "target_basename": target_basename,
+            "next": return_url,
+        }
     )
 
 
@@ -604,8 +623,157 @@ def media_file_detail_page(
             damaged_cleanup_url=damaged_cleanup_url,
             item_repair_urls=item_repair_urls,
             creator_repair_urls=creator_repair_urls,
+            rename_enabled=detail.entry.available,
         ),
     )
+
+
+def _media_file_rename_error_flash(
+    request: Request,
+    exc: MediaFileRenameError,
+) -> None:
+    add_flash(request, "error", f"flash.media_file_rename_{exc.code}")
+
+
+def _media_file_rename_error_redirect(
+    media_path: str | None,
+    return_url: str,
+) -> RedirectResponse:
+    try:
+        normalized = normalize_interactive_local_media_path(media_path)
+    except LocalMediaPathError:
+        normalized = None
+    if normalized is None:
+        return _redirect("/media-library")
+    return _redirect(_media_file_detail_url(normalized, return_url))
+
+
+@router.get(
+    "/media-library/detail/rename",
+    response_class=HTMLResponse,
+    dependencies=[Depends(require_page_auth)],
+)
+def media_file_rename_preview_page(
+    request: Request,
+    media_path: str | None = Query(default=None),
+    target_basename: str | None = Query(default=None),
+    next_url: str | None = Query(default=None, alias="next"),
+    db: Session = Depends(get_db),
+) -> Response:
+    return_url = _safe_media_detail_return_url(next_url)
+    try:
+        preview = build_media_file_rename_preview(
+            db,
+            media_path=media_path,
+            target_basename=target_basename,
+        )
+    except MediaFileRenameError as exc:
+        _media_file_rename_error_flash(request, exc)
+        return _media_file_rename_error_redirect(media_path, return_url)
+    return templates.TemplateResponse(
+        request,
+        "media_file_rename_preview.html",
+        _base_context(
+            request,
+            db=db,
+            rename_preview=preview,
+            return_url=return_url,
+            source_detail_url=_media_file_detail_url(
+                preview.source.media_path,
+                return_url,
+            ),
+        ),
+    )
+
+
+@router.post(
+    "/media-library/detail/rename",
+    dependencies=[Depends(require_page_auth)],
+)
+def media_file_rename_apply_page(
+    request: Request,
+    media_path: str | None = Form(default=None),
+    target_basename: str | None = Form(default=None),
+    next_url: str | None = Form(default=None, alias="next"),
+    expected_sha256: str | None = Form(default=None),
+    expected_mode: str | None = Form(default=None),
+    expected_size: str | None = Form(default=None),
+    expected_device: str | None = Form(default=None),
+    expected_inode: str | None = Form(default=None),
+    expected_modified_ns: str | None = Form(default=None),
+    expected_changed_ns: str | None = Form(default=None),
+    item_reference_id: list[str] | None = Form(default=None),
+    creator_reference_id: list[str] | None = Form(default=None),
+    confirm: str | None = Form(default=None),
+    confirmation_text: str | None = Form(default=None),
+    db: Session = Depends(get_db),
+) -> RedirectResponse:
+    return_url = _safe_media_detail_return_url(next_url)
+    danger_policy = get_danger_policy(db)
+    preview_url = _media_file_rename_preview_url(
+        media_path or "",
+        target_basename or "",
+        return_url,
+    )
+    if not _danger_confirmation_is_valid(
+        request,
+        danger_policy,
+        confirmation_text=confirmation_text,
+        base_confirmation_valid=confirm == "1",
+    ):
+        return _redirect(preview_url)
+    try:
+        result = execute_media_file_rename(
+            db,
+            media_path=media_path,
+            target_basename=target_basename,
+            expected_sha256=expected_sha256,
+            expected_mode=expected_mode,
+            expected_size=expected_size,
+            expected_device=expected_device,
+            expected_inode=expected_inode,
+            expected_modified_ns=expected_modified_ns,
+            expected_changed_ns=expected_changed_ns,
+            expected_item_reference_ids=item_reference_id,
+            expected_creator_reference_ids=creator_reference_id,
+        )
+    except MediaFileRenameError as exc:
+        _media_file_rename_error_flash(request, exc)
+        return _media_file_rename_error_redirect(media_path, return_url)
+
+    add_flash(
+        request,
+        "success",
+        "flash.media_file_rename_completed",
+        source=result.source_path,
+        target=result.target_path,
+        items=result.migrated_items,
+        creators=result.migrated_creators,
+    )
+    if result.warning_code:
+        known_warning_codes = {
+            "delete_failed",
+            "link_changed",
+            "lock_release_failed",
+            "reference_check_failed",
+            "references_remaining",
+            "source_missing",
+            "sync_failed",
+            "target_references_changed",
+        }
+        warning_code = (
+            result.warning_code
+            if result.warning_code in known_warning_codes
+            else "source_retained"
+        )
+        add_flash(
+            request,
+            "info",
+            f"flash.media_file_rename_warning_{warning_code}",
+            source=result.source_path,
+            target=result.target_path,
+        )
+    return _redirect(_media_file_detail_url(result.target_path, return_url))
 
 
 @router.get(
