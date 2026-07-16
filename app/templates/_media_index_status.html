@@ -1,0 +1,22 @@
+{% if media_index_status %}
+<section class="notice media-index-notice" data-media-index-source="{{ media_index_source }}">
+  <div class="toolbar">
+    <div>
+      <strong>{{ t("media_index.snapshot_title") }}</strong>
+      {% if media_index_source == "index" %}
+        <p>{{ t("media_index.snapshot_index", time=media_index_status.last_success_at or t("common.none")) }}</p>
+      {% else %}
+        <p>{{ t("media_index.snapshot_fallback") }}</p>
+      {% endif %}
+      {% if media_index_status.possibly_stale %}
+        <p class="muted">{{ t("media_index.snapshot_stale", reason=media_index_status.stale_reason or "unknown") }}</p>
+      {% elif media_index_source == "index" %}
+        <p class="muted">{{ t("media_index.snapshot_possible_stale") }}</p>
+      {% else %}
+        <p class="muted">{{ t("media_index.snapshot_current") }}</p>
+      {% endif %}
+    </div>
+    <a class="button secondary compact" href="/media-library/index">{{ t("media_index.open") }}</a>
+  </div>
+</section>
+{% endif %}

@@ -135,6 +135,9 @@ jobs:
             test "$(awk "/^NoNewPrivs:/ {print \$2}" /proc/1/status)" = "1"
             : > "${data_probe}"
             : > "${tmp_probe}"
+            mkdir -p /app/data/media
+            python -c "from pathlib import Path; Path(\"/app/data/media/ci.gif\").write_bytes(b\"GIF89a\\x01\\x00\\x01\\x00;\")"
+            python -c "from app.database import SessionLocal; from app.services.media_index import refresh_media_index; db = SessionLocal(); result = refresh_media_index(db, full=True); assert result.status.entry_count == 1; assert result.status.rehashed_count == 1; db.close()"
             for target in /app/.ci-readonly-probe /etc/.ci-readonly-probe /usr/local/.ci-readonly-probe; do
               if touch "${target}" 2>/dev/null; then
                 echo "unexpected writable path: ${target}" >&2
@@ -143,7 +146,7 @@ jobs:
               fi
             done
             test -s /app/data/nsfwtrack.db
-            python -c "import sqlite3; connection = sqlite3.connect(\"/app/data/nsfwtrack.db\"); assert connection.execute(\"SELECT MAX(version) FROM schema_migrations\").fetchone()[0] == 2"
+            python -c "import sqlite3; connection = sqlite3.connect(\"/app/data/nsfwtrack.db\"); assert connection.execute(\"SELECT MAX(version) FROM schema_migrations\").fetchone()[0] == 3; assert connection.execute(\"SELECT valid FROM media_index_state WHERE id = 1\").fetchone()[0] == 1; assert connection.execute(\"SELECT COUNT(*) FROM media_index_entries WHERE record_type = char(109,101,100,105,97)\").fetchone()[0] == 1"
           '
 
       - name: Recreate container and verify SQLite persistence
@@ -177,7 +180,7 @@ jobs:
             test "$(id -u)" = "10001"
             test "$(id -g)" = "10001"
             test -s /app/data/nsfwtrack.db
-            python -c "import sqlite3; connection = sqlite3.connect(\"/app/data/nsfwtrack.db\"); assert connection.execute(\"SELECT MAX(version) FROM schema_migrations\").fetchone()[0] == 2"
+            python -c "import sqlite3; connection = sqlite3.connect(\"/app/data/nsfwtrack.db\"); assert connection.execute(\"SELECT MAX(version) FROM schema_migrations\").fetchone()[0] == 3; assert connection.execute(\"SELECT valid FROM media_index_state WHERE id = 1\").fetchone()[0] == 1; assert connection.execute(\"SELECT COUNT(*) FROM media_index_entries WHERE record_type = char(109,101,100,105,97)\").fetchone()[0] == 1"
           '
 
       - name: Wait for /login and verify security headers

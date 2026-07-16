@@ -9,7 +9,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from app.database import Base
 
-CURRENT_SCHEMA_VERSION = 2
+CURRENT_SCHEMA_VERSION = 3
 BASELINE_MIGRATION_NAME = "baseline"
 SCHEMA_MIGRATIONS_TABLE = "schema_migrations"
 SCHEMA_STATUS_CURRENT = "current"
@@ -172,7 +172,7 @@ def get_schema_status(bind: Engine) -> SchemaStatus:
 
 def _create_schema_and_register_baseline(bind: Engine) -> None:
     _load_models()
-    from app.models import SchemaMigration
+    from app.models import MediaIndexState, SchemaMigration
 
     try:
         with bind.begin() as connection:
@@ -183,6 +183,32 @@ def _create_schema_and_register_baseline(bind: Engine) -> None:
                     name=BASELINE_MIGRATION_NAME,
                 )
             )
+            if connection.scalar(select(MediaIndexState.id).limit(1)) is None:
+                connection.execute(
+                    insert(MediaIndexState).values(
+                        id=1,
+                        index_format_version=1,
+                        valid=False,
+                        stale_reason="never_scanned",
+                        current_media_root_identity="",
+                        last_scan_result="never",
+                        last_scan_error="",
+                        duration_ms=0,
+                        entry_count=0,
+                        valid_count=0,
+                        damaged_count=0,
+                        recovered_count=0,
+                        skipped_count=0,
+                        reused_count=0,
+                        new_count=0,
+                        changed_count=0,
+                        removed_count=0,
+                        rehashed_count=0,
+                        change_details_json="[]",
+                        skipped_details_json="[]",
+                        snapshot_signature="",
+                    )
+                )
     except Exception:
         raise SchemaVersionError("initialization_failed") from None
 

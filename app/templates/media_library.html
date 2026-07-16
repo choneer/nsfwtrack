@@ -24,6 +24,7 @@
 </div>
 
 {% if error_key %}<div class="flash error">{{ t(error_key) }}</div>{% endif %}
+{% include "_media_index_status.html" %}
 
 <section class="card stack">
   <h2>{{ t("media.upload_title") }}</h2>

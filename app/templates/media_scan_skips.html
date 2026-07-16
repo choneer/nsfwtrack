@@ -15,6 +15,7 @@
 </div>
 
 {% if error_key %}<div class="flash error">{{ t(error_key) }}</div>{% endif %}
+{% include "_media_index_status.html" %}
 
 <section class="notice">
   <strong>{{ t("media_scan_skips.readonly_title") }}</strong>

@@ -10,7 +10,7 @@ from sqlalchemy.exc import IntegrityError
 
 from app.database import Base, SessionLocal, engine
 from app.main import app
-from app.models import Item, SchemaMigration
+from app.models import Item, MediaIndexEntry, MediaIndexState, SchemaMigration
 from app.services.schema_version import (
     CURRENT_SCHEMA_VERSION,
     SCHEMA_MIGRATIONS_TABLE,
@@ -75,6 +75,16 @@ def test_new_database_registers_current_baseline(isolated_engine: Engine) -> Non
     assert row.version == CURRENT_SCHEMA_VERSION
     assert row.name == "baseline"
     assert row.applied_at is not None
+    with isolated_engine.connect() as connection:
+        assert connection.scalar(select(MediaIndexEntry.id)) is None
+        state = connection.execute(
+            select(
+                MediaIndexState.index_format_version,
+                MediaIndexState.valid,
+                MediaIndexState.stale_reason,
+            )
+        ).one()
+    assert state == (1, False, "never_scanned")
 
 
 def test_legacy_database_is_validated_registered_and_preserved(

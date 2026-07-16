@@ -2,7 +2,15 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import CheckConstraint, ForeignKey, String, Text, UniqueConstraint, func
+from sqlalchemy import (
+    Boolean,
+    CheckConstraint,
+    ForeignKey,
+    String,
+    Text,
+    UniqueConstraint,
+    func,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -126,6 +134,89 @@ class SchemaMigration(Base):
     applied_at: Mapped[datetime] = mapped_column(
         nullable=False, server_default=func.current_timestamp()
     )
+
+
+class MediaIndexEntry(Base):
+    __tablename__ = "media_index_entries"
+    __table_args__ = (
+        CheckConstraint(
+            "record_type IN ('media','directory')",
+            name="ck_media_index_entries_record_type",
+        ),
+        UniqueConstraint("media_path", name="uq_media_index_entries_media_path"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    record_type: Mapped[str] = mapped_column(String(16), nullable=False)
+    media_path: Mapped[str] = mapped_column(String(500), nullable=False, index=True)
+    basename: Mapped[str] = mapped_column(String(255), nullable=False, default="")
+    parent_directory: Mapped[str] = mapped_column(
+        String(500), nullable=False, default="", index=True
+    )
+    extension: Mapped[str] = mapped_column(String(32), nullable=False, default="")
+    mime_type: Mapped[str] = mapped_column(String(128), nullable=False, default="")
+    size: Mapped[int] = mapped_column(nullable=False, default=0)
+    sha256: Mapped[str] = mapped_column(String(64), nullable=False, default="", index=True)
+    valid: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    detail: Mapped[str] = mapped_column(String(64), nullable=False, default="")
+    recovered: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    mode: Mapped[int] = mapped_column(nullable=False)
+    device: Mapped[int] = mapped_column(nullable=False)
+    inode: Mapped[int] = mapped_column(nullable=False)
+    modified_ns: Mapped[int] = mapped_column(nullable=False)
+    changed_ns: Mapped[int] = mapped_column(nullable=False)
+    directory_mapping_token: Mapped[str] = mapped_column(String(64), nullable=False)
+    directory_identity_json: Mapped[str] = mapped_column(Text, nullable=False)
+    cache_signature: Mapped[str] = mapped_column(String(64), nullable=False)
+    first_seen_at: Mapped[datetime] = mapped_column(nullable=False)
+    last_seen_at: Mapped[datetime] = mapped_column(nullable=False)
+    indexed_at: Mapped[datetime] = mapped_column(nullable=False)
+
+
+class MediaIndexState(Base):
+    __tablename__ = "media_index_state"
+    __table_args__ = (
+        CheckConstraint("id = 1", name="ck_media_index_state_singleton"),
+        CheckConstraint(
+            "last_scan_kind IS NULL OR last_scan_kind IN ('incremental','full')",
+            name="ck_media_index_state_scan_kind",
+        ),
+        CheckConstraint(
+            "last_scan_result IN ('never','success','failed')",
+            name="ck_media_index_state_scan_result",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True, default=1)
+    index_format_version: Mapped[int] = mapped_column(nullable=False, default=1)
+    valid: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    stale_reason: Mapped[str] = mapped_column(String(64), nullable=False, default="never_scanned")
+    current_media_root_identity: Mapped[str] = mapped_column(
+        String(64), nullable=False, default=""
+    )
+    last_incremental_scan_at: Mapped[datetime | None] = mapped_column(nullable=True)
+    last_full_verification_at: Mapped[datetime | None] = mapped_column(nullable=True)
+    last_attempt_at: Mapped[datetime | None] = mapped_column(nullable=True)
+    last_success_at: Mapped[datetime | None] = mapped_column(nullable=True)
+    last_scan_kind: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    last_scan_result: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="never"
+    )
+    last_scan_error: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    duration_ms: Mapped[int] = mapped_column(nullable=False, default=0)
+    entry_count: Mapped[int] = mapped_column(nullable=False, default=0)
+    valid_count: Mapped[int] = mapped_column(nullable=False, default=0)
+    damaged_count: Mapped[int] = mapped_column(nullable=False, default=0)
+    recovered_count: Mapped[int] = mapped_column(nullable=False, default=0)
+    skipped_count: Mapped[int] = mapped_column(nullable=False, default=0)
+    reused_count: Mapped[int] = mapped_column(nullable=False, default=0)
+    new_count: Mapped[int] = mapped_column(nullable=False, default=0)
+    changed_count: Mapped[int] = mapped_column(nullable=False, default=0)
+    removed_count: Mapped[int] = mapped_column(nullable=False, default=0)
+    rehashed_count: Mapped[int] = mapped_column(nullable=False, default=0)
+    change_details_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    skipped_details_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    snapshot_signature: Mapped[str] = mapped_column(String(64), nullable=False, default="")
 
 
 class ItemSource(Base):

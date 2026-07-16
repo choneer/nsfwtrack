@@ -9,7 +9,14 @@ from sqlalchemy.engine import Connection, Engine
 
 import app.routers.pages as pages_router
 from app.database import Base, SessionLocal, engine
-from app.models import AppSetting, Item, ItemSource, SchemaMigration
+from app.models import (
+    AppSetting,
+    Item,
+    ItemSource,
+    MediaIndexEntry,
+    MediaIndexState,
+    SchemaMigration,
+)
 from app.services.migrations import (
     MIGRATION_REGISTRY,
     MigrationCheck,
@@ -123,22 +130,25 @@ def _step(
     )
 
 
-def test_production_registry_contains_explicit_schema_1_to_2_source_step() -> None:
-    assert len(MIGRATION_REGISTRY.steps) == 1
-    step = MIGRATION_REGISTRY.steps[0]
-    assert (step.from_version, step.to_version, step.name) == (
-        1,
-        2,
-        "create_item_sources",
-    )
-    assert CURRENT_SCHEMA_VERSION == 2
+def test_production_registry_contains_continuous_schema_1_to_3_steps() -> None:
+    assert [
+        (step.from_version, step.to_version, step.name)
+        for step in MIGRATION_REGISTRY.steps
+    ] == [
+        (1, 2, "create_item_sources"),
+        (2, 3, "create_media_index"),
+    ]
+    assert CURRENT_SCHEMA_VERSION == 3
 
 
-def test_production_schema_1_to_2_upgrade_preserves_items(
+def test_production_schema_1_to_3_upgrade_preserves_items(
     isolated_engine: Engine,
 ) -> None:
     legacy_tables = [
-        table for table in Base.metadata.sorted_tables if table.name != "item_sources"
+        table
+        for table in Base.metadata.sorted_tables
+        if table.name
+        not in {"item_sources", "media_index_entries", "media_index_state"}
     ]
     Base.metadata.create_all(bind=isolated_engine, tables=legacy_tables)
     with isolated_engine.begin() as connection:
@@ -150,9 +160,11 @@ def test_production_schema_1_to_2_upgrade_preserves_items(
     dry_run = preview_upgrade(isolated_engine, MIGRATION_REGISTRY)
     assert dry_run.can_upgrade
     assert dry_run.current_version == 1
-    assert dry_run.target_version == 2
+    assert dry_run.target_version == 3
     assert dry_run.steps[0].name == "create_item_sources"
+    assert dry_run.steps[1].name == "create_media_index"
     assert "item_sources" not in inspect(isolated_engine).get_table_names()
+    assert "media_index_entries" not in inspect(isolated_engine).get_table_names()
 
     result = apply_upgrade(
         isolated_engine,
@@ -161,12 +173,22 @@ def test_production_schema_1_to_2_upgrade_preserves_items(
     )
 
     assert result.from_version == 1
-    assert result.to_version == 2
-    assert result.applied_steps == ("create_item_sources",)
+    assert result.to_version == 3
+    assert result.applied_steps == ("create_item_sources", "create_media_index")
     assert "item_sources" in inspect(isolated_engine).get_table_names()
+    assert "media_index_entries" in inspect(isolated_engine).get_table_names()
+    assert "media_index_state" in inspect(isolated_engine).get_table_names()
     with isolated_engine.connect() as connection:
         assert connection.scalar(select(Item.title)) == "Legacy item"
-        assert connection.scalar(select(SchemaMigration.version).order_by(SchemaMigration.version.desc())) == 2
+        latest_version = connection.scalar(
+            select(SchemaMigration.version).order_by(SchemaMigration.version.desc())
+        )
+        assert latest_version == 3
+        assert connection.scalar(select(MediaIndexEntry.id)) is None
+        state = connection.execute(
+            select(MediaIndexState.valid, MediaIndexState.stale_reason)
+        ).one()
+        assert state == (False, "never_scanned")
         connection.execute(
             ItemSource.__table__.insert().values(
                 item_id=1,
@@ -174,6 +196,89 @@ def test_production_schema_1_to_2_upgrade_preserves_items(
                 normalized_url="https://example.com/",
             )
         )
+
+
+def test_production_schema_2_to_3_upgrade_preserves_business_data(
+    isolated_engine: Engine,
+) -> None:
+    schema_2_tables = [
+        table
+        for table in Base.metadata.sorted_tables
+        if table.name not in {"media_index_entries", "media_index_state"}
+    ]
+    Base.metadata.create_all(bind=isolated_engine, tables=schema_2_tables)
+    with isolated_engine.begin() as connection:
+        connection.execute(
+            SchemaMigration.__table__.insert().values(version=2, name="schema-2")
+        )
+        connection.execute(Item.__table__.insert().values(title="Schema 2 item"))
+        connection.execute(
+            ItemSource.__table__.insert().values(
+                item_id=1,
+                url="https://example.com/source",
+                normalized_url="https://example.com/source",
+            )
+        )
+
+    dry_run = preview_upgrade(isolated_engine, MIGRATION_REGISTRY)
+
+    assert dry_run.can_upgrade
+    assert [(step.from_version, step.to_version) for step in dry_run.steps] == [(2, 3)]
+    assert "media_index_entries" not in inspect(isolated_engine).get_table_names()
+    result = apply_upgrade(
+        isolated_engine,
+        MIGRATION_REGISTRY,
+        backup_confirmed=True,
+    )
+
+    assert result.applied_steps == ("create_media_index",)
+    with isolated_engine.connect() as connection:
+        assert connection.scalar(select(Item.title)) == "Schema 2 item"
+        assert connection.scalar(select(ItemSource.url)) == "https://example.com/source"
+        assert connection.scalar(select(MediaIndexEntry.id)) is None
+        assert connection.scalar(select(MediaIndexState.valid)) is False
+        assert list(
+            connection.execute(
+                select(SchemaMigration.version).order_by(SchemaMigration.version)
+            ).scalars()
+        ) == [2, 3]
+
+
+def test_production_schema_2_to_3_failure_rolls_back_tables_and_version(
+    monkeypatch: pytest.MonkeyPatch,
+    isolated_engine: Engine,
+) -> None:
+    schema_2_tables = [
+        table
+        for table in Base.metadata.sorted_tables
+        if table.name not in {"media_index_entries", "media_index_state"}
+    ]
+    Base.metadata.create_all(bind=isolated_engine, tables=schema_2_tables)
+    with isolated_engine.begin() as connection:
+        connection.execute(
+            SchemaMigration.__table__.insert().values(version=2, name="schema-2")
+        )
+        connection.execute(Item.__table__.insert().values(title="Preserved"))
+
+    def fail_state_table_create(*args: object, **kwargs: object) -> None:
+        del args, kwargs
+        raise RuntimeError("simulated state-table DDL failure")
+
+    monkeypatch.setattr(MediaIndexState.__table__, "create", fail_state_table_create)
+    with pytest.raises(MigrationError) as exc_info:
+        apply_upgrade(
+            isolated_engine,
+            MIGRATION_REGISTRY,
+            backup_confirmed=True,
+        )
+
+    assert exc_info.value.code == "apply_failed"
+    tables = set(inspect(isolated_engine).get_table_names())
+    assert "media_index_entries" not in tables
+    assert "media_index_state" not in tables
+    with isolated_engine.connect() as connection:
+        assert connection.scalar(select(Item.title)) == "Preserved"
+        assert list(connection.execute(select(SchemaMigration.version)).scalars()) == [2]
 
 
 @pytest.mark.parametrize(
@@ -436,6 +541,7 @@ def route_registry(monkeypatch: pytest.MonkeyPatch) -> Generator[MigrationRegist
         (
             _step(0, 1, name="route-test-upgrade"),
             _step(1, 2, name="route-test-upgrade-2"),
+            _step(2, 3, name="route-test-upgrade-3"),
         )
     )
     monkeypatch.setattr(pages_router, "MIGRATION_REGISTRY", registry)
@@ -560,8 +666,8 @@ def test_standard_apply_requires_confirm_and_backup_then_uses_code_path(
         },
         follow_redirects=True,
     )
-    assert "显式升级到 2" in applied.text
-    assert _global_probe_and_versions() == (2, [0, 1, 2])
+    assert "显式升级到 3" in applied.text
+    assert _global_probe_and_versions() == (3, [0, 1, 2, 3])
     assert "items" in inspect(engine).get_table_names()
 
 
@@ -604,8 +710,8 @@ def test_strict_apply_requires_exact_confirm_text(
         },
         follow_redirects=True,
     )
-    assert "显式升级到 2" in applied.text
-    assert _global_probe_and_versions() == (2, [0, 1, 2])
+    assert "显式升级到 3" in applied.text
+    assert _global_probe_and_versions() == (3, [0, 1, 2, 3])
 
 
 def test_upgrade_page_copy_is_available_in_english(auth_client: TestClient) -> None:

@@ -23,6 +23,8 @@ def test_expected_tables_exist() -> None:
         "item_activity",
         "app_settings",
         "schema_migrations",
+        "media_index_entries",
+        "media_index_state",
     }.issubset(tables)
 
 

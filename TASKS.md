@@ -2,10 +2,10 @@
 
 按顺序执行，每完成一项打个 [x]。
 
-## 当前状态（v1.0.6 已发布，Phase 4-M2 实现与验收）
+## 当前状态（v1.0.6 已发布，Phase 4-M3 实现与验收）
 
 当前稳定版与最新 Release：`v1.0.6`。Phase 3-B1 / B2 已正式发布，
-Phase 3-B3 / B4 / B5 / B6 / C1 / C2 / C3 / C4 / C5 与 D1 最终集成审查均已完成并位于 Unreleased；Phase 4-A1 / A2 / M1 / M2 的实现与验收已完成，应用 Schema 仍为 `2`。
+Phase 3-B3 / B4 / B5 / B6 / C1 / C2 / C3 / C4 / C5 与 D1 最终集成审查均已完成并位于 Unreleased；Phase 4-A1 / A2 / M1 / M2 已完成，Phase 4-M3 实现已完成并进入最终验收，应用 Schema 为 `3`。
 
 - Annotated tag object：`d4d5c31cd5b2fed9a90ad69742d54b4c9dbed0b4`
 - Peeled commit：`961a3d0cc169e82b261d83207b0ec802007e292b`
@@ -15,6 +15,28 @@ N100 / 目标主机部署尚未开始，**不是当前开发任务**，必须等
 历史审计见 `COMPLETION_AUDIT.md`，当前 Phase 3 证据见
 `PHASE3_COMPLETION_AUDIT.md`。历史任务保留在本文后半部分，
 不再作为新增开发路线。
+
+### Phase 4-M3 增量媒体索引与扫描中心（Unreleased）
+
+- [x] 新增 Schema 3 媒体索引与单例状态表；全新数据库直接初始化为 Schema 3
+- [x] 新增正式 2 → 3 MigrationStep、只读 dry-run、precheck、postcheck 与整链失败回滚
+- [x] 迁移只创建空失效索引，不扫描媒体，不修改 Schema 2 业务数据
+- [x] 增量扫描复用现有 FD / O_NOFOLLOW 遍历、打开、读取和映射复核语义
+- [x] 仅在 mode / size / dev / inode / mtime / ctime 与根 / 父目录映射完全一致且 HMAC 有效时复用 SHA / MIME / validity
+- [x] 新增、变化、inode 替换、父目录替换、伪造或损坏缓存均重新安全读取与哈希
+- [x] 完整验证忽略全部缓存内容事实，重新读取、校验和哈希全部普通媒体
+- [x] 单次成功刷新在一个事务中整体替换媒体、目录、跳过项、统计和变化快照
+- [x] 扫描、映射、哈希或事务失败保留上一份完整索引，不提交半套结果
+- [x] 新增登录保护扫描中心，GET 零写入，展示状态、时间、耗时、统计、错误和变化明细
+- [x] 增量刷新使用显式 POST；完整验证使用零写入预览与 standard / strict 确认 POST
+- [x] 媒体库、目录、重复组、alias、跳过项、匹配和未匹配候选优先使用完整索引
+- [x] 所有文件 / 引用写操作继续即时重扫和安全重验，不使用索引授权
+- [x] 索引不进入 JSON 备份或恢复，恢复成功后在同一事务中标记失效
+- [x] 中英文、README / CHANGELOG / TASKS / REVIEW / PLAN 与 CI Schema 3 持久化检查已同步
+- [x] 应用版本保持 1.0.6；不创建 tag / Release，不部署 N100，不新增依赖或网络能力
+- [x] M3 专项 `16 passed`、迁移专项 `45 passed`、核心组合 `141 passed`、全量 `717 passed`
+- [x] `pip check` 无冲突；隔离 Docker build、healthy、`/login` 200、Schema 3 与重建容器后索引持久化通过
+- [ ] 提交并推送 main，等待 GitHub Actions test / Docker production smoke 成功
 
 ### Phase 4-M2 批量整理与别名归一化（Unreleased）
 

@@ -13,6 +13,7 @@
     <a class="button secondary" href="/media-library">{{ t("media_directories.back") }}</a>
   </div>
 </div>
+{% include "_media_index_status.html" %}
 
 <nav class="relation-list" aria-label="{{ t('media_directories.breadcrumbs') }}" data-media-directory-breadcrumbs>
   {% for breadcrumb in directory_result.breadcrumbs %}

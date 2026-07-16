@@ -9,7 +9,12 @@ from sqlalchemy import inspect, insert, select
 from sqlalchemy.engine import Connection, Engine
 from sqlalchemy.exc import SQLAlchemyError
 
-from app.models import ItemSource, SchemaMigration
+from app.models import (
+    ItemSource,
+    MediaIndexEntry,
+    MediaIndexState,
+    SchemaMigration,
+)
 from app.services.schema_version import (
     CURRENT_SCHEMA_VERSION,
     SCHEMA_MIGRATIONS_TABLE,
@@ -251,6 +256,14 @@ _SQLITE_READ_ACTIONS = {
     sqlite3.SQLITE_SELECT,
     sqlite3.SQLITE_TRANSACTION,
 }
+_SQLITE_SCHEMA_READ_PRAGMAS = {
+    "foreign_key_list",
+    "index_info",
+    "index_list",
+    "index_xinfo",
+    "table_info",
+    "table_xinfo",
+}
 
 
 @contextmanager
@@ -275,10 +288,13 @@ def _read_only_connection(bind: Engine) -> Iterator[Connection]:
             database: str | None,
             source: str | None,
         ) -> int:
-            del first, database, source
+            del database, source
             if action in _SQLITE_READ_ACTIONS:
                 return sqlite3.SQLITE_OK
-            if action == sqlite3.SQLITE_PRAGMA and second is None:
+            if action == sqlite3.SQLITE_PRAGMA and (
+                second is None
+                or (first or "").casefold() in _SQLITE_SCHEMA_READ_PRAGMAS
+            ):
                 return sqlite3.SQLITE_OK
             return sqlite3.SQLITE_DENY
 
@@ -380,6 +396,12 @@ def apply_upgrade(
 
     try:
         with bind.begin() as connection:
+            if connection.dialect.name == "sqlite":
+                # pysqlite defers the physical BEGIN until the first write. An
+                # explicit transaction is required before DDL so a later step
+                # failure rolls back newly created tables as well as data and
+                # version records.
+                connection.exec_driver_sql("BEGIN IMMEDIATE")
             from_version = _read_database_version(connection)
             if from_version == target_version:
                 raise MigrationError("no_upgrade_needed")
@@ -469,6 +491,197 @@ def _item_sources_postcheck(connection: Connection) -> MigrationCheck:
     return MigrationCheck(True, "item_sources structure is valid")
 
 
+def _media_index_preview(connection: Connection) -> MigrationPreview:
+    del connection
+    return MigrationPreview(
+        changes=(
+            "create media_index_entries derived-cache table",
+            "add unique media_path and parent, digest, and path lookup indexes",
+            "create singleton media_index_state status table",
+            "initialize an empty invalid index without scanning media files",
+        ),
+        warnings=(
+            "back up the Schema 2 database before applying",
+            "the media index is rebuildable and is excluded from JSON backups",
+        ),
+    )
+
+
+def _media_index_precheck(connection: Connection) -> MigrationCheck:
+    inspector = inspect(connection)
+    table_names = set(inspector.get_table_names())
+    source_tables = tuple(
+        table
+        for table in MediaIndexEntry.metadata.sorted_tables
+        if table.name
+        not in {MediaIndexEntry.__tablename__, MediaIndexState.__tablename__}
+    )
+    missing = sorted(table.name for table in source_tables if table.name not in table_names)
+    if missing:
+        return MigrationCheck(False, f"required tables are missing: {', '.join(missing)}")
+    for table in source_tables:
+        actual_columns = {
+            column["name"] for column in inspector.get_columns(table.name)
+        }
+        expected_columns = {column.name for column in table.columns}
+        missing_columns = sorted(expected_columns - actual_columns)
+        if missing_columns:
+            return MigrationCheck(
+                False,
+                f"required columns are missing from {table.name}: "
+                f"{', '.join(missing_columns)}",
+            )
+    existing = sorted(
+        {MediaIndexEntry.__tablename__, MediaIndexState.__tablename__} & table_names
+    )
+    if existing:
+        return MigrationCheck(
+            False,
+            f"media index tables already exist: {', '.join(existing)}",
+        )
+    return MigrationCheck(True, "Schema 2 is ready for empty media index tables")
+
+
+def _media_index_apply(connection: Connection) -> None:
+    MediaIndexEntry.__table__.create(bind=connection)
+    MediaIndexState.__table__.create(bind=connection)
+    connection.execute(
+        insert(MediaIndexState).values(
+            id=1,
+            index_format_version=1,
+            valid=False,
+            stale_reason="never_scanned",
+            current_media_root_identity="",
+            last_scan_result="never",
+            last_scan_error="",
+            duration_ms=0,
+            entry_count=0,
+            valid_count=0,
+            damaged_count=0,
+            recovered_count=0,
+            skipped_count=0,
+            reused_count=0,
+            new_count=0,
+            changed_count=0,
+            removed_count=0,
+            rehashed_count=0,
+            change_details_json="[]",
+            skipped_details_json="[]",
+            snapshot_signature="",
+        )
+    )
+
+
+def _media_index_postcheck(connection: Connection) -> MigrationCheck:
+    inspector = inspect(connection)
+    table_names = set(inspector.get_table_names())
+    if not {MediaIndexEntry.__tablename__, MediaIndexState.__tablename__}.issubset(
+        table_names
+    ):
+        return MigrationCheck(False, "media index tables were not created")
+
+    entry_columns = {
+        column["name"]
+        for column in inspector.get_columns(MediaIndexEntry.__tablename__)
+    }
+    required_entry_columns = {
+        "id",
+        "record_type",
+        "media_path",
+        "basename",
+        "parent_directory",
+        "extension",
+        "mime_type",
+        "size",
+        "sha256",
+        "valid",
+        "detail",
+        "recovered",
+        "mode",
+        "device",
+        "inode",
+        "modified_ns",
+        "changed_ns",
+        "directory_mapping_token",
+        "directory_identity_json",
+        "cache_signature",
+        "first_seen_at",
+        "last_seen_at",
+        "indexed_at",
+    }
+    if not required_entry_columns.issubset(entry_columns):
+        return MigrationCheck(False, "media index entry columns are incomplete")
+
+    unique_columns = {
+        tuple(constraint.get("column_names") or ())
+        for constraint in inspector.get_unique_constraints(
+            MediaIndexEntry.__tablename__
+        )
+    }
+    if ("media_path",) not in unique_columns:
+        return MigrationCheck(False, "media index media_path uniqueness is missing")
+    indexed_columns = {
+        tuple(index.get("column_names") or ())
+        for index in inspector.get_indexes(MediaIndexEntry.__tablename__)
+    }
+    for required_index in (
+        ("media_path",),
+        ("parent_directory",),
+        ("sha256",),
+    ):
+        if required_index not in indexed_columns:
+            return MigrationCheck(
+                False,
+                f"media index lookup index is missing: {required_index[0]}",
+            )
+
+    state_columns = {
+        column["name"]
+        for column in inspector.get_columns(MediaIndexState.__tablename__)
+    }
+    required_state_columns = {
+        "id",
+        "index_format_version",
+        "valid",
+        "stale_reason",
+        "current_media_root_identity",
+        "last_incremental_scan_at",
+        "last_full_verification_at",
+        "last_attempt_at",
+        "last_success_at",
+        "last_scan_kind",
+        "last_scan_result",
+        "last_scan_error",
+        "duration_ms",
+        "entry_count",
+        "valid_count",
+        "damaged_count",
+        "recovered_count",
+        "skipped_count",
+        "reused_count",
+        "new_count",
+        "changed_count",
+        "removed_count",
+        "rehashed_count",
+        "change_details_json",
+        "skipped_details_json",
+        "snapshot_signature",
+    }
+    if not required_state_columns.issubset(state_columns):
+        return MigrationCheck(False, "media index state columns are incomplete")
+    state_row = connection.execute(
+        select(
+            MediaIndexState.id,
+            MediaIndexState.index_format_version,
+            MediaIndexState.valid,
+            MediaIndexState.last_scan_result,
+        )
+    ).one_or_none()
+    if state_row != (1, 1, False, "never"):
+        return MigrationCheck(False, "media index state singleton is missing")
+    return MigrationCheck(True, "empty media index structure is valid")
+
+
 MIGRATION_REGISTRY = MigrationRegistry(
     (
         MigrationStep(
@@ -479,6 +692,15 @@ MIGRATION_REGISTRY = MigrationRegistry(
             apply=_item_sources_apply,
             precheck=_item_sources_precheck,
             postcheck=_item_sources_postcheck,
+        ),
+        MigrationStep(
+            from_version=2,
+            to_version=3,
+            name="create_media_index",
+            preview=_media_index_preview,
+            apply=_media_index_apply,
+            precheck=_media_index_precheck,
+            postcheck=_media_index_postcheck,
         ),
     )
 )

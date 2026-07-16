@@ -4,6 +4,22 @@
 
 ### Added
 
+- Added Schema 3 rebuildable `media_index_entries` and singleton
+  `media_index_state` tables. The real 2 → 3 migration has read-only dry-run,
+  precheck, postcheck, transactional version recording, and an empty invalid
+  initial index; fresh databases start directly at Schema 3.
+- Added an authenticated media scan center with read-only status, timestamps,
+  duration, valid/damaged/recovered/skipped totals, reused/rehashed/new/changed/
+  removed statistics, recent path changes, explicit incremental refresh, and a
+  write-free preview plus confirmed full verification/rebuild.
+- Added FD-safe incremental media scanning. Exact file mode, size, device,
+  inode, mtime, ctime, and stable root/parent directory mapping must all match
+  before signed SHA/MIME/validity facts can be reused. New, changed, unsigned,
+  damaged, or corrupted cache records are read and hashed through the existing
+  `O_NOFOLLOW` descriptor chain.
+- Added persisted directory and skipped-entry snapshots so the indexed media
+  library preserves directory browsing and scan-skip statistics, including
+  empty ordinary directories and recovered-media semantics.
 - Added authenticated current-page multiselect controls to the media library
   and directory browser, with a 20-file batch limit and write-free GET previews
   for batch move and same-directory batch rename. The server recomputes the
@@ -223,6 +239,18 @@
 
 ### Changed
 
+- Media library, directory browser, duplicate groups, hardlink aliases, scan
+  skips, media matching, and unmatched-item candidates now prefer a complete
+  signed index snapshot. Missing, invalid, pre-Schema-3, or corrupted indexes
+  fall back to the existing safe full scan without writing during GET.
+- Every indexed read page now shows the snapshot time, source, and point-in-time
+  staleness boundary. Rename, move, batch operations, alias normalization,
+  duplicate/damaged cleanup, recovery, anchors, reference repair, and every
+  mutating POST continue to perform immediate filesystem and reference
+  revalidation rather than authorizing from the index.
+- JSON backup/export remains restricted to business tables. Media index rows
+  and state are never exported or restored, and a successful restore marks any
+  existing derived index invalid in the same database transaction.
 - Media details now link to M1 safe move and single-reference previews for valid
   ordinary media. The media library links to directory browsing and hardlink
   alias audit; all new GET views remain read-only and preserve normalized local
@@ -293,6 +321,15 @@
 
 ### Security
 
+- Media cache rows and complete snapshots are HMAC-authenticated with the local
+  application secret. Forged facts, altered signatures, impossible row shapes,
+  parent mapping substitutions, inode replacements, and incomplete snapshots
+  cannot produce cache hits.
+- A successful scan builds its full media, directory, skip, and statistics
+  snapshot before one transactional table replacement. Scan, mapping, hashing,
+  or commit failures preserve the previous complete index; no background
+  thread, queue, timer, implicit startup scan, or GET-side index write was
+  added.
 - Parent-directory rename/symlink races are now fail-closed across Data Health,
   authenticated media serving, shared validated-media create/publish/delete
   operations, and C2 residue deletion. Regression injection with external

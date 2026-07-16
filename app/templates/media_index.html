@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% from "_danger_notice.html" import danger_notice %}
+{% block title %}{{ t("media_index.title") }} - NSFWTrack{% endblock %}
+{% block content %}
+<div class="toolbar">
+  <div>
+    <p class="muted">{{ t("media_index.local_only") }}</p>
+    <h1>{{ t("media_index.title") }}</h1>
+    <p class="muted">{{ t("media_index.description") }}</p>
+  </div>
+  <a class="button secondary" href="/media-library">{{ t("media_index.back") }}</a>
+</div>
+
+{% if not index_status.schema_available %}
+  <div class="flash error">{{ t("media_index.schema_required") }}</div>
+{% elif not index_status.integrity_valid %}
+  <div class="flash error">{{ t("media_index.corrupt") }}</div>
+{% elif not index_status.valid %}
+  <div class="notice"><strong>{{ t("media_index.unavailable") }}</strong><p>{{ t("media_index.unavailable_detail", reason=index_status.stale_reason) }}</p></div>
+{% else %}
+  <div class="notice"><strong>{{ t("media_index.available") }}</strong><p>{{ t("media_index.available_detail") }}</p></div>
+{% endif %}
+
+<section class="stats-section">
+  <div class="metric-grid compact-metrics" data-media-index-counts>
+    <div class="metric"><strong>{{ index_status.entry_count }}</strong><span>{{ t("media_index.files") }}</span></div>
+    <div class="metric"><strong>{{ index_status.valid_count }}</strong><span>{{ t("media_index.valid") }}</span></div>
+    <div class="metric"><strong>{{ index_status.damaged_count }}</strong><span>{{ t("media_index.damaged") }}</span></div>
+    <div class="metric"><strong>{{ index_status.recovered_count }}</strong><span>{{ t("media_index.recovered") }}</span></div>
+    <div class="metric"><strong>{{ index_status.skipped_count }}</strong><span>{{ t("media_index.skipped") }}</span></div>
+  </div>
+</section>
+
+<section class="card stack">
+  <h2>{{ t("media_index.status_title") }}</h2>
+  <dl class="settings-summary">
+    <dt>{{ t("media_index.format_version") }}</dt><dd>{{ index_status.index_format_version }}</dd>
+    <dt>{{ t("media_index.root_identity") }}</dt><dd><code>{{ index_status.current_media_root_identity or t("common.none") }}</code></dd>
+    <dt>{{ t("media_index.last_incremental") }}</dt><dd>{{ index_status.last_incremental_scan_at or t("common.none") }}</dd>
+    <dt>{{ t("media_index.last_full") }}</dt><dd>{{ index_status.last_full_verification_at or t("common.none") }}</dd>
+    <dt>{{ t("media_index.last_result") }}</dt><dd>{{ t("media_index.result_" ~ index_status.last_scan_result) }}</dd>
+    <dt>{{ t("media_index.last_duration") }}</dt><dd>{{ index_status.duration_ms }} ms</dd>
+    <dt>{{ t("media_index.last_error") }}</dt><dd>{{ index_status.last_scan_error or t("common.none") }}</dd>
+  </dl>
+</section>
+
+<section class="card stack">
+  <h2>{{ t("media_index.last_statistics") }}</h2>
+  <div class="metric-grid compact-metrics">
+    <div class="metric"><strong>{{ index_status.reused_count }}</strong><span>{{ t("media_index.reused") }}</span></div>
+    <div class="metric"><strong>{{ index_status.rehashed_count }}</strong><span>{{ t("media_index.rehashed") }}</span></div>
+    <div class="metric"><strong>{{ index_status.new_count }}</strong><span>{{ t("media_index.new") }}</span></div>
+    <div class="metric"><strong>{{ index_status.changed_count }}</strong><span>{{ t("media_index.changed") }}</span></div>
+    <div class="metric"><strong>{{ index_status.removed_count }}</strong><span>{{ t("media_index.removed") }}</span></div>
+  </div>
+  {% if index_status.change_details %}
+    <ul class="relation-list" data-media-index-changes>
+      {% for detail in index_status.change_details %}
+        <li class="relation-row"><span class="pill">{{ t("media_index.change_" ~ detail.change) }}</span><code>{{ detail.path }}</code></li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="muted">{{ t("media_index.no_changes") }}</p>
+  {% endif %}
+</section>
+
+<section class="card stack">
+  <h2>{{ t("media_index.incremental_title") }}</h2>
+  <p class="muted">{{ t("media_index.incremental_detail") }}</p>
+  <form action="/media-library/index/refresh" method="post">
+    <button type="submit"{% if not index_status.schema_available %} disabled{% endif %}>{{ t("media_index.incremental_submit") }}</button>
+  </form>
+</section>
+
+{% if full_preview %}
+  <section class="card stack">
+    <h2>{{ t("media_index.full_preview_title") }}</h2>
+    <p>{{ t("media_index.full_preview_detail") }}</p>
+    {{ danger_notice(
+      t,
+      danger_policy,
+      "danger.object_media_index",
+      "danger.consequence_media_index",
+      "danger.deletion_none",
+      "danger.recovery_media_index",
+      false
+    ) }}
+    <form action="/media-library/index/rebuild" method="post" class="stack">
+      <label class="checkbox-row"><input type="checkbox" name="confirm" value="1" required> {{ t("media_index.full_confirm") }}</label>
+      <button type="submit" class="warning" data-confirm-message="{{ t('media_index.full_browser_confirm') }}"{% if danger_policy.is_strict %} data-strict-confirm-message="{{ t('danger.strict_prompt') }}"{% endif %}>{{ t("media_index.full_submit") }}</button>
+    </form>
+  </section>
+{% else %}
+  <section class="card stack">
+    <h2>{{ t("media_index.full_title") }}</h2>
+    <p class="muted">{{ t("media_index.full_detail") }}</p>
+    <a class="button warning" href="/media-library/index/rebuild">{{ t("media_index.full_preview") }}</a>
+  </section>
+{% endif %}
+{% endblock %}

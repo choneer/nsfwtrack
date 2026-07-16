@@ -136,6 +136,12 @@ from app.services.media_item_candidates import (
     find_media_item_candidates,
     paginate_media_item_candidates,
 )
+from app.services.media_index import (
+    MediaIndexError,
+    get_media_index_status,
+    load_preferred_media_snapshot,
+    refresh_media_index,
+)
 from app.services.media_file_detail import (
     MediaFileDetailError,
     build_media_file_detail,
@@ -565,9 +571,11 @@ def media_library_page(
 ) -> HTMLResponse:
     error_key = None
     try:
-        scan = scan_local_media()
+        media_snapshot = load_preferred_media_snapshot(db)
+        scan = media_snapshot.scan
     except LocalMediaPathError:
         scan = LocalMediaScan((), 0, 0, 0)
+        media_snapshot = None
         error_key = "media.error_storage_unavailable"
     items = list(db.scalars(select(Item).order_by(Item.title, Item.id)).all())
     creators = list(db.scalars(select(Creator).order_by(Creator.name, Creator.id)).all())
@@ -684,6 +692,14 @@ def media_library_page(
             max_media_batch_size=MAX_MEDIA_BATCH_SIZE,
             max_media_upload_mb=MAX_MEDIA_UPLOAD_BYTES // (1024 * 1024),
             max_media_upload_files=MAX_MEDIA_UPLOAD_FILES,
+            media_index_status=(
+                media_snapshot.status
+                if media_snapshot is not None
+                else get_media_index_status(db)
+            ),
+            media_index_source=(
+                media_snapshot.source if media_snapshot is not None else "filesystem"
+            ),
             error_key=error_key,
         ),
     )
@@ -704,8 +720,9 @@ def media_directory_page(
     db: Session = Depends(get_db),
 ) -> HTMLResponse:
     try:
-        scan = scan_local_media()
-        directories = scan_local_media_directories()
+        media_snapshot = load_preferred_media_snapshot(db)
+        scan = media_snapshot.scan
+        directories = media_snapshot.directories
         used_paths = set(
             db.scalars(
                 select(Item.cover_path).where(Item.cover_path.is_not(None))
@@ -774,6 +791,8 @@ def media_directory_page(
             detail_urls=detail_urls,
             directory_return_url=current_return_url,
             max_media_batch_size=MAX_MEDIA_BATCH_SIZE,
+            media_index_status=media_snapshot.status,
+            media_index_source=media_snapshot.source,
         ),
     )
 
@@ -791,9 +810,11 @@ def media_hardlink_alias_page(
     db: Session = Depends(get_db),
 ) -> HTMLResponse:
     try:
-        scan = scan_local_media()
+        media_snapshot = load_preferred_media_snapshot(db)
+        scan = media_snapshot.scan
     except (LocalMediaPathError, OSError):
         scan = LocalMediaScan((), 0, 0, 0)
+        media_snapshot = None
         error_key = "media.error_storage_unavailable"
     else:
         error_key = None
@@ -846,6 +867,14 @@ def media_hardlink_alias_page(
             detail_urls=detail_urls,
             duplicate_urls=duplicate_urls,
             alias_return_url=current_return_url,
+            media_index_status=(
+                media_snapshot.status
+                if media_snapshot is not None
+                else get_media_index_status(db)
+            ),
+            media_index_source=(
+                media_snapshot.source if media_snapshot is not None else "filesystem"
+            ),
             error_key=error_key,
         ),
     )
@@ -1613,9 +1642,11 @@ def media_scan_skips_page(
 ) -> HTMLResponse:
     error_key = None
     try:
-        scan = scan_local_media()
+        media_snapshot = load_preferred_media_snapshot(db)
+        scan = media_snapshot.scan
     except LocalMediaPathError:
         scan = LocalMediaScan((), 0, 0, 0)
+        media_snapshot = None
         error_key = "media.error_storage_unavailable"
     result = query_media_scan_skips(
         scan,
@@ -1638,6 +1669,14 @@ def media_scan_skips_page(
                 "/media-library/skipped",
                 page_param="skip_page",
                 params=media_scan_skip_filter_query_params(result.filters),
+            ),
+            media_index_status=(
+                media_snapshot.status
+                if media_snapshot is not None
+                else get_media_index_status(db)
+            ),
+            media_index_source=(
+                media_snapshot.source if media_snapshot is not None else "filesystem"
             ),
             error_key=error_key,
         ),
@@ -1983,9 +2022,11 @@ def media_duplicate_groups_page(
 ) -> HTMLResponse:
     error_key = None
     try:
-        scan = scan_local_media()
+        media_snapshot = load_preferred_media_snapshot(db)
+        scan = media_snapshot.scan
     except LocalMediaPathError:
         scan = LocalMediaScan((), 0, 0, 0)
+        media_snapshot = None
         error_key = "media.error_storage_unavailable"
     result = query_media_duplicate_groups(
         scan,
@@ -2062,9 +2103,121 @@ def media_duplicate_groups_page(
             creator_references=creator_references,
             media_library_urls=library_urls,
             media_detail_urls=media_detail_urls,
+            media_index_status=(
+                media_snapshot.status
+                if media_snapshot is not None
+                else get_media_index_status(db)
+            ),
+            media_index_source=(
+                media_snapshot.source if media_snapshot is not None else "filesystem"
+            ),
             error_key=error_key,
         ),
     )
+
+
+def _media_index_response(
+    request: Request,
+    db: Session,
+    *,
+    full_preview: bool = False,
+) -> HTMLResponse:
+    return templates.TemplateResponse(
+        request,
+        "media_index.html",
+        _base_context(
+            request,
+            db=db,
+            index_status=get_media_index_status(db),
+            full_preview=full_preview,
+        ),
+    )
+
+
+@router.get(
+    "/media-library/index",
+    response_class=HTMLResponse,
+    dependencies=[Depends(require_page_auth)],
+)
+def media_index_page(
+    request: Request,
+    db: Session = Depends(get_db),
+) -> HTMLResponse:
+    return _media_index_response(request, db)
+
+
+@router.post(
+    "/media-library/index/refresh",
+    response_class=HTMLResponse,
+    dependencies=[Depends(require_page_auth)],
+)
+def media_index_refresh_page(
+    request: Request,
+    db: Session = Depends(get_db),
+) -> RedirectResponse:
+    try:
+        result = refresh_media_index(db, full=False)
+    except MediaIndexError as exc:
+        add_flash(request, "error", f"flash.media_index_{exc.code}")
+    else:
+        add_flash(
+            request,
+            "success",
+            "flash.media_index_incremental_success",
+            reused=result.status.reused_count,
+            rehashed=result.status.rehashed_count,
+            new=result.status.new_count,
+            changed=result.status.changed_count,
+            removed=result.status.removed_count,
+        )
+    return _redirect("/media-library/index")
+
+
+@router.get(
+    "/media-library/index/rebuild",
+    response_class=HTMLResponse,
+    dependencies=[Depends(require_page_auth)],
+)
+def media_index_rebuild_preview_page(
+    request: Request,
+    db: Session = Depends(get_db),
+) -> HTMLResponse:
+    return _media_index_response(request, db, full_preview=True)
+
+
+@router.post(
+    "/media-library/index/rebuild",
+    response_class=HTMLResponse,
+    dependencies=[Depends(require_page_auth)],
+)
+def media_index_rebuild_page(
+    request: Request,
+    confirm: str | None = Form(default=None),
+    confirmation_text: str | None = Form(default=None),
+    db: Session = Depends(get_db),
+) -> RedirectResponse:
+    if not _danger_confirmation_is_valid(
+        request,
+        get_danger_policy(db),
+        confirmation_text=confirmation_text,
+        base_confirmation_valid=confirm == "1",
+    ):
+        return _redirect("/media-library/index/rebuild")
+    try:
+        result = refresh_media_index(db, full=True)
+    except MediaIndexError as exc:
+        add_flash(request, "error", f"flash.media_index_{exc.code}")
+    else:
+        add_flash(
+            request,
+            "success",
+            "flash.media_index_full_success",
+            rehashed=result.status.rehashed_count,
+            new=result.status.new_count,
+            changed=result.status.changed_count,
+            removed=result.status.removed_count,
+        )
+    return _redirect("/media-library/index")
 
 
 def _media_duplicate_cleanup_preview_url(

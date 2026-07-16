@@ -2,18 +2,18 @@
 
 NSFWTrack is a local single-user content record manager / collection tracker.
 
-Current application version: `v1.0.6 / Phase 4-M2 in Unreleased`.
+Current application version: `v1.0.6 / Phase 4-M3 in Unreleased`.
 
 Current stable version: `v1.0.6 / Phase 3-B1 and B2`.
 
 Latest Release: [NSFWTrack v1.0.6](https://github.com/choneer/nsfwtrack/releases/tag/v1.0.6).
 
-Current status: `v1.0.6 is released; Phase 4-M2 batch organization and alias normalization are implemented in Unreleased`.
+Current status: `v1.0.6 is released; Phase 4-M3 incremental media indexing and the scan center are implemented in Unreleased`.
 
-Current development: `Phase 3-B1 and B2 are published; Phase 4-A1/A2 and M1 are
-complete, and Phase 4-M2 adds current-page media multiselect, safe batch move,
-safe batch rename, and explicit hardlink-alias keeper normalization while
-application version 1.0.6 and Schema 2 stay unchanged`.
+Current development: `Phase 3-B1 and B2 are published; Phase 4-A1/A2 and
+M1/M2 are complete, and Phase 4-M3 adds Schema 3, an authenticated scan center,
+signed incremental media snapshots, atomic rebuild, backup invalidation, and
+index-first read pages while application version 1.0.6 stays unchanged`.
 
 N100 deployment: `not started; waits for explicit user authorization`.
 
@@ -77,6 +77,49 @@ HTTP 200. Repair commit `db0048d` is pushed, and GitHub Actions run
 [`29386547600`](https://github.com/choneer/nsfwtrack/actions/runs/29386547600)
 passed both `test` and `Docker production smoke`. No known D1 release blocker
 remains, so the reviewed Unreleased development scope is frozen.
+
+## Phase 4-M3 Incremental Media Index and Scan Center
+
+Phase 4-M3 upgrades the local database from Schema 2 to Schema 3 through an
+explicit `create_media_index` migration. The two new tables contain only a
+rebuildable derived cache and scan status; fresh databases start at Schema 3,
+while the 2 → 3 migration creates an empty invalid index without scanning the
+filesystem or changing any existing business row.
+
+`/media-library/index` is a login-protected scan center. Its GET view reads only
+stored status and never writes the database or filesystem. Incremental refresh
+is an explicit POST. Full verification first uses a write-free preview, then a
+confirmed POST that ignores cached content facts and safely reads, validates,
+and hashes every ordinary media file again.
+
+Incremental reuse requires an HMAC-valid cache row plus exact mode, size,
+device, inode, mtime, ctime, and root/parent directory mapping. A parent
+replacement, inode replacement, changed identity, forged row, invalid
+signature, or index corruption forces safe re-reading or a full fallback.
+Traversal, opening, reading, and final mapping checks retain the existing
+descriptor-based `O_NOFOLLOW` semantics.
+
+Each refresh builds media, directory, skip, statistics, and change snapshots
+before replacing the index in one SQLite transaction. A scan or commit failure
+leaves the previous complete snapshot intact. The media library, directory
+browser, duplicate groups, hardlink aliases, matching candidates, and skipped
+paths prefer the complete index and visibly identify its timestamp and
+point-in-time nature. Every operation that changes files or references still
+performs immediate filesystem and database revalidation.
+
+The index is excluded from JSON backup and restore. Successful restore marks
+it invalid in the same transaction, after which it can be rebuilt manually.
+No background worker, scheduled scan, network request, dependency, media-file
+change, tag, Release, or N100 deployment is part of M3. Application version
+remains `1.0.6`.
+
+Final local M3 acceptance passes `16` focused index/i18n tests, `45` migration
+and schema-version tests, `141` core media/index/backup tests, and all `717`
+tests. `pip check` reports no broken requirements. The isolated production
+image builds and remains healthy as UID/GID `10001:10001` with a read-only root
+filesystem; `/login` returns HTTP 200, fresh initialization reports Schema 3,
+and a complete one-file index remains valid after the container is removed and
+recreated against the same isolated data mount.
 
 ## Phase 4-A1 Local Media File Details
 

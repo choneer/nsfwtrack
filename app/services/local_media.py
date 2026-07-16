@@ -10,7 +10,7 @@ import zlib
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
-from typing import Iterator, Literal
+from typing import Iterator, Literal, Mapping
 from urllib.parse import urlsplit
 
 from fastapi import UploadFile
@@ -81,6 +81,9 @@ class LocalMediaEntry:
     inode: int | None = None
     modified_ns: int | None = None
     changed_ns: int | None = None
+    mode: int | None = None
+    directory_mapping_token: str = ""
+    directory_identity_json: str = ""
 
 
 MediaScanSkipReason = Literal[
@@ -111,6 +114,14 @@ class LocalMediaScan:
     skipped_unsupported: int
     invalid: int
     skipped_entries: tuple[LocalMediaScanSkip, ...] = ()
+
+
+@dataclass(frozen=True)
+class LocalMediaIncrementalScan:
+    scan: LocalMediaScan
+    root_identity: str
+    reused_paths: tuple[str, ...]
+    rehashed_paths: tuple[str, ...]
 
 
 @dataclass(frozen=True)
@@ -218,20 +229,100 @@ def local_media_directory_identity_token(
         ],
         separators=(",", ":"),
     ).encode("ascii")
-    return hashlib.sha256(payload).hexdigest()
+    return hashlib.new("sha256", payload).hexdigest()
+
+
+def _directory_identity_json(
+    identities: tuple[_MediaScanIdentity, ...],
+) -> str:
+    return json.dumps(
+        [
+            [
+                identity.mode,
+                identity.size,
+                identity.device,
+                identity.inode,
+                identity.modified_ns,
+                identity.changed_ns,
+            ]
+            for identity in identities
+        ],
+        separators=(",", ":"),
+    )
+
+
+def local_media_directory_identity_json(
+    record: ValidatedLocalMediaFile | ValidatedLocalMediaDirectory,
+) -> str:
+    return _directory_identity_json(record.directory_identities)
+
+
+def _directory_mapping_token(
+    identities: tuple[_MediaScanIdentity, ...],
+) -> str:
+    payload = json.dumps(
+        [
+            [stat.S_IFMT(identity.mode), identity.device, identity.inode]
+            for identity in identities
+        ],
+        separators=(",", ":"),
+    ).encode("ascii")
+    return hashlib.new("sha256", payload).hexdigest()
 
 
 def local_media_directory_mapping_token(
     record: ValidatedLocalMediaFile | ValidatedLocalMediaDirectory,
 ) -> str:
-    payload = json.dumps(
-        [
-            [stat.S_IFMT(identity.mode), identity.device, identity.inode]
-            for identity in record.directory_identities
-        ],
-        separators=(",", ":"),
-    ).encode("ascii")
-    return hashlib.sha256(payload).hexdigest()
+    return _directory_mapping_token(record.directory_identities)
+
+
+def local_media_directory_from_index(
+    media_path: str,
+    directory_identity_json: str,
+) -> ValidatedLocalMediaDirectory:
+    normalized = normalize_local_media_directory_path(media_path)
+    if normalized is None:
+        raise LocalMediaPathError("invalid indexed media directory")
+    try:
+        raw_identities = json.loads(directory_identity_json)
+        if not isinstance(raw_identities, list):
+            raise ValueError
+        identities = tuple(
+            _MediaScanIdentity(
+                mode=int(values[0]),
+                size=int(values[1]),
+                device=int(values[2]),
+                inode=int(values[3]),
+                modified_ns=int(values[4]),
+                changed_ns=int(values[5]),
+            )
+            for values in raw_identities
+            if isinstance(values, list) and len(values) == 6
+        )
+    except (TypeError, ValueError, json.JSONDecodeError):
+        raise LocalMediaPathError("invalid indexed directory identity") from None
+    parts = (
+        ()
+        if normalized == "/media"
+        else tuple(normalized.removeprefix(LOCAL_MEDIA_PREFIX).split("/"))
+    )
+    if len(identities) != len(parts) + 1 or any(
+        not stat.S_ISDIR(identity.mode) for identity in identities
+    ):
+        raise LocalMediaPathError("invalid indexed directory identity")
+    current = identities[-1]
+    return ValidatedLocalMediaDirectory(
+        media_path=normalized,
+        path=LOCAL_MEDIA_ROOT / PurePosixPath(*parts),
+        root=LOCAL_MEDIA_ROOT,
+        parts=parts,
+        directory_identities=identities,
+        mode=current.mode,
+        device=current.device,
+        inode=current.inode,
+        modified_ns=current.modified_ns,
+        changed_ns=current.changed_ns,
+    )
 
 
 @dataclass(frozen=True)
@@ -1885,9 +1976,13 @@ def _entry_lstat(entry: os.DirEntry[str]) -> os.stat_result:
 def _iter_media_files(
     *,
     include_cleanup_anchors: bool = False,
-) -> tuple[list[_LocalMediaScanCandidate], tuple[LocalMediaScanSkip, ...]]:
+) -> tuple[
+    list[_LocalMediaScanCandidate],
+    tuple[LocalMediaScanSkip, ...],
+    _MediaScanIdentity | None,
+]:
     if not LOCAL_MEDIA_ROOT.exists():
-        return [], ()
+        return [], (), None
     root = _root_for_read()
     files: list[_LocalMediaScanCandidate] = []
     skipped: list[LocalMediaScanSkip] = []
@@ -1898,13 +1993,17 @@ def _iter_media_files(
             root_stat: os.stat_result | None = root.stat(follow_symlinks=False)
         except OSError:
             root_stat = None
-        return files, (
-            _media_scan_skip(
-                path=".",
-                reason="directory_unreadable",
-                extension="",
-                file_stat=root_stat,
+        return (
+            files,
+            (
+                _media_scan_skip(
+                    path=".",
+                    reason="directory_unreadable",
+                    extension="",
+                    file_stat=root_stat,
+                ),
             ),
+            None,
         )
 
     def append_symlink(
@@ -2110,12 +2209,14 @@ def _iter_media_files(
                         file_stat=None,
                     )
                 )
+    root_identity: _MediaScanIdentity | None = None
     try:
         root_stat = os.fstat(root_fd)
+        root_identity = _MediaScanIdentity.from_stat(root_stat)
         walk_directory(
             root_fd,
             (),
-            (_MediaScanIdentity.from_stat(root_stat),),
+            (root_identity,),
             ".",
             "",
             root_stat,
@@ -2135,17 +2236,93 @@ def _iter_media_files(
             key=lambda entry: (entry.path.casefold(), entry.path, entry.reason),
         )
     )
-    return files, ordered_skips
+    return files, ordered_skips, root_identity
 
 
-def scan_local_media(
+def _cached_media_entry_matches(
+    cached: LocalMediaEntry,
+    candidate: _LocalMediaScanCandidate,
     *,
+    media_path: str,
+    relative: str,
+    cleanup_anchor: bool,
+    recovered: bool,
+) -> bool:
+    identity = candidate.file_identity
+    digest = cached.sha256.casefold()
+    valid_digest = len(digest) == 64 and all(
+        character in "0123456789abcdef" for character in digest
+    )
+    content_facts_valid = (
+        cached.available
+        and valid_digest
+        and cached.mime_type in _MIME_BY_FORMAT.values()
+        and not cached.detail
+    ) or (
+        not cached.available
+        and not cached.mime_type
+        and cached.detail == "invalid_image"
+        and (not cached.sha256 or valid_digest)
+    )
+    return (
+        content_facts_valid
+        and cached.media_path == media_path
+        and cached.filename == relative
+        and cached.size == identity.size
+        and cached.is_cleanup_anchor is cleanup_anchor
+        and cached.is_recovered is recovered
+        and cached.mode == identity.mode
+        and cached.device == identity.device
+        and cached.inode == identity.inode
+        and cached.modified_ns == identity.modified_ns
+        and cached.changed_ns == identity.changed_ns
+        and cached.directory_mapping_token
+        == _directory_mapping_token(candidate.directory_identities)
+    )
+
+
+def _entry_with_current_identity(
+    cached: LocalMediaEntry,
+    candidate: _LocalMediaScanCandidate,
+) -> LocalMediaEntry:
+    identity = candidate.file_identity
+    return LocalMediaEntry(
+        media_path=cached.media_path,
+        filename=cached.filename,
+        size=identity.size,
+        sha256=cached.sha256,
+        mime_type=cached.mime_type,
+        available=cached.available,
+        detail=cached.detail,
+        is_cleanup_anchor=cached.is_cleanup_anchor,
+        is_recovered=cached.is_recovered,
+        device=identity.device,
+        inode=identity.inode,
+        modified_ns=identity.modified_ns,
+        changed_ns=identity.changed_ns,
+        mode=identity.mode,
+        directory_mapping_token=_directory_mapping_token(
+            candidate.directory_identities
+        ),
+        directory_identity_json=_directory_identity_json(
+            candidate.directory_identities
+        ),
+    )
+
+
+def scan_local_media_incremental(
+    cached_entries: Mapping[str, LocalMediaEntry] | None = None,
+    *,
+    force_rehash: bool = False,
     include_cleanup_anchors: bool = False,
-) -> LocalMediaScan:
-    files, skipped_entries = _iter_media_files(
+) -> LocalMediaIncrementalScan:
+    files, skipped_entries, root_identity = _iter_media_files(
         include_cleanup_anchors=include_cleanup_anchors,
     )
+    cache = cached_entries or {}
     entries: list[LocalMediaEntry] = []
+    reused_paths: list[str] = []
+    rehashed_paths: list[str] = []
     invalid = 0
     mutable_skipped_entries = list(skipped_entries)
     for candidate in files:
@@ -2158,6 +2335,36 @@ def scan_local_media(
             if stat.S_ISREG(candidate.file_identity.mode)
             else 0
         )
+        cached = cache.get(media_path)
+        if (
+            not force_rehash
+            and cached is not None
+            and _cached_media_entry_matches(
+                cached,
+                candidate,
+                media_path=media_path,
+                relative=relative,
+                cleanup_anchor=cleanup_anchor,
+                recovered=recovered,
+            )
+        ):
+            try:
+                _verify_scan_candidate_mapping(candidate)
+            except (_MediaScanCandidateChanged, LocalMediaPathError, OSError):
+                mutable_skipped_entries.append(
+                    _media_scan_skip_from_identity(
+                        path=candidate.display_path,
+                        reason="entry_error",
+                        extension=_safe_scan_text(candidate.extension),
+                        identity=candidate.file_identity,
+                    )
+                )
+                continue
+            entries.append(_entry_with_current_identity(cached, candidate))
+            reused_paths.append(media_path)
+            if not cached.available:
+                invalid += 1
+            continue
         if (
             not stat.S_ISREG(candidate.file_identity.mode)
             or candidate.file_identity.size > MAX_MEDIA_UPLOAD_BYTES
@@ -2167,7 +2374,7 @@ def scan_local_media(
                 LocalMediaEntry(
                     media_path=media_path,
                     filename=relative,
-                    size=(observed_size if cleanup_anchor or recovered else 0),
+                    size=observed_size,
                     sha256="",
                     mime_type="",
                     available=False,
@@ -2178,6 +2385,13 @@ def scan_local_media(
                     inode=candidate.file_identity.inode,
                     modified_ns=candidate.file_identity.modified_ns,
                     changed_ns=candidate.file_identity.changed_ns,
+                    mode=candidate.file_identity.mode,
+                    directory_mapping_token=_directory_mapping_token(
+                        candidate.directory_identities
+                    ),
+                    directory_identity_json=_directory_identity_json(
+                        candidate.directory_identities
+                    ),
                 )
             )
             continue
@@ -2199,7 +2413,7 @@ def scan_local_media(
                 LocalMediaEntry(
                     media_path=media_path,
                     filename=relative,
-                    size=(observed_size if cleanup_anchor or recovered else 0),
+                    size=observed_size,
                     sha256="",
                     mime_type="",
                     available=False,
@@ -2210,9 +2424,17 @@ def scan_local_media(
                     inode=candidate.file_identity.inode,
                     modified_ns=candidate.file_identity.modified_ns,
                     changed_ns=candidate.file_identity.changed_ns,
+                    mode=candidate.file_identity.mode,
+                    directory_mapping_token=_directory_mapping_token(
+                        candidate.directory_identities
+                    ),
+                    directory_identity_json=_directory_identity_json(
+                        candidate.directory_identities
+                    ),
                 )
             )
             continue
+        rehashed_paths.append(media_path)
         try:
             image_format = _validated_image_format(
                 content,
@@ -2235,6 +2457,13 @@ def scan_local_media(
                     inode=candidate.file_identity.inode,
                     modified_ns=candidate.file_identity.modified_ns,
                     changed_ns=candidate.file_identity.changed_ns,
+                    mode=candidate.file_identity.mode,
+                    directory_mapping_token=_directory_mapping_token(
+                        candidate.directory_identities
+                    ),
+                    directory_identity_json=_directory_identity_json(
+                        candidate.directory_identities
+                    ),
                 )
             )
             continue
@@ -2252,6 +2481,13 @@ def scan_local_media(
                 inode=candidate.file_identity.inode,
                 modified_ns=candidate.file_identity.modified_ns,
                 changed_ns=candidate.file_identity.changed_ns,
+                mode=candidate.file_identity.mode,
+                directory_mapping_token=_directory_mapping_token(
+                    candidate.directory_identities
+                ),
+                directory_identity_json=_directory_identity_json(
+                    candidate.directory_identities
+                ),
             )
         )
     entries.sort(key=lambda entry: entry.filename.casefold())
@@ -2264,17 +2500,37 @@ def scan_local_media(
             key=lambda entry: (entry.path.casefold(), entry.path, entry.reason),
         )
     )
-    return LocalMediaScan(
-        entries=tuple(entries),
-        skipped_symlinks=sum(
-            entry.reason == "symlink" for entry in skipped_entries
-        ),
-        skipped_unsupported=sum(
-            entry.reason != "symlink" for entry in skipped_entries
-        ),
-        invalid=invalid,
-        skipped_entries=skipped_entries,
+    root_token = (
+        _directory_mapping_token((root_identity,))
+        if root_identity is not None
+        else ""
     )
+    return LocalMediaIncrementalScan(
+        scan=LocalMediaScan(
+            entries=tuple(entries),
+            skipped_symlinks=sum(
+                entry.reason == "symlink" for entry in skipped_entries
+            ),
+            skipped_unsupported=sum(
+                entry.reason != "symlink" for entry in skipped_entries
+            ),
+            invalid=invalid,
+            skipped_entries=skipped_entries,
+        ),
+        root_identity=root_token,
+        reused_paths=tuple(reused_paths),
+        rehashed_paths=tuple(rehashed_paths),
+    )
+
+
+def scan_local_media(
+    *,
+    include_cleanup_anchors: bool = False,
+) -> LocalMediaScan:
+    return scan_local_media_incremental(
+        force_rehash=True,
+        include_cleanup_anchors=include_cleanup_anchors,
+    ).scan
 
 
 def _candidate_media_path(candidate: _LocalMediaScanCandidate) -> str:
@@ -2295,7 +2551,7 @@ def _damaged_candidate_for_path(
         basename
     ):
         raise LocalMediaPathError("invalid damaged media target")
-    candidates, _ = _iter_media_files()
+    candidates, _, _ = _iter_media_files()
     for candidate in candidates:
         if _candidate_media_path(candidate) == normalized:
             return candidate

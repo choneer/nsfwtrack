@@ -869,6 +869,8 @@ def _merge_item_sources(
 
 
 def restore_backup_data(db: Session, payload: dict[str, Any]) -> dict[str, int]:
+    from app.services.media_index import invalidate_media_index
+
     rows = _rows_from_payload(payload)
     _validate_preview_rows(rows)
     result = {
@@ -921,4 +923,5 @@ def restore_backup_data(db: Session, payload: dict[str, Any]) -> dict[str, int]:
         _merge_item_activity(db, rows["item_activity"], item_ids, result)
         _merge_app_settings(db, rows["app_settings"], result)
         _merge_item_sources(db, rows["item_sources"], item_ids, result)
+        invalidate_media_index(db, reason="backup_restored")
     return result
