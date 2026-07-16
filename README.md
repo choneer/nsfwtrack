@@ -2,18 +2,19 @@
 
 NSFWTrack is a local single-user content record manager / collection tracker.
 
-Current application version: `v1.0.6 / Phase 4-M3 in Unreleased`.
+Current application version: `v1.0.6 / Phase 4-M4 in Unreleased`.
 
 Current stable version: `v1.0.6 / Phase 3-B1 and B2`.
 
 Latest Release: [NSFWTrack v1.0.6](https://github.com/choneer/nsfwtrack/releases/tag/v1.0.6).
 
-Current status: `v1.0.6 is released; Phase 4-M3 incremental media indexing and the scan center are implemented in Unreleased`.
+Current status: `v1.0.6 is released; Phase 4-M4 media-write coordination and automatic index consistency are implemented in Unreleased`.
 
 Current development: `Phase 3-B1 and B2 are published; Phase 4-A1/A2 and
-M1/M2 are complete, and Phase 4-M3 adds Schema 3, an authenticated scan center,
-signed incremental media snapshots, atomic rebuild, backup invalidation, and
-index-first read pages while application version 1.0.6 stays unchanged`.
+M1/M2/M3 are complete, and Phase 4-M4 serializes every in-app media write and
+manual scan with a secure cross-process lock, then refreshes or invalidates the
+derived index from the actual operation outcome while application version
+1.0.6 stays unchanged`.
 
 N100 deployment: `not started; waits for explicit user authorization`.
 
@@ -77,6 +78,54 @@ HTTP 200. Repair commit `db0048d` is pushed, and GitHub Actions run
 [`29386547600`](https://github.com/choneer/nsfwtrack/actions/runs/29386547600)
 passed both `test` and `Docker production smoke`. No known D1 release blocker
 remains, so the reviewed Unreleased development scope is frozen.
+
+## Phase 4-M4 Media-write Coordination and Index Consistency
+
+Phase 4-M4 adds one cross-process media-operation lock in the fixed application
+data directory. The lock is outside the media root, never derives from request
+input, and is opened relative to a verified directory descriptor. Symlinks,
+directories, special objects, wrong ownership, unsafe permissions, hard-linked
+lock files, and path replacement are rejected. A bounded timeout returns
+`media_busy` before the requested media or business database mutation begins.
+
+Uploads, single rename and move, current-page batch operations, hardlink-alias
+normalization, duplicate and damaged cleanup, recovery, cleanup-anchor and
+upload-residue deletion, and media-root initialization all hold this lock for
+the business operation and its post-operation index handling. Manual
+incremental refresh and confirmed full verification use the same lock, so an
+application scan cannot commit across an in-app media write. GET requests never
+acquire the lock or create its file.
+
+Every operation is classified as `no_filesystem_change`,
+`filesystem_changed_known`, `filesystem_changed_partial_known`, or
+`filesystem_outcome_unknown`. Known and partial-known final states receive one
+incremental refresh after the business transaction; a batch never scans once
+per item. Unknown commit or cleanup outcomes never drive a guessed refresh and
+instead invalidate the old snapshot with `filesystem_outcome_unknown`.
+
+If a completed mutation is followed by a failed refresh, its file and business
+result remain committed while the index is invalidated with
+`post_mutation_refresh_failed`. The UI gives an explicit manual-refresh warning
+and read pages fall back to the FD-safe filesystem scan. Setting, replacing, or
+clearing only a cover/avatar reference does not scan because it changes no
+media path. All original live filesystem, reference, snapshot, POST, and
+confirmation checks remain authoritative; the derived index is never used to
+authorize a write.
+
+The scan center now records whether its latest attempt was manual or followed
+an upload, rename, move, batch, cleanup, recovery, or root initialization.
+There is still no background worker, timer, watcher, network request, new
+dependency, backup-format change, tag, Release, or N100 deployment. Application
+version remains `1.0.6` and Schema remains `3`.
+
+Local M4 acceptance passes `89` focused coordination/rename/move/batch tests,
+`457` core media/index/migration/backup tests, and all `735` tests. `pip check`
+reports no broken requirements. The isolated production image builds and both
+container lifecycles become healthy as UID/GID `10001:10001` with a read-only
+root filesystem. `/login` returns HTTP 200; the private lock remains the same
+regular `0600` UID/GID-10001 file after container removal, can be reacquired,
+and a coordinated write refreshes the persisted index from one to two entries
+with source `post_upload`. Temporary Docker resources are removed afterward.
 
 ## Phase 4-M3 Incremental Media Index and Scan Center
 

@@ -17,6 +17,7 @@ from app.services.media_damaged_cleanup import (
     build_media_damaged_cleanup_preview,
     execute_media_damaged_cleanup,
 )
+from app.services.media_index import load_preferred_media_snapshot
 from app.services.settings import save_app_settings
 
 
@@ -310,6 +311,13 @@ def test_standard_and_strict_confirmation_delete_only_the_selected_file(
     assert other.read_bytes() == b"keep this damaged file"
     assert valid.read_bytes() == _gif_bytes(3)
     assert _database_snapshot() == before_db
+    with SessionLocal() as db:
+        snapshot = load_preferred_media_snapshot(db)
+        assert snapshot.source == "index"
+        assert snapshot.status.last_refresh_source == "post_cleanup"
+        assert _media_path(target, media_root) not in {
+            entry.media_path for entry in snapshot.scan.entries
+        }
 
     strict_target = _write(media_root, "strict.gif", b"strict damaged")
     with SessionLocal() as db:

@@ -11,6 +11,7 @@ from fastapi.testclient import TestClient
 from app.database import SessionLocal
 from app.models import Creator, Item
 from app.services import local_media
+from app.services.media_index import load_preferred_media_snapshot
 from app.services.media_duplicate_cleanup import (
     MediaDuplicateCleanupError,
     execute_media_duplicate_cleanup,
@@ -292,6 +293,13 @@ def test_cleanup_migrates_all_references_before_deleting_only_target_group(
         assert {creator.avatar_path for creator in db.query(Creator).all()} == {
             keeper_path
         }
+        snapshot = load_preferred_media_snapshot(db)
+        assert snapshot.source == "index"
+        assert snapshot.status.last_refresh_source == "post_cleanup"
+        indexed_paths = {entry.media_path for entry in snapshot.scan.entries}
+        assert keeper_path in indexed_paths
+        assert second_path not in indexed_paths
+        assert third_path not in indexed_paths
     assert _anchor_files(media_root) == []
 
 

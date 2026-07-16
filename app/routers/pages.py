@@ -142,6 +142,25 @@ from app.services.media_index import (
     load_preferred_media_snapshot,
     refresh_media_index,
 )
+from app.services.media_operation_lock import (
+    MediaOperationLockError,
+    media_operation_lock,
+)
+from app.services.media_write_coordination import (
+    MediaIndexCoordinationResult,
+    MediaIndexCoordinationStatus,
+    MediaMutationExecutionError,
+    classify_alias_result,
+    classify_batch_result,
+    classify_duplicate_result,
+    classify_known_filesystem_change,
+    classify_media_operation_error,
+    classify_recovery_result,
+    classify_rename_result,
+    classify_upload_result,
+    coordinate_media_mutation,
+    coordinate_media_mutation_async,
+)
 from app.services.media_file_detail import (
     MediaFileDetailError,
     build_media_file_detail,
@@ -530,6 +549,63 @@ def _danger_confirmation_is_valid(
         add_flash(request, "error", f"flash.danger_{exc.code}")
         return False
     return True
+
+
+def _media_operation_lock_error_flash(
+    request: Request,
+    error: MediaOperationLockError,
+) -> None:
+    key = (
+        "flash.media_busy"
+        if error.code == "media_busy"
+        else "flash.media_lock_unavailable"
+    )
+    add_flash(request, "error", key)
+
+
+def _media_index_coordination_flash(
+    request: Request,
+    result: MediaIndexCoordinationResult,
+) -> None:
+    if result.status == MediaIndexCoordinationStatus.NOT_NEEDED:
+        return
+    if result.status == MediaIndexCoordinationStatus.SYNCHRONIZED:
+        add_flash(
+            request,
+            "success",
+            "flash.media_index_post_mutation_synchronized",
+        )
+        return
+    if result.status == MediaIndexCoordinationStatus.INVALIDATED:
+        add_flash(
+            request,
+            "error",
+            "flash.media_index_filesystem_outcome_unknown",
+        )
+        return
+    if result.status == MediaIndexCoordinationStatus.POST_MUTATION_REFRESH_FAILED:
+        add_flash(
+            request,
+            "info",
+            "flash.media_index_post_mutation_refresh_failed",
+        )
+        return
+    add_flash(
+        request,
+        "error",
+        "flash.media_index_invalidation_failed",
+    )
+
+
+def _coordinated_service_error(
+    request: Request,
+    error: MediaMutationExecutionError,
+    expected_type: type[Exception],
+) -> Exception:
+    _media_index_coordination_flash(request, error.index)
+    if not isinstance(error.error, expected_type):
+        raise error.error
+    return error.error
 
 
 def _parse_extra_json(value: str | None) -> dict[str, Any] | None:
@@ -956,15 +1032,35 @@ def media_batch_apply_page(
     ):
         return _redirect(return_url)
     try:
-        result = execute_media_batch(
+        coordinated = coordinate_media_mutation(
             db,
-            operation=operation,
-            snapshot_tokens=snapshot_token,
-            secret_key=get_settings().secret_key,
+            source="post_batch",
+            operation=lambda: execute_media_batch(
+                db,
+                operation=operation,
+                snapshot_tokens=snapshot_token,
+                secret_key=get_settings().secret_key,
+            ),
+            classify_result=classify_batch_result,
+            classify_error=lambda exc: classify_media_operation_error(
+                "batch",
+                exc,
+            ),
         )
-    except MediaBatchError as exc:
+    except MediaOperationLockError as exc:
+        _media_operation_lock_error_flash(request, exc)
+        return _redirect(return_url)
+    except MediaMutationExecutionError as coordinated_error:
+        exc = _coordinated_service_error(
+            request,
+            coordinated_error,
+            MediaBatchError,
+        )
+        assert isinstance(exc, MediaBatchError)
         _media_batch_error_flash(request, exc)
         return _redirect(return_url)
+    result = coordinated.result
+    _media_index_coordination_flash(request, coordinated.index)
     return templates.TemplateResponse(
         request,
         "media_batch_result.html",
@@ -1052,14 +1148,34 @@ def media_alias_normalization_apply_page(
         )
         return _redirect(return_url)
     try:
-        result = execute_media_alias_normalization(
+        coordinated = coordinate_media_mutation(
             db,
-            snapshot_token=snapshot_token,
-            secret_key=get_settings().secret_key,
+            source="post_cleanup",
+            operation=lambda: execute_media_alias_normalization(
+                db,
+                snapshot_token=snapshot_token,
+                secret_key=get_settings().secret_key,
+            ),
+            classify_result=classify_alias_result,
+            classify_error=lambda exc: classify_media_operation_error(
+                "alias",
+                exc,
+            ),
         )
-    except MediaAliasNormalizationError as exc:
+    except MediaOperationLockError as exc:
+        _media_operation_lock_error_flash(request, exc)
+        return _redirect(return_url)
+    except MediaMutationExecutionError as coordinated_error:
+        exc = _coordinated_service_error(
+            request,
+            coordinated_error,
+            MediaAliasNormalizationError,
+        )
+        assert isinstance(exc, MediaAliasNormalizationError)
         _media_alias_normalization_error_flash(request, exc)
         return _redirect(return_url)
+    result = coordinated.result
+    _media_index_coordination_flash(request, coordinated.index)
     return templates.TemplateResponse(
         request,
         "media_alias_normalization_result.html",
@@ -1281,23 +1397,42 @@ def media_file_rename_apply_page(
     ):
         return _redirect(preview_url)
     try:
-        result = execute_media_file_rename(
+        coordinated = coordinate_media_mutation(
             db,
-            media_path=media_path,
-            target_basename=target_basename,
-            expected_sha256=expected_sha256,
-            expected_mode=expected_mode,
-            expected_size=expected_size,
-            expected_device=expected_device,
-            expected_inode=expected_inode,
-            expected_modified_ns=expected_modified_ns,
-            expected_changed_ns=expected_changed_ns,
-            expected_item_reference_ids=item_reference_id,
-            expected_creator_reference_ids=creator_reference_id,
+            source="post_rename",
+            operation=lambda: execute_media_file_rename(
+                db,
+                media_path=media_path,
+                target_basename=target_basename,
+                expected_sha256=expected_sha256,
+                expected_mode=expected_mode,
+                expected_size=expected_size,
+                expected_device=expected_device,
+                expected_inode=expected_inode,
+                expected_modified_ns=expected_modified_ns,
+                expected_changed_ns=expected_changed_ns,
+                expected_item_reference_ids=item_reference_id,
+                expected_creator_reference_ids=creator_reference_id,
+            ),
+            classify_result=classify_rename_result,
+            classify_error=lambda exc: classify_media_operation_error(
+                "rename",
+                exc,
+            ),
         )
-    except MediaFileRenameError as exc:
+    except MediaOperationLockError as exc:
+        _media_operation_lock_error_flash(request, exc)
+        return _media_file_rename_error_redirect(media_path, return_url)
+    except MediaMutationExecutionError as coordinated_error:
+        exc = _coordinated_service_error(
+            request,
+            coordinated_error,
+            MediaFileRenameError,
+        )
+        assert isinstance(exc, MediaFileRenameError)
         _media_file_rename_error_flash(request, exc)
         return _media_file_rename_error_redirect(media_path, return_url)
+    result = coordinated.result
 
     if result.warning_code != "commit_outcome_unknown":
         add_flash(
@@ -1334,6 +1469,7 @@ def media_file_rename_apply_page(
             source=result.source_path,
             target=result.target_path,
         )
+    _media_index_coordination_flash(request, coordinated.index)
     detail_path = (
         result.source_path
         if result.warning_code == "commit_outcome_unknown"
@@ -1429,26 +1565,45 @@ def media_file_move_apply_page(
     ):
         return _redirect(preview_url)
     try:
-        result = execute_media_file_rename(
+        coordinated = coordinate_media_mutation(
             db,
-            media_path=media_path,
-            target_directory=target_directory,
-            target_basename=target_basename,
-            expected_sha256=expected_sha256,
-            expected_mode=expected_mode,
-            expected_size=expected_size,
-            expected_device=expected_device,
-            expected_inode=expected_inode,
-            expected_modified_ns=expected_modified_ns,
-            expected_changed_ns=expected_changed_ns,
-            expected_source_directory_token=expected_source_directory_token,
-            expected_target_directory_token=expected_target_directory_token,
-            expected_item_reference_ids=item_reference_id,
-            expected_creator_reference_ids=creator_reference_id,
+            source="post_move",
+            operation=lambda: execute_media_file_rename(
+                db,
+                media_path=media_path,
+                target_directory=target_directory,
+                target_basename=target_basename,
+                expected_sha256=expected_sha256,
+                expected_mode=expected_mode,
+                expected_size=expected_size,
+                expected_device=expected_device,
+                expected_inode=expected_inode,
+                expected_modified_ns=expected_modified_ns,
+                expected_changed_ns=expected_changed_ns,
+                expected_source_directory_token=expected_source_directory_token,
+                expected_target_directory_token=expected_target_directory_token,
+                expected_item_reference_ids=item_reference_id,
+                expected_creator_reference_ids=creator_reference_id,
+            ),
+            classify_result=classify_rename_result,
+            classify_error=lambda exc: classify_media_operation_error(
+                "move",
+                exc,
+            ),
         )
-    except MediaFileRenameError as exc:
+    except MediaOperationLockError as exc:
+        _media_operation_lock_error_flash(request, exc)
+        return _media_file_rename_error_redirect(media_path, return_url)
+    except MediaMutationExecutionError as coordinated_error:
+        exc = _coordinated_service_error(
+            request,
+            coordinated_error,
+            MediaFileRenameError,
+        )
+        assert isinstance(exc, MediaFileRenameError)
         _media_file_move_error_flash(request, exc)
         return _media_file_rename_error_redirect(media_path, return_url)
+    result = coordinated.result
 
     if result.warning_code != "commit_outcome_unknown":
         add_flash(
@@ -1485,6 +1640,7 @@ def media_file_move_apply_page(
             source=result.source_path,
             target=result.target_path,
         )
+    _media_index_coordination_flash(request, coordinated.index)
     detail_path = (
         result.source_path
         if result.warning_code == "commit_outcome_unknown"
@@ -1862,23 +2018,42 @@ def media_cleanup_restore_page(
     ):
         return _redirect(preview_url)
     try:
-        result = execute_media_cleanup_restore(
+        coordinated = coordinate_media_mutation(
             db,
-            media_path=media_path,
-            sha256=sha256,
-            expected_size=expected_size,
-            expected_device=expected_device,
-            expected_inode=expected_inode,
-            expected_modified_ns=expected_modified_ns,
-            expected_changed_ns=expected_changed_ns,
+            source="post_recovery",
+            operation=lambda: execute_media_cleanup_restore(
+                db,
+                media_path=media_path,
+                sha256=sha256,
+                expected_size=expected_size,
+                expected_device=expected_device,
+                expected_inode=expected_inode,
+                expected_modified_ns=expected_modified_ns,
+                expected_changed_ns=expected_changed_ns,
+            ),
+            classify_result=classify_recovery_result,
+            classify_error=lambda exc: classify_media_operation_error(
+                "recovery",
+                exc,
+            ),
         )
-    except MediaCleanupRestoreError as exc:
+    except MediaOperationLockError as exc:
+        _media_operation_lock_error_flash(request, exc)
+        return _redirect("/media-library/recovery")
+    except MediaMutationExecutionError as coordinated_error:
+        exc = _coordinated_service_error(
+            request,
+            coordinated_error,
+            MediaCleanupRestoreError,
+        )
+        assert isinstance(exc, MediaCleanupRestoreError)
         add_flash(
             request,
             "error",
             f"flash.media_cleanup_restore_{exc.code}",
         )
         return _redirect("/media-library/recovery")
+    result = coordinated.result
     add_flash(
         request,
         "success",
@@ -1902,6 +2077,7 @@ def media_cleanup_restore_page(
             "flash.media_cleanup_restore_anchor_warning",
             code=result.anchor_removal_code,
         )
+    _media_index_coordination_flash(request, coordinated.index)
     return _redirect("/media-library/recovery")
 
 
@@ -1974,23 +2150,42 @@ def media_cleanup_delete_page(
     ):
         return _redirect(preview_url)
     try:
-        result = execute_media_cleanup_delete(
+        coordinated = coordinate_media_mutation(
             db,
-            media_path=media_path,
-            sha256=sha256,
-            expected_size=expected_size,
-            expected_device=expected_device,
-            expected_inode=expected_inode,
-            expected_modified_ns=expected_modified_ns,
-            expected_changed_ns=expected_changed_ns,
+            source="post_cleanup",
+            operation=lambda: execute_media_cleanup_delete(
+                db,
+                media_path=media_path,
+                sha256=sha256,
+                expected_size=expected_size,
+                expected_device=expected_device,
+                expected_inode=expected_inode,
+                expected_modified_ns=expected_modified_ns,
+                expected_changed_ns=expected_changed_ns,
+            ),
+            classify_result=classify_known_filesystem_change,
+            classify_error=lambda exc: classify_media_operation_error(
+                "anchor_delete",
+                exc,
+            ),
         )
-    except MediaCleanupDeleteError as exc:
+    except MediaOperationLockError as exc:
+        _media_operation_lock_error_flash(request, exc)
+        return _redirect("/media-library/recovery")
+    except MediaMutationExecutionError as coordinated_error:
+        exc = _coordinated_service_error(
+            request,
+            coordinated_error,
+            MediaCleanupDeleteError,
+        )
+        assert isinstance(exc, MediaCleanupDeleteError)
         add_flash(
             request,
             "error",
             f"flash.media_cleanup_delete_{exc.code}",
         )
         return _redirect("/media-library/recovery")
+    result = coordinated.result
     add_flash(
         request,
         "success",
@@ -2005,6 +2200,7 @@ def media_cleanup_delete_page(
             "flash.media_cleanup_delete_warning",
             code=result.warning_code,
         )
+    _media_index_coordination_flash(request, coordinated.index)
     return _redirect("/media-library/recovery")
 
 
@@ -2156,7 +2352,16 @@ def media_index_refresh_page(
     db: Session = Depends(get_db),
 ) -> RedirectResponse:
     try:
-        result = refresh_media_index(db, full=False)
+        with media_operation_lock() as operation_lock:
+            operation_lock.verify()
+            result = refresh_media_index(
+                db,
+                full=False,
+                refresh_source="manual_incremental",
+            )
+            operation_lock.verify()
+    except MediaOperationLockError as exc:
+        _media_operation_lock_error_flash(request, exc)
     except MediaIndexError as exc:
         add_flash(request, "error", f"flash.media_index_{exc.code}")
     else:
@@ -2204,7 +2409,16 @@ def media_index_rebuild_page(
     ):
         return _redirect("/media-library/index/rebuild")
     try:
-        result = refresh_media_index(db, full=True)
+        with media_operation_lock() as operation_lock:
+            operation_lock.verify()
+            result = refresh_media_index(
+                db,
+                full=True,
+                refresh_source="manual_full",
+            )
+            operation_lock.verify()
+    except MediaOperationLockError as exc:
+        _media_operation_lock_error_flash(request, exc)
     except MediaIndexError as exc:
         add_flash(request, "error", f"flash.media_index_{exc.code}")
     else:
@@ -2290,15 +2504,35 @@ def media_duplicate_cleanup_apply_page(
     ):
         return _redirect(preview_url)
     try:
-        result = execute_media_duplicate_cleanup(
+        coordinated = coordinate_media_mutation(
             db,
-            sha256=sha256,
-            keeper_path=keeper_path,
-            expected_member_paths=member_path,
+            source="post_cleanup",
+            operation=lambda: execute_media_duplicate_cleanup(
+                db,
+                sha256=sha256,
+                keeper_path=keeper_path,
+                expected_member_paths=member_path,
+            ),
+            classify_result=classify_duplicate_result,
+            classify_error=lambda exc: classify_media_operation_error(
+                "duplicate",
+                exc,
+            ),
         )
-    except MediaDuplicateCleanupError as exc:
+    except MediaOperationLockError as exc:
+        _media_operation_lock_error_flash(request, exc)
+        return _redirect("/media-library/duplicates")
+    except MediaMutationExecutionError as coordinated_error:
+        exc = _coordinated_service_error(
+            request,
+            coordinated_error,
+            MediaDuplicateCleanupError,
+        )
+        assert isinstance(exc, MediaDuplicateCleanupError)
         _media_duplicate_cleanup_error_flash(request, exc)
         return _redirect("/media-library/duplicates")
+    result = coordinated.result
+    _media_index_coordination_flash(request, coordinated.index)
     return templates.TemplateResponse(
         request,
         "media_duplicate_cleanup_result.html",
@@ -2321,12 +2555,31 @@ async def media_library_upload_page(
     media_q: str | None = Form(default=None),
     media_status: str | None = Form(default=None),
     media_sort: str | None = Form(default=None),
+    db: Session = Depends(get_db),
 ) -> RedirectResponse:
     try:
-        result = await store_media_uploads(files or [])
-    except LocalMediaUploadError as exc:
+        coordinated = await coordinate_media_mutation_async(
+            db,
+            source="post_upload",
+            operation=lambda: store_media_uploads(files or []),
+            classify_result=classify_upload_result,
+            classify_error=lambda exc: classify_media_operation_error(
+                "upload",
+                exc,
+            ),
+        )
+    except MediaOperationLockError as exc:
+        _media_operation_lock_error_flash(request, exc)
+    except MediaMutationExecutionError as coordinated_error:
+        exc = _coordinated_service_error(
+            request,
+            coordinated_error,
+            LocalMediaUploadError,
+        )
+        assert isinstance(exc, LocalMediaUploadError)
         add_flash(request, "error", f"flash.media_{exc.code}")
     else:
+        result = coordinated.result
         add_flash(
             request,
             "success",
@@ -2334,6 +2587,7 @@ async def media_library_upload_page(
             uploaded=result.uploaded,
             duplicate=result.duplicate,
         )
+        _media_index_coordination_flash(request, coordinated.index)
     return _media_library_redirect(
         match_page=match_page,
         create_page=create_page,
@@ -3384,15 +3638,33 @@ def media_root_initialize_page(
     ):
         return _redirect("/data-health/media-root")
     try:
-        result = execute_media_root_initialization(
+        coordinated = coordinate_media_mutation(
             db,
-            expected_size=expected_size,
-            expected_device=expected_device,
-            expected_inode=expected_inode,
-            expected_modified_ns=expected_modified_ns,
-            expected_changed_ns=expected_changed_ns,
+            source="post_root_init",
+            operation=lambda: execute_media_root_initialization(
+                db,
+                expected_size=expected_size,
+                expected_device=expected_device,
+                expected_inode=expected_inode,
+                expected_modified_ns=expected_modified_ns,
+                expected_changed_ns=expected_changed_ns,
+            ),
+            classify_result=classify_known_filesystem_change,
+            classify_error=lambda exc: classify_media_operation_error(
+                "root_init",
+                exc,
+            ),
         )
-    except MediaRootDiagnosticError as exc:
+    except MediaOperationLockError as exc:
+        _media_operation_lock_error_flash(request, exc)
+        return _redirect("/data-health/media-root")
+    except MediaMutationExecutionError as coordinated_error:
+        exc = _coordinated_service_error(
+            request,
+            coordinated_error,
+            MediaRootDiagnosticError,
+        )
+        assert isinstance(exc, MediaRootDiagnosticError)
         add_flash(
             request,
             "info" if exc.created else "error",
@@ -3404,6 +3676,7 @@ def media_root_initialize_page(
             code=exc.code,
         )
         return _redirect("/data-health/media-root")
+    result = coordinated.result
     add_flash(
         request,
         "success",
@@ -3417,6 +3690,7 @@ def media_root_initialize_page(
             "flash.media_root_initialization_warning",
             code=result.warning_code,
         )
+    _media_index_coordination_flash(request, coordinated.index)
     return _redirect("/data-health")
 
 
@@ -3490,23 +3764,42 @@ def media_damaged_cleanup_page(
     ):
         return _redirect(preview_url)
     try:
-        result = execute_media_damaged_cleanup(
+        coordinated = coordinate_media_mutation(
             db,
-            media_path=media_path,
-            sha256=sha256,
-            expected_size=expected_size,
-            expected_device=expected_device,
-            expected_inode=expected_inode,
-            expected_modified_ns=expected_modified_ns,
-            expected_changed_ns=expected_changed_ns,
+            source="post_cleanup",
+            operation=lambda: execute_media_damaged_cleanup(
+                db,
+                media_path=media_path,
+                sha256=sha256,
+                expected_size=expected_size,
+                expected_device=expected_device,
+                expected_inode=expected_inode,
+                expected_modified_ns=expected_modified_ns,
+                expected_changed_ns=expected_changed_ns,
+            ),
+            classify_result=classify_known_filesystem_change,
+            classify_error=lambda exc: classify_media_operation_error(
+                "damaged",
+                exc,
+            ),
         )
-    except MediaDamagedCleanupError as exc:
+    except MediaOperationLockError as exc:
+        _media_operation_lock_error_flash(request, exc)
+        return _redirect("/data-health")
+    except MediaMutationExecutionError as coordinated_error:
+        exc = _coordinated_service_error(
+            request,
+            coordinated_error,
+            MediaDamagedCleanupError,
+        )
+        assert isinstance(exc, MediaDamagedCleanupError)
         add_flash(
             request,
             "error",
             f"flash.media_damaged_cleanup_{exc.code}",
         )
         return _redirect("/data-health")
+    result = coordinated.result
     add_flash(
         request,
         "success",
@@ -3521,6 +3814,7 @@ def media_damaged_cleanup_page(
             "flash.media_damaged_cleanup_warning",
             code=result.warning_code,
         )
+    _media_index_coordination_flash(request, coordinated.index)
     return _redirect("/data-health")
 
 
@@ -3587,22 +3881,41 @@ def media_upload_residue_cleanup_page(
     ):
         return _redirect(preview_url)
     try:
-        result = execute_media_upload_residue_cleanup(
+        coordinated = coordinate_media_mutation(
             db,
-            residue_path=residue_path,
-            expected_size=expected_size,
-            expected_device=expected_device,
-            expected_inode=expected_inode,
-            expected_modified_ns=expected_modified_ns,
-            expected_changed_ns=expected_changed_ns,
+            source="post_cleanup",
+            operation=lambda: execute_media_upload_residue_cleanup(
+                db,
+                residue_path=residue_path,
+                expected_size=expected_size,
+                expected_device=expected_device,
+                expected_inode=expected_inode,
+                expected_modified_ns=expected_modified_ns,
+                expected_changed_ns=expected_changed_ns,
+            ),
+            classify_result=classify_known_filesystem_change,
+            classify_error=lambda exc: classify_media_operation_error(
+                "residue_delete",
+                exc,
+            ),
         )
-    except MediaUploadResidueCleanupError as exc:
+    except MediaOperationLockError as exc:
+        _media_operation_lock_error_flash(request, exc)
+        return _redirect("/data-health")
+    except MediaMutationExecutionError as coordinated_error:
+        exc = _coordinated_service_error(
+            request,
+            coordinated_error,
+            MediaUploadResidueCleanupError,
+        )
+        assert isinstance(exc, MediaUploadResidueCleanupError)
         add_flash(
             request,
             "error",
             f"flash.media_upload_residue_cleanup_{exc.code}",
         )
         return _redirect("/data-health")
+    result = coordinated.result
     add_flash(
         request,
         "success",
@@ -3617,6 +3930,7 @@ def media_upload_residue_cleanup_page(
             "flash.media_upload_residue_cleanup_warning",
             code=result.warning_code,
         )
+    _media_index_coordination_flash(request, coordinated.index)
     return _redirect("/data-health")
 
 

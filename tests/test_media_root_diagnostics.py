@@ -14,6 +14,7 @@ from app.database import SessionLocal, engine
 from app.models import Creator, Item
 from app.services import local_media, media_root_diagnostics
 from app.services.data_health import build_data_health_report
+from app.services.media_index import load_preferred_media_snapshot
 from app.services.media_root_diagnostics import (
     MediaRootDiagnosticError,
     build_media_root_diagnostic,
@@ -27,7 +28,7 @@ def configured_root(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> Generator[tuple[Path, Path], None, None]:
-    base = Path("data") / f"c5-{tmp_path.name}"
+    base = Path(f".nsfwtrack-root-test-{tmp_path.name}")
     if base.exists() or base.is_symlink():
         if base.is_symlink():
             base.unlink()
@@ -340,6 +341,10 @@ def test_standard_initialization_creates_only_empty_root_and_keeps_references(
     assert _database_snapshot() == before_db
     with SessionLocal() as db:
         report = build_data_health_report(db)
+        snapshot = load_preferred_media_snapshot(db)
+        assert snapshot.source == "index"
+        assert snapshot.status.last_refresh_source == "post_root_init"
+        assert snapshot.scan.entries == ()
     codes = {issue.code for issue in report.issues}
     assert "media_root_unavailable" not in codes
     assert "media_reference_missing" in codes

@@ -16,6 +16,7 @@ from app.services.media_cleanup_restore import (
     build_media_cleanup_restore_preview,
     execute_media_cleanup_restore,
 )
+from app.services.media_index import load_preferred_media_snapshot
 from app.services.settings import save_app_settings
 
 
@@ -201,6 +202,12 @@ def test_confirmed_restore_migrates_all_references_without_overwrite(
         }
         assert db.query(Item).filter(Item.cover_path == media_path).count() == 0
         assert db.query(Creator).filter(Creator.avatar_path == media_path).count() == 0
+        snapshot = load_preferred_media_snapshot(db)
+        assert snapshot.source == "index"
+        assert snapshot.status.last_refresh_source == "post_recovery"
+        assert recovered_path in {
+            entry.media_path for entry in snapshot.scan.entries
+        }
 
 
 def test_strict_restore_requires_exact_confirm_and_unreferenced_anchor_succeeds(

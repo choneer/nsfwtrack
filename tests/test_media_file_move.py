@@ -16,6 +16,7 @@ from app.services.media_file_rename import (
     build_media_file_rename_preview,
     execute_media_file_rename,
 )
+from app.services.media_index import load_preferred_media_snapshot
 from app.services.settings import save_app_settings
 
 
@@ -156,6 +157,13 @@ def test_move_preview_and_apply_migrate_every_reference_without_overwrite(
         ("/media/target/nested/Moved.gif",) * 2,
         ("/media/target/nested/Moved.gif",) * 2,
     )
+    with SessionLocal() as db:
+        snapshot = load_preferred_media_snapshot(db)
+        assert snapshot.source == "index"
+        assert snapshot.status.last_refresh_source == "post_move"
+        indexed_paths = {entry.media_path for entry in snapshot.scan.entries}
+        assert source_path not in indexed_paths
+        assert indexed_paths == {"/media/target/nested/Moved.gif"}
     assert "directory%3D%252Fmedia%252Fsource" in response.headers["location"]
 
 

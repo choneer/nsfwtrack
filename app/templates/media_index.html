@@ -38,6 +38,7 @@
     <dt>{{ t("media_index.root_identity") }}</dt><dd><code>{{ index_status.current_media_root_identity or t("common.none") }}</code></dd>
     <dt>{{ t("media_index.last_incremental") }}</dt><dd>{{ index_status.last_incremental_scan_at or t("common.none") }}</dd>
     <dt>{{ t("media_index.last_full") }}</dt><dd>{{ index_status.last_full_verification_at or t("common.none") }}</dd>
+    <dt>{{ t("media_index.last_source") }}</dt><dd>{% if index_status.last_refresh_source %}{{ t("media_index.source_" ~ index_status.last_refresh_source) }}{% else %}{{ t("common.none") }}{% endif %}</dd>
     <dt>{{ t("media_index.last_result") }}</dt><dd>{{ t("media_index.result_" ~ index_status.last_scan_result) }}</dd>
     <dt>{{ t("media_index.last_duration") }}</dt><dd>{{ index_status.duration_ms }} ms</dd>
     <dt>{{ t("media_index.last_error") }}</dt><dd>{{ index_status.last_scan_error or t("common.none") }}</dd>

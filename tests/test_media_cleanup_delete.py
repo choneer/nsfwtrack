@@ -17,6 +17,7 @@ from app.services.media_cleanup_delete import (
     build_media_cleanup_delete_preview,
     execute_media_cleanup_delete,
 )
+from app.services.media_index import load_preferred_media_snapshot
 from app.services.settings import save_app_settings
 
 
@@ -195,6 +196,9 @@ def test_confirmed_delete_removes_only_target_fsyncs_directory_and_updates_audit
     assert target_path not in auth_client.get("/media-library/recovery").text
     with SessionLocal() as db:
         report = build_data_health_report(db)
+        snapshot = load_preferred_media_snapshot(db)
+        assert snapshot.source == "index"
+        assert snapshot.status.last_refresh_source == "post_cleanup"
     assert target_path not in {issue.object_id for issue in report.issues}
     assert _media_path(other, media_root) in {
         issue.object_id for issue in report.issues

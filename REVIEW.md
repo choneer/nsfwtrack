@@ -29,6 +29,26 @@
 - [ ] **12. 日志是否脱敏** — 没有打印密码、cookie、token
 - [ ] **12.1. 备份恢复是否安全** — 是否要求登录、只处理本地上传文件、不从 URL 恢复、失败时不破坏现有数据库
 
+## Phase 4-M4 媒体写入协调与索引一致性检查
+
+- [x] **12.M4.1. 固定锁位置** — 锁是否只位于固定应用数据目录，不由请求参数控制、不位于媒体根，GET 是否不取锁也不创建文件
+- [x] **12.M4.2. 锁对象安全** — 是否通过安全目录 FD、`O_NOFOLLOW`、普通文件、当前 owner、`0600`、单链接和映射复核拒绝 symlink、目录、FIFO、硬链接、宽权限与对象替换
+- [x] **12.M4.3. 跨进程与超时** — 是否使用跨进程互斥和有界等待，`media_busy` 是否发生在目标媒体及业务数据库变化前，异常与取消路径是否释放 FD / flock
+- [x] **12.M4.4. 完整写入口** — upload、rename、move、batch、alias、duplicate、damaged、recovery、anchor delete、residue delete 与 root init 是否全部使用统一协调器
+- [x] **12.M4.5. 扫描互斥** — 手动 incremental 和 confirmed full rebuild 是否使用同一把锁，扫描提交与应用媒体写提交是否不能交叉
+- [x] **12.M4.6. 事务顺序** — 写后刷新是否只在业务操作及其事务结束后开始，同时仍位于同一媒体锁生命周期内
+- [x] **12.M4.7. 统一结果分类** — 四种 outcome 是否精确存在，known / partial-known 是否按真实最终状态刷新，no-change 是否不刷新不失效
+- [x] **12.M4.8. Batch 单次刷新** — 多项成功或部分成功是否均在全部项目结束后最多刷新一次，索引是否匹配磁盘最终路径
+- [x] **12.M4.9. Unknown 处理** — commit unknown、独立复核失败、删除 / 清理不确定和操作期锁替换是否禁止猜测刷新并失效旧索引
+- [x] **12.M4.10. 写后刷新失败** — 业务结果是否保留，索引是否标记 `post_mutation_refresh_failed`，页面是否明确警告并安全降级 filesystem
+- [x] **12.M4.11. 纯引用零扫描** — set / replace / clear cover/avatar 是否不进入媒体协调器，不刷新、不创建锁文件
+- [x] **12.M4.12. 授权边界** — 所有写操作是否仍以实时 FD 文件身份、目录映射、引用、签名预览、POST 和确认复核为准，索引是否从不授权写入
+- [x] **12.M4.13. 状态与 i18n** — 扫描中心是否显示全部 manual / post-mutation 来源、失败原因和 unknown 失效状态，中英文 key 是否对称
+- [x] **12.M4.14. Docker 持久化** — CI 是否验证 `0600` 普通锁文件、UID/GID 10001、媒体根外位置、容器重建后重获锁与有效自动刷新索引
+- [x] **12.M4.15. 本地最终验收** — 专项 89、协调 17、核心组合 457、全量 735、pip check 与隔离 Docker build / 双生命周期 healthy / login 200 / 锁持久化重获 / 自动索引刷新均通过；临时资源已清理且既有 `data/` 文件未改变
+- [ ] **12.M4.16. 远端最终验收** — 实现是否提交推送且 GitHub Actions test / Docker production smoke 均成功
+- [x] **12.M4.17. 范围保持** — 是否保持版本 1.0.6、Schema 3、依赖和备份格式，不增加后台任务、监听、网络、AI、tag、Release 或 N100 部署
+
 ## Phase 4-M3 增量媒体索引检查
 
 - [x] **12.M3.1. Schema 迁移** — 是否只有正式连续的 2 → 3 MigrationStep，dry-run 零写入，precheck / postcheck 完整，失败时 DDL、DML 与版本记录整链回滚

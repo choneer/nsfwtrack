@@ -11,6 +11,7 @@ from sqlalchemy import event, select
 from app.database import SessionLocal, engine
 from app.models import Creator, Item
 from app.services import local_media
+from app.services.media_index import load_preferred_media_snapshot
 from app.services.settings import save_app_settings
 
 
@@ -119,6 +120,13 @@ def test_alias_normalization_route_preview_is_write_free_and_applies_exact_group
     with SessionLocal() as db:
         assert tuple(db.scalars(select(Item.cover_path)).all()) == (paths[0],)
         assert tuple(db.scalars(select(Creator.avatar_path)).all()) == (paths[0],)
+        snapshot = load_preferred_media_snapshot(db)
+        assert snapshot.source == "index"
+        assert snapshot.status.last_refresh_source == "post_cleanup"
+        assert {entry.media_path for entry in snapshot.scan.entries} == {
+            paths[0],
+            "/media/four/Independent.gif",
+        }
 
 
 def test_alias_normalization_requires_login_exact_confirm_and_valid_token(

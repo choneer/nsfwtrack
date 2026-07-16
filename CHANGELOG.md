@@ -4,6 +4,29 @@
 
 ### Added
 
+- Added a fixed application-data-directory media-operation lock shared by all
+  in-app media writes, manual incremental scans, and confirmed full rebuilds.
+  It uses cross-process `flock`, bounded acquisition, directory-relative secure
+  opening, `O_NOFOLLOW`, ownership/mode/link-count checks, and mapping
+  revalidation; symlinks, directories, special objects, unsafe permissions,
+  hard links, and replaced lock objects fail closed.
+- Added unified post-mutation outcomes: `no_filesystem_change`,
+  `filesystem_changed_known`, `filesystem_changed_partial_known`, and
+  `filesystem_outcome_unknown`. Known final states receive one incremental
+  refresh after the business transaction while the same operation lock remains
+  held; unknown outcomes invalidate the old index without a guessed refresh.
+- Added automatic index synchronization for upload, rename, move, batch,
+  hardlink-alias normalization, duplicate/damaged cleanup, recovery,
+  cleanup-anchor and upload-residue deletion, and media-root initialization.
+  Multi-item batches refresh at most once and pure cover/avatar reference
+  changes do not scan.
+- Added persisted refresh-source status for manual scans and post-upload,
+  post-rename, post-move, post-batch, post-cleanup, post-recovery, and
+  post-root-initialization refreshes, with matching Chinese and English scan
+  center labels and operation-result messages.
+- Added Docker smoke coverage for the private regular lock file, non-root
+  ownership, lock reacquisition after container recreation, and a coordinated
+  post-write index refresh that remains valid on the persisted data mount.
 - Added Schema 3 rebuildable `media_index_entries` and singleton
   `media_index_state` tables. The real 2 → 3 migration has read-only dry-run,
   precheck, postcheck, transactional version recording, and an empty invalid
@@ -157,6 +180,16 @@
 
 ### Fixed
 
+- A successful media mutation whose follow-up scan fails now keeps its business
+  result, invalidates the old snapshot with `post_mutation_refresh_failed`,
+  warns the user explicitly, and makes read pages fall back to the filesystem.
+- Commit-unknown, independent-verification, ambiguous cleanup, and lock-object
+  replacement outcomes no longer leave an old index marked valid or attempt a
+  speculative path update. Lock timeout is reported before media or business
+  database changes begin.
+- Media mutation and manual scan commits can no longer overlap across app
+  processes. Existing live file identity, directory mapping, reference,
+  signed-preview, POST, and confirmation validation remains the write authority.
 - Added stable directory-mapping snapshots for multi-item execution. Directory
   timestamp changes caused by an earlier completed item do not stale later
   items, while replaced root/parent mappings still reject the affected item.

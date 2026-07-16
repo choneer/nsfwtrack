@@ -9,7 +9,8 @@ from sqlalchemy import event, select
 
 from app.database import SessionLocal, engine
 from app.models import Creator, Item
-from app.services import local_media
+from app.services import local_media, media_write_coordination
+from app.services.media_index import load_preferred_media_snapshot
 from app.services.settings import save_app_settings
 
 
@@ -118,6 +119,19 @@ def test_batch_routes_preview_without_writes_and_report_each_result(
     assert before == {first: first.read_bytes(), second: second.read_bytes()}
     assert not list((root / "target").iterdir())
 
+    refresh_calls = 0
+    original_refresh = media_write_coordination.refresh_media_index
+
+    def counted_refresh(*args: object, **kwargs: object) -> object:
+        nonlocal refresh_calls
+        refresh_calls += 1
+        return original_refresh(*args, **kwargs)
+
+    monkeypatch.setattr(
+        media_write_coordination,
+        "refresh_media_index",
+        counted_refresh,
+    )
     result = auth_client.post(
         "/media-library/batch/move",
         data={
@@ -128,6 +142,7 @@ def test_batch_routes_preview_without_writes_and_report_each_result(
     )
 
     assert result.status_code == 200
+    assert refresh_calls == 1
     assert result.text.count('data-batch-result-status="success"') == 2
     assert not first.exists() and not second.exists()
     assert (root / "target" / "Moved-First.gif").read_bytes() == _gif_bytes(1)
@@ -136,6 +151,90 @@ def test_batch_routes_preview_without_writes_and_report_each_result(
         ("/media/target/Moved-First.gif",),
         ("/media/target/Moved-Second.gif",),
     )
+    with SessionLocal() as db:
+        snapshot = load_preferred_media_snapshot(db)
+        assert snapshot.source == "index"
+        assert snapshot.status.last_refresh_source == "post_batch"
+        assert {entry.media_path for entry in snapshot.scan.entries} == {
+            "/media/target/Moved-First.gif",
+            "/media/target/Moved-Second.gif",
+        }
+
+
+def test_batch_partial_success_refreshes_actual_final_state_once(
+    auth_client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "media"
+    first = _write_gif(root, "source/First.gif", 10)
+    second = _write_gif(root, "source/Second.gif", 11)
+    (root / "target").mkdir()
+    paths = ["/media/source/First.gif", "/media/source/Second.gif"]
+    with SessionLocal() as db:
+        db.add_all(
+            [
+                Item(title="First", cover_path=paths[0]),
+                Item(title="Second", cover_path=paths[1]),
+            ]
+        )
+        db.commit()
+    monkeypatch.setattr(local_media, "LOCAL_MEDIA_ROOT", root)
+    prepared = auth_client.get(
+        "/media-library/batch/move",
+        params=[
+            ("media_path", paths[0]),
+            ("media_path", paths[1]),
+            ("target_directory", "/media/target"),
+            ("target_basename", "Moved-First.gif"),
+            ("target_basename", "Moved-Second.gif"),
+            ("prepared", "1"),
+            ("next", "/media-library"),
+        ],
+    )
+    tokens = _snapshot_tokens(prepared.text)
+    assert len(tokens) == 2
+
+    second.unlink()
+    second.write_bytes(_gif_bytes(99))
+    refresh_calls = 0
+    original_refresh = media_write_coordination.refresh_media_index
+
+    def counted_refresh(*args: object, **kwargs: object) -> object:
+        nonlocal refresh_calls
+        refresh_calls += 1
+        return original_refresh(*args, **kwargs)
+
+    monkeypatch.setattr(
+        media_write_coordination,
+        "refresh_media_index",
+        counted_refresh,
+    )
+    result = auth_client.post(
+        "/media-library/batch/move",
+        data={"snapshot_token": tokens, "next": "/media-library", "confirm": "1"},
+    )
+
+    assert result.status_code == 200
+    assert result.text.count('data-batch-result-status="success"') == 1
+    assert result.text.count('data-batch-result-status="failed"') == 1
+    assert refresh_calls == 1
+    assert not first.exists()
+    assert (root / "target" / "Moved-First.gif").read_bytes() == _gif_bytes(10)
+    assert second.read_bytes() == _gif_bytes(99)
+    assert not (root / "target" / "Moved-Second.gif").exists()
+    assert _database_paths()[0] == (
+        "/media/target/Moved-First.gif",
+        "/media/source/Second.gif",
+    )
+    with SessionLocal() as db:
+        snapshot = load_preferred_media_snapshot(db)
+        assert snapshot.source == "index"
+        assert snapshot.status.last_refresh_source == "post_batch"
+        assert {entry.media_path for entry in snapshot.scan.entries} == {
+            "/media/target/Moved-First.gif",
+            "/media/source/Second.gif",
+        }
 
 
 def test_batch_route_rejects_anonymous_outside_page_and_forged_snapshot(

@@ -21,6 +21,19 @@ from app.services import local_media
 
 MEDIA_INDEX_FORMAT_VERSION = 1
 MEDIA_INDEX_STATE_ID = 1
+MEDIA_INDEX_REFRESH_SOURCES = frozenset(
+    {
+        "manual_incremental",
+        "manual_full",
+        "post_upload",
+        "post_rename",
+        "post_move",
+        "post_batch",
+        "post_cleanup",
+        "post_recovery",
+        "post_root_init",
+    }
+)
 _HEX_DIGITS = frozenset("0123456789abcdef")
 _SKIP_REASONS = frozenset(
     {
@@ -52,6 +65,7 @@ class MediaIndexStatus:
     last_attempt_at: datetime | None
     last_success_at: datetime | None
     last_scan_kind: str | None
+    last_refresh_source: str | None
     last_scan_result: str
     last_scan_error: str
     duration_ms: int
@@ -211,11 +225,23 @@ def _state_payload(
     }
 
 
-def _decode_change_details(value: str) -> tuple[dict[str, str], ...]:
+def _decode_change_payload(value: str) -> tuple[str | None, object]:
     try:
-        rows = json.loads(value)
+        payload = json.loads(value)
     except (TypeError, json.JSONDecodeError):
-        return ()
+        return None, ()
+    if isinstance(payload, dict):
+        source = payload.get("refresh_source")
+        rows = payload.get("entries", ())
+        return (
+            source if isinstance(source, str) and source in MEDIA_INDEX_REFRESH_SOURCES else None,
+            rows,
+        )
+    return None, payload
+
+
+def _decode_change_details(value: str) -> tuple[dict[str, str], ...]:
+    _, rows = _decode_change_payload(value)
     if not isinstance(rows, list):
         return ()
     details: list[dict[str, str]] = []
@@ -227,6 +253,28 @@ def _decode_change_details(value: str) -> tuple[dict[str, str], ...]:
         if isinstance(change, str) and isinstance(path, str):
             details.append({"change": change[:32], "path": path[:500]})
     return tuple(details)
+
+
+def _decode_refresh_source(value: str, scan_kind: str | None) -> str | None:
+    source, _ = _decode_change_payload(value)
+    if source is not None:
+        return source
+    return {
+        "incremental": "manual_incremental",
+        "full": "manual_full",
+    }.get(scan_kind)
+
+
+def _encode_change_payload(
+    source: str,
+    rows: list[dict[str, str]] | tuple[dict[str, str], ...],
+) -> str:
+    return json.dumps(
+        {"refresh_source": source, "entries": list(rows)},
+        ensure_ascii=True,
+        separators=(",", ":"),
+        sort_keys=True,
+    )
 
 
 def _status_from_state(
@@ -249,6 +297,7 @@ def _status_from_state(
             last_attempt_at=None,
             last_success_at=None,
             last_scan_kind=None,
+            last_refresh_source=None,
             last_scan_result="never",
             last_scan_error="",
             duration_ms=0,
@@ -276,6 +325,10 @@ def _status_from_state(
         last_attempt_at=state.last_attempt_at,
         last_success_at=state.last_success_at,
         last_scan_kind=state.last_scan_kind,
+        last_refresh_source=_decode_refresh_source(
+            state.change_details_json,
+            state.last_scan_kind,
+        ),
         last_scan_result=state.last_scan_result,
         last_scan_error=state.last_scan_error,
         duration_ms=state.duration_ms,
@@ -678,6 +731,7 @@ def _record_scan_failure(
     db: Session,
     *,
     scan_kind: str,
+    refresh_source: str,
     attempted_at: datetime,
     duration_ms: int,
     error_code: str,
@@ -696,6 +750,10 @@ def _record_scan_failure(
             state.last_scan_result = "failed"
             state.last_scan_error = error_code[:200]
             state.duration_ms = max(duration_ms, 0)
+            state.change_details_json = _encode_change_payload(
+                refresh_source,
+                list(_decode_change_details(state.change_details_json)),
+            )
             row_signatures = tuple(
                 db.scalars(select(MediaIndexEntry.cache_signature)).all()
             )
@@ -710,10 +768,20 @@ def refresh_media_index(
     db: Session,
     *,
     full: bool,
+    refresh_source: str | None = None,
 ) -> MediaIndexRefreshResult:
     if not _schema_available(db):
         raise MediaIndexError("schema_upgrade_required")
     scan_kind = "full" if full else "incremental"
+    resolved_source = refresh_source or (
+        "manual_full" if full else "manual_incremental"
+    )
+    if (
+        resolved_source not in MEDIA_INDEX_REFRESH_SOURCES
+        or (full and resolved_source != "manual_full")
+        or (not full and resolved_source == "manual_full")
+    ):
+        raise MediaIndexError("invalid_refresh_source")
     attempted_at = _now()
     started = time.monotonic()
     old_rows = tuple(db.scalars(select(MediaIndexEntry)).all())
@@ -841,10 +909,9 @@ def refresh_media_index(
             "changed_count": len(changed_paths),
             "removed_count": len(removed_paths),
             "rehashed_count": len(observed.rehashed_paths),
-            "change_details_json": json.dumps(
+            "change_details_json": _encode_change_payload(
+                resolved_source,
                 change_details,
-                ensure_ascii=True,
-                separators=(",", ":"),
             ),
             "skipped_details_json": json.dumps(
                 [_skip_values(skip) for skip in observed.scan.skipped_entries],
@@ -871,6 +938,7 @@ def refresh_media_index(
         _record_scan_failure(
             db,
             scan_kind=scan_kind,
+            refresh_source=resolved_source,
             attempted_at=attempted_at,
             duration_ms=duration_ms,
             error_code=exc.code,
@@ -881,6 +949,7 @@ def refresh_media_index(
         _record_scan_failure(
             db,
             scan_kind=scan_kind,
+            refresh_source=resolved_source,
             attempted_at=attempted_at,
             duration_ms=duration_ms,
             error_code="scan_failed",
@@ -891,6 +960,7 @@ def refresh_media_index(
         _record_scan_failure(
             db,
             scan_kind=scan_kind,
+            refresh_source=resolved_source,
             attempted_at=attempted_at,
             duration_ms=duration_ms,
             error_code="scan_failed",

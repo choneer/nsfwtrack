@@ -2,10 +2,10 @@
 
 按顺序执行，每完成一项打个 [x]。
 
-## 当前状态（v1.0.6 已发布，Phase 4-M3 实现与验收）
+## 当前状态（v1.0.6 已发布，Phase 4-M4 实现与验收中）
 
 当前稳定版与最新 Release：`v1.0.6`。Phase 3-B1 / B2 已正式发布，
-Phase 3-B3 / B4 / B5 / B6 / C1 / C2 / C3 / C4 / C5 与 D1 最终集成审查均已完成并位于 Unreleased；Phase 4-A1 / A2 / M1 / M2 已完成，Phase 4-M3 实现与最终验收均已完成，应用 Schema 为 `3`。
+Phase 3-B3 / B4 / B5 / B6 / C1 / C2 / C3 / C4 / C5 与 D1 最终集成审查均已完成并位于 Unreleased；Phase 4-A1 / A2 / M1 / M2 / M3 已完成，Phase 4-M4 媒体写入协调与索引自动一致性已实现并正在最终验收，应用 Schema 为 `3`。
 
 - Annotated tag object：`d4d5c31cd5b2fed9a90ad69742d54b4c9dbed0b4`
 - Peeled commit：`961a3d0cc169e82b261d83207b0ec802007e292b`
@@ -15,6 +15,27 @@ N100 / 目标主机部署尚未开始，**不是当前开发任务**，必须等
 历史审计见 `COMPLETION_AUDIT.md`，当前 Phase 3 证据见
 `PHASE3_COMPLETION_AUDIT.md`。历史任务保留在本文后半部分，
 不再作为新增开发路线。
+
+### Phase 4-M4 媒体写入协调与索引自动一致性（Unreleased）
+
+- [x] 在固定应用数据目录新增跨进程媒体操作锁，路径不受请求控制且不位于媒体根
+- [x] 通过目录 FD、`O_NOFOLLOW`、普通文件、owner、mode、nlink 和映射复核拒绝 symlink、目录、特殊对象、硬链接与替换对象
+- [x] 有界超时在媒体文件或业务数据库变更前返回 `media_busy`；GET 不取锁、不创建锁文件
+- [x] 上传、rename、move、batch、alias、duplicate、damaged、recovery、anchor、residue 与 root init 统一持锁
+- [x] 手动增量刷新和确认完整重建共用同一锁，不与应用内媒体写入交叉提交
+- [x] 统一四种 filesystem outcome；known / partial-known 在业务事务后、同一锁内增量刷新一次
+- [x] batch 每个请求最多刷新一次，部分成功后索引反映真实最终文件集合
+- [x] commit unknown 和其他不确定结果禁止推测刷新，使用 `filesystem_outcome_unknown` 失效旧索引
+- [x] 写后刷新失败保留业务结果，使用 `post_mutation_refresh_failed` 失效并明确提示 filesystem 降级
+- [x] 纯 cover/avatar 引用修改不扫描；所有写操作继续实时重验文件、目录、引用、确认和签名快照
+- [x] 扫描中心记录 manual / post-upload / rename / move / batch / cleanup / recovery / root-init 来源
+- [x] 补充锁竞争、对象替换、事务顺序、部分成功、unknown、扫描失败、filesystem 降级和零重复刷新测试
+- [x] 更新 CI Docker 双生命周期锁文件权限、持久化、重获锁与协调刷新检查
+- [x] 中英文和 README / CHANGELOG / TASKS / REVIEW / PLAN 已同步
+- [x] 专项 `89 passed`、协调层 `17 passed`、核心组合 `457 passed`、全量 `735 passed` 与 `pip check` 通过
+- [x] 隔离 Docker build、双生命周期 healthy、`/login` 200、锁持久化 / 重获与 1 → 2 条自动索引刷新通过，临时资源已清理
+- [ ] 提交并推送实现，确认 GitHub Actions 的 test 与 Docker production smoke 均成功
+- [x] 保持应用 1.0.6、Schema 3、依赖、备份格式、旧 tag / Release 与 N100 状态不变
 
 ### Phase 4-M3 增量媒体索引与扫描中心（Unreleased）
 

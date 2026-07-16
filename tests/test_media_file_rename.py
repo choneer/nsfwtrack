@@ -16,13 +16,18 @@ from app.database import SessionLocal, engine
 from app.i18n import translate
 from app.models import Creator, Item
 from app.routers import pages as page_routes
-from app.services import local_media, media_file_rename
+from app.services import local_media, media_file_rename, media_write_coordination
 from app.services.media_file_rename import (
     MediaFileRenameError,
     build_media_file_rename_preview,
     execute_media_file_rename,
 )
 from app.services.media_duplicate_groups import find_media_duplicate_group
+from app.services.media_index import (
+    get_media_index_status,
+    load_preferred_media_snapshot,
+    refresh_media_index,
+)
 from app.services.settings import save_app_settings
 
 
@@ -341,6 +346,15 @@ def test_confirmed_rename_migrates_all_references_and_returns_new_detail(
         }
         assert {row.avatar_path for row in db.query(Creator)} == {
             "/media/Nested/Renamed.gif"
+        }
+        snapshot = load_preferred_media_snapshot(db)
+        assert snapshot.source == "index"
+        assert snapshot.status.last_refresh_source == "post_rename"
+        indexed_paths = {entry.media_path for entry in snapshot.scan.entries}
+        assert source_path not in indexed_paths
+        assert indexed_paths == {
+            "/media/Nested/Renamed.gif",
+            _media_path(duplicate, root),
         }
     detail = auth_client.get(location)
     assert detail.status_code == 200
@@ -1045,6 +1059,8 @@ def test_commit_outcome_warnings_are_explicit_and_unknown_is_not_success(
     target = root / "Target.gif"
     monkeypatch.setattr(local_media, "LOCAL_MEDIA_ROOT", root)
     preview = _preview(root, source, target.name)
+    with SessionLocal() as db:
+        refresh_media_index(db, full=True)
     os.link(source, target)
     unknown_result = media_file_rename.MediaFileRenameResult(
         source_path=preview.source.media_path,
@@ -1059,6 +1075,17 @@ def test_commit_outcome_warnings_are_explicit_and_unknown_is_not_success(
         page_routes,
         "execute_media_file_rename",
         lambda *_args, **_kwargs: unknown_result,
+    )
+    refresh_calls = 0
+
+    def record_refresh(*_args: object, **_kwargs: object) -> None:
+        nonlocal refresh_calls
+        refresh_calls += 1
+
+    monkeypatch.setattr(
+        media_write_coordination,
+        "refresh_media_index",
+        record_refresh,
     )
 
     zh_response = auth_client.post(
@@ -1082,6 +1109,17 @@ def test_commit_outcome_warnings_are_explicit_and_unknown_is_not_success(
     assert en_response.status_code == 200
     assert "database commit outcome cannot be determined safely" in en_response.text
     assert "Media path migrated" not in en_response.text
+    assert refresh_calls == 0
+    with SessionLocal() as db:
+        status = get_media_index_status(db)
+        assert status.usable is False
+        assert status.stale_reason == "filesystem_outcome_unknown"
+        fallback = load_preferred_media_snapshot(db)
+        assert fallback.source == "filesystem"
+        assert {entry.media_path for entry in fallback.scan.entries} == {
+            "/media/Source.gif",
+            "/media/Target.gif",
+        }
     for language in ("zh", "en"):
         committed_message = translate(
             language,

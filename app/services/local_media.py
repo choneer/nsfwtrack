@@ -180,6 +180,7 @@ class LocalMediaUploadResult:
     uploaded: int
     duplicate: int
     media_paths: tuple[str, ...]
+    filesystem_changed: bool = False
 
 
 @dataclass(frozen=True)
@@ -2711,21 +2712,26 @@ def delete_damaged_local_media_file(record: DamagedLocalMediaFile) -> None:
         _close_scan_descriptors(directories, file_descriptor)
 
 
-def _ensure_library_directory() -> Path:
+def _ensure_library_directory() -> tuple[Path, bool]:
     root = LOCAL_MEDIA_ROOT
+    filesystem_changed = False
     try:
         if root.exists() and (root.is_symlink() or not root.is_dir()):
             raise LocalMediaUploadError("storage_unavailable")
+        if not root.exists():
+            filesystem_changed = True
         root.mkdir(parents=True, exist_ok=True)
         library = root / LOCAL_MEDIA_LIBRARY_DIR
         if library.exists() and (library.is_symlink() or not library.is_dir()):
             raise LocalMediaUploadError("storage_unavailable")
+        if not library.exists():
+            filesystem_changed = True
         library.mkdir(mode=0o700, exist_ok=True)
         root_resolved = root.resolve(strict=True)
         library_resolved = library.resolve(strict=True)
         if not library_resolved.is_relative_to(root_resolved):
             raise LocalMediaUploadError("storage_unavailable")
-        return library_resolved
+        return library_resolved, filesystem_changed
     except OSError as exc:
         raise LocalMediaUploadError("storage_unavailable") from exc
 
@@ -2903,7 +2909,7 @@ async def store_media_uploads(files: list[UploadFile]) -> LocalMediaUploadResult
         for entry in scan.entries
         if entry.available and entry.sha256
     }
-    library = _ensure_library_directory()
+    library, directory_created = _ensure_library_directory()
     uploaded = 0
     duplicate = 0
     media_paths: list[str] = []
@@ -2942,4 +2948,9 @@ async def store_media_uploads(files: list[UploadFile]) -> LocalMediaUploadResult
         if isinstance(exc, Exception):
             raise LocalMediaUploadError("storage_unavailable") from exc
         raise
-    return LocalMediaUploadResult(uploaded, duplicate, tuple(media_paths))
+    return LocalMediaUploadResult(
+        uploaded,
+        duplicate,
+        tuple(media_paths),
+        directory_created or uploaded > 0,
+    )
