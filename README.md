@@ -121,6 +121,10 @@ filesystem; `/login` returns HTTP 200, fresh initialization reports Schema 3,
 and a complete one-file index remains valid after the container is removed and
 recreated against the same isolated data mount.
 
+Implementation commit `cb7561f` is pushed to `main`. GitHub Actions run
+`29510396534` completed successfully for both `test` and
+`Docker production smoke`; no tag, Release, or N100 deployment was created.
+
 ## Phase 4-A1 Local Media File Details
 
 Phase 4-A1 adds `/media-library/detail` as the unified, login-protected,

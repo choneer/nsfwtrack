@@ -5,7 +5,7 @@
 ## 当前状态（v1.0.6 已发布，Phase 4-M3 实现与验收）
 
 当前稳定版与最新 Release：`v1.0.6`。Phase 3-B1 / B2 已正式发布，
-Phase 3-B3 / B4 / B5 / B6 / C1 / C2 / C3 / C4 / C5 与 D1 最终集成审查均已完成并位于 Unreleased；Phase 4-A1 / A2 / M1 / M2 已完成，Phase 4-M3 实现已完成并进入最终验收，应用 Schema 为 `3`。
+Phase 3-B3 / B4 / B5 / B6 / C1 / C2 / C3 / C4 / C5 与 D1 最终集成审查均已完成并位于 Unreleased；Phase 4-A1 / A2 / M1 / M2 已完成，Phase 4-M3 实现与最终验收均已完成，应用 Schema 为 `3`。
 
 - Annotated tag object：`d4d5c31cd5b2fed9a90ad69742d54b4c9dbed0b4`
 - Peeled commit：`961a3d0cc169e82b261d83207b0ec802007e292b`
@@ -36,7 +36,7 @@ N100 / 目标主机部署尚未开始，**不是当前开发任务**，必须等
 - [x] 应用版本保持 1.0.6；不创建 tag / Release，不部署 N100，不新增依赖或网络能力
 - [x] M3 专项 `16 passed`、迁移专项 `45 passed`、核心组合 `141 passed`、全量 `717 passed`
 - [x] `pip check` 无冲突；隔离 Docker build、healthy、`/login` 200、Schema 3 与重建容器后索引持久化通过
-- [ ] 提交并推送 main，等待 GitHub Actions test / Docker production smoke 成功
+- [x] 实现提交 `cb7561f` 已推送 main，Actions run `29510396534` 的 test / Docker production smoke 均成功；未创建 tag / Release，未部署 N100
 
 ### Phase 4-M2 批量整理与别名归一化（Unreleased）
 

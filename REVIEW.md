@@ -45,7 +45,7 @@
 - [x] **12.M3.12. 写操作真相** — rename / move / batch / alias / cleanup / recovery / anchor / reference POST 是否仍即时重验真实文件与引用，不从索引取得授权
 - [x] **12.M3.13. 范围保持** — 是否保持应用 1.0.6、无网络 / AI / 新依赖 / tag / Release / N100 部署，仅按 GOAL 将 Schema 升到 3
 - [x] **12.M3.14. 本地最终验收** — 专项 16、迁移 45、核心组合 141、全量 717、pip check、Docker build / healthy / login 200 / Schema 3 / 索引双生命周期持久化均通过
-- [ ] **12.M3.15. 远端最终验收** — main 是否提交推送，GitHub Actions test 与 Docker production smoke 是否成功，且未创建 tag / Release 或部署 N100
+- [x] **12.M3.15. 远端最终验收** — 实现提交 `cb7561f` 已推送 main，Actions run `29510396534` 的 test 与 Docker production smoke 均成功，且未创建 tag / Release 或部署 N100
 
 ## Phase 2-A1 列表页增强检查
 
