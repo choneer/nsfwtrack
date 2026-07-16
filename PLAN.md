@@ -40,7 +40,7 @@ Release: https://github.com/choneer/nsfwtrack/releases/tag/v1.0.6
 稳定性收尾：Phase 2-I1 基线、I2 查询优化、I3 错误处理、I4 发布冻结审查已随 v1.0.0 发布
 完成度审计：Phase 2-K1 / K2 已随 v1.0.1 发布；代码开发与 WSL 验收已完成
 维护与 CI：Phase 2-L1 至 L6 已随 v1.0.2 发布；L7 已随 v1.0.3 发布；L8 固定非 root 容器用户已随 v1.0.4 发布
-产品功能重启：Phase 3-A1 至 A6 已随 v1.0.5 发布；Phase 3-B1 / B2 已随 v1.0.6 发布；Phase 3-B3 / B4 / B5 / B6 / C1 / C2 / C3 / C4 / C5 与 D1 最终集成审查均已完成并位于 Unreleased；Phase 4-A1 / A2 / M1 / M2 / M3 已完成，Phase 4-M4 已实现并正在最终验收
+产品功能重启：Phase 3-A1 至 A6 已随 v1.0.5 发布；Phase 3-B1 / B2 已随 v1.0.6 发布；Phase 3-B3 / B4 / B5 / B6 / C1 / C2 / C3 / C4 / C5 与 D1 最终集成审查均已完成并位于 Unreleased；Phase 4-A1 / A2 / M1 / M2 / M3 已完成，Phase 4-M4 实现与最终验收均已完成
 ```
 
 当前完成度估算：
@@ -48,7 +48,7 @@ Release: https://github.com/choneer/nsfwtrack/releases/tag/v1.0.6
 ```text
 核心业务能力：已完成
 代码发布状态：v1.0.6 已正式发布，tag 与正式 GitHub Release 均已验证
-当前开发状态：Phase 4-M4 已完成固定跨进程媒体锁、全部写入口协调、业务事务后单次索引刷新、unknown / 刷新失败失效和纯引用零扫描实现；专项 89、协调 17、核心组合 457、全量 735、pip check 与隔离 Docker 双生命周期验收已通过，推送与 Actions 验收待完成，应用版本保持 1.0.6、Schema 保持 3
+当前开发状态：Phase 4-M4 已完成固定跨进程媒体锁、全部写入口协调、业务事务后单次索引刷新、unknown / 刷新失败失效和纯引用零扫描实现；专项 89、协调 17、核心组合 457、全量 735、pip check 与隔离 Docker 双生命周期验收已通过；实现提交 `5899588` 已推送，Actions run `29519131776` 两个 job 均成功，应用版本保持 1.0.6、Schema 保持 3
 WSL 验收：已完成
 N100 部署：尚未开始，等待用户明确授权
 ```
@@ -73,6 +73,7 @@ N100 部署：尚未开始，等待用户明确授权
 - 扫描中心展示手动及各类 post-mutation 来源；CI 验证容器重建前后私有锁文件、重获锁和有效协调刷新
 - 保持版本 1.0.6、Schema 3、依赖、备份格式和旧 tag / Release 不变；不增加后台任务、网络、AI 或 N100 部署
 - 本地专项 89、协调层 17、核心组合 457、全量 735 与 pip check 已通过；隔离 Docker 两个生命周期均 healthy，登录 200、锁 inode / mode / owner 持久且协调写后索引从 1 条刷新到 2 条，资源已清理
+- 实现提交 `5899588` 已推送 main；Actions run `29519131776` 的 test 与 Docker production smoke 均成功
 
 ---
 

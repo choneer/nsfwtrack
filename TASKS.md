@@ -2,10 +2,10 @@
 
 按顺序执行，每完成一项打个 [x]。
 
-## 当前状态（v1.0.6 已发布，Phase 4-M4 实现与验收中）
+## 当前状态（v1.0.6 已发布，Phase 4-M4 实现与验收完成）
 
 当前稳定版与最新 Release：`v1.0.6`。Phase 3-B1 / B2 已正式发布，
-Phase 3-B3 / B4 / B5 / B6 / C1 / C2 / C3 / C4 / C5 与 D1 最终集成审查均已完成并位于 Unreleased；Phase 4-A1 / A2 / M1 / M2 / M3 已完成，Phase 4-M4 媒体写入协调与索引自动一致性已实现并正在最终验收，应用 Schema 为 `3`。
+Phase 3-B3 / B4 / B5 / B6 / C1 / C2 / C3 / C4 / C5 与 D1 最终集成审查均已完成并位于 Unreleased；Phase 4-A1 / A2 / M1 / M2 / M3 已完成，Phase 4-M4 媒体写入协调与索引自动一致性实现、本地验收和远端验收均已完成，应用 Schema 为 `3`。
 
 - Annotated tag object：`d4d5c31cd5b2fed9a90ad69742d54b4c9dbed0b4`
 - Peeled commit：`961a3d0cc169e82b261d83207b0ec802007e292b`
@@ -34,7 +34,7 @@ N100 / 目标主机部署尚未开始，**不是当前开发任务**，必须等
 - [x] 中英文和 README / CHANGELOG / TASKS / REVIEW / PLAN 已同步
 - [x] 专项 `89 passed`、协调层 `17 passed`、核心组合 `457 passed`、全量 `735 passed` 与 `pip check` 通过
 - [x] 隔离 Docker build、双生命周期 healthy、`/login` 200、锁持久化 / 重获与 1 → 2 条自动索引刷新通过，临时资源已清理
-- [ ] 提交并推送实现，确认 GitHub Actions 的 test 与 Docker production smoke 均成功
+- [x] 实现提交 `5899588` 已推送 main；Actions run `29519131776` 的 test 与 Docker production smoke 均成功
 - [x] 保持应用 1.0.6、Schema 3、依赖、备份格式、旧 tag / Release 与 N100 状态不变
 
 ### Phase 4-M3 增量媒体索引与扫描中心（Unreleased）

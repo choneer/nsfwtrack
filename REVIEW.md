@@ -46,7 +46,7 @@
 - [x] **12.M4.13. 状态与 i18n** — 扫描中心是否显示全部 manual / post-mutation 来源、失败原因和 unknown 失效状态，中英文 key 是否对称
 - [x] **12.M4.14. Docker 持久化** — CI 是否验证 `0600` 普通锁文件、UID/GID 10001、媒体根外位置、容器重建后重获锁与有效自动刷新索引
 - [x] **12.M4.15. 本地最终验收** — 专项 89、协调 17、核心组合 457、全量 735、pip check 与隔离 Docker build / 双生命周期 healthy / login 200 / 锁持久化重获 / 自动索引刷新均通过；临时资源已清理且既有 `data/` 文件未改变
-- [ ] **12.M4.16. 远端最终验收** — 实现是否提交推送且 GitHub Actions test / Docker production smoke 均成功
+- [x] **12.M4.16. 远端最终验收** — 实现提交 `5899588` 已推送 main，Actions run `29519131776` 的 test 与 Docker production smoke 均成功
 - [x] **12.M4.17. 范围保持** — 是否保持版本 1.0.6、Schema 3、依赖和备份格式，不增加后台任务、监听、网络、AI、tag、Release 或 N100 部署
 
 ## Phase 4-M3 增量媒体索引检查
