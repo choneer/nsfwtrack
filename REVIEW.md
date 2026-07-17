@@ -29,6 +29,19 @@
 - [ ] **12. 日志是否脱敏** — 没有打印密码、cookie、token
 - [ ] **12.1. 备份恢复是否安全** — 是否要求登录、只处理本地上传文件、不从 URL 恢复、失败时不破坏现有数据库
 
+## Phase 4-R3 v1.1.0 发布候选准备门禁
+
+- [x] **R3.1. 基线与工作区** — 从 `d9d3c45b9980efbe8ae129e3eb978b803e159849` 的 clean `main` 开始，只有预置 `GOAL.md` 和既有 `?? data/`
+- [x] **R3.2. 版本引用分类** — 只用 tracked 文件审计并区分当前应用版本、正式稳定版、历史 tag/Release、历史阶段记录和稳定版升级/回滚来源
+- [x] **R3.3. 应用版本** — `create_app().version` 为 `1.1.0`，现有 `tests/test_release_security.py` 版本断言同步且 targeted `1 passed`
+- [x] **R3.4. Schema 与稳定版** — `CURRENT_SCHEMA_VERSION` 仍为 `3`，当前正式稳定版、tag、Release 和升级来源仍准确记录为 `v1.0.6`
+- [x] **R3.5. 本地测试** — 版本 targeted `1 passed`、全量 `785 passed in 292.33s`，`pip check` 无损坏依赖
+- [x] **R3.6. 隔离 Docker** — 全新临时数据验证镜像构建、healthy、容器内应用版本 `1.1.0`、Schema 3 和 `/login` 200 均通过
+- [x] **R3.7. 运行安全** — UID/GID `10001:10001`、readonly root、`CapEff=0`、no-new-privileges、仅 `/app/data` 与 `/tmp` 可写均保持
+- [x] **R3.8. 清理与 data 边界** — 临时容器、网络、volume、镜像 tag、数据、Compose 文件和进程内随机凭据均已清理，既有 `data/` 完全未接触
+- [x] **R3.9. 发布边界** — `CHANGELOG.md` 继续使用 `Unreleased`，未创建 `v1.1.0` tag、Release 或部署 N100
+- [ ] **R3.10. 后续复核** — 候选提交与 Actions 成功后，等待云端复核和 Hermes 独立验收
+
 ## Phase 4-M5 安全媒体目录管理检查
 
 - [x] **12.M5.1. 范围** — 创建、重命名、移动和真正为空目录删除是否登录保护且没有递归删除、合并、覆盖、批量目录操作或跨设备复制

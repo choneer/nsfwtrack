@@ -2,26 +2,31 @@
 
 NSFWTrack is a local single-user content record manager / collection tracker.
 
-Current application version: `v1.0.6 / Phase 4-R2 release-candidate acceptance complete in Unreleased`.
+Current application version: `v1.1.0 release candidate / Phase 4-R3 preparation complete in Unreleased`.
 
 Current stable version: `v1.0.6 / Phase 3-B1 and B2`.
 
 Latest Release: [NSFWTrack v1.0.6](https://github.com/choneer/nsfwtrack/releases/tag/v1.0.6).
 
-Current status: `v1.0.6 is released; Phase 4-M5, Phase 4-R1/R1D, the Phase
-4-R2C1 corrective, and Phase 4-R2 release-candidate acceptance are complete in
-Unreleased`.
+Current status: `v1.0.6 remains the latest stable Release; Phase 4-R2
+release-candidate acceptance is complete, and Phase 4-R3 has prepared the
+current Unreleased code as a v1.1.0 release candidate`.
 
-The current release candidate is corrective commit
-`b7c5a634ad8c2b79ced74da9dcf0247d7af06a4b`. Corrective Actions run
-`29577588841` completed both `test` and `Docker production smoke`
-successfully, and the final full suite passed `785` tests. R2 also verified the
-real Schema 1 → 2 → 3 and stable-v1.0.6 Schema 2 → 3 paths, stable JSON backup
-compatibility, real HTTP media-directory operations, outcome/index fault
-handling, and two persisted Docker lifecycles. New feature work remains frozen;
-`v1.1.0` is only the recommended next version and has not been tagged or
-released. Application version 1.0.6 and Schema 3 remain unchanged, and N100 has
-not been deployed.
+The application metadata is now `1.1.0`, while Schema remains `3`. The accepted
+R2 code basis is corrective commit
+`b7c5a634ad8c2b79ced74da9dcf0247d7af06a4b`; its full suite passed `785`
+tests and corrective Actions run `29577588841` completed both jobs
+successfully. R2 also verified the real Schema 1 → 2 → 3 and stable-v1.0.6
+Schema 2 → 3 paths, stable JSON backup compatibility, real HTTP media-directory
+operations, outcome/index fault handling, and two persisted Docker lifecycles.
+No new feature work is active. The `v1.1.0` tag and Release have not been
+created, and N100 has not been deployed.
+
+Phase 4-R3 local release-candidate verification passed the existing version
+assertion, all `785` pytest tests, and `pip check`. An isolated production image
+was healthy with `/login` HTTP 200, application version `1.1.0`, Schema `3`, UID
+and GID `10001:10001`, a read-only root filesystem, zero effective capabilities,
+and no-new-privileges; all temporary resources were removed afterward.
 
 ## Phase 4-M5 Secure Media Directory Management
 

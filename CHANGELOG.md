@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+### Changed
+
+- Prepared the current Unreleased code as a `v1.1.0` release candidate by
+  updating the FastAPI application metadata from `1.0.6` to `1.1.0` and its
+  existing release-version assertion.
+- Kept Schema `3`, migrations, dependencies, backup format, Docker/CI behavior,
+  and all application features unchanged. Phase 4-R2 acceptance remains the
+  release-candidate evidence baseline.
+- The latest formal stable version and Release remain `v1.0.6`; no `v1.1.0`
+  tag or Release has been created, and N100 has not been deployed.
+- Release-candidate verification passed the existing version assertion, all
+  `785` pytest tests, `pip check`, and an isolated production Docker smoke with
+  application version `1.1.0`, Schema `3`, `/login` HTTP 200, and unchanged
+  runtime-security boundaries; temporary resources were removed.
+
 ### Fixed
 
 - Fixed the authenticated media-directory delete preview HTTP 500 caused by an

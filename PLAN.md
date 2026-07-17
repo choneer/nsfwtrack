@@ -11,7 +11,7 @@
 当前应用版本与开发阶段：
 
 ```text
-v1.0.6 / Phase 4-R2 release-candidate acceptance complete in Unreleased
+v1.1.0 release candidate / Phase 4-R3 preparation in Unreleased
 ```
 
 当前最新稳定版本为 `v1.0.6`，发布范围为 Phase 3-B1 与 B2。
@@ -41,7 +41,7 @@ Release: https://github.com/choneer/nsfwtrack/releases/tag/v1.0.6
 完成度审计：Phase 2-K1 / K2 已随 v1.0.1 发布；代码开发与 WSL 验收已完成
 维护与 CI：Phase 2-L1 至 L6 已随 v1.0.2 发布；L7 已随 v1.0.3 发布；L8 固定非 root 容器用户已随 v1.0.4 发布
 产品功能重启：Phase 3-A1 至 A6 已随 v1.0.5 发布；Phase 3-B1 / B2 已随 v1.0.6 发布；Phase 3-B3 / B4 / B5 / B6 / C1 / C2 / C3 / C4 / C5 与 D1 最终集成审查均已完成并位于 Unreleased；Phase 4-A1 / A2 / M1 / M2 / M3 / M4 已完成，Phase 4-M5 已完成云端复审与 Hermes 最终独立验收
-发布候选准备：Phase 4-R1 静态审计、Phase 4-R1D 文档修正、Phase 4-R2C1 corrective 和 Phase 4-R2 发布候选验收均已完成；当前停止新功能开发，等待用户授权发布准备
+发布候选准备：Phase 4-R1 静态审计、Phase 4-R1D 文档修正、Phase 4-R2C1 corrective、Phase 4-R2 发布候选验收和 Phase 4-R3 版本准备均已完成；应用内部版本为 1.1.0 发布候选，下一步等待云端复核和 Hermes 独立验收
 ```
 
 当前完成度估算：
@@ -49,7 +49,7 @@ Release: https://github.com/choneer/nsfwtrack/releases/tag/v1.0.6
 ```text
 核心业务能力：已完成
 代码发布状态：v1.0.6 已正式发布，tag 与正式 GitHub Release 均已验证
-当前开发状态：Phase 4-M5、Phase 4-R1 / R1D、Phase 4-R2C1 和 Phase 4-R2 均已完成；不继续开发新功能，等待用户授权发布准备。推荐下一版本为 `v1.1.0`，但它不是已发布版本；应用版本保持 1.0.6、Schema 保持 3
+当前开发状态：Phase 4-M5、Phase 4-R1 / R1D、Phase 4-R2C1 和 Phase 4-R2 均已完成；Phase 4-R3 已将应用内部版本更新为 1.1.0 发布候选。正式稳定版仍为 `v1.0.6`，`v1.1.0` 尚未发布；Schema 保持 3
 WSL 验收：已完成
 N100 部署：尚未开始，等待用户明确授权
 ```
@@ -60,8 +60,9 @@ N100 部署：尚未开始，等待用户明确授权
 - Phase 4-R1D：已完成 Schema 2 → 3 用户升级/回滚说明及各阶段状态文档修正
 - Phase 4-R2C1：已在候选提交 `b7c5a634ad8c2b79ced74da9dcf0247d7af06a4b` 修复目录删除预览路由并补齐真实路由回归；Actions run `29577588841` 的两个 job 均成功
 - Phase 4-R2：R2.1–R2.14 已全部通过，包括真实 Schema 连续迁移、稳定版备份兼容、`785 passed`、媒体目录 HTTP 生命周期、outcome/index 故障矩阵和 Docker 双生命周期
-- 版本建议：`v1.1.0`，原因是 Unreleased 包含大量用户可见媒体管理能力和 Schema 2 → 3；该版本尚未创建 tag 或 Release，发布准备仍需用户明确授权
-- 当前冻结：不继续开发新功能，等待用户授权发布准备；不创建 tag/Release，不部署 N100
+- Phase 4-R3：应用内部版本已提升为 `1.1.0`；版本 targeted、全量 `785 passed`、`pip check` 和隔离 Docker 验证通过，Schema 保持 `3`，候选提交通过 Actions 后进入云端复核和 Hermes 独立验收
+- 稳定与发布边界：当前正式稳定版仍为 `v1.0.6`；`v1.1.0` 尚未创建 tag 或 Release，正式发布仍需用户明确授权
+- 当前冻结：不继续开发新功能，不创建 tag/Release，不部署 N100
 
 ### Phase 4-M3 当前实施范围
 
