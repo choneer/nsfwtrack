@@ -134,6 +134,7 @@ from app.services.media_directory_management import (
     MediaDirectoryError,
     MediaDirectoryOutcomeError,
     build_directory_snapshot,
+    classify_directory_result,
     execute_directory_mutation,
 )
 from app.services.media_item_candidates import (
@@ -579,6 +580,45 @@ def _classify_directory_error(error: Exception) -> MediaFilesystemOutcome:
     return MediaFilesystemOutcome.NO_FILESYSTEM_CHANGE
 
 
+def _classify_directory_result(result: object) -> MediaFilesystemOutcome:
+    outcome = classify_directory_result(result)
+    return {
+        "filesystem_changed_known": MediaFilesystemOutcome.FILESYSTEM_CHANGED_KNOWN,
+        "filesystem_changed_partial_known": MediaFilesystemOutcome.FILESYSTEM_CHANGED_PARTIAL_KNOWN,
+        "no_filesystem_change": MediaFilesystemOutcome.NO_FILESYSTEM_CHANGE,
+        "directory_outcome_unknown": MediaFilesystemOutcome.FILESYSTEM_OUTCOME_UNKNOWN,
+    }[outcome]
+
+
+def _directory_invalidation_reason(error: Exception) -> str | None:
+    return (
+        "directory_outcome_unknown"
+        if getattr(error, "outcome", None) == "directory_outcome_unknown"
+        else None
+    )
+
+
+def _directory_success_flash(request: Request, result: object) -> None:
+    key = (
+        "flash.media_directory_committed_after_error"
+        if getattr(result, "outcome", None) == "committed_after_error"
+        else "flash.media_directory_success"
+    )
+    add_flash(request, "info" if "after_error" in key else "success", key)
+
+
+def _directory_failure_flash(request: Request, error: Exception) -> None:
+    outcome = getattr(error, "outcome", None)
+    if outcome == "filesystem_changed_partial_known":
+        add_flash(request, "info", "flash.media_directory_partial_known")
+    elif outcome == "not_committed_rolled_back":
+        add_flash(request, "info", "flash.media_directory_rolled_back")
+    elif outcome == "directory_outcome_unknown":
+        add_flash(request, "error", "flash.media_directory_outcome_unknown")
+    else:
+        add_flash(request, "error", "flash.media_directory_failed")
+
+
 def _media_index_coordination_flash(
     request: Request,
     result: MediaIndexCoordinationResult,
@@ -964,14 +1004,17 @@ def media_directory_create_apply(
             db,
             source="post_directory",
             operation=lambda: execute_directory_mutation(db, token=token, confirmation=confirm),
-            classify_result=lambda result: classify_known_filesystem_change(result),
+            classify_result=_classify_directory_result,
             classify_error=_classify_directory_error,
+            classify_invalidation_reason=_directory_invalidation_reason,
         )
         _media_index_coordination_flash(request, coordinated.index)
-        add_flash(request, "success", "flash.media_directory_success")
+        _directory_success_flash(request, coordinated.result)
     except MediaMutationExecutionError as exc:
         _media_index_coordination_flash(request, exc.index)
-        add_flash(request, "error", "flash.media_directory_failed")
+        _directory_failure_flash(request, exc.error)
+    except MediaOperationLockError as exc:
+        _media_operation_lock_error_flash(request, exc)
     except (MediaDirectoryError, LocalMediaPathError, OSError):
         add_flash(request, "error", "flash.media_directory_failed")
     return _redirect("/media-library/directories")
@@ -1039,14 +1082,17 @@ def media_directory_apply(
             db,
             source="post_directory",
             operation=lambda: execute_directory_mutation(db, token=token, confirmation=confirm),
-            classify_result=lambda result: classify_known_filesystem_change(result),
+            classify_result=_classify_directory_result,
             classify_error=_classify_directory_error,
+            classify_invalidation_reason=_directory_invalidation_reason,
         )
         _media_index_coordination_flash(request, coordinated.index)
-        add_flash(request, "success", "flash.media_directory_success")
+        _directory_success_flash(request, coordinated.result)
     except MediaMutationExecutionError as exc:
         _media_index_coordination_flash(request, exc.index)
-        add_flash(request, "error", "flash.media_directory_failed")
+        _directory_failure_flash(request, exc.error)
+    except MediaOperationLockError as exc:
+        _media_operation_lock_error_flash(request, exc)
     except (MediaDirectoryError, LocalMediaPathError, OSError):
         add_flash(request, "error", "flash.media_directory_failed")
     return _redirect("/media-library/directories")

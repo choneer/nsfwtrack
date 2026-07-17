@@ -67,6 +67,7 @@ class MediaMutationExecutionError(RuntimeError):
 
 ResultClassifier = Callable[[T], MediaFilesystemOutcome]
 ErrorClassifier = Callable[[Exception], MediaFilesystemOutcome]
+InvalidationReasonClassifier = Callable[[Exception], str | None]
 
 
 def _invalidate(
@@ -99,6 +100,7 @@ def synchronize_media_index_after_mutation(
     *,
     outcome: MediaFilesystemOutcome,
     source: str,
+    invalidation_reason: str | None = None,
 ) -> MediaIndexCoordinationResult:
     if outcome == MediaFilesystemOutcome.NO_FILESYSTEM_CHANGE:
         return MediaIndexCoordinationResult(
@@ -109,9 +111,9 @@ def synchronize_media_index_after_mutation(
         return _invalidate(
             db,
             source=source,
-            reason="filesystem_outcome_unknown",
+            reason=invalidation_reason or "filesystem_outcome_unknown",
             failed_status=MediaIndexCoordinationStatus.INVALIDATED,
-            error_code="filesystem_outcome_unknown",
+            error_code=invalidation_reason or "filesystem_outcome_unknown",
         )
     try:
         refresh_media_index(db, full=False, refresh_source=source)
@@ -148,6 +150,7 @@ def coordinate_media_mutation(
     operation: Callable[[], T],
     classify_result: ResultClassifier[T],
     classify_error: ErrorClassifier,
+    classify_invalidation_reason: InvalidationReasonClassifier | None = None,
 ) -> CoordinatedMediaMutation[T]:
     with media_operation_lock() as handle:
         try:
@@ -158,6 +161,11 @@ def coordinate_media_mutation(
                 db,
                 outcome=outcome,
                 source=source,
+                invalidation_reason=(
+                    classify_invalidation_reason(exc)
+                    if classify_invalidation_reason is not None
+                    else None
+                ),
             )
             raise MediaMutationExecutionError(
                 exc,
@@ -180,6 +188,7 @@ async def coordinate_media_mutation_async(
     operation: Callable[[], Awaitable[T]],
     classify_result: ResultClassifier[T],
     classify_error: ErrorClassifier,
+    classify_invalidation_reason: InvalidationReasonClassifier | None = None,
 ) -> CoordinatedMediaMutation[T]:
     with media_operation_lock() as handle:
         try:
@@ -190,6 +199,11 @@ async def coordinate_media_mutation_async(
                 db,
                 outcome=outcome,
                 source=source,
+                invalidation_reason=(
+                    classify_invalidation_reason(exc)
+                    if classify_invalidation_reason is not None
+                    else None
+                ),
             )
             raise MediaMutationExecutionError(
                 exc,
