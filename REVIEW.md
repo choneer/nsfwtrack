@@ -31,12 +31,12 @@
 
 ## Phase 4-M5 安全媒体目录管理检查
 
-- [ ] **12.M5.1. 范围** — 创建、重命名、移动和真正为空目录删除是否登录保护且没有递归删除、合并、覆盖、批量目录操作或跨设备复制
-- [ ] **12.M5.2. 快照** — HMAC-SHA256、格式/用途、源与父目录身份、映射 token、manifest 和精确引用 digest 是否全部绑定并重验
-- [ ] **12.M5.3. 文件系统** — 是否使用 FD、O_NOFOLLOW、稳定 dev/inode、no-overwrite 原子 rename 和父目录 FD 相对 rmdir
-- [ ] **12.M5.4. 引用与事务** — 是否使用 BEGIN IMMEDIATE、精确路径迁移、无 SQL LIKE 前缀更新并独立复核 commit outcome
-- [ ] **12.M5.5. M4 接入** — 是否共用媒体锁、unknown 只失效索引、每请求最多刷新一次且来源为 post_directory
-- [ ] **12.M5.6. 只读与范围** — GET 是否零写入且不建锁文件，版本 / Schema / 依赖 / 备份 / 网络 / AI / data 边界是否保持
+- [x] **12.M5.1. 范围** — 创建、重命名、移动和真正为空目录删除是否登录保护且没有递归删除、合并、覆盖、批量目录操作或跨设备复制
+- [x] **12.M5.2. 快照** — HMAC-SHA256、格式/用途、源与父目录身份、映射 token、manifest 和精确引用 digest 是否全部绑定并重验
+- [x] **12.M5.3. 文件系统** — 是否使用 FD、O_NOFOLLOW、稳定 dev/inode、no-overwrite 原子 rename 和父目录 FD 相对 rmdir
+- [x] **12.M5.4. 引用与事务** — 是否使用 BEGIN IMMEDIATE、精确路径迁移、无 SQL LIKE 前缀更新并独立复核 commit outcome
+- [x] **12.M5.5. M4 接入** — 是否共用媒体锁、unknown 只失效索引、每请求最多刷新一次且来源为 post_directory
+- [x] **12.M5.6. 只读与范围** — GET 是否零写入且不建锁文件，版本 / Schema / 依赖 / 备份 / 网络 / AI / data 边界是否保持
 
 ## Phase 4-M4 媒体写入协调与索引一致性检查
 

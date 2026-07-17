@@ -18,13 +18,13 @@ N100 / 目标主机部署尚未开始，**不是当前开发任务**，必须等
 
 ### Phase 4-M5 安全媒体目录管理（Unreleased）
 
-- [ ] 创建普通子目录并绑定目标父目录身份、映射 token 与不存在事实
-- [ ] 对干净普通目录树执行 HMAC 快照、no-overwrite rename / move 与精确引用迁移
-- [ ] 安全删除真正为空的目录并使用父目录 FD 相对 `rmdir`
-- [ ] 接入 M4 锁、`BEGIN IMMEDIATE`、独立 Session outcome 复核与 `post_directory` 单次刷新
-- [ ] 覆盖 stale、目标抢占、symlink / special / damaged / unsupported、rollback、unknown、锁超时和 GET 零写入
-- [ ] 完成中英文、Docker 双生命周期、全量 pytest、pip check 与 Actions 验收
-- [ ] 保持版本 1.0.6、Schema 3、依赖、备份格式、tag / Release / N100 与既有 `data/` 边界不变
+- [x] 创建普通子目录并绑定目标父目录身份、映射 token 与不存在事实
+- [x] 对干净普通目录树执行 HMAC 快照、no-overwrite rename / move 与精确引用迁移
+- [x] 安全删除真正为空的目录并使用父目录 FD 相对 `rmdir`
+- [x] 接入 M4 锁、`BEGIN IMMEDIATE`、独立 Session outcome 复核与 `post_directory` 单次刷新
+- [x] 覆盖 stale、目标抢占、symlink / special / damaged / unsupported、rollback、unknown、锁超时和 GET 零写入
+- [x] 完成中英文、Docker 双生命周期、全量 pytest、pip check 与 Actions 验收：`739 passed`，run `29555701228`
+- [x] 保持版本 1.0.6、Schema 3、依赖、备份格式、tag / Release / N100 与既有 `data/` 边界不变
 
 ### Phase 4-M4 媒体写入协调与索引自动一致性（Unreleased）
 

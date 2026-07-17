@@ -48,7 +48,7 @@ Release: https://github.com/choneer/nsfwtrack/releases/tag/v1.0.6
 ```text
 核心业务能力：已完成
 代码发布状态：v1.0.6 已正式发布，tag 与正式 GitHub Release 均已验证
-当前开发状态：Phase 4-M4 已完成；Phase 4-M5 正在实现安全媒体目录创建、no-overwrite rename / move、空目录删除、精确引用迁移和 M4 post_directory 协调，应用版本保持 1.0.6、Schema 保持 3
+当前开发状态：Phase 4-M5 已完成安全媒体目录创建、no-overwrite rename / move、空目录删除、精确引用迁移和 M4 post_directory 协调；全量 `739 passed`、`pip check`、隔离 Docker 双生命周期和 Actions run `29555701228` 均通过，应用版本保持 1.0.6、Schema 保持 3
 WSL 验收：已完成
 N100 部署：尚未开始，等待用户明确授权
 ```

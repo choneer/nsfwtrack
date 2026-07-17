@@ -35,6 +35,14 @@ do not create the operation lock; successful directory mutations refresh the
 derived index once with source `post_directory`. Version `1.0.6`, Schema `3`,
 dependencies, backup format, and local-only boundaries remain unchanged.
 
+Local Phase 4-M5 acceptance passed `739` tests and `pip check`. Isolated Docker
+validation passed two healthy lifecycles, `/login` HTTP 200, UID/GID 10001,
+read-only root, dropped capabilities, `no-new-privileges`, and a persisted
+isolated data volume. Implementation commit `8ef2ca06a3c9900f8ca22991feb4a6ddfcf2643c`
+was verified by GitHub Actions run
+[`29555701228`](https://github.com/choneer/nsfwtrack/actions/runs/29555701228),
+whose `test` and `Docker production smoke` jobs both succeeded.
+
 N100 deployment: `not started; waits for explicit user authorization`.
 
 NSFWTrack remains intentionally local-only. It is designed for manual records,
