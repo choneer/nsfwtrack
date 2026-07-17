@@ -527,3 +527,204 @@ def test_directory_route_lock_timeout_happens_before_any_change(
     )
     assert response.status_code == 303
     assert not (root / "library/blocked").exists()
+
+
+def _create_token(root: Path) -> str:
+    with SessionLocal() as db:
+        _, token = build_directory_snapshot(
+            db, operation="create", source_path=None,
+            target_parent_path="/media/library", target_basename="created",
+        )
+    return token
+
+
+def test_create_open_failure_after_mkdir_is_partial_known(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    root = tmp_path / "media"
+    (root / "library").mkdir(parents=True)
+    monkeypatch.setattr(local_media, "LOCAL_MEDIA_ROOT", root)
+    token = _create_token(root)
+    original_open = directory_management.os.open
+
+    def fail_created_open(path: object, flags: int, *args: object, **kwargs: object) -> int:
+        if path == "created":
+            raise OSError("open failed")
+        return original_open(path, flags, *args, **kwargs)
+
+    monkeypatch.setattr(directory_management.os, "open", fail_created_open)
+    with SessionLocal() as db, pytest.raises(directory_management.MediaDirectoryOutcomeError) as captured:
+        execute_directory_mutation(db, token=token, confirmation="create")
+    assert captured.value.outcome == "filesystem_changed_partial_known"
+    assert captured.value.code == "created_directory_followup_failed"
+    assert (root / "library/created").is_dir()
+
+
+def test_create_replacement_after_mkdir_is_unknown_and_not_removed(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    root = tmp_path / "media"
+    target = root / "library/created"
+    (root / "library").mkdir(parents=True)
+    monkeypatch.setattr(local_media, "LOCAL_MEDIA_ROOT", root)
+    token = _create_token(root)
+    original_open = directory_management.os.open
+
+    def replace_created(path: object, flags: int, *args: object, **kwargs: object) -> int:
+        if path == "created" and target.is_dir():
+            target.rmdir()
+            target.write_bytes(b"replacement")
+            raise OSError("replaced")
+        return original_open(path, flags, *args, **kwargs)
+
+    monkeypatch.setattr(directory_management.os, "open", replace_created)
+    with SessionLocal() as db, pytest.raises(directory_management.MediaDirectoryOutcomeError) as captured:
+        execute_directory_mutation(db, token=token, confirmation="create")
+    assert captured.value.outcome == "directory_outcome_unknown"
+    assert target.is_file()
+
+
+def test_create_identity_recheck_failure_is_unknown(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    from types import SimpleNamespace
+
+    root = tmp_path / "media"
+    (root / "library").mkdir(parents=True)
+    monkeypatch.setattr(local_media, "LOCAL_MEDIA_ROOT", root)
+    token = _create_token(root)
+    original_open = directory_management.os.open
+    original_fstat = directory_management.os.fstat
+    created_fd: int | None = None
+
+    def record_open(path: object, flags: int, *args: object, **kwargs: object) -> int:
+        nonlocal created_fd
+        fd = original_open(path, flags, *args, **kwargs)
+        if path == "created":
+            created_fd = fd
+        return fd
+
+    def changed_fstat(fd: int) -> object:
+        result = original_fstat(fd)
+        if created_fd == fd:
+            return SimpleNamespace(st_mode=result.st_mode, st_dev=result.st_dev, st_ino=result.st_ino + 1)
+        return result
+
+    monkeypatch.setattr(directory_management.os, "open", record_open)
+    monkeypatch.setattr(directory_management.os, "fstat", changed_fstat)
+    with SessionLocal() as db, pytest.raises(directory_management.MediaDirectoryOutcomeError) as captured:
+        execute_directory_mutation(db, token=token, confirmation="create")
+    assert captured.value.outcome == "directory_outcome_unknown"
+
+
+@pytest.mark.parametrize("commit_mode", ["fail", "commit_then_error", "rollback_then_error"])
+def test_delete_post_rmdir_transaction_failures_are_partial_known(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, commit_mode: str
+) -> None:
+    root = tmp_path / "media"
+    (root / "library/source").mkdir(parents=True)
+    monkeypatch.setattr(local_media, "LOCAL_MEDIA_ROOT", root)
+    with SessionLocal() as db:
+        _, token = build_directory_snapshot(
+            db, operation="delete", source_path="/media/library/source",
+            target_parent_path="/media/library", target_basename="source",
+        )
+        original_commit = db.commit
+        original_rollback = db.rollback
+        if commit_mode == "fail":
+            monkeypatch.setattr(db, "commit", lambda: (_ for _ in ()).throw(RuntimeError("commit failed")))
+        else:
+            def commit_then_error() -> None:
+                original_commit()
+                raise RuntimeError("commit reported error")
+            monkeypatch.setattr(db, "commit", commit_then_error)
+        if commit_mode == "rollback_then_error":
+            def rollback_then_error() -> None:
+                original_rollback()
+                raise RuntimeError("rollback failed")
+            monkeypatch.setattr(db, "rollback", rollback_then_error)
+        with pytest.raises(directory_management.MediaDirectoryOutcomeError) as captured:
+            execute_directory_mutation(db, token=token, confirmation="delete")
+        assert captured.value.outcome == "filesystem_changed_partial_known"
+        assert not (root / "library/source").exists()
+
+
+def test_delete_independent_query_failure_is_unknown(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    root = tmp_path / "media"
+    (root / "library/source").mkdir(parents=True)
+    monkeypatch.setattr(local_media, "LOCAL_MEDIA_ROOT", root)
+    with SessionLocal() as db:
+        _, token = build_directory_snapshot(
+            db, operation="delete", source_path="/media/library/source",
+            target_parent_path="/media/library", target_basename="source",
+        )
+        monkeypatch.setattr(db, "commit", lambda: (_ for _ in ()).throw(RuntimeError("commit failed")))
+        monkeypatch.setattr(
+            directory_management,
+            "SessionLocal",
+            lambda: (_ for _ in ()).throw(RuntimeError("query failed")),
+        )
+        with pytest.raises(directory_management.MediaDirectoryOutcomeError) as captured:
+            execute_directory_mutation(db, token=token, confirmation="delete")
+        assert captured.value.outcome == "directory_outcome_unknown"
+
+
+def test_rename_rollback_failure_does_not_hide_committed_after_error(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    root = tmp_path / "media"
+    (root / "library/source").mkdir(parents=True)
+    _gif(root / "library/source/file.gif")
+    monkeypatch.setattr(local_media, "LOCAL_MEDIA_ROOT", root)
+    with SessionLocal() as db:
+        db.add(Item(title="item", cover_path="/media/library/source/file.gif"))
+        db.commit()
+        _, token = build_directory_snapshot(
+            db, operation="rename", source_path="/media/library/source",
+            target_parent_path="/media/library", target_basename="renamed",
+        )
+        original_commit = db.commit
+        def commit_then_error() -> None:
+            original_commit()
+            raise RuntimeError("commit reported error")
+        monkeypatch.setattr(db, "commit", commit_then_error)
+        monkeypatch.setattr(db, "rollback", lambda: (_ for _ in ()).throw(RuntimeError("rollback failed")))
+        result = execute_directory_mutation(db, token=token, confirmation="rename")
+        assert result.outcome == "committed_after_error"
+
+
+def test_result_path_lock_replacement_uses_directory_reason_and_no_success_flash(
+    auth_client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "media"
+    (root / "library").mkdir(parents=True)
+    monkeypatch.setattr(local_media, "LOCAL_MEDIA_ROOT", root)
+    preview = auth_client.get(
+        "/media-library/directories/create",
+        params={"target_parent": "/media/library", "target_basename": "created"},
+    )
+    token = preview.text.split('name="token" value="', 1)[1].split('"', 1)[0]
+
+    class ChangedHandle:
+        def verify(self) -> None:
+            raise media_operation_lock.MediaOperationLockError("media_lock_changed")
+
+    @contextmanager
+    def changed_lock() -> object:
+        yield ChangedHandle()
+
+    monkeypatch.setattr(media_write_coordination, "media_operation_lock", changed_lock)
+    response = auth_client.post(
+        "/media-library/directories/create",
+        data={"token": token, "confirm": "create"},
+        follow_redirects=True,
+    )
+    assert response.status_code == 200
+    assert "无法安全判断目录操作结果" in response.text
+    assert "媒体目录操作已完成" not in response.text
+    with SessionLocal() as db:
+        assert get_media_index_status(db).stale_reason == "directory_outcome_unknown"

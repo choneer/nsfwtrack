@@ -151,6 +151,7 @@ def coordinate_media_mutation(
     classify_result: ResultClassifier[T],
     classify_error: ErrorClassifier,
     classify_invalidation_reason: InvalidationReasonClassifier | None = None,
+    classify_result_invalidation_reason: Callable[[T], str | None] | None = None,
 ) -> CoordinatedMediaMutation[T]:
     with media_operation_lock() as handle:
         try:
@@ -177,6 +178,12 @@ def coordinate_media_mutation(
             db,
             outcome=outcome,
             source=source,
+            invalidation_reason=(
+                classify_result_invalidation_reason(result)
+                if outcome == MediaFilesystemOutcome.FILESYSTEM_OUTCOME_UNKNOWN
+                and classify_result_invalidation_reason is not None
+                else None
+            ),
         )
         return CoordinatedMediaMutation(result, outcome, index)
 
@@ -189,6 +196,7 @@ async def coordinate_media_mutation_async(
     classify_result: ResultClassifier[T],
     classify_error: ErrorClassifier,
     classify_invalidation_reason: InvalidationReasonClassifier | None = None,
+    classify_result_invalidation_reason: Callable[[T], str | None] | None = None,
 ) -> CoordinatedMediaMutation[T]:
     with media_operation_lock() as handle:
         try:
@@ -215,6 +223,12 @@ async def coordinate_media_mutation_async(
             db,
             outcome=outcome,
             source=source,
+            invalidation_reason=(
+                classify_result_invalidation_reason(result)
+                if outcome == MediaFilesystemOutcome.FILESYSTEM_OUTCOME_UNKNOWN
+                and classify_result_invalidation_reason is not None
+                else None
+            ),
         )
         return CoordinatedMediaMutation(result, outcome, index)
 

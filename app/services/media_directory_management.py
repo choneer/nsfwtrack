@@ -100,6 +100,13 @@ class DirectoryMutationResult:
     warning_code: str | None = None
 
 
+def _rollback_quietly(db: Session) -> None:
+    try:
+        db.rollback()
+    except Exception:
+        pass
+
+
 def _identity(record: local_media.ValidatedLocalMediaDirectory) -> DirectoryIdentity:
     return DirectoryIdentity(stat.S_IFMT(record.mode), record.device, record.inode)
 
@@ -530,6 +537,27 @@ def _path_missing(path: str) -> bool:
     return False
 
 
+def _independent_delete_outcome(snapshot: MediaDirectorySnapshot) -> str:
+    if snapshot.source_path is None:
+        return "directory_outcome_unknown"
+    try:
+        with SessionLocal() as verification_db:
+            rows = list(
+                verification_db.scalars(
+                    select(Item.cover_path).where(Item.cover_path.is_not(None))
+                ).all()
+            ) + list(
+                verification_db.scalars(
+                    select(Creator.avatar_path).where(Creator.avatar_path.is_not(None))
+                ).all()
+            )
+    except Exception:
+        return "directory_outcome_unknown"
+    if any(path == snapshot.source_path or path.startswith(snapshot.source_path + "/") for path in rows):
+        return "directory_outcome_unknown"
+    return "filesystem_changed_partial_known" if _path_missing(snapshot.source_path) else "directory_outcome_unknown"
+
+
 def _independent_outcome(snapshot: MediaDirectorySnapshot, target: str) -> str:
     if snapshot.source_path is None or snapshot.source_identity is None or snapshot.manifest is None:
         return "directory_outcome_unknown"
@@ -609,18 +637,43 @@ def execute_directory_mutation(
         fresh = _final_snapshot(db, snapshot)
         target_parent = local_media.validate_local_media_directory(fresh.target_parent_path)
         parent_fds = local_media._open_validated_directory(target_parent)
+        filesystem_changed = False
+        created_identity: DirectoryIdentity | None = None
         try:
-            os.mkdir(fresh.target_basename, 0o700, dir_fd=parent_fds[-1])
-            created_fd = os.open(fresh.target_basename, local_media._scan_directory_flags(), dir_fd=parent_fds[-1])
             try:
-                os.fsync(created_fd)
-                os.fsync(parent_fds[-1])
-            except OSError as exc:
+                os.mkdir(fresh.target_basename, 0o700, dir_fd=parent_fds[-1])
+                filesystem_changed = True
+                created = os.stat(fresh.target_basename, dir_fd=parent_fds[-1], follow_symlinks=False)
+                created_identity = DirectoryIdentity(stat.S_IFMT(created.st_mode), created.st_dev, created.st_ino)
+                created_fd = os.open(fresh.target_basename, local_media._scan_directory_flags(), dir_fd=parent_fds[-1])
+                try:
+                    opened = os.fstat(created_fd)
+                    if (
+                        not stat.S_ISDIR(opened.st_mode)
+                        or created_identity != DirectoryIdentity(stat.S_IFMT(opened.st_mode), opened.st_dev, opened.st_ino)
+                    ):
+                        raise MediaDirectoryOutcomeError("created_directory_changed", outcome="directory_outcome_unknown")
+                    os.fsync(created_fd)
+                    os.fsync(parent_fds[-1])
+                finally:
+                    os.close(created_fd)
+            except MediaDirectoryOutcomeError:
+                raise
+            except Exception as exc:
+                try:
+                    current = os.stat(fresh.target_basename, dir_fd=parent_fds[-1], follow_symlinks=False)
+                    current_identity = DirectoryIdentity(stat.S_IFMT(current.st_mode), current.st_dev, current.st_ino)
+                    current_is_dir = stat.S_ISDIR(current.st_mode)
+                except OSError:
+                    current_identity = None
+                    current_is_dir = False
+                if filesystem_changed and current_identity == created_identity and current_is_dir:
+                    raise MediaDirectoryOutcomeError(
+                        "created_directory_followup_failed", outcome="filesystem_changed_partial_known"
+                    ) from exc
                 raise MediaDirectoryOutcomeError(
-                    "directory_sync_failed", outcome="filesystem_changed_partial_known"
+                    "created_directory_unknown", outcome="directory_outcome_unknown"
                 ) from exc
-            finally:
-                os.close(created_fd)
         finally:
             local_media._close_scan_descriptors(parent_fds, None)
         return DirectoryMutationResult("committed", None, target, True)
@@ -629,7 +682,7 @@ def execute_directory_mutation(
     try:
         fresh = _final_snapshot(db, snapshot)
     except Exception:
-        db.rollback()
+        _rollback_quietly(db)
         raise
     assert fresh.source_path is not None and fresh.source_parent_path is not None
     assert fresh.source_identity is not None and fresh.manifest is not None
@@ -639,20 +692,33 @@ def execute_directory_mutation(
 
     if fresh.operation == "delete":
         parent_fds = local_media._open_validated_directory(source_parent)
+        filesystem_changed = False
         try:
             os.rmdir(source.parts[-1], dir_fd=parent_fds[-1])
-            db.commit()
+            filesystem_changed = True
             try:
                 os.fsync(parent_fds[-1])
             except OSError as exc:
+                _rollback_quietly(db)
+                outcome = _independent_delete_outcome(fresh)
                 raise MediaDirectoryOutcomeError(
-                    "directory_sync_failed", outcome="filesystem_changed_partial_known"
+                    "directory_sync_failed",
+                    outcome=("filesystem_changed_partial_known" if outcome == "filesystem_changed_partial_known" else "directory_outcome_unknown"),
+                ) from exc
+            try:
+                db.commit()
+            except Exception as exc:
+                _rollback_quietly(db)
+                outcome = _independent_delete_outcome(fresh)
+                raise MediaDirectoryOutcomeError(
+                    "delete_commit_failed", outcome=outcome
                 ) from exc
         except MediaDirectoryOutcomeError:
             raise
-        except Exception:
-            db.rollback()
-            raise
+        except Exception as exc:
+            _rollback_quietly(db)
+            outcome = _independent_delete_outcome(fresh) if filesystem_changed else "directory_outcome_unknown"
+            raise MediaDirectoryOutcomeError("delete_outcome_unknown", outcome=outcome) from exc
         finally:
             local_media._close_scan_descriptors(parent_fds, None)
         return DirectoryMutationResult("committed", fresh.source_path, target, True)
@@ -663,13 +729,13 @@ def execute_directory_mutation(
         try:
             _rename_noreplace(source_fds[-1], source.parts[-1], target_fds[-1], fresh.target_basename)
         except Exception:
-            db.rollback()
+            _rollback_quietly(db)
             raise
         try:
             _update_exact_references(db, fresh)
             db.commit()
         except Exception as commit_error:
-            db.rollback()
+            _rollback_quietly(db)
             outcome = _independent_outcome(fresh, target)
             if outcome == "committed_after_error":
                 return DirectoryMutationResult(
