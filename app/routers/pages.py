@@ -590,12 +590,9 @@ def _classify_directory_result(result: object) -> MediaFilesystemOutcome:
     }[outcome]
 
 
-def _directory_invalidation_reason(error: Exception) -> str | None:
-    return (
-        "directory_outcome_unknown"
-        if getattr(error, "outcome", None) == "directory_outcome_unknown"
-        else None
-    )
+def _directory_invalidation_reason(_error: Exception) -> str | None:
+    # Lock outcome verification can upgrade an originally non-unknown error.
+    return "directory_outcome_unknown"
 
 
 def _directory_result_invalidation_reason(_result: object) -> str:
@@ -620,16 +617,15 @@ def _directory_coordinated_flash(
     result = getattr(coordinated, "result")
     if outcome == MediaFilesystemOutcome.FILESYSTEM_OUTCOME_UNKNOWN:
         add_flash(request, "error", "flash.media_directory_outcome_unknown")
+        _media_index_coordination_flash(request, index)
         return
     if outcome == MediaFilesystemOutcome.FILESYSTEM_CHANGED_PARTIAL_KNOWN:
         add_flash(request, "info", "flash.media_directory_partial_known")
-        if index.status == MediaIndexCoordinationStatus.POST_MUTATION_REFRESH_FAILED:
-            _media_index_coordination_flash(request, index)
+        _media_index_coordination_flash(request, index)
         return
     if outcome == MediaFilesystemOutcome.FILESYSTEM_CHANGED_KNOWN:
         _directory_success_flash(request, result)
-        if index.status == MediaIndexCoordinationStatus.POST_MUTATION_REFRESH_FAILED:
-            _media_index_coordination_flash(request, index)
+        _media_index_coordination_flash(request, index)
 
 
 def _directory_failure_flash(request: Request, error: Exception) -> None:
@@ -654,8 +650,7 @@ def _directory_execution_error_flash(
     execution_error: MediaMutationExecutionError,
 ) -> None:
     _directory_failure_flash(request, execution_error.error)
-    if execution_error.index.status == MediaIndexCoordinationStatus.POST_MUTATION_REFRESH_FAILED:
-        _media_index_coordination_flash(request, execution_error.index)
+    _media_index_coordination_flash(request, execution_error.index)
 
 
 def _media_index_coordination_flash(

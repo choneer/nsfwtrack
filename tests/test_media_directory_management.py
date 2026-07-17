@@ -2,12 +2,16 @@ from __future__ import annotations
 
 from pathlib import Path
 from contextlib import contextmanager
+from types import SimpleNamespace
 
 import pytest
 from fastapi.testclient import TestClient
+from starlette.requests import Request
 
 from app.database import SessionLocal
+from app.flash import FLASH_SESSION_KEY
 from app.models import Creator, Item
+from app.routers import pages
 from app.services import local_media
 from app.services import media_operation_lock
 from app.services import media_write_coordination
@@ -20,6 +24,8 @@ from app.services.media_directory_management import (
 )
 from app.services.media_write_coordination import (
     MediaFilesystemOutcome,
+    MediaIndexCoordinationResult,
+    MediaIndexCoordinationStatus,
     MediaMutationExecutionError,
     coordinate_media_mutation,
 )
@@ -28,6 +34,14 @@ from app.services.media_write_coordination import (
 def _gif(path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_bytes(b"GIF89a\x01\x00\x01\x00" + b"x" + b";")
+
+
+def _flash_request() -> Request:
+    return Request({"type": "http", "session": {}})
+
+
+def _flash_keys(request: Request) -> list[str]:
+    return [message["key"] for message in request.session[FLASH_SESSION_KEY]]
 
 
 def test_create_rename_and_delete_directory_with_exact_reference_migration(
@@ -726,5 +740,109 @@ def test_result_path_lock_replacement_uses_directory_reason_and_no_success_flash
     assert response.status_code == 200
     assert "无法安全判断目录操作结果" in response.text
     assert "媒体目录操作已完成" not in response.text
+    with SessionLocal() as db:
+        assert get_media_index_status(db).stale_reason == "directory_outcome_unknown"
+
+
+@pytest.mark.parametrize(
+    ("outcome", "index_status", "expected", "forbidden"),
+    [
+        (
+            MediaFilesystemOutcome.FILESYSTEM_OUTCOME_UNKNOWN,
+            MediaIndexCoordinationStatus.INVALIDATED,
+            [
+                "flash.media_directory_outcome_unknown",
+                "flash.media_index_filesystem_outcome_unknown",
+            ],
+            ["flash.media_index_invalidation_failed", "flash.media_directory_success"],
+        ),
+        (
+            MediaFilesystemOutcome.FILESYSTEM_OUTCOME_UNKNOWN,
+            MediaIndexCoordinationStatus.INVALIDATION_FAILED,
+            [
+                "flash.media_directory_outcome_unknown",
+                "flash.media_index_invalidation_failed",
+            ],
+            ["flash.media_index_filesystem_outcome_unknown", "flash.media_directory_success"],
+        ),
+        (
+            MediaFilesystemOutcome.FILESYSTEM_CHANGED_PARTIAL_KNOWN,
+            MediaIndexCoordinationStatus.SYNCHRONIZED,
+            [
+                "flash.media_directory_partial_known",
+                "flash.media_index_post_mutation_synchronized",
+            ],
+            ["flash.media_index_post_mutation_refresh_failed", "flash.media_directory_success"],
+        ),
+        (
+            MediaFilesystemOutcome.FILESYSTEM_CHANGED_PARTIAL_KNOWN,
+            MediaIndexCoordinationStatus.POST_MUTATION_REFRESH_FAILED,
+            [
+                "flash.media_directory_partial_known",
+                "flash.media_index_post_mutation_refresh_failed",
+            ],
+            ["flash.media_index_post_mutation_synchronized", "flash.media_directory_success"],
+        ),
+        (
+            MediaFilesystemOutcome.FILESYSTEM_CHANGED_PARTIAL_KNOWN,
+            MediaIndexCoordinationStatus.INVALIDATION_FAILED,
+            [
+                "flash.media_directory_partial_known",
+                "flash.media_index_invalidation_failed",
+            ],
+            ["flash.media_index_post_mutation_synchronized", "flash.media_directory_success"],
+        ),
+        (
+            MediaFilesystemOutcome.FILESYSTEM_CHANGED_KNOWN,
+            MediaIndexCoordinationStatus.POST_MUTATION_REFRESH_FAILED,
+            [
+                "flash.media_directory_success",
+                "flash.media_index_post_mutation_refresh_failed",
+            ],
+            ["flash.media_index_post_mutation_synchronized"],
+        ),
+    ],
+)
+def test_directory_flash_matches_final_outcome_and_index_status(
+    outcome: MediaFilesystemOutcome,
+    index_status: MediaIndexCoordinationStatus,
+    expected: list[str],
+    forbidden: list[str],
+) -> None:
+    request = _flash_request()
+    coordinated = SimpleNamespace(
+        outcome=outcome,
+        result=SimpleNamespace(outcome="committed"),
+        index=MediaIndexCoordinationResult(index_status, "post_directory"),
+    )
+    pages._directory_coordinated_flash(request, coordinated)
+    keys = _flash_keys(request)
+    assert keys == expected
+    assert not set(keys).intersection(forbidden)
+
+
+def test_exception_upgraded_from_no_change_uses_directory_unknown_reason(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class ChangedHandle:
+        def verify(self) -> None:
+            raise media_operation_lock.MediaOperationLockError("media_lock_changed")
+
+    @contextmanager
+    def changed_lock() -> object:
+        yield ChangedHandle()
+
+    monkeypatch.setattr(media_write_coordination, "media_operation_lock", changed_lock)
+    with SessionLocal() as db, pytest.raises(MediaMutationExecutionError) as captured:
+        coordinate_media_mutation(
+            db,
+            source="post_directory",
+            operation=lambda: (_ for _ in ()).throw(MediaDirectoryError("stale_preview")),
+            classify_result=lambda _result: MediaFilesystemOutcome.FILESYSTEM_CHANGED_KNOWN,
+            classify_error=lambda _error: MediaFilesystemOutcome.NO_FILESYSTEM_CHANGE,
+            classify_invalidation_reason=pages._directory_invalidation_reason,
+        )
+    assert captured.value.outcome == MediaFilesystemOutcome.FILESYSTEM_OUTCOME_UNKNOWN
+    assert captured.value.index.status == MediaIndexCoordinationStatus.INVALIDATED
     with SessionLocal() as db:
         assert get_media_index_status(db).stale_reason == "directory_outcome_unknown"
