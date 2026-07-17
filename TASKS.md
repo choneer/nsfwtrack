@@ -2,20 +2,22 @@
 
 按顺序执行，每完成一项打个 [x]。
 
-## 当前状态（v1.0.6 已发布，Phase 4-R1D 文档修正已完成）
+## 当前状态（v1.0.6 已发布，Phase 4-R2 发布候选验收已完成）
 
 当前稳定版与最新 Release：`v1.0.6`。Phase 3-B1 / B2 已正式发布，
-Phase 3-B3 / B4 / B5 / B6 / C1 / C2 / C3 / C4 / C5 与 D1 最终集成审查均已完成并位于 Unreleased；Phase 4-A1 / A2 / M1 / M2 / M3 已完成，Phase 4-M4 媒体写入协调与索引自动一致性实现、本地验收和远端验收均已完成；Phase 4-M5 安全媒体目录管理已完成云端复审和 Hermes 独立验收，应用 Schema 为 `3`。
+Phase 3-B3 / B4 / B5 / B6 / C1 / C2 / C3 / C4 / C5 与 D1 最终集成审查均已完成并位于 Unreleased；Phase 4-A1 / A2 / M1 / M2 / M3 / M4 / M5、Phase 4-R1 / R1D、Phase 4-R2C1 corrective 和 Phase 4-R2 发布候选验收均已完成，应用 Schema 为 `3`。当前停止新功能开发，等待用户授权发布准备。
 
 ### Phase 4-R 发布候选准备
 
 - [x] Phase 4-R1：完成稳定版至当前 HEAD 的 Unreleased 静态审计和发布候选规划
 - [x] Phase 4-R1D：核实实际迁移入口与行为，补全 Schema 2 → 3、连续 1 → 2 → 3、备份、回滚和应用降级文档
 - [x] Phase 4-R1D：同步 PLAN / TASKS / REVIEW / CHANGELOG / GOAL 的阶段状态，不修改代码、Schema、迁移、版本或工作流
-- [ ] Phase 4-R2：执行 targeted、迁移全链、旧备份兼容、核心媒体回归、页面/i18n、全量 pytest 和 pip check
-- [ ] Phase 4-R2：执行隔离 Docker 双生命周期、真实媒体目录生命周期、索引 refresh/invalidation/unknown 和安全运行属性验收
-- [ ] Phase 4-R2：核对全部临时资源清理并形成发布候选结论
-- [ ] 发布：`v1.1.0` 仅为当前建议；R2 通过并获得用户明确授权前不修改版本、不创建 tag/Release、不部署 N100
+- [x] Phase 4-R2C1：候选提交 `b7c5a634ad8c2b79ced74da9dcf0247d7af06a4b` 修复目录删除预览路由，真实 preview / POST 回归通过；Actions run `29577588841` 的两个 job 均成功
+- [x] Phase 4-R2：完成 targeted、迁移全链、旧备份兼容、核心媒体回归、页面/i18n、全量 `785 passed` 和 `pip check`
+- [x] Phase 4-R2：完成隔离 Docker 双生命周期、真实 HTTP 媒体目录生命周期、索引 refresh/invalidation/unknown 和安全运行属性验收
+- [x] Phase 4-R2：R2.1–R2.14 全部通过，临时资源已清理，既有 `data/` 未接触并形成发布候选结论
+- [x] Phase 4-R2：云端复核和 Hermes 独立验收均已完成
+- [ ] 发布：`v1.1.0` 仅为当前建议；尚未获得用户发布授权，不修改版本、不创建 tag/Release、不部署 N100
 
 - Annotated tag object：`d4d5c31cd5b2fed9a90ad69742d54b4c9dbed0b4`
 - Peeled commit：`961a3d0cc169e82b261d83207b0ec802007e292b`

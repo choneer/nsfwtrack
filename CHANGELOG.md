@@ -2,19 +2,32 @@
 
 ## Unreleased
 
+### Fixed
+
+- Fixed the authenticated media-directory delete preview HTTP 500 caused by an
+  undefined `local_media` module reference, using the existing
+  `validate_local_media_directory` validation path.
+- Added real route regressions for the delete preview and confirmed POST,
+  including the initial `303` response and safe rejection cases.
+
 ### Documentation
 
-- Completed the Phase 4-R1 static release-candidate audit and the Phase 4-R1D
-  documentation correction. The recommended next version is `v1.1.0`, but
-  Phase 4-R2 acceptance has not started and no release decision was made.
+- Completed Phase 4-R2 release-candidate acceptance on corrective candidate
+  `b7c5a634ad8c2b79ced74da9dcf0247d7af06a4b`. The full suite passed `785`
+  tests, and Actions run `29577588841` completed both `test` and
+  `Docker production smoke` successfully.
+- Validated the real Schema 1 → 2 → 3 and stable-v1.0.6 Schema 2 → 3 paths,
+  stable JSON backup preview/restore and failure atomicity, post-restore index
+  invalidation/rebuild, real HTTP media-directory operations, the outcome/index
+  fault matrix, and two persisted Docker lifecycles.
 - Corrected the user upgrade and rollback guide for the real code-owned
   Schema 1 → 2 → 3 path, including the authenticated dry-run/apply Web flow,
   Schema 2 → 3 migration, backup/media separation, transactional rollback,
   derived-index rebuild, and the prohibition on using a Schema 3 database
   directly with stable `v1.0.6`.
-- This documentation-only stage changes no application code, tests, runtime
-  behavior, dependency, migration implementation, Schema, application version,
-  workflow, tag, Release, or N100 deployment state.
+- The recommended next version remains `v1.1.0`, but this documentation closeout
+  changes no application code, tests, runtime behavior, dependency, migration,
+  Schema, application version, workflow, tag, Release, or N100 deployment state.
 
 ### Added
 

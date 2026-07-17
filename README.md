@@ -2,19 +2,26 @@
 
 NSFWTrack is a local single-user content record manager / collection tracker.
 
-Current application version: `v1.0.6 / Phase 4-R1D documentation correction complete in Unreleased`.
+Current application version: `v1.0.6 / Phase 4-R2 release-candidate acceptance complete in Unreleased`.
 
 Current stable version: `v1.0.6 / Phase 3-B1 and B2`.
 
 Latest Release: [NSFWTrack v1.0.6](https://github.com/choneer/nsfwtrack/releases/tag/v1.0.6).
 
-Current status: `v1.0.6 is released; Phase 4-M5, the Phase 4-R1 static release-candidate audit, and Phase 4-R1D documentation correction are complete in Unreleased. Phase 4-R2 acceptance has not started`.
+Current status: `v1.0.6 is released; Phase 4-M5, Phase 4-R1/R1D, the Phase
+4-R2C1 corrective, and Phase 4-R2 release-candidate acceptance are complete in
+Unreleased`.
 
-Current development: `Phase 4-M5 implementation and independent acceptance are
-complete; Phase 4-R1 static audit and Phase 4-R1D documentation correction are
-complete`. Phase 4-R2 acceptance has not started. No new
-feature work is active, and `v1.1.0` is a recommendation rather than a created
-tag or Release. Application version 1.0.6 and Schema 3 remain unchanged.
+The current release candidate is corrective commit
+`b7c5a634ad8c2b79ced74da9dcf0247d7af06a4b`. Corrective Actions run
+`29577588841` completed both `test` and `Docker production smoke`
+successfully, and the final full suite passed `785` tests. R2 also verified the
+real Schema 1 → 2 → 3 and stable-v1.0.6 Schema 2 → 3 paths, stable JSON backup
+compatibility, real HTTP media-directory operations, outcome/index fault
+handling, and two persisted Docker lifecycles. New feature work remains frozen;
+`v1.1.0` is only the recommended next version and has not been tagged or
+released. Application version 1.0.6 and Schema 3 remain unchanged, and N100 has
+not been deployed.
 
 ## Phase 4-M5 Secure Media Directory Management
 
