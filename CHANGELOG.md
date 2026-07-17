@@ -16,6 +16,11 @@
   `785` pytest tests, `pip check`, and an isolated production Docker smoke with
   application version `1.1.0`, Schema `3`, `/login` HTTP 200, and unchanged
   runtime-security boundaries; temporary resources were removed.
+- Cloud diff review, Actions run `29586484449`, and Hermes independent
+  acceptance passed on candidate commit
+  `b565ef1ca96b2b42315e1ef322c19f9e8ac227ea` without a corrective change. The
+  `v1.1.0` candidate is frozen but remains Unreleased; no tag or Release has
+  been created.
 
 ### Fixed
 

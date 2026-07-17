@@ -40,7 +40,7 @@
 - [x] **R3.7. 运行安全** — UID/GID `10001:10001`、readonly root、`CapEff=0`、no-new-privileges、仅 `/app/data` 与 `/tmp` 可写均保持
 - [x] **R3.8. 清理与 data 边界** — 临时容器、网络、volume、镜像 tag、数据、Compose 文件和进程内随机凭据均已清理，既有 `data/` 完全未接触
 - [x] **R3.9. 发布边界** — `CHANGELOG.md` 继续使用 `Unreleased`，未创建 `v1.1.0` tag、Release 或部署 N100
-- [ ] **R3.10. 后续复核** — 候选提交与 Actions 成功后，等待云端复核和 Hermes 独立验收
+- [x] **R3.10. 后续复核** — 候选提交 `b565ef1ca96b2b42315e1ef322c19f9e8ac227ea` 的云端 diff 复核、Actions run `29586484449` 的 `test` / `Docker production smoke` 和 Hermes 独立验收均通过，无 corrective；验收后 tracked 工作区干净且仅余既有 `?? data/`，未创建 tag / Release 或部署 N100
 
 ## Phase 4-M5 安全媒体目录管理检查
 

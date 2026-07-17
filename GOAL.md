@@ -1,44 +1,38 @@
-# 当前状态：Phase 4-R3 — v1.1.0 发布候选准备完成
+# 当前状态：Phase 4-R3D — v1.1.0 发布候选最终验收收口完成
 
 ## 阶段结果
 
-Phase 4-R3 已将通过完整 R2 验收的 Unreleased 代码准备为 `v1.1.0`
-发布候选。本阶段只更新应用版本元数据、现有版本断言和授权状态文档，
-未修改业务功能、Schema、迁移、依赖、备份格式、Docker 或 CI。
+Phase 4-R3 本地验证、云端 diff 复核、GitHub Actions 和 Hermes 独立验收
+均已通过，无需 corrective。`v1.1.0` 发布候选已冻结，等待用户单独授权
+正式发布。
 
-## 发布候选状态
+## 候选事实
 
-- 开始基线：`d9d3c45b9980efbe8ae129e3eb978b803e159849`
-- 应用内部版本：`1.1.0`
+- 候选提交：`b565ef1ca96b2b42315e1ef322c19f9e8ac227ea`
+- 应用版本：`1.1.0`
 - Schema：`3`
-- 正式稳定版与最新 Release：`v1.0.6`
-- CHANGELOG：继续使用 `Unreleased`
-- `v1.1.0` tag / Release：未创建
-- N100：未部署
-
-历史 `v1.0.6` tag、Release、peeled commit、已发布阶段记录、稳定版
-Schema 2 → 3 升级来源以及回滚和备份说明均保持原意。
-
-## 本地验证
-
-- 版本 targeted：`1 passed`
-- 全量 pytest：`785 passed in 292.33s`
+- 全量 pytest：`785 passed`
 - `pip check`：通过
-- 隔离 Docker：镜像构建、healthy、`/login` HTTP 200、容器内应用版本
-  `1.1.0`、Schema `3`、UID/GID `10001:10001`、readonly root、
-  `CapEff=0`、no-new-privileges 和受限写路径全部通过
-- 清理：临时容器、网络、volume、镜像 tag、数据、Compose 文件和随机
-  凭据均已清理
+- 隔离 Docker：通过
+- Actions run `29586484449`：
+  - `test`：成功
+  - `Docker production smoke`：成功
+- 云端 diff 复核：通过
+- Hermes 独立验收：通过
+- corrective：无
+
+## 发布边界
+
+- 当前正式稳定版本：`v1.0.6`
+- `CHANGELOG.md`：继续保留 `Unreleased`
+- `v1.1.0` tag：未创建
+- `v1.1.0` GitHub Release：未创建
+- N100：未部署
 - 既有 `data/`：未接触
+- 代码、测试、版本、Schema、迁移、依赖、Docker 和 CI：本阶段未修改
 
-## 提交与后续
+## 下一步
 
-本阶段只创建并推送一笔：
-
-    Prepare v1.1.0 release candidate
-
-该提交必须通过对应 Actions 的 `test` 与 `Docker production smoke`；
-run ID 和结果由推送后的最终报告记录，不为外部结果创建第二笔提交。
-
-Actions 成功后停止，等待云端复核和 Hermes 独立验收。正式发布仍需
-用户单独授权；在此之前不得创建 tag、Release 或部署 N100。
+停止新功能开发，等待用户明确授权正式发布。正式发布阶段才允许归档
+`Unreleased`、创建最终发布提交、annotated tag 和 GitHub Release；N100
+部署仍需独立授权。

@@ -2,7 +2,7 @@
 
 NSFWTrack is a local single-user content record manager / collection tracker.
 
-Current application version: `v1.1.0 release candidate / Phase 4-R3 preparation complete in Unreleased`.
+Current application version: `v1.1.0 frozen release candidate / Phase 4-R3 final acceptance complete in Unreleased`.
 
 Current stable version: `v1.0.6 / Phase 3-B1 and B2`.
 
@@ -21,6 +21,12 @@ Schema 2 → 3 paths, stable JSON backup compatibility, real HTTP media-director
 operations, outcome/index fault handling, and two persisted Docker lifecycles.
 No new feature work is active. The `v1.1.0` tag and Release have not been
 created, and N100 has not been deployed.
+
+Cloud diff review, Actions run `29586484449`, and Hermes independent acceptance
+all passed on candidate commit
+`b565ef1ca96b2b42315e1ef322c19f9e8ac227ea` without a corrective change. The
+`v1.1.0` release candidate is now frozen and awaits explicit authorization for
+the formal release; `v1.0.6` remains the latest stable Release.
 
 Phase 4-R3 local release-candidate verification passed the existing version
 assertion, all `785` pytest tests, and `pip check`. An isolated production image
