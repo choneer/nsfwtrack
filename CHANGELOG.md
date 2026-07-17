@@ -10,13 +10,23 @@
   tokens, subtree manifests, and exact cover/avatar reference sets; M4 locking,
   `BEGIN IMMEDIATE`, independent outcome review, and one `post_directory`
   refresh preserve existing filesystem safety boundaries.
-- Verified Phase 4-M5 with 739 passing tests, clean `pip check`, isolated Docker
-  dual-lifecycle security checks, and successful Actions run `29555701228`.
+- Final Phase 4-M5 verification passed targeted 60, M5 62, related regression
+  146, core 152, and full 777 pytest tests; `pip check` was clean and Actions
+  run `29563883918` completed `test` and `Docker production smoke` successfully.
 - Hardened Phase 4-M5 after cloud review: bounded manifest traversal and
   streaming identity checks, lock-before-final-snapshot ordering, exact ID-bound
   independent commit review, precise directory outcome classification, stale
   reason preservation, and dedicated partial/rollback/unknown warnings.
-- Corrective implementation `d00d059` passed Actions run `29557896374`.
+- Cloud-review corrective commits were `d00d059701ae767094e5cb07babb58844c2be322`
+  (bounded/streaming manifests, final locked snapshot, exact-reference outcome
+  review), `d651d1f649972c39ce7a3bd8af44b715b9c705cd` (post-create/delete
+  failures, quiet rollback, lock-result unknown handling), and
+  `090eb61e10f0974bfed3f8379a7ba50a91f29207` (outcome/index-status messages,
+  invalidation-failure accuracy, directory-specific stale reasons).
+- Hermes independently accepted final create/rename/move/empty-delete,
+  exact Item/Creator migration, single `post_directory` incremental refresh,
+  unknown-result behavior, and isolated Docker persistence/security. Existing
+  `data/` remained untouched; no tag, Release, or N100 deployment was created.
 
 - Added a fixed application-data-directory media-operation lock shared by all
   in-app media writes, manual incremental scans, and confirmed full rebuilds.

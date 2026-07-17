@@ -1,6 +1,6 @@
 # GOAL.md
 
-# 当前目标：Phase 4-M5 — 安全媒体目录管理
+# 已完成目标：Phase 4-M5 — 安全媒体目录管理
 
 ## 目标
 
@@ -362,3 +362,17 @@ GET 不创建媒体锁文件。
 - M4 锁和索引一致性完整接入
 - 中英文和文档完整
 - 专项、核心组合、全量 pytest、pip check、Docker 与 Actions 通过
+
+## 最终验收状态
+
+Phase 4-M5 已完成云端复审和 Hermes 最终独立验收，无代码阻塞，
+不再需要 corrective implementation。
+
+- 实现包括安全创建单级子目录、no-overwrite 原子 rename / move 普通目录树、父目录 FD 相对删除真正为空目录、HMAC-SHA256 快照、完整身份与 manifest 复核、精确 `Item.cover_path` / `Creator.avatar_path` 迁移、M4 跨进程锁、`BEGIN IMMEDIATE`、单次 `post_directory` 增量刷新和 GET 零写入
+- corrective `d00d059701ae767094e5cb07babb58844c2be322` 完成有界 manifest、流式 SHA-256、最终快照事务顺序、精确引用独立复核和目录 outcome / stale reason
+- corrective `d651d1f649972c39ce7a3bd8af44b715b9c705cd` 完成 mkdir/rmdir 后续异常分类、安静 rollback、结果路径锁复核 unknown 和 unknown 禁止成功提示
+- corrective `090eb61e10f0974bfed3f8379a7ba50a91f29207` 完成 outcome × index.status 提示矩阵、INVALIDATION_FAILED 准确提示、异常路径升级后的 `directory_outcome_unknown` 和矛盾提示消除
+- 最终门禁：targeted `60 passed`、M5 `62 passed`、相关回归 `146 passed`、核心 `152 passed`、全量 `777 passed`、`pip check` 无损坏依赖；Actions run `29563883918` 的 `test` 与 `Docker production smoke` 均成功
+- Hermes 确认 HEAD / origin 一致、tracked clean、目录全生命周期与精确引用迁移、`last_refresh_source=post_directory`、`last_scan_kind` 从 full 变为 incremental、每请求只刷新或失效一次、锁复核失败得到 `FILESYSTEM_OUTCOME_UNKNOWN` / `directory_outcome_unknown` 且无普通成功提示
+- Hermes Docker 第二生命周期保持最终目录和数据库引用；UID 10001、非 root、readonly root、`CapEff=0`、no-new-privileges、`/login` 200，临时容器、网络和 volume 已清理
+- 既有 `data/` 完全未接触；应用版本保持 1.0.6，Schema 保持 3，依赖与备份格式不变；未创建新 tag / Release，N100 未部署并等待明确授权

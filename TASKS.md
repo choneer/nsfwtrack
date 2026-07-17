@@ -2,10 +2,10 @@
 
 按顺序执行，每完成一项打个 [x]。
 
-## 当前状态（v1.0.6 已发布，Phase 4-M5 开发中）
+## 当前状态（v1.0.6 已发布，Phase 4-M5 已完成并通过独立验收）
 
 当前稳定版与最新 Release：`v1.0.6`。Phase 3-B1 / B2 已正式发布，
-Phase 3-B3 / B4 / B5 / B6 / C1 / C2 / C3 / C4 / C5 与 D1 最终集成审查均已完成并位于 Unreleased；Phase 4-A1 / A2 / M1 / M2 / M3 已完成，Phase 4-M4 媒体写入协调与索引自动一致性实现、本地验收和远端验收均已完成；Phase 4-M5 安全媒体目录管理正在实现，应用 Schema 为 `3`。
+Phase 3-B3 / B4 / B5 / B6 / C1 / C2 / C3 / C4 / C5 与 D1 最终集成审查均已完成并位于 Unreleased；Phase 4-A1 / A2 / M1 / M2 / M3 已完成，Phase 4-M4 媒体写入协调与索引自动一致性实现、本地验收和远端验收均已完成；Phase 4-M5 安全媒体目录管理已完成云端复审和 Hermes 独立验收，应用 Schema 为 `3`。
 
 - Annotated tag object：`d4d5c31cd5b2fed9a90ad69742d54b4c9dbed0b4`
 - Peeled commit：`961a3d0cc169e82b261d83207b0ec802007e292b`
@@ -23,7 +23,8 @@ N100 / 目标主机部署尚未开始，**不是当前开发任务**，必须等
 - [x] 安全删除真正为空的目录并使用父目录 FD 相对 `rmdir`
 - [x] 接入 M4 锁、`BEGIN IMMEDIATE`、独立 Session outcome 复核与 `post_directory` 单次刷新
 - [x] 覆盖 stale、目标抢占、symlink / special / damaged / unsupported、rollback、unknown、锁超时和 GET 零写入
-- [x] 完成中英文、Docker 双生命周期、全量 pytest、pip check 与 Actions 验收：`739 passed`，run `29555701228`
+- [x] 最终 targeted `60 passed`、M5 专项 `62 passed`、相关回归 `146 passed`、核心组合 `152 passed`、全量 `777 passed`，`pip check` 无损坏依赖
+- [x] Actions run `29563883918` 的 `test` 与 `Docker production smoke` 均成功
 - [x] 保持版本 1.0.6、Schema 3、依赖、备份格式、tag / Release / N100 与既有 `data/` 边界不变
 
 Cloud-review corrective hardening:
@@ -33,6 +34,11 @@ Cloud-review corrective hardening:
 - [x] 精确 Item/Creator ID 集合独立复核 committed-after-error、rollback、mixed 和 unknown
 - [x] partial-known、rollback 和 `directory_outcome_unknown` 的刷新、stale reason 与专用提示
 - [x] corrective commit `d00d059` 与 Actions run `29557896374` 两个 job 均成功
+- [x] `d651d1f649972c39ce7a3bd8af44b715b9c705cd` 修复 mkdir/rmdir 后续异常、安静 rollback、锁复核 unknown 与成功提示边界
+- [x] `090eb61e10f0974bfed3f8379a7ba50a91f29207` 完成 outcome × index.status 提示矩阵、INVALIDATION_FAILED 警告和目录专用 stale reason
+- [x] Hermes 独立确认创建、rename、move、空目录删除、精确 Item/Creator 引用迁移、`post_directory` 单次增量刷新和 unknown 无成功提示
+- [x] Hermes Docker 第二生命周期保持最终目录和引用；UID 10001、非 root、readonly root、`CapEff=0`、no-new-privileges、`/login` 200，隔离资源已清理
+- [x] Phase 4-M5 完成且无代码阻塞；不再需要 corrective implementation；未创建 tag / Release，N100 等待明确授权
 
 ### Phase 4-M4 媒体写入协调与索引自动一致性（Unreleased）
 

@@ -8,7 +8,7 @@ Current stable version: `v1.0.6 / Phase 3-B1 and B2`.
 
 Latest Release: [NSFWTrack v1.0.6](https://github.com/choneer/nsfwtrack/releases/tag/v1.0.6).
 
-Current status: `v1.0.6 is released; Phase 4-M5 secure media-directory management is implemented in Unreleased`.
+Current status: `v1.0.6 is released; Phase 4-M5 secure media-directory management is complete and independently accepted in Unreleased`.
 
 Current development: `Phase 3-B1 and B2 are published; Phase 4-A1/A2 and
 M1/M2/M3 are complete, and Phase 4-M4 serializes every in-app media write and
@@ -21,7 +21,8 @@ exact cover/avatar references and M4 post-directory index coordination.
 ## Phase 4-M5 Secure Media Directory Management
 
 Phase 4-M5 adds authenticated directory lifecycle operations beneath the local
-media root. Directory snapshots use the existing HMAC operation-token format,
+media root. Directory snapshots use HMAC-SHA256 with the existing application
+secret and operation-token format,
 bind source and parent mode/device/inode identities, mapping tokens, a complete
 subtree manifest digest, and exact Item.cover_path / Creator.avatar_path
 reference digests. POST operations revalidate all facts under the M4 lock and
@@ -35,21 +36,32 @@ do not create the operation lock; successful directory mutations refresh the
 derived index once with source `post_directory`. Version `1.0.6`, Schema `3`,
 dependencies, backup format, and local-only boundaries remain unchanged.
 
-Local Phase 4-M5 acceptance passed `739` tests and `pip check`. Isolated Docker
-validation passed two healthy lifecycles, `/login` HTTP 200, UID/GID 10001,
-read-only root, dropped capabilities, `no-new-privileges`, and a persisted
-isolated data volume. Implementation commit `8ef2ca06a3c9900f8ca22991feb4a6ddfcf2643c`
-was verified by GitHub Actions run
-[`29555701228`](https://github.com/choneer/nsfwtrack/actions/runs/29555701228),
-whose `test` and `Docker production smoke` jobs both succeeded.
+Final Phase 4-M5 acceptance passed targeted `60`, M5 `62`, related regression
+`146`, core `152`, and full `777` pytest tests; `pip check` reported
+`No broken requirements found`. GitHub Actions run
+[`29563883918`](https://github.com/choneer/nsfwtrack/actions/runs/29563883918)
+completed both `test` and `Docker production smoke` successfully.
 
-Cloud-review corrective hardening is recorded in implementation commit
-`d00d059`. It adds bounded FD manifest limits and replacement checks, moves
-final directory/reference verification behind `BEGIN IMMEDIATE`, binds exact
-Item/Creator ID reference sets into snapshots, and distinguishes committed,
-rolled-back, partial-known, and directory-unknown outcomes. Corrective Actions
-run [`29557896374`](https://github.com/choneer/nsfwtrack/actions/runs/29557896374)
-passed both jobs.
+Cloud-review corrective history is preserved in three implementation commits:
+`d00d059701ae767094e5cb07babb58844c2be322` added bounded manifests,
+streaming SHA-256, post-`BEGIN IMMEDIATE` final snapshots, exact-reference
+independent review, and directory outcome/stale-reason handling;
+`d651d1f649972c39ce7a3bd8af44b715b9c705cd` closed post-`mkdir` and
+post-`rmdir` failures, quiet rollback, result-path lock verification, and
+unknown-success messaging; `090eb61e10f0974bfed3f8379a7ba50a91f29207`
+completed the outcome × index-status message matrix, accurate invalidation
+failure warnings, directory-specific unknown reasons after lock upgrades, and
+removed contradictory success/refresh/invalidation messages.
+
+Hermes independently accepted the final code and Actions state. It confirmed
+matching HEAD/origin, a clean tracked tree with only the existing untracked
+`data/` marker, create/rename/move/empty-delete behavior, exact Item/Creator
+reference migration, one `post_directory` incremental refresh per request,
+directory-specific unknown handling without a normal success message, and
+Docker persistence across the second lifecycle. The container remained UID
+10001, non-root, read-only-root, capability-free (`CapEff=0`), protected by
+`no-new-privileges`, and returned `/login` HTTP 200; isolated resources were
+removed and the existing `data/` was untouched.
 
 N100 deployment: `not started; waits for explicit user authorization`.
 

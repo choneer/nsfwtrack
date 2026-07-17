@@ -40,7 +40,7 @@ Release: https://github.com/choneer/nsfwtrack/releases/tag/v1.0.6
 稳定性收尾：Phase 2-I1 基线、I2 查询优化、I3 错误处理、I4 发布冻结审查已随 v1.0.0 发布
 完成度审计：Phase 2-K1 / K2 已随 v1.0.1 发布；代码开发与 WSL 验收已完成
 维护与 CI：Phase 2-L1 至 L6 已随 v1.0.2 发布；L7 已随 v1.0.3 发布；L8 固定非 root 容器用户已随 v1.0.4 发布
-产品功能重启：Phase 3-A1 至 A6 已随 v1.0.5 发布；Phase 3-B1 / B2 已随 v1.0.6 发布；Phase 3-B3 / B4 / B5 / B6 / C1 / C2 / C3 / C4 / C5 与 D1 最终集成审查均已完成并位于 Unreleased；Phase 4-A1 / A2 / M1 / M2 / M3 已完成，Phase 4-M4 实现与最终验收均已完成
+产品功能重启：Phase 3-A1 至 A6 已随 v1.0.5 发布；Phase 3-B1 / B2 已随 v1.0.6 发布；Phase 3-B3 / B4 / B5 / B6 / C1 / C2 / C3 / C4 / C5 与 D1 最终集成审查均已完成并位于 Unreleased；Phase 4-A1 / A2 / M1 / M2 / M3 / M4 已完成，Phase 4-M5 已完成云端复审与 Hermes 最终独立验收
 ```
 
 当前完成度估算：
@@ -48,7 +48,7 @@ Release: https://github.com/choneer/nsfwtrack/releases/tag/v1.0.6
 ```text
 核心业务能力：已完成
 代码发布状态：v1.0.6 已正式发布，tag 与正式 GitHub Release 均已验证
-当前开发状态：Phase 4-M5 已完成安全媒体目录创建、no-overwrite rename / move、空目录删除、精确引用迁移和 M4 post_directory 协调；全量 `739 passed`、`pip check`、隔离 Docker 双生命周期和 Actions run `29555701228` 均通过，应用版本保持 1.0.6、Schema 保持 3
+当前开发状态：Phase 4-M5 已完成安全媒体目录创建、no-overwrite rename / move、空目录删除、精确引用迁移和 M4 post_directory 协调；targeted 60、M5 62、相关回归 146、核心 152、全量 777、`pip check` 与 Actions run `29563883918` 均通过，Hermes 独立验收通过，应用版本保持 1.0.6、Schema 保持 3
 WSL 验收：已完成
 N100 部署：尚未开始，等待用户明确授权
 ```
@@ -87,6 +87,11 @@ N100 部署：尚未开始，等待用户明确授权
 Session 精确区分 committed-after-error、rollback、mixed 和 unknown；
 partial-known 与 `directory_outcome_unknown` 使用独立刷新/失效原因和提示。
 corrective commit `d00d059` 及 Actions run `29557896374` 均已通过。
+- 后续 corrective commit `d651d1f649972c39ce7a3bd8af44b715b9c705cd` 完成 mkdir/rmdir 后异常、安静 rollback、锁复核 unknown 和成功提示边界
+- 最终 corrective commit `090eb61e10f0974bfed3f8379a7ba50a91f29207` 完成 outcome × index.status 提示矩阵、INVALIDATION_FAILED 准确提示及目录专用 stale reason
+- Hermes 在代码与 Actions 完成后独立确认目录全生命周期、精确引用迁移、`last_refresh_source=post_directory`、full → incremental、每请求单次协调和 unknown 无普通成功提示
+- Hermes Docker 第二生命周期保持最终目录与数据库引用，且 UID 10001、非 root、readonly root、`CapEff=0`、no-new-privileges、`/login` 200；临时容器、网络、volume 已清理，既有 `data/` 未接触
+- Phase 4-M5 已完成且无代码阻塞，不再需要 corrective implementation；不创建新 tag / Release，N100 继续等待明确授权
 - 本地专项 89、协调层 17、核心组合 457、全量 735 与 pip check 已通过；隔离 Docker 两个生命周期均 healthy，登录 200、锁 inode / mode / owner 持久且协调写后索引从 1 条刷新到 2 条，资源已清理
 - 实现提交 `5899588` 已推送 main；Actions run `29519131776` 的 test 与 Docker production smoke 均成功
 

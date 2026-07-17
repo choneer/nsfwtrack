@@ -45,6 +45,12 @@
 - [x] **12.M5.C3. 精确复核** — HMAC 快照绑定完整 Item/Creator ID 路径集合，独立 Session 检查预期集合、异常集合和目录归属
 - [x] **12.M5.C4. 结果语义** — committed-after-error、rollback、partial-known 和 directory-unknown 的刷新、stale reason 与提示均独立处理
 - [x] **12.M5.C5. 远端验收** — corrective commit `d00d059` 的 Actions run `29557896374` 中 test / Docker production smoke 均成功
+- [x] **12.M5.C6. 后置文件系统异常** — `d651d1f649972c39ce7a3bd8af44b715b9c705cd` 是否精确处理 mkdir/rmdir 后续失败、rollback 异常、锁复核 unknown 且禁止 unknown 显示成功
+- [x] **12.M5.C7. outcome × index.status** — `090eb61e10f0974bfed3f8379a7ba50a91f29207` 是否区分同步、刷新失败、已失效、失效失败和无需协调，且无矛盾提示
+- [x] **12.M5.C8. 最终门禁** — targeted 60、M5 62、相关回归 146、核心 152、全量 777、pip check 与 Actions run `29563883918` 两个 job 是否均成功
+- [x] **12.M5.C9. Hermes 独立验收** — 是否确认 HEAD/origin、clean tracked tree、目录全生命周期、精确引用、`post_directory` incremental、单次协调、unknown stale reason/无成功提示和 Docker 第二生命周期持久化
+- [x] **12.M5.C10. 容器与清理边界** — 是否保持 UID 10001、非 root、readonly root、`CapEff=0`、no-new-privileges、`/login` 200，清理临时容器/网络/volume 且完全不接触既有 `data/`
+- [x] **12.M5.C11. 最终范围** — Phase 4-M5 是否完成且无代码阻塞，保持版本 1.0.6、Schema 3、依赖和备份格式，未创建 tag / Release 或部署 N100
 
 ## Phase 4-M4 媒体写入协调与索引一致性检查
 
