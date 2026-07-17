@@ -32,6 +32,7 @@ MEDIA_INDEX_REFRESH_SOURCES = frozenset(
         "post_cleanup",
         "post_recovery",
         "post_root_init",
+        "post_directory",
     }
 )
 _HEX_DIGITS = frozenset("0123456789abcdef")

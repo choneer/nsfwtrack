@@ -130,6 +130,12 @@ from app.services.media_directory_browser import (
     media_directory_query_params,
     query_media_directory,
 )
+from app.services.media_directory_management import (
+    MediaDirectoryError,
+    MediaDirectoryOutcomeError,
+    build_directory_snapshot,
+    execute_directory_mutation,
+)
 from app.services.media_item_candidates import (
     MediaItemCandidateError,
     create_items_from_media_candidates,
@@ -149,6 +155,7 @@ from app.services.media_operation_lock import (
 from app.services.media_write_coordination import (
     MediaIndexCoordinationResult,
     MediaIndexCoordinationStatus,
+    MediaFilesystemOutcome,
     MediaMutationExecutionError,
     classify_alias_result,
     classify_batch_result,
@@ -563,6 +570,15 @@ def _media_operation_lock_error_flash(
     add_flash(request, "error", key)
 
 
+def _classify_directory_error(error: Exception) -> MediaFilesystemOutcome:
+    outcome = getattr(error, "outcome", None)
+    if outcome == "filesystem_changed_partial_known":
+        return MediaFilesystemOutcome.FILESYSTEM_CHANGED_PARTIAL_KNOWN
+    if outcome == "directory_outcome_unknown":
+        return MediaFilesystemOutcome.FILESYSTEM_OUTCOME_UNKNOWN
+    return MediaFilesystemOutcome.NO_FILESYSTEM_CHANGE
+
+
 def _media_index_coordination_flash(
     request: Request,
     result: MediaIndexCoordinationResult,
@@ -847,6 +863,17 @@ def media_directory_page(
         )
         for row in result.rows
     }
+    current_parent_path = (
+        "/media"
+        if len(result.current.parts) <= 1
+        else f"/media/{PurePosixPath(*result.current.parts[:-1]).as_posix()}"
+    )
+    directory_move_targets = tuple(
+        candidate
+        for candidate in directories
+        if candidate.media_path not in {"/media"}
+        and candidate.parts[: len(result.current.parts)] != result.current.parts
+    )
     return templates.TemplateResponse(
         request,
         "media_directories.html",
@@ -867,10 +894,186 @@ def media_directory_page(
             detail_urls=detail_urls,
             directory_return_url=current_return_url,
             max_media_batch_size=MAX_MEDIA_BATCH_SIZE,
+            directory_parent_path=current_parent_path,
+            directory_move_targets=directory_move_targets,
             media_index_status=media_snapshot.status,
             media_index_source=media_snapshot.source,
         ),
     )
+
+
+def _directory_preview_context(
+    request: Request,
+    db: Session,
+    *,
+    snapshot: object,
+    token: str,
+    operation: str,
+) -> HTMLResponse:
+    return templates.TemplateResponse(
+        request,
+        "media_directory_operation_preview.html",
+        _base_context(
+            request,
+            db=db,
+            directory_snapshot=snapshot,
+            directory_token=token,
+            directory_operation=operation,
+        ),
+    )
+
+
+@router.get(
+    "/media-library/directories/create",
+    response_class=HTMLResponse,
+    dependencies=[Depends(require_page_auth)],
+)
+def media_directory_create_preview(
+    request: Request,
+    target_parent: str = Query(...),
+    target_basename: str = Query(...),
+    db: Session = Depends(get_db),
+) -> HTMLResponse:
+    try:
+        snapshot, token = build_directory_snapshot(
+            db,
+            operation="create",
+            source_path=None,
+            target_parent_path=target_parent,
+            target_basename=target_basename,
+        )
+    except (MediaDirectoryError, LocalMediaPathError, OSError):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST) from None
+    return _directory_preview_context(
+        request, db, snapshot=snapshot, token=token, operation="create"
+    )
+
+
+@router.post(
+    "/media-library/directories/create",
+    dependencies=[Depends(require_page_auth)],
+)
+def media_directory_create_apply(
+    request: Request,
+    token: str = Form(...),
+    confirm: str = Form(...),
+    db: Session = Depends(get_db),
+) -> RedirectResponse:
+    try:
+        coordinated = coordinate_media_mutation(
+            db,
+            source="post_directory",
+            operation=lambda: execute_directory_mutation(db, token=token, confirmation=confirm),
+            classify_result=lambda result: classify_known_filesystem_change(result),
+            classify_error=_classify_directory_error,
+        )
+        _media_index_coordination_flash(request, coordinated.index)
+        add_flash(request, "success", "flash.media_directory_success")
+    except MediaMutationExecutionError as exc:
+        _media_index_coordination_flash(request, exc.index)
+        add_flash(request, "error", "flash.media_directory_failed")
+    except (MediaDirectoryError, LocalMediaPathError, OSError):
+        add_flash(request, "error", "flash.media_directory_failed")
+    return _redirect("/media-library/directories")
+
+
+@router.get(
+    "/media-library/directories/rename",
+    response_class=HTMLResponse,
+    dependencies=[Depends(require_page_auth)],
+)
+def media_directory_rename_preview(
+    request: Request,
+    source: str = Query(...),
+    target_parent: str = Query(...),
+    target_basename: str = Query(...),
+    db: Session = Depends(get_db),
+) -> HTMLResponse:
+    try:
+        snapshot, token = build_directory_snapshot(
+            db, operation="rename", source_path=source,
+            target_parent_path=target_parent, target_basename=target_basename,
+        )
+    except (MediaDirectoryError, LocalMediaPathError, OSError):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST) from None
+    return _directory_preview_context(request, db, snapshot=snapshot, token=token, operation="rename")
+
+
+@router.get(
+    "/media-library/directories/move",
+    response_class=HTMLResponse,
+    dependencies=[Depends(require_page_auth)],
+)
+def media_directory_move_preview(
+    request: Request,
+    source: str = Query(...),
+    target_parent: str = Query(...),
+    target_basename: str = Query(...),
+    db: Session = Depends(get_db),
+) -> HTMLResponse:
+    try:
+        snapshot, token = build_directory_snapshot(
+            db, operation="move", source_path=source,
+            target_parent_path=target_parent, target_basename=target_basename,
+        )
+    except (MediaDirectoryError, LocalMediaPathError, OSError):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST) from None
+    return _directory_preview_context(request, db, snapshot=snapshot, token=token, operation="move")
+
+
+@router.post(
+    "/media-library/directories/{operation}",
+    dependencies=[Depends(require_page_auth)],
+)
+def media_directory_apply(
+    request: Request,
+    operation: str,
+    token: str = Form(...),
+    confirm: str = Form(...),
+    db: Session = Depends(get_db),
+) -> RedirectResponse:
+    if operation not in {"rename", "move", "delete"}:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
+    try:
+        coordinated = coordinate_media_mutation(
+            db,
+            source="post_directory",
+            operation=lambda: execute_directory_mutation(db, token=token, confirmation=confirm),
+            classify_result=lambda result: classify_known_filesystem_change(result),
+            classify_error=_classify_directory_error,
+        )
+        _media_index_coordination_flash(request, coordinated.index)
+        add_flash(request, "success", "flash.media_directory_success")
+    except MediaMutationExecutionError as exc:
+        _media_index_coordination_flash(request, exc.index)
+        add_flash(request, "error", "flash.media_directory_failed")
+    except (MediaDirectoryError, LocalMediaPathError, OSError):
+        add_flash(request, "error", "flash.media_directory_failed")
+    return _redirect("/media-library/directories")
+
+
+@router.get(
+    "/media-library/directories/delete",
+    response_class=HTMLResponse,
+    dependencies=[Depends(require_page_auth)],
+)
+def media_directory_delete_preview(
+    request: Request,
+    source: str = Query(...),
+    db: Session = Depends(get_db),
+) -> HTMLResponse:
+    try:
+        record = local_media.validate_local_media_directory(source)
+        if not record.parts:
+            raise MediaDirectoryError("protected_media_root")
+        parent = "/media" if len(record.parts) == 1 else f"/media/{PurePosixPath(*record.parts[:-1]).as_posix()}"
+        snapshot, token = build_directory_snapshot(
+            db, operation="delete", source_path=source,
+            target_parent_path=parent, target_basename=record.parts[-1],
+        )
+    except (MediaDirectoryError, LocalMediaPathError, OSError):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST) from None
+    return _directory_preview_context(request, db, snapshot=snapshot, token=token, operation="delete")
 
 
 @router.get(

@@ -4,6 +4,13 @@
 
 ### Added
 
+- Added Phase 4-M5 secure media-directory management: authenticated creation,
+  no-overwrite directory rename/move, and deletion of truly empty ordinary
+  directories. Signed snapshots bind stable directory identities, mapping
+  tokens, subtree manifests, and exact cover/avatar reference sets; M4 locking,
+  `BEGIN IMMEDIATE`, independent outcome review, and one `post_directory`
+  refresh preserve existing filesystem safety boundaries.
+
 - Added a fixed application-data-directory media-operation lock shared by all
   in-app media writes, manual incremental scans, and confirmed full rebuilds.
   It uses cross-process `flock`, bounded acquisition, directory-relative secure

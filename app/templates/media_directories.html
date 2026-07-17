@@ -32,6 +32,36 @@
   </div>
 </section>
 
+{% if directory_result.current.media_path not in ["/media", "/media/library"] %}
+<section class="card stack">
+  <h2>{{ t("media_directory_manage.title") }}</h2>
+  <form action="/media-library/directories/create" method="get" class="form-grid">
+    <input type="hidden" name="target_parent" value="{{ directory_result.current.media_path }}">
+    <label>{{ t("media_directory_manage.new_name") }}<input name="target_basename" required maxlength="255"></label>
+    <button type="submit">{{ t("media_directory_manage.create") }}</button>
+  </form>
+  <form action="/media-library/directories/rename" method="get" class="form-grid">
+    <input type="hidden" name="source" value="{{ directory_result.current.media_path }}">
+    <input type="hidden" name="target_parent" value="{{ directory_parent_path }}">
+    <label>{{ t("media_directory_manage.rename_name") }}<input name="target_basename" value="{{ directory_result.current.parts[-1] }}" required maxlength="255"></label>
+    <button type="submit" class="secondary">{{ t("media_directory_manage.rename") }}</button>
+  </form>
+  <form action="/media-library/directories/move" method="get" class="form-grid">
+    <input type="hidden" name="source" value="{{ directory_result.current.media_path }}">
+    <label>{{ t("media_directory_manage.move_parent") }}
+      <select name="target_parent" required>
+        {% for target in directory_move_targets %}
+          <option value="{{ target.media_path }}">{{ target.media_path }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>{{ t("media_directory_manage.move_name") }}<input name="target_basename" value="{{ directory_result.current.parts[-1] }}" required maxlength="255"></label>
+    <button type="submit" class="secondary">{{ t("media_directory_manage.move") }}</button>
+  </form>
+  <a class="button secondary" href="/media-library/directories/delete?source={{ directory_result.current.media_path | urlencode }}">{{ t("media_directory_manage.delete") }}</a>
+</section>
+{% endif %}
+
 <section class="card stack">
   <h2>{{ t("media_directories.child_directories") }}</h2>
   {% if directory_result.children %}

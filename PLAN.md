@@ -11,7 +11,7 @@
 当前应用版本与开发阶段：
 
 ```text
-v1.0.6 / Phase 4-M4 media-write coordination in Unreleased
+v1.0.6 / Phase 4-M5 secure media-directory management in Unreleased
 ```
 
 当前最新稳定版本为 `v1.0.6`，发布范围为 Phase 3-B1 与 B2。
@@ -48,7 +48,7 @@ Release: https://github.com/choneer/nsfwtrack/releases/tag/v1.0.6
 ```text
 核心业务能力：已完成
 代码发布状态：v1.0.6 已正式发布，tag 与正式 GitHub Release 均已验证
-当前开发状态：Phase 4-M4 已完成固定跨进程媒体锁、全部写入口协调、业务事务后单次索引刷新、unknown / 刷新失败失效和纯引用零扫描实现；专项 89、协调 17、核心组合 457、全量 735、pip check 与隔离 Docker 双生命周期验收已通过；实现提交 `5899588` 已推送，Actions run `29519131776` 两个 job 均成功，应用版本保持 1.0.6、Schema 保持 3
+当前开发状态：Phase 4-M4 已完成；Phase 4-M5 正在实现安全媒体目录创建、no-overwrite rename / move、空目录删除、精确引用迁移和 M4 post_directory 协调，应用版本保持 1.0.6、Schema 保持 3
 WSL 验收：已完成
 N100 部署：尚未开始，等待用户明确授权
 ```
@@ -72,6 +72,15 @@ N100 部署：尚未开始，等待用户明确授权
 - 纯 cover/avatar 引用变化不触发扫描；原有文件、目录、引用、签名预览、POST 和确认复核继续作为唯一写授权依据
 - 扫描中心展示手动及各类 post-mutation 来源；CI 验证容器重建前后私有锁文件、重获锁和有效协调刷新
 - 保持版本 1.0.6、Schema 3、依赖、备份格式和旧 tag / Release 不变；不增加后台任务、网络、AI 或 N100 部署
+
+### Phase 4-M5 当前实施范围
+
+- 只允许在媒体根内管理干净的普通目录树；媒体根、默认上传目录、保留目录和不安全对象继续拒绝
+- 创建使用父目录 FD 相对 mkdir；rename / move 使用 HMAC 快照、父目录身份与映射重验、manifest digest、精确引用迁移和 no-overwrite 原子目录 rename
+- 删除只允许真正为空目录，并使用父目录 FD 相对 rmdir；不实现递归删除、目录合并、覆盖、跨设备复制或批量目录操作
+- 所有 POST 共用 M4 跨进程锁和 `BEGIN IMMEDIATE`，独立 Session 复核 committed / rolled-back / committed-after-error / unknown 结果
+- 成功目录操作最多刷新一次索引，来源为 `post_directory`；unknown 只失效索引；GET 零写入且不创建锁文件
+- 保持版本 1.0.6、Schema 3、依赖、备份格式、tag / Release、N100、网络、AI、后台任务和既有 `data/` 隔离边界
 - 本地专项 89、协调层 17、核心组合 457、全量 735 与 pip check 已通过；隔离 Docker 两个生命周期均 healthy，登录 200、锁 inode / mode / owner 持久且协调写后索引从 1 条刷新到 2 条，资源已清理
 - 实现提交 `5899588` 已推送 main；Actions run `29519131776` 的 test 与 Docker production smoke 均成功
 

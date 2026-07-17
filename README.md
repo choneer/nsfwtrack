@@ -2,19 +2,38 @@
 
 NSFWTrack is a local single-user content record manager / collection tracker.
 
-Current application version: `v1.0.6 / Phase 4-M4 in Unreleased`.
+Current application version: `v1.0.6 / Phase 4-M5 in Unreleased`.
 
 Current stable version: `v1.0.6 / Phase 3-B1 and B2`.
 
 Latest Release: [NSFWTrack v1.0.6](https://github.com/choneer/nsfwtrack/releases/tag/v1.0.6).
 
-Current status: `v1.0.6 is released; Phase 4-M4 media-write coordination and automatic index consistency are implemented in Unreleased`.
+Current status: `v1.0.6 is released; Phase 4-M5 secure media-directory management is implemented in Unreleased`.
 
 Current development: `Phase 3-B1 and B2 are published; Phase 4-A1/A2 and
 M1/M2/M3 are complete, and Phase 4-M4 serializes every in-app media write and
 manual scan with a secure cross-process lock, then refreshes or invalidates the
 derived index from the actual operation outcome while application version
-1.0.6 stays unchanged`.
+1.0.6 stays unchanged`. Phase 4-M5 adds authenticated, FD-validated directory
+create, no-overwrite rename/move, and empty-directory deletion while preserving
+exact cover/avatar references and M4 post-directory index coordination.
+
+## Phase 4-M5 Secure Media Directory Management
+
+Phase 4-M5 adds authenticated directory lifecycle operations beneath the local
+media root. Directory snapshots use the existing HMAC operation-token format,
+bind source and parent mode/device/inode identities, mapping tokens, a complete
+subtree manifest digest, and exact Item.cover_path / Creator.avatar_path
+reference digests. POST operations revalidate all facts under the M4 lock and
+`BEGIN IMMEDIATE`; directory rename uses no-overwrite `renameat2` semantics and
+unknown commit outcomes keep the filesystem in place and invalidate the index.
+
+The media root and default upload directory remain protected. Non-empty,
+unclean, symlinked, special, damaged, unsupported, reserved, merged, or
+cross-device directory trees are rejected. GET previews remain write-free and
+do not create the operation lock; successful directory mutations refresh the
+derived index once with source `post_directory`. Version `1.0.6`, Schema `3`,
+dependencies, backup format, and local-only boundaries remain unchanged.
 
 N100 deployment: `not started; waits for explicit user authorization`.
 

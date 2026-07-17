@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}{{ t("media_directory_operation.title") }} - NSFWTrack{% endblock %}
+{% block content %}
+<section class="card stack">
+  <h1>{{ t("media_directory_operation.title") }}</h1>
+  <p>{{ t("media_directory_operation.confirmation", operation=directory_operation) }}</p>
+  <dl>
+    <dt>{{ t("media_directory_operation.source") }}</dt>
+    <dd><code>{{ directory_snapshot.source_path or "—" }}</code></dd>
+    <dt>{{ t("media_directory_operation.target") }}</dt>
+    <dd><code>{{ directory_snapshot.target_parent_path }}/{{ directory_snapshot.target_basename }}</code></dd>
+  </dl>
+  {% if directory_snapshot.manifest %}
+    <p class="muted">{{ t("media_directory_operation.manifest", directories=directory_snapshot.manifest.directories, files=directory_snapshot.manifest.files, size=directory_snapshot.manifest.total_size) }}</p>
+  {% endif %}
+  <form method="post" action="/media-library/directories/{{ directory_operation }}" class="stack">
+    <input type="hidden" name="token" value="{{ directory_token }}">
+    <input type="hidden" name="confirm" value="{{ directory_operation }}">
+    <button type="submit" class="danger">{{ t("media_directory_operation.confirm") }}</button>
+  </form>
+  <a class="button secondary" href="/media-library/directories">{{ t("common.back") }}</a>
+</section>
+{% endblock %}
