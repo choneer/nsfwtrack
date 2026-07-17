@@ -52,6 +52,23 @@
 - [x] **12.M5.C10. 容器与清理边界** — 是否保持 UID 10001、非 root、readonly root、`CapEff=0`、no-new-privileges、`/login` 200，清理临时容器/网络/volume 且完全不接触既有 `data/`
 - [x] **12.M5.C11. 最终范围** — Phase 4-M5 是否完成且无代码阻塞，保持版本 1.0.6、Schema 3、依赖和备份格式，未创建 tag / Release 或部署 N100
 
+## Phase 4-R2 发布候选验收门禁（尚未开始）
+
+- [ ] **R2.1. 授权基线** — 是否从 R1D 文档提交后的 clean `main` 开始，除既有 `?? data/` 外无修改，且测试/迁移/Docker 全部使用隔离数据
+- [ ] **R2.2. Schema 连续链** — 是否验证 fresh Schema 3、Schema 1 → 2 → 3、v1.0.6 Schema 2 → 3、当前版本重复执行、缺失路径和未来高版本拒绝
+- [ ] **R2.3. dry-run** — `/schema-upgrade/preview` 是否登录保护、零写入，真实展示步骤顺序、首步 precheck、后续 deferred precheck、warning/error 和阻塞状态
+- [ ] **R2.4. apply 原子性** — 正式 apply 是否要求确认与备份确认，逐步执行 precheck/apply/postcheck/version insert，并在 DDL、postcheck 或版本记录失败时整链 rollback
+- [ ] **R2.5. 真实 v1.0.6 数据库** — 是否由稳定 `v1.0.6` 生成隔离 Schema 2 数据库，升级后业务表、行数和关键内容保持且新增索引为空 invalid
+- [ ] **R2.6. 旧备份兼容** — 是否验证稳定版 JSON 业务备份可预览/合并恢复，媒体文件和内部 schema/index 表不在备份中，失败恢复不留半写入
+- [ ] **R2.7. 恢复后索引** — 成功恢复是否在同一事务中使索引失效，随后确认手动 full rebuild 可按真实媒体重建
+- [ ] **R2.8. 核心回归** — targeted、全部媒体安全测试、页面/路由/i18n、全量 pytest 与 `pip check` 是否全部通过并保存准确命令和数量
+- [ ] **R2.9. 真实媒体生命周期** — 隔离 Docker 内是否完成上传/索引、目录 create → rename → move → 空目录 delete、精确 Item/Creator 引用迁移和 `post_directory` 单次增量刷新
+- [ ] **R2.10. outcome/index 状态** — 是否真实覆盖 refresh 成功/失败、invalidation 成功/失败、partial-known、unknown、目录专用 stale reason、无矛盾成功提示和每请求单次协调
+- [ ] **R2.11. Docker 双生命周期** — 第二生命周期是否保持 SQLite、媒体、最终目录/引用、索引与私有锁状态，且 `/login` 返回 200
+- [ ] **R2.12. 运行安全属性** — 是否验证 UID/GID `10001:10001`、非 root、readonly root、`CapEff=0`、`no-new-privileges`、受限 tmpfs 和最小可写路径
+- [ ] **R2.13. 清理** — 临时容器、镜像、网络、volume、数据库、媒体和凭据是否全部清理，既有 `data/` 是否完全未接触
+- [ ] **R2.14. 发布边界** — 验收期间是否保持应用版本 1.0.6、Schema 3、依赖和备份格式；`v1.1.0` 仍只是建议，未创建 tag/Release，未部署 N100
+
 ## Phase 4-M4 媒体写入协调与索引一致性检查
 
 - [x] **12.M4.1. 固定锁位置** — 锁是否只位于固定应用数据目录，不由请求参数控制、不位于媒体根，GET 是否不取锁也不创建文件

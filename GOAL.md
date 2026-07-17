@@ -1,378 +1,63 @@
-# GOAL.md
+# 已完成目标：Phase 4-R1D — 发布候选文档修正
 
-# 已完成目标：Phase 4-M5 — 安全媒体目录管理
+## 阶段状态
 
-## 目标
+Phase 4-R1 静态审计和 Phase 4-R1D 文档修正均已完成，为尚未开始的
+Phase 4-R2 发布候选验收建立干净基线。推荐下一版本为 `v1.1.0`，但尚未
+正式确定或发布。
 
-为现有媒体目录浏览器增加目录生命周期管理：
+本阶段只修改了文档，未执行 R2，未修改代码、测试、配置、依赖、工作流、
+应用版本 `1.0.6`、Schema `3` 或迁移实现。
 
-- 创建目录
-- 重命名目录
-- 在媒体根内移动目录
-- 删除真正为空的目录
+## 授权范围
 
-目录操作必须继续遵守现有 FD 安全验证、M4 跨进程媒体锁、
-引用迁移和写后索引一致性边界。
+只允许修改：
 
-## 1. 目录管理入口
+- `GOAL.md`
+- `README.md`
+- `PLAN.md`
+- `TASKS.md`
+- `REVIEW.md`
+- `CHANGELOG.md`
 
-在媒体目录浏览页增加：
+`RULE.md`、`PERFORMANCE.md`、`COMPLETION_AUDIT.md` 和
+`PHASE3_COMPLETION_AUDIT.md` 必须保持不变。不得接触既有 `data/`，不得
+创建 tag、Release，不得部署 N100，不得继续开发新功能。
 
-- 在当前目录下创建子目录
-- 重命名当前目录
-- 将当前目录移动到其他现有目录
-- 删除当前空目录
+## 文档职责
 
-所有入口必须登录保护。
+- README：面向用户记录真实的 Schema 1 → 2 → 3 升级、备份、回滚和应用降级限制
+- PLAN：记录 R1 已完成、R1D 当前阶段、R2 下一步及 `v1.1.0` 建议
+- TASKS：记录 R1/R1D/R2 状态和 R2 验收类别
+- REVIEW：形成 R2 发布候选门禁
+- CHANGELOG：只在 Unreleased 简记本阶段文档修正，无运行行为变化
+- GOAL：只保留本阶段授权、职责、验证和完成标准
 
-GET 页面和预览保持数据库、媒体文件系统零写入。
+## 已核实的迁移边界
 
-禁止操作：
+仓库没有独立迁移 CLI。正式支持的流程是登录后使用：
 
-- 媒体根 `/media`
-- 默认上传目录 `/media/library`
-- cleanup anchor、upload residue 或其他内部保留路径
-- symlink、特殊对象、不可读目录
-- 媒体根之外的目录
+- `GET /schema-upgrade` 查看状态
+- `POST /schema-upgrade/preview` 执行只读 dry-run
+- `POST /schema-upgrade/apply` 显式应用迁移
 
-## 2. 创建目录
+apply 要求服务端确认和升级前备份确认；strict 模式还要求精确输入
+`CONFIRM`。启动、GET 和 dry-run 不执行迁移。Schema 1 按 1 → 2 → 3
+连续升级；Schema 2 执行 2 → 3。失败时整条迁移事务回滚，不支持自动降级。
 
-创建目标必须位于一个已验证的现有普通媒体目录内。
+## 验证与提交
 
-目录 basename：
-
-- 只允许一个名称，不允许 `/`、`\` 或路径分隔符
-- 拒绝空值、`.`、`..`
-- 拒绝控制字符和百分号编码
-- 拒绝隐藏名称和内部保留前缀
-- 具有明确的 UTF-8 字节长度上限
-- 大小写规范与现有路径校验保持一致
-
-流程：
-
-1. GET 构建零写入预览
-2. 记录目标父目录身份与映射 token
-3. POST 获取统一媒体操作锁
-4. 重新验证父目录身份和目标仍不存在
-5. 使用父目录 FD 相对创建目录
-6. 权限设为当前应用用户可访问的私有目录
-7. fsync 新目录和父目录
-8. 执行一次 `post_directory` 增量索引刷新
-
-创建目录的预览和 POST 至少绑定并验证目标父目录身份、目标父目录映射
-token、目标 basename 和目标不存在事实；不存在源目录时不伪造源目录字段。
-目标父目录身份至少包括稳定的 `mode` / 文件类型、`device` 和 `inode`。
-
-不得自动创建多级目录。
-
-## 3. 目录重命名与移动
-
-支持将一个现有普通目录：
-
-- 在原父目录中修改 basename
-- 移动到媒体根内另一个现有普通目录
-- 移动时可同时修改 basename
-
-要求：
-
-- 目标必须位于同一媒体根和同一文件系统
-- 目标目录必须不存在
-- 禁止覆盖、合并或替换现有目录
-- 禁止移动到自身或自身后代
-- 禁止操作媒体根和默认上传目录
-- 禁止跨设备复制回退
-- 禁止逐文件复制
-- 目录操作必须是一次原子目录 rename
-
-实现无覆盖目录 rename 时：
-
-- 优先使用 Linux `renameat2(RENAME_NOREPLACE)` 或等价安全机制
-- 不得回退到可能覆盖目标的普通 rename
-- 平台不支持时安全拒绝，不得降低安全标准
-
-## 4. 可管理目录树限制
-
-只有“干净的普通媒体目录树”可以重命名或移动。
-
-预览和 POST 重扫必须确认子树内：
-
-- 仅包含普通目录和受支持的普通媒体文件
-- 不含 symlink
-- 不含特殊文件
-- 不含 unsupported 文件
-- 不含 unreadable 或 entry_error
-- 不含 cleanup anchor
-- 不含 upload residue
-- 不含损坏媒体
-- 不含内部保留目录
-
-增加合理的目录和媒体文件数量上限，防止超大请求阻塞应用。
-
-超过上限时明确提示，不执行任何变更。
-
-## 5. 签名目录快照
-
-目录重命名或移动的 GET 预览生成紧凑签名快照，至少绑定：
-
-- 快照必须使用现有应用 `SECRET_KEY` 进行 HMAC-SHA256 签名
-- 验证必须使用恒定时间比较，例如 `hmac.compare_digest`
-- 不得使用普通未认证哈希代替签名
-- 不得在快照中保存或输出 `SECRET_KEY`
-- 快照必须具有明确的格式版本与用途标识，防止与其他操作 token 混用
-- 操作类型
-- 源目录路径
-- 目标父目录路径
-- 目标 basename
-- 源目录身份
-- 源父目录身份
-- 源父目录映射 token
-- 目标父目录身份
-- 目标父目录映射 token
-- 子目录数量
-- 普通媒体数量
-- 媒体总大小
-- 完整子树 manifest digest
-- 受影响 item cover 引用 digest
-- 受影响 creator avatar 引用 digest
-
-POST 不信任前端提供的目录事实。
-
-POST 获取 M4 媒体锁和数据库写锁后，
-重新验证源目录身份、源父目录身份与映射 token、目标父目录身份与映射 token，
-重新扫描目录树、引用和父目录映射，
-重建 manifest 并与签名快照精确比较。
-
-目录身份至少包括稳定的 `mode` / 文件类型、`device` 和 `inode`，
-不得只依赖字符串路径或模糊的单一 token 描述。
-
-任何漂移均返回 stale preview。
-
-## 6. 引用迁移
-
-目录重命名或移动时，迁移该目录树下所有：
-
-- Item.cover_path
-- Creator.avatar_path
-
-要求：
-
-- 使用服务端重扫得到的精确旧路径到新路径映射
-- 不使用未经转义的 SQL LIKE 前缀更新
-- 不修改目录树外的引用
-- 更新数量必须与预览快照一致
-- 更新后必须确认不存在旧前缀引用
-- 不修改条目、创作者的其他字段
-
-目录中没有引用时，不进行不必要的数据库写入。
-
-## 7. 目录 rename 与数据库提交结果
-
-推荐顺序：
-
-1. 获取媒体操作锁
-2. `BEGIN IMMEDIATE`
-3. 重建并验证快照
-4. 原子 rename 目录
-5. 更新精确引用
-6. 提交数据库
-7. 独立复核最终引用
-8. 增量刷新索引
-
-结果分类：
-
-### committed
-
-- 目录位于目标路径
-- 所有受影响引用均指向目标路径
-- 源目录不存在
-- 执行一次 `post_directory` 索引刷新
-
-### not_committed_rolled_back
-
-- 数据库仍保持全部源引用
-- 安全地将目录从目标路径原子移回源路径
-- 源目录身份和内容保持一致
-- 不刷新索引
-
-### committed_after_error
-
-- commit 抛出异常，但独立 Session 确认全部引用已迁移
-- 保留目标目录
-- 执行一次索引刷新
-- 向用户显示已提交但发生异常的提示
-
-### directory_outcome_unknown
-
-适用于：
-
-- 引用出现源/目标混合状态
-- 独立复核失败
-- 目录路径归属无法确定
-- 回滚 rename 失败
-- 父目录或目录身份发生漂移
-
-处理：
-
-- 不继续移动或删除目录
-- 不伪报成功
-- 将媒体索引标记为 invalid
-- stale reason 使用 `directory_outcome_unknown`
-- 显示源路径和目标路径的安全相对信息
-- 要求用户检查后手动刷新索引
-
-## 8. 删除空目录
-
-只允许删除：
-
-- 普通目录
-- 非媒体根
-- 非默认上传目录
-- 没有子目录
-- 没有任何普通、损坏、跳过或内部文件
-- 没有任何 cover/avatar 引用位于该目录前缀下
-
-流程：
-
-1. GET 零写入预览
-2. 签名目录身份、父目录映射和空目录事实
-3. POST 获取媒体锁
-4. 重新验证目录仍为空且身份一致
-5. 使用父目录 FD 相对 `rmdir`
-6. fsync 父目录
-7. 执行一次 `post_directory` 索引刷新
-
-若目录已删除但 fsync 失败：
-
-- 不伪称未删除
-- 结果标记为 partial known
-- 执行索引刷新
-- 显示目录已删除但持久化同步失败的警告
-
-## 9. M4 协调接入
-
-新增合法索引刷新来源：
-
-- `post_directory`
-
-目录创建、成功 rename/move 和成功删除均使用同一来源。
-
-所有目录 POST：
-
-- 与上传、文件移动、清理和手动扫描共用 M4 媒体操作锁
-- 每个请求最多刷新一次
-- 锁超时必须在任何目录或数据库变化前返回 `media_busy`
-- 结果未知时只失效索引，不推测刷新
-
-GET 不创建媒体锁文件。
-
-## 10. UI
-
-目录浏览页显示：
-
-- 新建子目录
-- 重命名
-- 移动
-- 删除空目录
-
-预览显示：
-
-- 源目录与目标目录
-- 子目录数量
-- 媒体文件数量
-- 媒体总大小
-- 将迁移的 item/creator 引用数量
-- 被拒绝的安全原因
-- 索引同步结果
-
-危险操作：
-
-- 目录重命名或移动需要确认
-- 删除目录需要精确确认
-- 创建目录使用普通 POST 确认
-
-完整中英文支持。
-
-## 11. 安全与范围边界
-
-本阶段不实现：
-
-- 递归删除非空目录
-- 强制删除
-- 目录合并
-- 覆盖已有目录
-- 跨文件系统复制
-- 自动整理规则
-- 自动按标签或创作者建立目录
-- 多目录批量操作
-- 撤销历史或任务队列
-- 文件监听器或后台扫描
-- 外部网络、远程媒体、爬虫、AI
-- 新数据库表或 Schema 迁移
-- tag、Release 或 N100 部署
-
-保持：
-
-- 应用版本 1.0.6
-- Schema 3
-- 现有依赖
-- 现有备份格式
-
-既有未跟踪 `data/` 仅属于用户本地数据：
-
-- 不得读取、枚举、修改、删除、移动、格式化、暂存或提交其中任何内容
-- 测试和 Docker 验收必须使用独立临时目录或隔离数据卷
-- 不得将测试文件写入既有 `data/`
-
-## 12. 测试要求
-
-必须覆盖：
-
-- 创建普通子目录
-- 重复名称安全拒绝
-- 父目录被替换时拒绝创建
-- symlink/special/内部路径拒绝
-- 目录原地重命名
-- 目录跨父目录移动
-- 移动时同时改名
-- 目标存在时不覆盖
-- 移动到自身或后代时拒绝
-- 媒体根和默认上传目录受保护
-- 含 symlink、特殊文件、损坏或 unsupported 文件的子树拒绝
-- manifest、引用或父目录映射漂移导致 stale preview
-- 全部 cover/avatar 引用精确迁移
-- 同前缀但不属于子树的路径不受影响
-- commit 后异常的独立结果判断
-- 未提交时安全 rollback rename
-- rollback 失败和混合引用导致 unknown + index invalid
-- 删除真正为空的目录
-- 非空目录拒绝删除
-- fsync 失败准确报告 partial known
-- 所有成功目录写操作只刷新一次
-- `last_refresh_source=post_directory`
-- 锁超时发生在任何变化前
-- GET 零写入且不创建锁文件
-- Docker 中 renameat2/no-overwrite 行为、索引刷新和容器重建正常
+完成后执行 `git diff --check`、确认只修改六份授权文档，只暂存这些文档，
+创建一笔 `Document Phase 4-R1 release candidate audit` 提交并推送 `main`。
+等待该提交的 Actions `test` 与 `Docker production smoke` 均成功。
 
 ## 完成标准
 
-- 用户可在目录浏览器中安全管理普通媒体目录
-- 不允许覆盖、合并或递归删除
-- 目录移动后全部精确引用保持有效
-- 提交未知时不误移动、不误删、不伪报成功
-- M4 锁和索引一致性完整接入
-- 中英文和文档完整
-- 专项、核心组合、全量 pytest、pip check、Docker 与 Actions 通过
+- README 的 Schema 2 → 3 步骤真实、可执行且包含回滚/降级限制
+- PLAN、TASKS、REVIEW、CHANGELOG 状态与各自职责一致
+- Phase 4-R2 仍未开始，版本和 Schema 未改变
+- 未修改授权范围外文件
+- Actions 两个 job 成功
+- 最终工作区只剩既有 `?? data/`
 
-## 最终验收状态
-
-Phase 4-M5 已完成云端复审和 Hermes 最终独立验收，无代码阻塞，
-不再需要 corrective implementation。
-
-- 实现包括安全创建单级子目录、no-overwrite 原子 rename / move 普通目录树、父目录 FD 相对删除真正为空目录、HMAC-SHA256 快照、完整身份与 manifest 复核、精确 `Item.cover_path` / `Creator.avatar_path` 迁移、M4 跨进程锁、`BEGIN IMMEDIATE`、单次 `post_directory` 增量刷新和 GET 零写入
-- corrective `d00d059701ae767094e5cb07babb58844c2be322` 完成有界 manifest、流式 SHA-256、最终快照事务顺序、精确引用独立复核和目录 outcome / stale reason
-- corrective `d651d1f649972c39ce7a3bd8af44b715b9c705cd` 完成 mkdir/rmdir 后续异常分类、安静 rollback、结果路径锁复核 unknown 和 unknown 禁止成功提示
-- corrective `090eb61e10f0974bfed3f8379a7ba50a91f29207` 完成 outcome × index.status 提示矩阵、INVALIDATION_FAILED 准确提示、异常路径升级后的 `directory_outcome_unknown` 和矛盾提示消除
-- 最终门禁：targeted `60 passed`、M5 `62 passed`、相关回归 `146 passed`、核心 `152 passed`、全量 `777 passed`、`pip check` 无损坏依赖；Actions run `29563883918` 的 `test` 与 `Docker production smoke` 均成功
-- Hermes 确认 HEAD / origin 一致、tracked clean、目录全生命周期与精确引用迁移、`last_refresh_source=post_directory`、`last_scan_kind` 从 full 变为 incremental、每请求只刷新或失效一次、锁复核失败得到 `FILESYSTEM_OUTCOME_UNKNOWN` / `directory_outcome_unknown` 且无普通成功提示
-- Hermes Docker 第二生命周期保持最终目录和数据库引用；UID 10001、非 root、readonly root、`CapEff=0`、no-new-privileges、`/login` 200，临时容器、网络和 volume 已清理
-- 既有 `data/` 完全未接触；应用版本保持 1.0.6，Schema 保持 3，依赖与备份格式不变；未创建新 tag / Release，N100 未部署并等待明确授权
+完成后停止，等待用户授权 Phase 4-R2。

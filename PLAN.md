@@ -11,7 +11,7 @@
 当前应用版本与开发阶段：
 
 ```text
-v1.0.6 / Phase 4-M5 secure media-directory management in Unreleased
+v1.0.6 / Phase 4-R1D release-candidate documentation correction complete in Unreleased
 ```
 
 当前最新稳定版本为 `v1.0.6`，发布范围为 Phase 3-B1 与 B2。
@@ -41,6 +41,7 @@ Release: https://github.com/choneer/nsfwtrack/releases/tag/v1.0.6
 完成度审计：Phase 2-K1 / K2 已随 v1.0.1 发布；代码开发与 WSL 验收已完成
 维护与 CI：Phase 2-L1 至 L6 已随 v1.0.2 发布；L7 已随 v1.0.3 发布；L8 固定非 root 容器用户已随 v1.0.4 发布
 产品功能重启：Phase 3-A1 至 A6 已随 v1.0.5 发布；Phase 3-B1 / B2 已随 v1.0.6 发布；Phase 3-B3 / B4 / B5 / B6 / C1 / C2 / C3 / C4 / C5 与 D1 最终集成审查均已完成并位于 Unreleased；Phase 4-A1 / A2 / M1 / M2 / M3 / M4 已完成，Phase 4-M5 已完成云端复审与 Hermes 最终独立验收
+发布候选准备：Phase 4-R1 静态审计和 Phase 4-R1D 文档修正均已完成；下一步 Phase 4-R2 发布候选验收尚未开始
 ```
 
 当前完成度估算：
@@ -48,10 +49,18 @@ Release: https://github.com/choneer/nsfwtrack/releases/tag/v1.0.6
 ```text
 核心业务能力：已完成
 代码发布状态：v1.0.6 已正式发布，tag 与正式 GitHub Release 均已验证
-当前开发状态：Phase 4-M5 已完成安全媒体目录创建、no-overwrite rename / move、空目录删除、精确引用迁移和 M4 post_directory 协调；targeted 60、M5 62、相关回归 146、核心 152、全量 777、`pip check` 与 Actions run `29563883918` 均通过，Hermes 独立验收通过，应用版本保持 1.0.6、Schema 保持 3
+当前开发状态：Phase 4-M5、Phase 4-R1 静态审计和 Phase 4-R1D 文档修正均已完成；不继续开发新功能；Phase 4-R2 尚未开始。推荐下一版本为 `v1.1.0`，但尚未正式确定或发布；应用版本保持 1.0.6、Schema 保持 3
 WSL 验收：已完成
 N100 部署：尚未开始，等待用户明确授权
 ```
+
+### Phase 4-R 发布候选路线
+
+- Phase 4-R1：已完成 Unreleased 范围、状态语义、Schema/备份、文件系统安全、UI 和测试覆盖静态审计
+- Phase 4-R1D：已完成 Schema 2 → 3 用户升级/回滚说明及各阶段状态文档修正
+- Phase 4-R2：尚未开始；下一步一次性执行迁移、备份兼容、核心回归、全量、Docker 双生命周期和真实媒体操作验收
+- 版本建议：`v1.1.0`，原因是 Unreleased 包含大量用户可见媒体管理能力和 Schema 2 → 3；最终版本仍需用户在 R2 后授权
+- 当前冻结：不继续开发新功能，不创建 tag/Release，不部署 N100
 
 ### Phase 4-M3 当前实施范围
 

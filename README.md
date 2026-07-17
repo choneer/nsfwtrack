@@ -2,21 +2,19 @@
 
 NSFWTrack is a local single-user content record manager / collection tracker.
 
-Current application version: `v1.0.6 / Phase 4-M5 in Unreleased`.
+Current application version: `v1.0.6 / Phase 4-R1D documentation correction complete in Unreleased`.
 
 Current stable version: `v1.0.6 / Phase 3-B1 and B2`.
 
 Latest Release: [NSFWTrack v1.0.6](https://github.com/choneer/nsfwtrack/releases/tag/v1.0.6).
 
-Current status: `v1.0.6 is released; Phase 4-M5 secure media-directory management is complete and independently accepted in Unreleased`.
+Current status: `v1.0.6 is released; Phase 4-M5, the Phase 4-R1 static release-candidate audit, and Phase 4-R1D documentation correction are complete in Unreleased. Phase 4-R2 acceptance has not started`.
 
-Current development: `Phase 3-B1 and B2 are published; Phase 4-A1/A2 and
-M1/M2/M3 are complete, and Phase 4-M4 serializes every in-app media write and
-manual scan with a secure cross-process lock, then refreshes or invalidates the
-derived index from the actual operation outcome while application version
-1.0.6 stays unchanged`. Phase 4-M5 adds authenticated, FD-validated directory
-create, no-overwrite rename/move, and empty-directory deletion while preserving
-exact cover/avatar references and M4 post-directory index coordination.
+Current development: `Phase 4-M5 implementation and independent acceptance are
+complete; Phase 4-R1 static audit and Phase 4-R1D documentation correction are
+complete`. Phase 4-R2 acceptance has not started. No new
+feature work is active, and `v1.1.0` is a recommendation rather than a created
+tag or Release. Application version 1.0.6 and Schema 3 remain unchanged.
 
 ## Phase 4-M5 Secure Media Directory Management
 
@@ -2016,23 +2014,69 @@ Use this single checklist for the current local deployment line.
 
 ### Upgrade From v0.9.x Or v1.0.x
 
-1. Export a fresh JSON backup from `/backup`, run its preview / validation, and
-   retain the verified file outside the deployment directory.
-2. Run `docker compose down`, then copy the stopped `data/nsfwtrack.db` to a
-   dated rollback file before changing code or images.
+The current stable `v1.0.6` database is Schema 2. Current Unreleased code uses
+Schema 3, and the recommended (not yet released) next version is `v1.1.0`.
+NSFWTrack has no standalone migration CLI: the supported migration interface
+is the authenticated `/schema-upgrade` Web flow.
+
+1. Export a fresh JSON business-data backup from `/backup`, run its preview /
+   validation, and retain the verified file outside the deployment directory.
+   JSON backup does not contain media files, `schema_migrations`, or the
+   rebuildable media-index tables. Protect the media directory separately.
+2. Stop the service and make a dated byte-for-byte copy of the SQLite database
+   before changing code or images:
+
+   ```bash
+   docker compose down
+   upgrade_backup_dir="../nsfwtrack-upgrade-$(date +%Y%m%d-%H%M%S)"
+   install -d -m 0700 "${upgrade_backup_dir}"
+   cp -p data/nsfwtrack.db "${upgrade_backup_dir}/nsfwtrack.db"
+   test -s "${upgrade_backup_dir}/nsfwtrack.db"
+   cmp -s data/nsfwtrack.db "${upgrade_backup_dir}/nsfwtrack.db"
+   ```
+
+   Back up `.env` or equivalent deployment configuration separately with
+   appropriately restricted permissions. For a customized named-volume
+   deployment, use that volume's documented stopped-backup procedure instead
+   of assuming the standard `./data` bind mount.
 3. If the existing deployment is v1.0.3 or earlier and `./data` is not already
    owned by `10001:10001`, complete the ownership migration below while the
    service remains stopped.
 4. Fetch the reviewed target tag or commit, verify its release notes, then run
    `docker compose build` and `docker compose up -d`.
 5. Confirm `/login` returns `200`, log in, and inspect the schema status in
-   `/settings`. A v1.0.4 or earlier database reports Schema 1 and requires the
-   explicit `create_item_sources` upgrade to Schema 2.
-6. Open `/schema-upgrade`, run the read-only preview, verify the fresh backup,
-   then explicitly confirm apply. Startup and GET never migrate data.
-7. Confirm `/settings` reports Schema 2 and existing item counts are unchanged;
-   then test adding a local source URL. The migration creates only
-   `item_sources` and does not alter an existing table.
+   `/settings`.
+6. Open `GET /schema-upgrade`, then submit the page's
+   `POST /schema-upgrade/preview` action. This is the supported dry-run: SQLite
+   `query_only`, a read-only authorizer, and rollback prevent database, DDL, and
+   version writes. The first step's precheck runs; later-step prechecks are
+   marked deferred because dry-run never applies an earlier step.
+7. Review the ordered path and expected changes:
+
+   - Schema 2 (`v1.0.6`) resolves to `2 → 3 create_media_index`.
+   - Schema 1 resolves continuously to `1 → 2 create_item_sources`, then
+     `2 → 3 create_media_index`.
+
+   Do not continue if preview is blocked, a precheck fails, the path is
+   missing, or the database version is newer than the application.
+8. After rechecking the stopped SQLite copy and JSON backup, submit the page's
+   `POST /schema-upgrade/apply` form with the normal confirmation and the
+   explicit pre-upgrade-backup acknowledgement. Strict confirmation mode also
+   requires the exact text `CONFIRM`. The route accepts no SQL, table name,
+   target version, skipped check, or downgrade parameter.
+9. Apply rereads the database version, resolves the code-owned path, runs every
+   precheck, migration, postcheck, and version insert inside one transaction
+   (`BEGIN IMMEDIATE` on SQLite). Any exception or failed check rolls back the
+   complete chain rather than leaving a partial Schema.
+10. Confirm `/settings` reports Schema 3. Schema 3 adds only the empty invalid
+    `media_index_entries` and `media_index_state` derived-index structures;
+    existing business rows remain intact. Open `/media-library/index`, review
+    the invalid state, then use its confirmed full rebuild to construct the
+    index from the current media filesystem.
+
+A successful JSON business-data restore does not restore media files or index
+rows. It marks the existing media index invalid; restore/protect media files
+separately and rebuild the index manually afterward.
 
 ### Migrate Existing v1.0.3 Data Ownership
 
@@ -2054,22 +2098,25 @@ docker compose build
 docker compose up -d
 ```
 
-After startup, confirm `/login` returns `200`, complete the explicit Schema 1 →
-2 preview/apply flow, verify Schema 2 in `/settings`, and retain the stopped
-backup until application data has been checked. Do not replace this procedure
+After startup, confirm `/login` returns `200`, complete the explicit continuous
+Schema 1 → 2 → 3 preview/apply flow, verify Schema 3 in `/settings`, and retain
+the stopped backup until application data has been checked. Do not replace this procedure
 with world-writable permissions, a root container, or an entry point that
 changes ownership automatically.
 
 ### Rollback
 
 1. Run `docker compose down` before replacing code or SQLite data.
-2. Return to the previous reviewed tag or commit and restore the matching
-   stopped SQLite copy. Do not mix a newer database with older code unless its
-   schema status is explicitly compatible.
-3. Rebuild, start, verify `/login`, and inspect the data before resuming use.
-4. Never edit `schema_migrations` by hand. There is no automatic downgrade; a
-   future schema-changing release must provide its own explicit rollback or
-   backup-restore instructions.
+2. There is no automatic Schema downgrade. In particular, do not give a
+   Schema 3 database to stable `v1.0.6`, whose supported database is Schema 2.
+3. To return to `v1.0.6`, restore the matching stopped Schema 2 SQLite copy
+   made before upgrade, then return to the reviewed `v1.0.6` tag/image. A JSON
+   merge restore is not a schema downgrade and does not replace this database
+   rollback copy.
+4. Rebuild, start, verify `/login`, confirm Schema 2 in `/settings`, and inspect
+   business data and separately protected media before resuming use.
+5. Never edit `schema_migrations` by hand, delete index tables as a substitute
+   for downgrade, or expect database migration/JSON backup to restore media.
 
 ## N100 LAN Deployment
 
