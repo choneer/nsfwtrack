@@ -43,6 +43,14 @@ was verified by GitHub Actions run
 [`29555701228`](https://github.com/choneer/nsfwtrack/actions/runs/29555701228),
 whose `test` and `Docker production smoke` jobs both succeeded.
 
+Cloud-review corrective hardening is recorded in implementation commit
+`d00d059`. It adds bounded FD manifest limits and replacement checks, moves
+final directory/reference verification behind `BEGIN IMMEDIATE`, binds exact
+Item/Creator ID reference sets into snapshots, and distinguishes committed,
+rolled-back, partial-known, and directory-unknown outcomes. Corrective Actions
+run [`29557896374`](https://github.com/choneer/nsfwtrack/actions/runs/29557896374)
+passed both jobs.
+
 N100 deployment: `not started; waits for explicit user authorization`.
 
 NSFWTrack remains intentionally local-only. It is designed for manual records,

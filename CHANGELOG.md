@@ -12,6 +12,11 @@
   refresh preserve existing filesystem safety boundaries.
 - Verified Phase 4-M5 with 739 passing tests, clean `pip check`, isolated Docker
   dual-lifecycle security checks, and successful Actions run `29555701228`.
+- Hardened Phase 4-M5 after cloud review: bounded manifest traversal and
+  streaming identity checks, lock-before-final-snapshot ordering, exact ID-bound
+  independent commit review, precise directory outcome classification, stale
+  reason preservation, and dedicated partial/rollback/unknown warnings.
+- Corrective implementation `d00d059` passed Actions run `29557896374`.
 
 - Added a fixed application-data-directory media-operation lock shared by all
   in-app media writes, manual incremental scans, and confirmed full rebuilds.

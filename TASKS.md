@@ -26,6 +26,14 @@ N100 / 目标主机部署尚未开始，**不是当前开发任务**，必须等
 - [x] 完成中英文、Docker 双生命周期、全量 pytest、pip check 与 Actions 验收：`739 passed`，run `29555701228`
 - [x] 保持版本 1.0.6、Schema 3、依赖、备份格式、tag / Release / N100 与既有 `data/` 边界不变
 
+Cloud-review corrective hardening:
+
+- [x] 有界 manifest 常量、流式分块读取、FD/lstat/fstat 前后身份核对和保留对象拒绝
+- [x] rename/move 在 `BEGIN IMMEDIATE` 后重建并比较最终 manifest、父目录和精确引用快照
+- [x] 精确 Item/Creator ID 集合独立复核 committed-after-error、rollback、mixed 和 unknown
+- [x] partial-known、rollback 和 `directory_outcome_unknown` 的刷新、stale reason 与专用提示
+- [x] corrective commit `d00d059` 与 Actions run `29557896374` 两个 job 均成功
+
 ### Phase 4-M4 媒体写入协调与索引自动一致性（Unreleased）
 
 - [x] 在固定应用数据目录新增跨进程媒体操作锁，路径不受请求控制且不位于媒体根

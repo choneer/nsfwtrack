@@ -81,6 +81,12 @@ N100 部署：尚未开始，等待用户明确授权
 - 所有 POST 共用 M4 跨进程锁和 `BEGIN IMMEDIATE`，独立 Session 复核 committed / rolled-back / committed-after-error / unknown 结果
 - 成功目录操作最多刷新一次索引，来源为 `post_directory`；unknown 只失效索引；GET 零写入且不创建锁文件
 - 保持版本 1.0.6、Schema 3、依赖、备份格式、tag / Release、N100、网络、AI、后台任务和既有 `data/` 隔离边界
+
+云端审查修复已完成：manifest 使用明确上限和有界流式读取，rename/move
+在 `BEGIN IMMEDIATE` 后执行最终快照，引用快照绑定精确对象 ID，独立
+Session 精确区分 committed-after-error、rollback、mixed 和 unknown；
+partial-known 与 `directory_outcome_unknown` 使用独立刷新/失效原因和提示。
+corrective commit `d00d059` 及 Actions run `29557896374` 均已通过。
 - 本地专项 89、协调层 17、核心组合 457、全量 735 与 pip check 已通过；隔离 Docker 两个生命周期均 healthy，登录 200、锁 inode / mode / owner 持久且协调写后索引从 1 条刷新到 2 条，资源已清理
 - 实现提交 `5899588` 已推送 main；Actions run `29519131776` 的 test 与 Docker production smoke 均成功
 

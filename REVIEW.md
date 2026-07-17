@@ -38,6 +38,14 @@
 - [x] **12.M5.5. M4 接入** — 是否共用媒体锁、unknown 只失效索引、每请求最多刷新一次且来源为 post_directory
 - [x] **12.M5.6. 只读与范围** — GET 是否零写入且不建锁文件，版本 / Schema / 依赖 / 备份 / 网络 / AI / data 边界是否保持
 
+### Phase 4-M5 云端审查修复
+
+- [x] **12.M5.C1. 有界扫描** — 目录、文件、总字节、单文件和递归深度上限，以及流式 SHA / 身份替换检查已覆盖
+- [x] **12.M5.C2. 锁顺序** — rename/move 在媒体锁内先取得 `BEGIN IMMEDIATE`，再执行最终目录、manifest 和引用快照复核
+- [x] **12.M5.C3. 精确复核** — HMAC 快照绑定完整 Item/Creator ID 路径集合，独立 Session 检查预期集合、异常集合和目录归属
+- [x] **12.M5.C4. 结果语义** — committed-after-error、rollback、partial-known 和 directory-unknown 的刷新、stale reason 与提示均独立处理
+- [x] **12.M5.C5. 远端验收** — corrective commit `d00d059` 的 Actions run `29557896374` 中 test / Docker production smoke 均成功
+
 ## Phase 4-M4 媒体写入协调与索引一致性检查
 
 - [x] **12.M4.1. 固定锁位置** — 锁是否只位于固定应用数据目录，不由请求参数控制、不位于媒体根，GET 是否不取锁也不创建文件
