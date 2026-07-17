@@ -11,17 +11,17 @@
 当前应用版本与开发阶段：
 
 ```text
-v1.1.0 frozen release candidate / Phase 4-R3 final acceptance complete in Unreleased
+v1.1.0 / Phase 4-R4 formal release complete
 ```
 
-当前最新稳定版本为 `v1.0.6`，发布范围为 Phase 3-B1 与 B2。
+当前最新稳定版本为 `v1.1.0`，发布范围包含已冻结并验收完成的 Phase 3 后续媒体维护能力与 Phase 4 全部能力。
 
 当前发布引用：
 
 ```text
 annotated tag object: d4d5c31cd5b2fed9a90ad69742d54b4c9dbed0b4
 peeled commit: 961a3d0cc169e82b261d83207b0ec802007e292b
-Release: https://github.com/choneer/nsfwtrack/releases/tag/v1.0.6
+Release: https://github.com/choneer/nsfwtrack/releases/tag/v1.1.0
 ```
 
 当前项目状态：
@@ -40,16 +40,16 @@ Release: https://github.com/choneer/nsfwtrack/releases/tag/v1.0.6
 稳定性收尾：Phase 2-I1 基线、I2 查询优化、I3 错误处理、I4 发布冻结审查已随 v1.0.0 发布
 完成度审计：Phase 2-K1 / K2 已随 v1.0.1 发布；代码开发与 WSL 验收已完成
 维护与 CI：Phase 2-L1 至 L6 已随 v1.0.2 发布；L7 已随 v1.0.3 发布；L8 固定非 root 容器用户已随 v1.0.4 发布
-产品功能重启：Phase 3-A1 至 A6 已随 v1.0.5 发布；Phase 3-B1 / B2 已随 v1.0.6 发布；Phase 3-B3 / B4 / B5 / B6 / C1 / C2 / C3 / C4 / C5 与 D1 最终集成审查均已完成并位于 Unreleased；Phase 4-A1 / A2 / M1 / M2 / M3 / M4 已完成，Phase 4-M5 已完成云端复审与 Hermes 最终独立验收
-发布候选准备：Phase 4-R1 静态审计、Phase 4-R1D 文档修正、Phase 4-R2C1 corrective、Phase 4-R2 发布候选验收和 Phase 4-R3 最终验收均已完成；应用内部版本为 1.1.0，发布候选已冻结，下一阶段必须等待用户授权正式发布
+产品功能重启：Phase 3-A1 至 A6 已随 v1.0.5 发布；Phase 3-B1 / B2 已随 v1.0.6 发布；Phase 3-B3 / B4 / B5 / B6 / C1 / C2 / C3 / C4 / C5、D1 最终集成审查及 Phase 4-A1 / A2 / M1 / M2 / M3 / M4 / M5 均已随 v1.1.0 正式发布
+正式发布：Phase 4-R1 至 R3D 的审计、验收和候选冻结均已完成，Phase 4-R4 已正式发布 `v1.1.0`；下一阶段需重新规划目标版本
 ```
 
 当前完成度估算：
 
 ```text
 核心业务能力：已完成
-代码发布状态：v1.0.6 已正式发布，tag 与正式 GitHub Release 均已验证
-当前开发状态：Phase 4-M5、Phase 4-R1 / R1D、Phase 4-R2C1、Phase 4-R2 和 Phase 4-R3 均已完成；`v1.1.0` 发布候选已通过云端 diff、Actions 和 Hermes 独立验收并冻结。正式稳定版仍为 `v1.0.6`，`v1.1.0` 尚未发布；Schema 保持 3
+代码发布状态：v1.1.0 已正式发布，annotated tag 与正式 GitHub Release 按发布门禁验证
+当前开发状态：Phase 4 开发、验收和发布路线全部完成；当前应用版本与正式稳定版均为 `v1.1.0`，Schema 为 3；不继续开发新功能，下一目标版本需重新规划
 WSL 验收：已完成
 N100 部署：尚未开始，等待用户明确授权
 ```
@@ -61,9 +61,9 @@ N100 部署：尚未开始，等待用户明确授权
 - Phase 4-R2C1：已在候选提交 `b7c5a634ad8c2b79ced74da9dcf0247d7af06a4b` 修复目录删除预览路由并补齐真实路由回归；Actions run `29577588841` 的两个 job 均成功
 - Phase 4-R2：R2.1–R2.14 已全部通过，包括真实 Schema 连续迁移、稳定版备份兼容、`785 passed`、媒体目录 HTTP 生命周期、outcome/index 故障矩阵和 Docker 双生命周期
 - Phase 4-R3：应用内部版本已提升为 `1.1.0`；版本 targeted、全量 `785 passed`、`pip check`、隔离 Docker、云端 diff、Actions run `29586484449` 和 Hermes 独立验收均通过，无 corrective，Schema 保持 `3`
-- 候选状态：提交 `b565ef1ca96b2b42315e1ef322c19f9e8ac227ea` 已冻结；下一阶段为正式发布，必须等待用户明确授权
-- 稳定与发布边界：当前正式稳定版仍为 `v1.0.6`；`v1.1.0` 尚未创建 tag 或 Release，正式发布仍需用户明确授权
-- 当前冻结：不继续开发新功能；未创建 tag/Release，未部署 N100
+- Phase 4-R4：`CHANGELOG` 已归档，发布提交、annotated `v1.1.0` tag、tag Actions、正式 GitHub Release 和发布后一致性验证按门禁完成
+- 当前稳定版：`v1.1.0`；Phase 4 开发和发布路线全部完成，下一目标版本需重新规划
+- 当前冻结：不继续开发新功能；N100 未部署且仍需独立授权
 
 ### Phase 4-M3 当前实施范围
 

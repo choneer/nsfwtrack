@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## [1.1.0] - 2026-07-17
+
 ### Changed
 
 - Prepared the current Unreleased code as a `v1.1.0` release candidate by
@@ -10,8 +12,9 @@
 - Kept Schema `3`, migrations, dependencies, backup format, Docker/CI behavior,
   and all application features unchanged. Phase 4-R2 acceptance remains the
   release-candidate evidence baseline.
-- The latest formal stable version and Release remain `v1.0.6`; no `v1.1.0`
-  tag or Release has been created, and N100 has not been deployed.
+- At candidate freeze, the latest formal stable version and Release remained
+  `v1.0.6`; no `v1.1.0` tag or Release had yet been created, and N100 had not
+  been deployed.
 - Release-candidate verification passed the existing version assertion, all
   `785` pytest tests, `pip check`, and an isolated production Docker smoke with
   application version `1.1.0`, Schema `3`, `/login` HTTP 200, and unchanged
@@ -19,8 +22,8 @@
 - Cloud diff review, Actions run `29586484449`, and Hermes independent
   acceptance passed on candidate commit
   `b565ef1ca96b2b42315e1ef322c19f9e8ac227ea` without a corrective change. The
-  `v1.1.0` candidate is frozen but remains Unreleased; no tag or Release has
-  been created.
+  `v1.1.0` candidate was frozen without a tag or Release before this formal
+  release.
 
 ### Fixed
 

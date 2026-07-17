@@ -42,6 +42,19 @@
 - [x] **R3.9. 发布边界** — `CHANGELOG.md` 继续使用 `Unreleased`，未创建 `v1.1.0` tag、Release 或部署 N100
 - [x] **R3.10. 后续复核** — 候选提交 `b565ef1ca96b2b42315e1ef322c19f9e8ac227ea` 的云端 diff 复核、Actions run `29586484449` 的 `test` / `Docker production smoke` 和 Hermes 独立验收均通过，无 corrective；验收后 tracked 工作区干净且仅余既有 `?? data/`，未创建 tag / Release 或部署 N100
 
+## Phase 4-R4 v1.1.0 正式发布门禁
+
+- [x] **R4.1. 发布基线** — 从 R3D 收口提交 `3d96a854ce0d9e306978b659c6281821b97bc14b` 开始，除预置 `GOAL.md` 和既有 `?? data/` 外无修改
+- [x] **R4.2. 版本与 Schema** — 应用版本和现有版本断言为 `1.1.0`，Schema 保持 `3`，未修改代码、测试、迁移或依赖
+- [x] **R4.3. Changelog** — 完整 `Unreleased` 已归档为 `[1.1.0] - 2026-07-17`，顶部保留新的空 `Unreleased`，历史版本段未改写
+- [x] **R4.4. 发布提交** — 唯一提交 `Release v1.1.0` 已推送 main，且对应 Actions 的 `test` 与 `Docker production smoke` 成功
+- [x] **R4.5. Annotated tag** — `v1.1.0` 类型为 annotated tag，peeled commit 精确指向最终发布提交，远端 tag 一致
+- [x] **R4.6. Tag Actions** — tag push 对应的 `test` 与 `Docker production smoke` 成功
+- [x] **R4.7. GitHub Release** — 正式 Release 标题为 `NSFWTrack v1.1.0`，tag 为 `v1.1.0`，非 draft、非 prerelease
+- [x] **R4.8. Release 内容** — Release notes 包含 highlights、升级说明、验证与边界，无额外附件、凭据或真实数据
+- [x] **R4.9. 一致性** — main、annotated tag peeled commit 和 GitHub Release tag 使用同一最终发布提交，README 与 CHANGELOG 状态一致
+- [x] **R4.10. 安全边界** — 临时 Release notes 已清理，凭据未提交或上传，既有 `data/` 未接触，N100 未部署
+
 ## Phase 4-M5 安全媒体目录管理检查
 
 - [x] **12.M5.1. 范围** — 创建、重命名、移动和真正为空目录删除是否登录保护且没有递归删除、合并、覆盖、批量目录操作或跨设备复制

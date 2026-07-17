@@ -2,15 +2,14 @@
 
 NSFWTrack is a local single-user content record manager / collection tracker.
 
-Current application version: `v1.1.0 frozen release candidate / Phase 4-R3 final acceptance complete in Unreleased`.
+Current application version: `v1.1.0 / Phase 4 release complete`.
 
-Current stable version: `v1.0.6 / Phase 3-B1 and B2`.
+Current stable version: `v1.1.0 / Phase 4`.
 
-Latest Release: [NSFWTrack v1.0.6](https://github.com/choneer/nsfwtrack/releases/tag/v1.0.6).
+Latest Release: [NSFWTrack v1.1.0](https://github.com/choneer/nsfwtrack/releases/tag/v1.1.0).
 
-Current status: `v1.0.6 remains the latest stable Release; Phase 4-R2
-release-candidate acceptance is complete, and Phase 4-R3 has prepared the
-current Unreleased code as a v1.1.0 release candidate`.
+Current status: `v1.1.0 is released; Phase 4 development, release-candidate
+acceptance, and final release verification are complete`.
 
 The application metadata is now `1.1.0`, while Schema remains `3`. The accepted
 R2 code basis is corrective commit
@@ -19,14 +18,14 @@ tests and corrective Actions run `29577588841` completed both jobs
 successfully. R2 also verified the real Schema 1 → 2 → 3 and stable-v1.0.6
 Schema 2 → 3 paths, stable JSON backup compatibility, real HTTP media-directory
 operations, outcome/index fault handling, and two persisted Docker lifecycles.
-No new feature work is active. The `v1.1.0` tag and Release have not been
-created, and N100 has not been deployed.
+No new feature work is active. Phase 4 media management, Schema 3 indexing,
+cross-process coordination, and secure directory operations are included in
+`v1.1.0`. N100 has not been deployed.
 
 Cloud diff review, Actions run `29586484449`, and Hermes independent acceptance
 all passed on candidate commit
-`b565ef1ca96b2b42315e1ef322c19f9e8ac227ea` without a corrective change. The
-`v1.1.0` release candidate is now frozen and awaits explicit authorization for
-the formal release; `v1.0.6` remains the latest stable Release.
+`b565ef1ca96b2b42315e1ef322c19f9e8ac227ea` without a corrective change before
+the formal `v1.1.0` release.
 
 Phase 4-R3 local release-candidate verification passed the existing version
 assertion, all `785` pytest tests, and `pip check`. An isolated production image
@@ -91,7 +90,7 @@ Phase 2-K1 found no genuine TODO / FIXME marker, stub route, 501 response, or
 dead navigation entry. Phase 2-K2 closed the three pre-use findings and the
 archived `v1.0.4` suite contains 358 passing tests.
 
-The `v1.0.6` release is the current stable tag. Code development and WSL
+The `v1.0.6` release is the previous stable tag. Code development and WSL
 acceptance through Phase 3-B1 and B2 are complete. See
 [COMPLETION_AUDIT.md](COMPLETION_AUDIT.md) for the archived K1 / K2 evidence.
 The current B3-C5 integration, finding-state matrix, confirmed D1 fixes, and
@@ -2032,8 +2031,8 @@ Use this single checklist for the current local deployment line.
 
 ### Upgrade From v0.9.x Or v1.0.x
 
-The current stable `v1.0.6` database is Schema 2. Current Unreleased code uses
-Schema 3, and the recommended (not yet released) next version is `v1.1.0`.
+The previous stable `v1.0.6` database is Schema 2. Current stable `v1.1.0` uses
+Schema 3.
 NSFWTrack has no standalone migration CLI: the supported migration interface
 is the authenticated `/schema-upgrade` Web flow.
 

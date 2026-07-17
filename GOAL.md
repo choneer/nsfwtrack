@@ -1,38 +1,30 @@
-# 当前状态：Phase 4-R3D — v1.1.0 发布候选最终验收收口完成
+# 当前状态：Phase 4-R4 — v1.1.0 正式发布
 
-## 阶段结果
+## 发布结果
 
-Phase 4-R3 本地验证、云端 diff 复核、GitHub Actions 和 Hermes 独立验收
-均已通过，无需 corrective。`v1.1.0` 发布候选已冻结，等待用户单独授权
-正式发布。
+NSFWTrack `v1.1.0` 已按正式发布门禁完成发布。Phase 4 开发、完整验收、
+候选冻结和正式发布路线全部结束。
 
-## 候选事实
+## 版本状态
 
-- 候选提交：`b565ef1ca96b2b42315e1ef322c19f9e8ac227ea`
 - 应用版本：`1.1.0`
 - Schema：`3`
-- 全量 pytest：`785 passed`
-- `pip check`：通过
-- 隔离 Docker：通过
-- Actions run `29586484449`：
-  - `test`：成功
-  - `Docker production smoke`：成功
-- 云端 diff 复核：通过
-- Hermes 独立验收：通过
-- corrective：无
+- 当前正式稳定版本：`v1.1.0`
+- CHANGELOG：`[1.1.0] - 2026-07-17`
+- 发布提交：本提交 `Release v1.1.0`，完整 SHA 由发布后最终报告确认
+- annotated tag：`v1.1.0`，必须由发布后验证确认 peeled commit 指向本提交
+- GitHub Release：`https://github.com/choneer/nsfwtrack/releases/tag/v1.1.0`
+- 发布提交与 tag Actions：必须在外部创建后由最终报告确认成功
 
 ## 发布边界
 
-- 当前正式稳定版本：`v1.0.6`
-- `CHANGELOG.md`：继续保留 `Unreleased`
-- `v1.1.0` tag：未创建
-- `v1.1.0` GitHub Release：未创建
+- 代码、测试、应用版本、Schema、迁移、依赖、Docker 和 CI：本阶段未修改
+- `v1.0.6` tag、Release 和历史记录：未修改
+- Release：非 draft、非 prerelease，不上传额外附件
 - N100：未部署
 - 既有 `data/`：未接触
-- 代码、测试、版本、Schema、迁移、依赖、Docker 和 CI：本阶段未修改
 
 ## 下一步
 
-停止新功能开发，等待用户明确授权正式发布。正式发布阶段才允许归档
-`Unreleased`、创建最终发布提交、annotated tag 和 GitHub Release；N100
-部署仍需独立授权。
+停止当前开发路线。后续工作必须由用户重新规划目标版本，或单独授权
+N100 部署。
