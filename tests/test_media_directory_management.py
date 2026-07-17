@@ -140,6 +140,148 @@ def test_directory_create_route_get_is_write_free_and_post_refreshes_once(
         assert get_media_index_status(db).last_refresh_source == "post_directory"
 
 
+def test_directory_delete_route_preview_is_write_free_and_post_refreshes_once(
+    auth_client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "media"
+    empty = root / "library/empty"
+    empty.mkdir(parents=True)
+    lock_dir = tmp_path / "locks"
+    lock_dir.mkdir(mode=0o700)
+    monkeypatch.setattr(local_media, "LOCAL_MEDIA_ROOT", root)
+    monkeypatch.setattr(
+        media_operation_lock,
+        "MEDIA_OPERATION_LOCK_DIRECTORY",
+        lock_dir,
+    )
+    before_identity = empty.lstat()
+    with SessionLocal() as db:
+        before_index = get_media_index_status(db)
+        before_counts = (db.query(Item).count(), db.query(Creator).count())
+
+    preview = auth_client.get(
+        "/media-library/directories/delete",
+        params={"source": "/media/library/empty"},
+    )
+
+    assert preview.status_code == 200
+    assert 'name="confirm" value="delete"' in preview.text
+    token = preview.text.split('name="token" value="', 1)[1].split('"', 1)[0]
+    assert token
+    after_identity = empty.lstat()
+    assert (
+        after_identity.st_mode,
+        after_identity.st_dev,
+        after_identity.st_ino,
+        after_identity.st_mtime_ns,
+        after_identity.st_ctime_ns,
+    ) == (
+        before_identity.st_mode,
+        before_identity.st_dev,
+        before_identity.st_ino,
+        before_identity.st_mtime_ns,
+        before_identity.st_ctime_ns,
+    )
+    assert not media_operation_lock.media_operation_lock_path().exists()
+    with SessionLocal() as db:
+        assert get_media_index_status(db) == before_index
+        assert (db.query(Item).count(), db.query(Creator).count()) == before_counts
+
+    coordination_calls = 0
+    original_coordinate = pages.coordinate_media_mutation
+
+    def count_coordination(*args: object, **kwargs: object) -> object:
+        nonlocal coordination_calls
+        coordination_calls += 1
+        return original_coordinate(*args, **kwargs)
+
+    monkeypatch.setattr(pages, "coordinate_media_mutation", count_coordination)
+    response = auth_client.post(
+        "/media-library/directories/delete",
+        data={"token": token, "confirm": "delete"},
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 303
+    assert coordination_calls == 1
+    assert not empty.exists()
+    with SessionLocal() as db:
+        status = get_media_index_status(db)
+        assert status.valid is True
+        assert status.last_refresh_source == "post_directory"
+        assert status.last_scan_kind == "incremental"
+        assert status.stale_reason == ""
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        "/media/library/nonempty",
+        "/media",
+        "/media/library",
+        "/media/library/missing",
+        "/media/../outside",
+        "/media/library/link",
+    ],
+)
+def test_directory_delete_preview_route_rejects_unsafe_paths_without_500(
+    auth_client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    source: str,
+) -> None:
+    root = tmp_path / "media"
+    (root / "library/nonempty").mkdir(parents=True)
+    _gif(root / "library/nonempty/file.gif")
+    (root / "library/link").symlink_to(root / "library/nonempty", target_is_directory=True)
+    monkeypatch.setattr(local_media, "LOCAL_MEDIA_ROOT", root)
+
+    response = auth_client.get(
+        "/media-library/directories/delete",
+        params={"source": source},
+    )
+
+    assert response.status_code == 400
+
+
+def test_directory_delete_preview_route_keeps_auth_and_i18n_boundaries(
+    client: TestClient,
+    auth_client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "media"
+    (root / "library/empty").mkdir(parents=True)
+    monkeypatch.setattr(local_media, "LOCAL_MEDIA_ROOT", root)
+
+    with TestClient(client.app) as anonymous:
+        denied = anonymous.get(
+            "/media-library/directories/delete",
+            params={"source": "/media/library/empty"},
+            follow_redirects=False,
+        )
+    chinese = auth_client.get(
+        "/media-library/directories/delete",
+        params={"source": "/media/library/empty"},
+    )
+    auth_client.get(
+        "/set-language",
+        params={"lang": "en", "next": "/media-library/directories"},
+    )
+    english = auth_client.get(
+        "/media-library/directories/delete",
+        params={"source": "/media/library/empty"},
+    )
+
+    assert denied.status_code == 303
+    assert chinese.status_code == 200
+    assert english.status_code == 200
+    assert "确认媒体目录操作" in chinese.text
+    assert "Confirm Media Directory Operation" in english.text
+
+
 def test_directory_move_rejects_descendants_and_existing_targets(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:

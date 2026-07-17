@@ -125,6 +125,7 @@ from app.services.local_media import (
     scan_local_media,
     scan_local_media_directories,
     store_media_uploads,
+    validate_local_media_directory,
 )
 from app.services.media_directory_browser import (
     media_directory_query_params,
@@ -1141,7 +1142,7 @@ def media_directory_delete_preview(
     db: Session = Depends(get_db),
 ) -> HTMLResponse:
     try:
-        record = local_media.validate_local_media_directory(source)
+        record = validate_local_media_directory(source)
         if not record.parts:
             raise MediaDirectoryError("protected_media_root")
         parent = "/media" if len(record.parts) == 1 else f"/media/{PurePosixPath(*record.parts[:-1]).as_posix()}"
