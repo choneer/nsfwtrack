@@ -1,19 +1,54 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import (
     Boolean,
     CheckConstraint,
+    DateTime,
     ForeignKey,
+    Index,
     String,
     Text,
     UniqueConstraint,
     func,
+    text,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.types import TypeDecorator
 
 from app.database import Base
+
+
+class UTCDateTime(TypeDecorator[datetime]):
+    """Store UTC-naive SQLite DATETIME values and expose aware UTC datetimes."""
+
+    impl = DateTime
+    cache_ok = True
+
+    def process_bind_param(
+        self,
+        value: datetime | None,
+        dialect: object,
+    ) -> datetime | None:
+        del dialect
+        if value is None:
+            return None
+        if value.tzinfo is None or value.utcoffset() is None:
+            raise ValueError("timezone-aware datetime required")
+        return value.astimezone(timezone.utc).replace(tzinfo=None)
+
+    def process_result_value(
+        self,
+        value: datetime | None,
+        dialect: object,
+    ) -> datetime | None:
+        del dialect
+        if value is None:
+            return None
+        if value.tzinfo is None:
+            return value.replace(tzinfo=timezone.utc)
+        return value.astimezone(timezone.utc)
 
 
 class ItemTag(Base):
@@ -228,6 +263,15 @@ class ItemSource(Base):
             name="ck_item_sources_normalized_url_not_blank",
         ),
         UniqueConstraint("normalized_url", name="uq_item_sources_normalized_url"),
+        Index(
+            "uq_item_sources_provider_identity",
+            "provider_key",
+            "external_id",
+            unique=True,
+            sqlite_where=text(
+                "provider_key IS NOT NULL AND external_id IS NOT NULL"
+            ),
+        ),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
@@ -237,6 +281,12 @@ class ItemSource(Base):
     url: Mapped[str] = mapped_column(String(2048), nullable=False)
     normalized_url: Mapped[str] = mapped_column(String(2048), nullable=False, index=True)
     title: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    provider_key: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    external_id: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    last_checked_at: Mapped[datetime | None] = mapped_column(
+        UTCDateTime(), nullable=True
+    )
+    metadata_hash: Mapped[str | None] = mapped_column(String(96), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         nullable=False, server_default=func.current_timestamp()
     )

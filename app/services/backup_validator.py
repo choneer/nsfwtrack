@@ -11,12 +11,20 @@ from sqlalchemy.orm import Session
 
 from app import models
 from app.services.backup import CORE_TABLE_NAMES, OPTIONAL_TABLE_NAMES, TABLE_NAMES
-from app.services.exporter import BACKUP_SCHEMA
+from app.services.exporter import (
+    BACKUP_SCHEMA_V1,
+    BACKUP_SCHEMA_V2,
+    SUPPORTED_BACKUP_SCHEMAS,
+)
 from app.services.item_query import STATUS_OPTIONS
 from app.services.local_media import LocalMediaPathError, normalize_local_media_path
 from app.services.saved_views import SAVED_VIEW_ALLOWED_PARAMS
 from app.services.settings import AppSettingsError, validate_setting_value
-from app.services.sources import SourceError, normalize_source_url
+from app.services.sources import (
+    SourceError,
+    normalize_source_url,
+    validate_source_tracking_metadata,
+)
 
 TOP_LEVEL_FIELDS = {"schema", "exported_at", "tables"}
 BLOCKED_SAVED_VIEW_PARAMS = {"page", "next", "redirect"}
@@ -81,6 +89,10 @@ _TABLE_KNOWN_FIELDS: dict[str, set[str]] = {
         "url",
         "normalized_url",
         "title",
+        "provider_key",
+        "external_id",
+        "last_checked_at",
+        "metadata_hash",
         "created_at",
     },
 }
@@ -120,8 +132,9 @@ def validate_backup_payload(
     issues: list[BackupValidationIssue] = []
     rows = _collect_rows(payload, issues)
     if rows:
-        issues.extend(_validate_rows(rows))
-        issues.extend(_validate_relations(rows))
+        input_schema = str(payload.get("schema"))
+        issues.extend(_validate_rows(rows, input_schema))
+        issues.extend(_validate_relations(rows, input_schema))
         issues.extend(_validate_saved_views(rows))
         issues.extend(_validate_item_activity(rows))
         issues.extend(_restore_dry_run_infos(rows, db))
@@ -179,7 +192,7 @@ def _collect_rows(
     for key in sorted(set(payload) - TOP_LEVEL_FIELDS):
         issues.append(_issue("warning", "unknown_top_level_field", "backup", detail=key))
 
-    if payload.get("schema") != BACKUP_SCHEMA:
+    if payload.get("schema") not in SUPPORTED_BACKUP_SCHEMAS:
         issues.append(
             _issue(
                 "error",
@@ -225,10 +238,20 @@ def _collect_rows(
     return rows
 
 
-def _validate_rows(rows: dict[str, list[dict[str, Any]]]) -> list[BackupValidationIssue]:
+def _validate_rows(
+    rows: dict[str, list[dict[str, Any]]],
+    input_schema: str,
+) -> list[BackupValidationIssue]:
     issues: list[BackupValidationIssue] = []
     for table_name, table_rows in rows.items():
         required_fields = _TABLE_REQUIRED_FIELDS.get(table_name, set())
+        if table_name == "item_sources" and input_schema == BACKUP_SCHEMA_V2:
+            required_fields = required_fields | {
+                "provider_key",
+                "external_id",
+                "last_checked_at",
+                "metadata_hash",
+            }
         known_fields = _TABLE_KNOWN_FIELDS.get(table_name, set())
         seen_ids: set[int] = set()
         for index, row in enumerate(table_rows, start=1):
@@ -244,7 +267,23 @@ def _validate_rows(rows: dict[str, list[dict[str, Any]]]) -> list[BackupValidati
                     )
                 )
             for field in sorted(required_fields):
-                if _is_blank(row.get(field)):
+                nullable_v2_source_field = (
+                    table_name == "item_sources"
+                    and input_schema == BACKUP_SCHEMA_V2
+                    and field
+                    in {
+                        "provider_key",
+                        "external_id",
+                        "last_checked_at",
+                        "metadata_hash",
+                    }
+                )
+                missing = (
+                    field not in row
+                    if nullable_v2_source_field
+                    else _is_blank(row.get(field))
+                )
+                if missing:
                     issues.append(
                         _issue(
                             "error",
@@ -260,7 +299,7 @@ def _validate_rows(rows: dict[str, list[dict[str, Any]]]) -> list[BackupValidati
                 if row_id in seen_ids:
                     issues.append(
                         _issue(
-                            "warning",
+                            "error" if table_name == "items" else "warning",
                             "duplicate_id",
                             table_name,
                             row=index,
@@ -268,7 +307,9 @@ def _validate_rows(rows: dict[str, list[dict[str, Any]]]) -> list[BackupValidati
                         )
                     )
                 seen_ids.add(row_id)
-            issues.extend(_validate_table_values(table_name, row, index))
+            issues.extend(
+                _validate_table_values(table_name, row, index, input_schema)
+            )
     return issues
 
 
@@ -276,6 +317,7 @@ def _validate_table_values(
     table_name: str,
     row: dict[str, Any],
     index: int,
+    input_schema: str,
 ) -> list[BackupValidationIssue]:
     issues: list[BackupValidationIssue] = []
     object_id = _row_id(row)
@@ -399,10 +441,50 @@ def _validate_table_values(
                         object_id,
                     )
                 )
+        if input_schema == BACKUP_SCHEMA_V1:
+            if any(
+                row.get(field) is not None
+                for field in (
+                    "provider_key",
+                    "external_id",
+                    "last_checked_at",
+                    "metadata_hash",
+                )
+            ):
+                issues.append(
+                    _issue(
+                        "error",
+                        "v1_source_metadata_not_allowed",
+                        table_name,
+                        index,
+                        object_id,
+                    )
+                )
+        else:
+            try:
+                validate_source_tracking_metadata(
+                    provider_key=row.get("provider_key"),
+                    external_id=row.get("external_id"),
+                    last_checked_at=row.get("last_checked_at"),
+                    metadata_hash=row.get("metadata_hash"),
+                )
+            except SourceError as exc:
+                issues.append(
+                    _issue(
+                        "error",
+                        exc.code,
+                        table_name,
+                        index,
+                        object_id,
+                    )
+                )
     return issues
 
 
-def _validate_relations(rows: dict[str, list[dict[str, Any]]]) -> list[BackupValidationIssue]:
+def _validate_relations(
+    rows: dict[str, list[dict[str, Any]]],
+    input_schema: str,
+) -> list[BackupValidationIssue]:
     item_ids = _id_set(rows["items"])
     tag_ids = _id_set(rows["tags"])
     creator_ids = _id_set(rows["creators"])
@@ -456,7 +538,8 @@ def _validate_relations(rows: dict[str, list[dict[str, Any]]]) -> list[BackupVal
                     )
                 )
             seen_pairs.add(pair)
-    seen_source_urls: set[str] = set()
+    seen_source_urls: dict[str, tuple[str | None, str | None, object, object]] = {}
+    seen_source_identities: dict[tuple[str, str], tuple[str, object, object]] = {}
     for index, row in enumerate(rows["item_sources"], start=1):
         item_id = _safe_int(row.get("item_id"))
         normalized = str(row.get("normalized_url") or "")
@@ -472,18 +555,80 @@ def _validate_relations(rows: dict[str, list[dict[str, Any]]]) -> list[BackupVal
                     detail=f"item_id={row.get('item_id')}",
                 )
             )
-        if normalized in seen_source_urls:
+        provider = row.get("provider_key") if input_schema == BACKUP_SCHEMA_V2 else None
+        external = row.get("external_id") if input_schema == BACKUP_SCHEMA_V2 else None
+        checked = row.get("last_checked_at") if input_schema == BACKUP_SCHEMA_V2 else None
+        metadata_hash = row.get("metadata_hash") if input_schema == BACKUP_SCHEMA_V2 else None
+        facts = (provider, external, checked, metadata_hash)
+        previous_url = seen_source_urls.get(normalized)
+        if previous_url is not None:
             issues.append(
                 _issue(
-                    "warning",
+                    "error",
                     "duplicate_source_url",
                     "item_sources",
                     index,
                     object_id,
                 )
             )
+            if previous_url[:2] != facts[:2]:
+                issues.append(
+                    _issue(
+                        "error",
+                        "source_url_identity_conflict",
+                        "item_sources",
+                        index,
+                        object_id,
+                    )
+                )
+            if previous_url[2:] != facts[2:]:
+                issues.append(
+                    _issue(
+                        "error",
+                        "source_metadata_conflict",
+                        "item_sources",
+                        index,
+                        object_id,
+                    )
+                )
         elif normalized:
-            seen_source_urls.add(normalized)
+            seen_source_urls[normalized] = facts
+        if isinstance(provider, str) and isinstance(external, str):
+            identity = (provider, external)
+            identity_facts = (normalized, checked, metadata_hash)
+            previous_identity = seen_source_identities.get(identity)
+            if previous_identity is not None:
+                issues.append(
+                    _issue(
+                        "error",
+                        "duplicate_provider_identity",
+                        "item_sources",
+                        index,
+                        object_id,
+                    )
+                )
+                if previous_identity[0] != normalized:
+                    issues.append(
+                        _issue(
+                            "error",
+                            "source_identity_url_conflict",
+                            "item_sources",
+                            index,
+                            object_id,
+                        )
+                    )
+                if previous_identity[1:] != identity_facts[1:]:
+                    issues.append(
+                        _issue(
+                            "error",
+                            "source_metadata_conflict",
+                            "item_sources",
+                            index,
+                            object_id,
+                        )
+                    )
+            else:
+                seen_source_identities[identity] = identity_facts
     return issues
 
 

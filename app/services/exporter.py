@@ -6,12 +6,17 @@ from datetime import datetime, timezone
 from io import StringIO
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import inspect, select
 from sqlalchemy.orm import Session, selectinload
 
 from app import models
 
-BACKUP_SCHEMA = "nsfwtrack.backup.v1"
+BACKUP_SCHEMA_V1 = "nsfwtrack.backup.v1"
+BACKUP_SCHEMA_V2 = "nsfwtrack.backup.v2"
+CURRENT_BACKUP_SCHEMA = BACKUP_SCHEMA_V2
+SUPPORTED_BACKUP_SCHEMAS = frozenset({BACKUP_SCHEMA_V1, BACKUP_SCHEMA_V2})
+# Compatibility alias for callers that only need the current export schema.
+BACKUP_SCHEMA = CURRENT_BACKUP_SCHEMA
 
 
 def timestamp_for_filename() -> str:
@@ -118,8 +123,55 @@ def _item_source_row(source: models.ItemSource) -> dict[str, Any]:
         "url": source.url,
         "normalized_url": source.normalized_url,
         "title": source.title,
+        "provider_key": source.provider_key,
+        "external_id": source.external_id,
+        "last_checked_at": _format_datetime(source.last_checked_at),
+        "metadata_hash": source.metadata_hash,
         "created_at": _format_datetime(source.created_at),
     }
+
+
+def _item_source_export_rows(db: Session) -> list[dict[str, Any]]:
+    columns = {
+        column["name"]
+        for column in inspect(db.get_bind()).get_columns(models.ItemSource.__tablename__)
+    }
+    tracking_columns = {
+        "provider_key",
+        "external_id",
+        "last_checked_at",
+        "metadata_hash",
+    }
+    if tracking_columns.issubset(columns):
+        sources = db.scalars(
+            select(models.ItemSource).order_by(models.ItemSource.id.asc())
+        ).all()
+        return [_item_source_row(source) for source in sources]
+    rows = db.execute(
+        select(
+            models.ItemSource.id,
+            models.ItemSource.item_id,
+            models.ItemSource.url,
+            models.ItemSource.normalized_url,
+            models.ItemSource.title,
+            models.ItemSource.created_at,
+        ).order_by(models.ItemSource.id.asc())
+    ).all()
+    return [
+        {
+            "id": row.id,
+            "item_id": row.item_id,
+            "url": row.url,
+            "normalized_url": row.normalized_url,
+            "title": row.title,
+            "provider_key": None,
+            "external_id": None,
+            "last_checked_at": None,
+            "metadata_hash": None,
+            "created_at": _format_datetime(row.created_at),
+        }
+        for row in rows
+    ]
 
 
 def export_backup_data(db: Session) -> dict[str, Any]:
@@ -156,11 +208,9 @@ def export_backup_data(db: Session) -> dict[str, Any]:
     app_settings = db.scalars(
         select(models.AppSetting).order_by(models.AppSetting.key.asc())
     ).all()
-    item_sources = db.scalars(
-        select(models.ItemSource).order_by(models.ItemSource.id.asc())
-    ).all()
+    item_sources = _item_source_export_rows(db)
     return {
-        "schema": BACKUP_SCHEMA,
+        "schema": CURRENT_BACKUP_SCHEMA,
         "exported_at": datetime.now(timezone.utc).isoformat(),
         "tables": {
             "items": [_item_row(item) for item in items],
@@ -184,7 +234,7 @@ def export_backup_data(db: Session) -> dict[str, Any]:
                 _item_activity_row(activity) for activity in item_activity
             ],
             "app_settings": [_app_setting_row(setting) for setting in app_settings],
-            "item_sources": [_item_source_row(source) for source in item_sources],
+            "item_sources": item_sources,
         },
     }
 
@@ -204,12 +254,13 @@ def export_items_csv(db: Session) -> str:
         )
         .order_by(models.Item.id.asc())
     ).all()
-    source_rows = db.scalars(
-        select(models.ItemSource).order_by(models.ItemSource.item_id, models.ItemSource.id)
-    ).all()
-    sources_by_item: dict[int, list[models.ItemSource]] = {}
+    source_rows = sorted(
+        _item_source_export_rows(db),
+        key=lambda row: (int(row["item_id"]), int(row["id"])),
+    )
+    sources_by_item: dict[int, list[dict[str, Any]]] = {}
     for source in source_rows:
-        sources_by_item.setdefault(source.item_id, []).append(source)
+        sources_by_item.setdefault(int(source["item_id"]), []).append(source)
     output = StringIO()
     fieldnames = [
         "id",
@@ -248,7 +299,7 @@ def export_items_csv(db: Session) -> str:
                 ),
                 "sources": json.dumps(
                     [
-                        {"title": source.title, "url": source.url}
+                        {"title": source["title"], "url": source["url"]}
                         for source in sources_by_item.get(item.id, [])
                     ],
                     ensure_ascii=False,

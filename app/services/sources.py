@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from html.parser import HTMLParser
 from typing import Any
 from urllib.parse import urlsplit, urlunsplit
@@ -14,9 +15,13 @@ from app import models
 MAX_SOURCE_URL_LENGTH = 2048
 MAX_SOURCE_TITLE_LENGTH = 255
 MAX_SOURCE_IMPORT_ROWS = 5000
+MAX_EXTERNAL_ID_LENGTH = 512
 _CONTROL_OR_SPACE = re.compile(r"[\x00-\x20\x7f]")
+_CONTROL_CHARACTER = re.compile(r"[\x00-\x1f\x7f-\x9f]")
 _PERCENT_ESCAPE = re.compile(r"%[0-9a-fA-F]{2}")
 _BAD_PERCENT_ESCAPE = re.compile(r"%(?![0-9a-fA-F]{2})")
+_PROVIDER_KEY = re.compile(r"[a-z][a-z0-9_-]{0,63}\Z")
+_METADATA_HASH = re.compile(r"v1:sha256:[0-9a-f]{64}\Z")
 _UNRESERVED = frozenset(
     "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~"
 )
@@ -26,6 +31,67 @@ class SourceError(ValueError):
     def __init__(self, code: str) -> None:
         self.code = code
         super().__init__(code)
+
+
+@dataclass(frozen=True)
+class SourceTrackingMetadata:
+    provider_key: str | None
+    external_id: str | None
+    last_checked_at: datetime | None
+    metadata_hash: str | None
+
+
+def validate_source_tracking_metadata(
+    *,
+    provider_key: Any,
+    external_id: Any,
+    last_checked_at: Any,
+    metadata_hash: Any,
+) -> SourceTrackingMetadata:
+    if provider_key is not None and not isinstance(provider_key, str):
+        raise SourceError("invalid_provider_key")
+    if external_id is not None and not isinstance(external_id, str):
+        raise SourceError("invalid_external_id")
+    if metadata_hash is not None and not isinstance(metadata_hash, str):
+        raise SourceError("invalid_metadata_hash")
+    provider = provider_key
+    external = external_id
+    checked_value = None if last_checked_at is None else last_checked_at
+    hash_value = metadata_hash
+
+    if (provider is None) != (external is None):
+        raise SourceError("invalid_provider_identity")
+    if provider is None:
+        if checked_value is not None or hash_value is not None:
+            raise SourceError("provider_metadata_without_identity")
+        return SourceTrackingMetadata(None, None, None, None)
+
+    if not _PROVIDER_KEY.fullmatch(provider):
+        raise SourceError("invalid_provider_key")
+    if (
+        not external
+        or len(external) > MAX_EXTERNAL_ID_LENGTH
+        or _CONTROL_CHARACTER.search(external)
+    ):
+        raise SourceError("invalid_external_id")
+
+    checked: datetime | None = None
+    if checked_value is not None:
+        try:
+            checked = (
+                checked_value
+                if isinstance(checked_value, datetime)
+                else datetime.fromisoformat(str(checked_value))
+            )
+        except (TypeError, ValueError):
+            raise SourceError("invalid_last_checked_at") from None
+        if checked.tzinfo is None or checked.utcoffset() is None:
+            raise SourceError("invalid_last_checked_at")
+        checked = checked.astimezone(timezone.utc)
+
+    if hash_value is not None and not _METADATA_HASH.fullmatch(hash_value):
+        raise SourceError("invalid_metadata_hash")
+    return SourceTrackingMetadata(provider, external, checked, hash_value)
 
 
 @dataclass(frozen=True)
@@ -95,7 +161,14 @@ class _BookmarkParser(HTMLParser):
 
 
 def source_feature_available(db: Session) -> bool:
-    return "item_sources" in inspect(db.get_bind()).get_table_names()
+    inspector = inspect(db.get_bind())
+    if "item_sources" not in inspector.get_table_names():
+        return False
+    actual_columns = {
+        column["name"] for column in inspector.get_columns("item_sources")
+    }
+    required_columns = {column.name for column in models.ItemSource.__table__.columns}
+    return required_columns.issubset(actual_columns)
 
 
 def _normalize_percent_escapes(value: str) -> str:

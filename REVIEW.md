@@ -52,6 +52,34 @@
 - [x] **5.N1.13. 范围保持** — 是否保持应用 1.1.0/Schema 3，无 UI/router/model/
   migration/backup-v2/real-provider/tag/Release/N100/Hermes，既有 data 未接触
 
+### Phase 5-N2 Schema 4 来源追踪与 Backup v2（本地门禁已完成）
+
+- [x] **5.N2.1. 模型与约束** — 是否只为 ItemSource 增加四个 nullable 字段，
+  provider key bounded lowercase、external ID opaque/case-sensitive，且双非空
+  partial unique index 的列、unique 与 predicate 均精确验证
+- [x] **5.N2.2. 连续迁移** — 是否覆盖 fresh 4、1 -> 2 -> 3 -> 4、
+  2 -> 3 -> 4、3 -> 4、重复 apply、future schema、结构异常拒绝与整链 rollback
+- [x] **5.N2.3. 历史兼容** — 是否保留 normalized URL 唯一性、Item FK 与全部
+  历史行，且迁移后 provider/external/check/hash 均为 null
+- [x] **5.N2.4. Backup 版本** — 新导出是否固定为 v2、v1 是否继续接受并恢复
+  四字段 null、v1 携带非空 v2 metadata 是否拒绝而不静默丢弃
+- [x] **5.N2.5. 校验与冲突** — half identity、provider/external/time/hash、payload
+  重复和矛盾映射是否阻止；exact reuse 是否不覆盖本地 title/check/hash，legacy
+  enrichment 与不同 Item/URL/identity 是否 hard conflict
+- [x] **5.N2.6. 事务真实结果** — restore 是否 `BEGIN IMMEDIATE`、事务内复核、
+  整体 rollback，并在 commit 异常后以独立 Session 完整状态 digest 分类 committed、
+  committed-after-error、confirmed rollback 或 unknown
+- [x] **5.N2.7. 零网络与派生状态** — migration、preview、restore 与 HTTP 入口
+  是否不调用 outbound client；成功 restore 是否继续使媒体索引失效
+- [x] **5.N2.8. 稳定版与 Docker** — v1.1.0 是否以 application_outdated 拒绝
+  Schema 4 且 checksum 不变；隔离断网 Docker fresh/3 -> 4/v1/v2/conflict 与
+  双生命周期是否通过并清理
+- [x] **5.N2.9. 范围保持** — 应用是否仍为 1.1.0、production registry 是否为空，
+  是否无真实 provider、搜索 UI、远程图片、凭据、自动同步、新依赖、tag、Release、
+  N100 或 Hermes，且既有 data 未接触
+- [x] **5.N2.10. 本地门禁** — N2 33、targeted 164、全量 917、pip check 与
+  diff check 是否通过；远端 Actions 由本阶段唯一提交推送后补充最终报告
+
 - [ ] **5.1. Provider 批准** — 每个真实 provider 是否由用户明确批准，公开合法、
   无账号/Cookie/Token、无需 HTML 抓取，且固定 endpoint 与条款证据完整
 - [ ] **5.2. Adapter 合约** — router 是否无 provider HTTP/parser 逻辑，adapter

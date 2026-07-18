@@ -133,7 +133,7 @@ def test_json_export_contains_core_tables(auth_client: TestClient) -> None:
         'attachment; filename="nsfwtrack-backup-'
     )
     payload = response.json()
-    assert payload["schema"] == "nsfwtrack.backup.v1"
+    assert payload["schema"] == "nsfwtrack.backup.v2"
     assert set(payload["tables"]) == {
         "items",
         "tags",
@@ -239,6 +239,10 @@ def test_json_backup_exports_previews_and_restores_item_sources(
             "url": "HTTPS://Example.com:443/a#top",
             "normalized_url": "https://example.com/a",
             "title": "Backup source",
+            "provider_key": None,
+            "external_id": None,
+            "last_checked_at": None,
+            "metadata_hash": None,
             "created_at": payload["tables"]["item_sources"][0]["created_at"],
         }
     ]
@@ -368,7 +372,7 @@ def test_json_backup_preview_succeeds_without_modifying_database(
 
     assert response.status_code == 200
     preview = response.json()["preview"]
-    assert preview["schema"] == "nsfwtrack.backup.v1"
+    assert preview["schema"] == "nsfwtrack.backup.v2"
     assert preview["items"] == 1
     assert preview["tags"] == 1
     assert preview["creators"] == 1

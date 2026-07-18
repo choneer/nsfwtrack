@@ -9,7 +9,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from app.database import Base
 
-CURRENT_SCHEMA_VERSION = 3
+CURRENT_SCHEMA_VERSION = 4
 BASELINE_MIGRATION_NAME = "baseline"
 SCHEMA_MIGRATIONS_TABLE = "schema_migrations"
 SCHEMA_STATUS_CURRENT = "current"
@@ -94,6 +94,47 @@ def _structure_problems(bind: Engine) -> tuple[str, ...]:
             problems.append(
                 f"missing columns in {table_name}: {', '.join(missing_columns)}"
             )
+    if "item_sources" in table_names:
+        source_columns = {
+            column["name"]: column
+            for column in inspector.get_columns("item_sources")
+        }
+        tracking_types = {
+            "provider_key": "VARCHAR(64)",
+            "external_id": "VARCHAR(512)",
+            "last_checked_at": "DATETIME",
+            "metadata_hash": "VARCHAR(96)",
+        }
+        for name, expected_type in tracking_types.items():
+            column = source_columns.get(name)
+            if column is None:
+                continue
+            if not column.get("nullable") or str(column.get("type")).upper() != expected_type:
+                problems.append(f"invalid column {name} in item_sources")
+        indexes = inspector.get_indexes("item_sources")
+        matching = [
+            index
+            for index in indexes
+            if index.get("name") == "uq_item_sources_provider_identity"
+        ]
+        if len(matching) != 1 or not matching[0].get("unique") or tuple(
+            matching[0].get("column_names") or ()
+        ) != ("provider_key", "external_id"):
+            problems.append("missing provider identity partial unique index")
+        else:
+            try:
+                with bind.connect() as connection:
+                    sql = connection.exec_driver_sql(
+                        "SELECT sql FROM sqlite_master WHERE type = 'index' AND name = ?",
+                        ("uq_item_sources_provider_identity",),
+                    ).scalar_one_or_none()
+            except SQLAlchemyError:
+                sql = None
+            normalized = "" if not isinstance(sql, str) else "".join(sql.casefold().split())
+            predicate = normalized.split("where", 1)[1] if "where" in normalized else ""
+            predicate = predicate.replace('"', "").replace("`", "")
+            if predicate != "provider_keyisnotnullandexternal_idisnotnull":
+                problems.append("invalid provider identity partial predicate")
     return tuple(problems)
 
 

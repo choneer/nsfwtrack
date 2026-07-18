@@ -5876,10 +5876,10 @@ async def _read_backup_upload_for_page(
 
 def _backup_template(
     request: Request,
-    preview_result: dict[str, int | str] | None = None,
+    preview_result: dict[str, int | str | bool] | None = None,
     validation_report: dict[str, Any] | None = None,
     preview_error: str | None = None,
-    restore_result: dict[str, int] | None = None,
+    restore_result: dict[str, int | str] | None = None,
     restore_error: str | None = None,
     db: Session | None = None,
 ) -> HTMLResponse:
@@ -5960,7 +5960,7 @@ async def backup_restore_page(
     confirmation_text: str | None = Form(default=None),
     db: Session = Depends(get_db),
 ) -> HTMLResponse:
-    restore_result: dict[str, int] | None = None
+    restore_result: dict[str, int | str] | None = None
     restore_error: str | None = None
     danger_policy = get_danger_policy(db)
     db.rollback()

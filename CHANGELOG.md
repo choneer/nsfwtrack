@@ -4,6 +4,18 @@
 
 ### Added
 
+- Added Schema 4 source tracking with nullable `provider_key`, `external_id`,
+  `last_checked_at`, and versioned `metadata_hash` fields on `ItemSource`.
+  A SQLite partial unique index enforces provider/external-ID uniqueness only
+  when both identity values are non-null; legacy URL-only sources remain valid.
+- Added the continuous Schema `3 -> 4` migration, completing the production
+  `1 -> 2 -> 3 -> 4` chain. Fresh databases create Schema 4 directly, while
+  migrated historical source rows preserve all existing values and receive
+  null tracking metadata.
+- Added `nsfwtrack.backup.v2` export and restore support with explicit source
+  identity validation, payload duplicate/contradiction detection, exact local
+  reuse, hard-conflict blocking, transaction-internal reclassification, and
+  independent post-error database outcome review. Backup v1 remains supported.
 - Added the Phase 5-N1 provider-neutral source-adapter foundation: async
   `SourceAdapter`, frozen source DTOs, an immutable code-owned endpoint
   registry, stable outbound errors, recursively immutable JSON results, and a
@@ -22,6 +34,10 @@
 
 ### Changed
 
+- Changed the current database schema version from 3 to 4 without changing the
+  application version (`1.1.0`). Backup restore now acquires `BEGIN IMMEDIATE`,
+  treats source conflicts as whole-restore blockers, and preserves local source
+  title/check/hash values on exact reuse.
 - Promoted the existing pinned `httpx2==2.5.0` package from development-only to
   runtime requirements without changing its version or adding another direct
   dependency. Development requirements now inherit it from
@@ -29,6 +45,18 @@
 
 ### Security
 
+- Schema 4 startup validates the exact provider-identity partial-index columns,
+  uniqueness, and predicate. Invalid or missing current-schema structure fails
+  closed. Stable `v1.1.0` refuses Schema 4 as `application_outdated` without
+  modifying the database.
+- Migration, backup preview, and restore remain zero-network. Restore exceptions
+  no longer imply rollback: a separate Session compares the complete affected
+  database state and reports committed-after-error, confirmed rollback, or an
+  unknown outcome when independent proof is unavailable.
+- Phase 5-N2 local acceptance passed 33 focused tests, 164 targeted tests, all
+  917 pytest tests, `pip check`, stable-version checksum verification, and
+  isolated network-disabled Docker fresh/migration/backup lifecycles. The
+  production registry remains empty and existing `data/` was not used.
 - The outbound client accepts no URL, host, port, base URL, arbitrary path,
   header, proxy, cookie, or auth input. It uses `trust_env=False`, HTTP/1.1,
   zero redirects/retries, 3-second connect and 10-second total deadlines,

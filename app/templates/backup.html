@@ -105,9 +105,18 @@
       <div class="metric"><strong>{{ preview_result.app_settings_errors }}</strong><span>{{ t("backup.app_settings_errors") }}</span></div>
       <div class="metric"><strong>{{ preview_result.item_sources }}</strong><span>{{ t("backup.item_sources_count") }}</span></div>
       <div class="metric"><strong>{{ preview_result.item_sources_restorable }}</strong><span>{{ t("backup.item_sources_restorable") }}</span></div>
+      <div class="metric"><strong>{{ preview_result.item_sources_to_create }}</strong><span>{{ t("backup.item_sources_to_create") }}</span></div>
+      <div class="metric"><strong>{{ preview_result.item_sources_to_reuse }}</strong><span>{{ t("backup.item_sources_to_reuse") }}</span></div>
+      <div class="metric"><strong>{{ preview_result.item_sources_conflicts }}</strong><span>{{ t("backup.item_sources_conflicts") }}</span></div>
+      <div class="metric"><strong>{{ preview_result.item_sources_payload_errors }}</strong><span>{{ t("backup.item_sources_payload_errors") }}</span></div>
+      <div class="metric"><strong>{{ preview_result.provider_sources }}</strong><span>{{ t("backup.provider_sources") }}</span></div>
+      <div class="metric"><strong>{{ preview_result.legacy_sources }}</strong><span>{{ t("backup.legacy_sources") }}</span></div>
       <div class="metric"><strong>{{ preview_result.item_sources_skipped }}</strong><span>{{ t("backup.item_sources_skipped") }}</span></div>
       <div class="metric"><strong>{{ preview_result.item_sources_errors }}</strong><span>{{ t("backup.item_sources_errors") }}</span></div>
     </div>
+    {% if not preview_result.can_restore %}
+      <p class="flash error">{{ t("backup.source_restore_blocked") }}</p>
+    {% endif %}
   </section>
 {% endif %}
 {% if preview_error %}
@@ -144,8 +153,11 @@
       <div class="metric"><strong>{{ restore_result.app_settings_skipped }}</strong><span>{{ t("backup.app_settings_skipped") }}</span></div>
       <div class="metric"><strong>{{ restore_result.app_settings_errors }}</strong><span>{{ t("backup.app_settings_errors") }}</span></div>
       <div class="metric"><strong>{{ restore_result.item_sources_created }}</strong><span>{{ t("backup.item_sources_created") }}</span></div>
+      <div class="metric"><strong>{{ restore_result.item_sources_reused }}</strong><span>{{ t("backup.item_sources_reused") }}</span></div>
+      <div class="metric"><strong>{{ restore_result.item_sources_conflicts }}</strong><span>{{ t("backup.item_sources_conflicts") }}</span></div>
       <div class="metric"><strong>{{ restore_result.item_sources_skipped }}</strong><span>{{ t("backup.item_sources_skipped") }}</span></div>
       <div class="metric"><strong>{{ restore_result.item_sources_errors }}</strong><span>{{ t("backup.item_sources_errors") }}</span></div>
+      <div class="metric"><strong>{{ restore_result.database_outcome }}</strong><span>{{ t("backup.database_outcome") }}</span></div>
     </div>
     {% endif %}
   </section>

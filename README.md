@@ -3,14 +3,14 @@
 NSFWTrack is a local-first, single-user content record manager / collection
 tracker.
 
-Current application version: `1.1.0` (Schema `3`).
+Current application version: `1.1.0` (Schema `4`).
 
 Current stable version: `v1.1.0`.
 
 Latest Release: [NSFWTrack v1.1.0](https://github.com/choneer/nsfwtrack/releases/tag/v1.1.0).
 
-Current status: `Phase 5-N1 controlled outbound adapter foundation is complete;
-no real provider is registered`.
+Current status: `Phase 5-N2 Schema 4 source tracking and backup v2 are locally
+complete; no real provider is registered`.
 
 The next target version is `v1.2.0`: controlled public metadata adapters,
 single-provider and multi-provider search, explicit preview, manual import, and
@@ -19,11 +19,12 @@ crawling, remote images, credentials, automatic synchronization, background
 jobs, recommendations, AI, cloud sync, or multi-user behavior. Specific
 providers require separate user approval before implementation.
 
-Phase 5-N1 adds only the provider-neutral transport and adapter contracts.
-Application version remains `1.1.0`, Schema remains `3`, and no model,
-migration, backup format, page, route, Docker, CI, tag, Release, or deployment
-has changed. N100 has not been deployed. The next planned stage is Phase 5-N2,
-which requires separate authorization for Schema 4 source tracking.
+Phase 5-N2 extends only local source identity storage, migration, and backup
+restore behavior. Application version remains `1.1.0`; Schema is now `4`, new
+JSON exports use `nsfwtrack.backup.v2`, and restore continues to accept backup
+v1. The production adapter registry remains empty. No real provider, search UI,
+remote image, credential, automatic synchronization, tag, Release, or N100
+deployment was added.
 
 Hermes must not be called during planning, Phase 5-N1 through N7, corrective
 work, or integration development. It is reserved for one final independent
@@ -37,6 +38,46 @@ the formal `v1.1.0` release.
 
 Phase 4 release evidence remains archived below and is unchanged by this
 development phase.
+
+## Phase 5-N2 Schema 4 Source Tracking and Backup v2
+
+Phase 5-N2 adds nullable `provider_key`, `external_id`, `last_checked_at`, and
+`metadata_hash` fields to `ItemSource`. A SQLite partial unique index enforces
+`(provider_key, external_id)` only when both values are non-null. Provider keys
+use a bounded lowercase code format; external IDs remain opaque and
+case-sensitive. Legacy URL-only sources remain valid with all four fields null.
+
+The production migration registry is now the continuous `1 -> 2 -> 3 -> 4`
+chain. The `3 -> 4` step uses explicit SQLite DDL inside the existing
+`BEGIN IMMEDIATE` transaction, preserves every historical source row, verifies
+column type/nullability, the existing normalized-URL uniqueness and foreign
+key, the exact partial-index predicate, null legacy metadata, and the Schema 4
+version record. Fresh databases create the same Schema 4 structure directly.
+
+New JSON exports use `nsfwtrack.backup.v2` and include the four tracking fields;
+backup v1 remains accepted and restores those fields as null. Validation rejects
+half identities, invalid provider keys/external IDs/timestamps/hashes, duplicate
+normalized URLs or provider identities, and contradictory URL/identity/metadata
+facts before database writes. Exact local matches are reused without overwriting
+local title or metadata. URL, identity, Item, or legacy-enrichment conflicts
+block the complete restore.
+
+Restore apply reacquires `BEGIN IMMEDIATE`, repeats source classification inside
+the transaction, and invalidates the derived media index only on a successful
+restore. After any commit exception, a separate SQLAlchemy Session compares a
+digest of every affected business table and media-index state, classifying the
+result as committed, committed after an error, confirmed rollback, or unknown.
+Migration, backup preview, and restore do not call the outbound client.
+
+Local acceptance passed 33 focused N2 tests, a 164-test targeted matrix, and all
+917 pytest tests; `pip check` reported no broken requirements. Stable `v1.1.0`
+refused an isolated Schema 4 database with `application_outdated`, and the
+database SHA-256 remained unchanged. Isolated, network-disabled Docker
+lifecycles passed fresh Schema 4, v1/v2/conflict restore, persistence, real
+stable-Schema-3 preview/apply, legacy-null verification, and recreation while
+retaining UID/GID 10001, read-only root, dropped capabilities, and
+no-new-privileges. All temporary resources were removed and the existing
+`data/` was not used.
 
 ## Phase 5-N1 Controlled Outbound Adapter Foundation
 

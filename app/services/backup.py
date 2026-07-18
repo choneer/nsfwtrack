@@ -1,13 +1,20 @@
 from __future__ import annotations
 
+import hashlib
+import json
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import func, select
-from sqlalchemy.orm import Session
+from sqlalchemy import func, inspect, select, text
+from sqlalchemy.orm import Session, sessionmaker
 
 from app import models
-from app.services.exporter import BACKUP_SCHEMA
+from app.services.exporter import (
+    BACKUP_SCHEMA_V1,
+    BACKUP_SCHEMA_V2,
+    SUPPORTED_BACKUP_SCHEMAS,
+)
 from app.services.local_media import LocalMediaPathError, normalize_local_media_path
 from app.services.saved_views import (
     MAX_SAVED_VIEW_NAME_LENGTH,
@@ -18,7 +25,12 @@ from app.services.settings import (
     upsert_setting_row,
     validate_setting_value,
 )
-from app.services.sources import SourceError, normalize_source_url
+from app.services.sources import (
+    SourceError,
+    SourceTrackingMetadata,
+    normalize_source_url,
+    validate_source_tracking_metadata,
+)
 
 CORE_TABLE_NAMES = {
     "items",
@@ -51,9 +63,44 @@ def _raise(code: str, detail: str | None = None) -> None:
     raise BackupError(code, detail)
 
 
-def _rows_from_payload(payload: dict[str, Any]) -> dict[str, list[dict[str, Any]]]:
-    if payload.get("schema") != BACKUP_SCHEMA:
+@dataclass(frozen=True)
+class _PreparedItemSource:
+    backup_item_id: int
+    url: str
+    normalized_url: str
+    title: str | None
+    created_at: datetime | None
+    metadata: SourceTrackingMetadata
+
+
+@dataclass(frozen=True)
+class _ItemSourcePlan:
+    to_create: tuple[_PreparedItemSource, ...]
+    reused: int
+    conflicts: tuple[str, ...]
+    errors: tuple[str, ...]
+    provider_sources: int
+    legacy_sources: int
+
+
+@dataclass(frozen=True)
+class _LocalItemSource:
+    id: int
+    item_id: int
+    normalized_url: str
+    provider_key: str | None
+    external_id: str | None
+
+
+def _backup_schema(payload: dict[str, Any]) -> str:
+    schema = payload.get("schema")
+    if schema not in SUPPORTED_BACKUP_SCHEMAS:
         _raise("schema_mismatch")
+    return str(schema)
+
+
+def _rows_from_payload(payload: dict[str, Any]) -> dict[str, list[dict[str, Any]]]:
+    _backup_schema(payload)
     tables = payload.get("tables")
     if not isinstance(tables, dict):
         _raise("missing_tables")
@@ -82,7 +129,10 @@ def _require_keys(rows: list[dict[str, Any]], table_name: str, keys: set[str]) -
                 _raise("missing_field", f"{table_name}.{key}")
 
 
-def _validate_preview_rows(rows: dict[str, list[dict[str, Any]]]) -> None:
+def _validate_preview_rows(
+    rows: dict[str, list[dict[str, Any]]],
+    input_schema: str,
+) -> None:
     _require_keys(rows["items"], "items", {"id", "title"})
     _require_keys(rows["tags"], "tags", {"id", "name"})
     _require_keys(rows["creators"], "creators", {"id", "name"})
@@ -111,13 +161,123 @@ def _validate_preview_rows(rows: dict[str, list[dict[str, Any]]]) -> None:
         "item_sources",
         {"item_id", "url", "normalized_url"},
     )
+    seen_item_ids: set[int] = set()
+    for row in rows["items"]:
+        item_id = _safe_int_or_none(row.get("id"))
+        if item_id is None or item_id <= 0:
+            _raise("invalid_rows", "items.id")
+        if item_id in seen_item_ids:
+            _raise("duplicate_item_id", str(item_id))
+        seen_item_ids.add(item_id)
     for row in rows["item_sources"]:
+        _prepare_item_source(row, input_schema)
+
+
+def _prepare_item_source(
+    row: dict[str, Any],
+    input_schema: str,
+) -> _PreparedItemSource:
+    backup_item_id = _safe_int_or_none(row.get("item_id"))
+    if backup_item_id is None or backup_item_id <= 0:
+        _raise("invalid_rows", "item_sources.item_id")
+    try:
+        normalized = normalize_source_url(row.get("url"))
+    except SourceError:
+        _raise("invalid_rows", "item_sources.url")
+    if normalized != str(row.get("normalized_url") or ""):
+        _raise("invalid_rows", "item_sources.normalized_url")
+
+    if input_schema == BACKUP_SCHEMA_V1:
+        if any(
+            row.get(field) is not None
+            for field in (
+                "provider_key",
+                "external_id",
+                "last_checked_at",
+                "metadata_hash",
+            )
+        ):
+            _raise("v1_source_metadata_not_allowed", "item_sources")
+        metadata = SourceTrackingMetadata(None, None, None, None)
+    else:
+        for field in (
+            "provider_key",
+            "external_id",
+            "last_checked_at",
+            "metadata_hash",
+        ):
+            if field not in row:
+                _raise("missing_field", f"item_sources.{field}")
         try:
-            normalized = normalize_source_url(row.get("url"))
-        except SourceError:
-            _raise("invalid_rows", "item_sources.url")
-        if normalized != str(row.get("normalized_url") or ""):
-            _raise("invalid_rows", "item_sources.normalized_url")
+            metadata = validate_source_tracking_metadata(
+                provider_key=row.get("provider_key"),
+                external_id=row.get("external_id"),
+                last_checked_at=row.get("last_checked_at"),
+                metadata_hash=row.get("metadata_hash"),
+            )
+        except SourceError as exc:
+            _raise(exc.code, "item_sources")
+    return _PreparedItemSource(
+        backup_item_id=backup_item_id,
+        url=str(row.get("url") or "").strip(),
+        normalized_url=normalized,
+        title=" ".join(str(row.get("title") or "").split())[:255] or None,
+        created_at=_safe_datetime(row.get("created_at")),
+        metadata=metadata,
+    )
+
+
+def _prepared_item_sources(
+    rows: dict[str, list[dict[str, Any]]],
+    input_schema: str,
+) -> tuple[_PreparedItemSource, ...]:
+    return tuple(_prepare_item_source(row, input_schema) for row in rows["item_sources"])
+
+
+def _source_payload_errors(
+    prepared: tuple[_PreparedItemSource, ...],
+) -> tuple[str, ...]:
+    errors: list[str] = []
+    seen_urls: dict[str, tuple[str | None, str | None, datetime | None, str | None]] = {}
+    seen_identities: dict[tuple[str, str], tuple[str, datetime | None, str | None]] = {}
+    for source in prepared:
+        metadata = source.metadata
+        identity = (
+            (metadata.provider_key, metadata.external_id)
+            if metadata.provider_key is not None and metadata.external_id is not None
+            else None
+        )
+        metadata_facts = (
+            metadata.provider_key,
+            metadata.external_id,
+            metadata.last_checked_at,
+            metadata.metadata_hash,
+        )
+        previous_url = seen_urls.get(source.normalized_url)
+        if previous_url is not None:
+            errors.append("duplicate_source_url")
+            if previous_url[:2] != metadata_facts[:2]:
+                errors.append("source_url_identity_conflict")
+            if previous_url[2:] != metadata_facts[2:]:
+                errors.append("source_metadata_conflict")
+        else:
+            seen_urls[source.normalized_url] = metadata_facts
+        if identity is not None:
+            previous_identity = seen_identities.get(identity)
+            identity_facts = (
+                source.normalized_url,
+                metadata.last_checked_at,
+                metadata.metadata_hash,
+            )
+            if previous_identity is not None:
+                errors.append("duplicate_provider_identity")
+                if previous_identity[0] != source.normalized_url:
+                    errors.append("source_identity_url_conflict")
+                if previous_identity[1:] != identity_facts[1:]:
+                    errors.append("source_metadata_conflict")
+            else:
+                seen_identities[identity] = identity_facts
+    return tuple(dict.fromkeys(errors))
 
 
 def _safe_int_or_none(value: Any) -> int | None:
@@ -305,56 +465,172 @@ def _preview_app_settings_counts(rows: dict[str, list[dict[str, Any]]]) -> dict[
     }
 
 
-def _preview_item_source_counts(
-    rows: dict[str, list[dict[str, Any]]], db: Session | None
-) -> dict[str, int]:
-    backup_item_ids = {
-        item_id
-        for item_id in (_safe_int_or_none(row.get("id")) for row in rows["items"])
-        if item_id is not None
-    }
-    existing_urls = (
-        set(db.scalars(select(models.ItemSource.normalized_url)).all())
-        if db is not None
-        else set()
+def _preview_item_id_map(
+    rows: dict[str, list[dict[str, Any]]],
+    db: Session | None,
+) -> dict[int, int | None]:
+    mapping: dict[int, int | None] = {}
+    for row in rows["items"]:
+        backup_id = _safe_int_or_none(row.get("id"))
+        if backup_id is None:
+            continue
+        if db is None:
+            mapping[backup_id] = None
+            continue
+        item = db.get(models.Item, backup_id)
+        if item is None:
+            item = db.scalar(
+                select(models.Item).where(
+                    models.Item.title == str(row.get("title") or "").strip(),
+                    models.Item.release_date == (row.get("release_date") or None),
+                )
+            )
+        mapping[backup_id] = item.id if item is not None else None
+    return mapping
+
+
+def _classify_item_sources(
+    db: Session | None,
+    prepared: tuple[_PreparedItemSource, ...],
+    item_ids: dict[int, int | None],
+) -> _ItemSourcePlan:
+    local_sources = _load_local_item_sources(db) if db is not None else []
+    by_url: dict[str, list[_LocalItemSource]] = {}
+    by_identity: dict[tuple[str, str], list[_LocalItemSource]] = {}
+    for source in local_sources:
+        by_url.setdefault(source.normalized_url, []).append(source)
+        if source.provider_key is not None and source.external_id is not None:
+            by_identity.setdefault((source.provider_key, source.external_id), []).append(
+                source
+            )
+
+    creates: list[_PreparedItemSource] = []
+    conflicts: list[str] = []
+    errors: list[str] = []
+    reused = 0
+    provider_sources = 0
+    legacy_sources = 0
+    for incoming in prepared:
+        metadata = incoming.metadata
+        identity = (
+            (metadata.provider_key, metadata.external_id)
+            if metadata.provider_key is not None and metadata.external_id is not None
+            else None
+        )
+        if identity is None:
+            legacy_sources += 1
+        else:
+            provider_sources += 1
+        if incoming.backup_item_id not in item_ids:
+            errors.append("source_missing_item")
+            continue
+        target_item_id = item_ids[incoming.backup_item_id]
+        candidates = list(by_url.get(incoming.normalized_url, ()))
+        if identity is not None:
+            candidates.extend(by_identity.get(identity, ()))
+        unique_candidates = {candidate.id: candidate for candidate in candidates}
+        if not unique_candidates:
+            creates.append(incoming)
+            continue
+        if len(unique_candidates) != 1 or target_item_id is None:
+            conflicts.append("source_local_mapping_conflict")
+            continue
+        existing = next(iter(unique_candidates.values()))
+        if (
+            existing.item_id == target_item_id
+            and existing.normalized_url == incoming.normalized_url
+            and existing.provider_key == metadata.provider_key
+            and existing.external_id == metadata.external_id
+        ):
+            reused += 1
+            continue
+        if existing.normalized_url == incoming.normalized_url:
+            conflicts.append("source_url_local_conflict")
+        elif identity is not None:
+            conflicts.append("source_identity_local_conflict")
+        else:
+            conflicts.append("source_local_mapping_conflict")
+    return _ItemSourcePlan(
+        to_create=tuple(creates),
+        reused=reused,
+        conflicts=tuple(conflicts),
+        errors=tuple(errors),
+        provider_sources=provider_sources,
+        legacy_sources=legacy_sources,
     )
-    seen: set[str] = set()
-    restorable = 0
-    skipped = 0
-    errors = 0
-    for row in rows["item_sources"]:
-        item_id = _safe_int_or_none(row.get("item_id"))
-        try:
-            normalized = normalize_source_url(row.get("url"))
-        except SourceError:
-            skipped += 1
-            errors += 1
-            continue
-        if item_id not in backup_item_ids or normalized != row.get("normalized_url"):
-            skipped += 1
-            errors += 1
-            continue
-        if normalized in seen or normalized in existing_urls:
-            skipped += 1
-            continue
-        seen.add(normalized)
-        restorable += 1
+
+
+def _load_local_item_sources(db: Session) -> list[_LocalItemSource]:
+    columns = {
+        column["name"]
+        for column in inspect(db.get_bind()).get_columns(models.ItemSource.__tablename__)
+    }
+    tracking_available = {
+        "provider_key",
+        "external_id",
+        "last_checked_at",
+        "metadata_hash",
+    }.issubset(columns)
+    selected = [
+        models.ItemSource.id,
+        models.ItemSource.item_id,
+        models.ItemSource.normalized_url,
+    ]
+    if tracking_available:
+        selected.extend(
+            [models.ItemSource.provider_key, models.ItemSource.external_id]
+        )
+    rows = db.execute(
+        select(*selected).order_by(models.ItemSource.id)
+    ).all()
+    return [
+        _LocalItemSource(
+            id=int(row[0]),
+            item_id=int(row[1]),
+            normalized_url=str(row[2]),
+            provider_key=(None if not tracking_available else row[3]),
+            external_id=(None if not tracking_available else row[4]),
+        )
+        for row in rows
+    ]
+
+
+def _preview_item_source_counts(
+    rows: dict[str, list[dict[str, Any]]],
+    input_schema: str,
+    db: Session | None,
+) -> dict[str, int | bool]:
+    prepared = _prepared_item_sources(rows, input_schema)
+    payload_errors = _source_payload_errors(prepared)
+    plan = _classify_item_sources(db, prepared, _preview_item_id_map(rows, db))
+    conflict_count = len(payload_errors) + len(plan.conflicts)
+    error_count = len(payload_errors) + len(plan.errors)
+    skipped = plan.reused + conflict_count + len(plan.errors)
     return {
         "item_sources": len(rows["item_sources"]),
-        "item_sources_restorable": restorable,
+        "item_sources_restorable": len(plan.to_create),
+        "item_sources_to_create": len(plan.to_create),
+        "item_sources_to_reuse": plan.reused,
+        "item_sources_conflicts": conflict_count,
+        "item_sources_payload_errors": len(payload_errors),
         "item_sources_skipped": skipped,
-        "item_sources_errors": errors,
+        "item_sources_errors": error_count,
+        "provider_sources": plan.provider_sources,
+        "legacy_sources": plan.legacy_sources,
+        "can_restore": conflict_count == 0 and error_count == 0,
     }
 
 
 def preview_backup_data(
     payload: dict[str, Any],
     db: Session | None = None,
-) -> dict[str, int | str]:
+) -> dict[str, int | str | bool]:
+    input_schema = _backup_schema(payload)
     rows = _rows_from_payload(payload)
-    _validate_preview_rows(rows)
+    _validate_preview_rows(rows, input_schema)
     return {
-        "schema": BACKUP_SCHEMA,
+        "schema": input_schema,
+        "input_schema": input_schema,
         "items": len(rows["items"]),
         "tags": len(rows["tags"]),
         "creators": len(rows["creators"]),
@@ -365,7 +641,7 @@ def preview_backup_data(
         **_preview_saved_view_counts(rows, db),
         **_preview_item_activity_counts(rows),
         **_preview_app_settings_counts(rows),
-        **_preview_item_source_counts(rows, db),
+        **_preview_item_source_counts(rows, input_schema, db),
     }
 
 
@@ -827,53 +1103,113 @@ def _merge_app_settings(
             result["app_settings_skipped"] += 1
 
 
-def _merge_item_sources(
+def _create_item_sources(
     db: Session,
-    rows: list[dict[str, Any]],
+    rows: tuple[_PreparedItemSource, ...],
     item_ids: dict[int, int],
     result: dict[str, int],
 ) -> None:
-    known_urls = set(db.scalars(select(models.ItemSource.normalized_url)).all())
     for row in rows:
-        backup_item_id = _safe_int_or_none(row.get("item_id"))
-        target_item_id = item_ids.get(backup_item_id) if backup_item_id is not None else None
-        try:
-            normalized = normalize_source_url(row.get("url"))
-        except SourceError:
-            normalized = ""
-        if (
-            target_item_id is None
-            or not normalized
-            or normalized != str(row.get("normalized_url") or "")
-        ):
-            result["skipped"] += 1
-            result["item_sources_skipped"] += 1
-            result["item_sources_errors"] += 1
-            continue
-        if normalized in known_urls:
-            result["skipped"] += 1
-            result["item_sources_skipped"] += 1
-            continue
-        title = " ".join(str(row.get("title") or "").split())[:255] or None
+        target_item_id = item_ids[row.backup_item_id]
         source = models.ItemSource(
             item_id=target_item_id,
-            url=str(row.get("url") or "").strip(),
-            normalized_url=normalized,
-            title=title,
+            url=row.url,
+            normalized_url=row.normalized_url,
+            title=row.title,
+            provider_key=row.metadata.provider_key,
+            external_id=row.metadata.external_id,
+            last_checked_at=row.metadata.last_checked_at,
+            metadata_hash=row.metadata.metadata_hash,
         )
-        _set_optional_datetime(source, "created_at", row.get("created_at"))
+        if row.created_at is not None:
+            source.created_at = row.created_at
         db.add(source)
-        known_urls.add(normalized)
         result["created"] += 1
         result["item_sources_created"] += 1
 
 
-def restore_backup_data(db: Session, payload: dict[str, Any]) -> dict[str, int]:
+_RESTORE_STATE_TABLES = (
+    models.Item.__table__,
+    models.Tag.__table__,
+    models.Creator.__table__,
+    models.Collection.__table__,
+    models.ItemTag.__table__,
+    models.ItemCreator.__table__,
+    models.ItemCollection.__table__,
+    models.UserItemState.__table__,
+    models.SavedView.__table__,
+    models.ItemActivity.__table__,
+    models.AppSetting.__table__,
+    models.ItemSource.__table__,
+    models.MediaIndexState.__table__,
+)
+
+
+def _digest_value(value: Any) -> Any:
+    if isinstance(value, datetime):
+        return value.isoformat()
+    if isinstance(value, bytes):
+        return value.hex()
+    return value
+
+
+def _restore_state_digest(db: Session) -> str:
+    state: dict[str, list[list[Any]]] = {}
+    for table in _RESTORE_STATE_TABLES:
+        columns = tuple(table.columns)
+        primary_key = tuple(table.primary_key.columns)
+        statement = select(*columns)
+        if primary_key:
+            statement = statement.order_by(*primary_key)
+        rows = db.execute(statement).all()
+        state[table.name] = [
+            [_digest_value(value) for value in row]
+            for row in rows
+        ]
+    encoded = json.dumps(
+        state,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def _independent_restore_state_digest(db: Session) -> str | None:
+    try:
+        VerificationSession = sessionmaker(
+            bind=db.get_bind(),
+            autoflush=False,
+            expire_on_commit=False,
+            future=True,
+        )
+        with VerificationSession() as verification_db:
+            return _restore_state_digest(verification_db)
+    except Exception:
+        return None
+
+
+def _rollback_quietly(db: Session) -> None:
+    try:
+        db.rollback()
+    except Exception:
+        pass
+
+
+def restore_backup_data(
+    db: Session,
+    payload: dict[str, Any],
+) -> dict[str, int | str]:
     from app.services.media_index import invalidate_media_index
 
+    input_schema = _backup_schema(payload)
     rows = _rows_from_payload(payload)
-    _validate_preview_rows(rows)
-    result = {
+    _validate_preview_rows(rows, input_schema)
+    prepared_sources = _prepared_item_sources(rows, input_schema)
+    payload_errors = _source_payload_errors(prepared_sources)
+    if payload_errors:
+        _raise("source_payload_conflict", payload_errors[0])
+    result: dict[str, int | str] = {
         "created": 0,
         "updated": 0,
         "skipped": 0,
@@ -895,14 +1231,34 @@ def restore_backup_data(db: Session, payload: dict[str, Any]) -> dict[str, int]:
         "app_settings_skipped": 0,
         "app_settings_errors": 0,
         "item_sources_created": 0,
+        "item_sources_reused": 0,
+        "item_sources_conflicts": 0,
         "item_sources_skipped": 0,
         "item_sources_errors": 0,
+        "input_schema": input_schema,
+        "database_outcome": "not_started",
     }
-    with db.begin():
+    db.rollback()
+    before_digest = _restore_state_digest(db)
+    expected_digest: str | None = None
+    original_error: Exception | None = None
+    try:
+        db.execute(text("BEGIN IMMEDIATE"))
+        item_ids = _merge_items(db, rows["items"], result)
+        source_plan = _classify_item_sources(db, prepared_sources, item_ids)
+        result["item_sources_reused"] = source_plan.reused
+        result["item_sources_skipped"] = source_plan.reused
+        result["skipped"] = int(result["skipped"]) + source_plan.reused
+        result["item_sources_conflicts"] = len(source_plan.conflicts)
+        result["item_sources_errors"] = len(source_plan.errors)
+        if source_plan.conflicts:
+            _raise("source_local_conflict", source_plan.conflicts[0])
+        if source_plan.errors:
+            _raise("source_payload_conflict", source_plan.errors[0])
+
         tag_ids = _merge_tags(db, rows["tags"], result)
         creator_ids = _merge_creators(db, rows["creators"], result)
         collection_ids = _merge_collections(db, rows["collections"], result)
-        item_ids = _merge_items(db, rows["items"], result)
         _merge_item_tags(db, rows["item_tags"], item_ids, tag_ids, result)
         _merge_item_creators(
             db,
@@ -922,6 +1278,23 @@ def restore_backup_data(db: Session, payload: dict[str, Any]) -> dict[str, int]:
         _merge_saved_views(db, rows["saved_views"], result)
         _merge_item_activity(db, rows["item_activity"], item_ids, result)
         _merge_app_settings(db, rows["app_settings"], result)
-        _merge_item_sources(db, rows["item_sources"], item_ids, result)
+        _create_item_sources(db, source_plan.to_create, item_ids, result)
         invalidate_media_index(db, reason="backup_restored")
-    return result
+        db.flush()
+        expected_digest = _restore_state_digest(db)
+        db.commit()
+        result["database_outcome"] = "committed"
+        return result
+    except Exception as exc:
+        original_error = exc
+        _rollback_quietly(db)
+
+    actual_digest = _independent_restore_state_digest(db)
+    if expected_digest is not None and actual_digest == expected_digest:
+        result["database_outcome"] = "committed_after_error"
+        return result
+    if actual_digest == before_digest:
+        if isinstance(original_error, BackupError):
+            raise original_error
+        raise BackupError("restore_rolled_back") from original_error
+    raise BackupError("restore_outcome_unknown") from original_error

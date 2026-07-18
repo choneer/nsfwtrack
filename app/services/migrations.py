@@ -20,6 +20,22 @@ from app.services.schema_version import (
     SCHEMA_MIGRATIONS_TABLE,
 )
 
+ITEM_SOURCES_SCHEMA_2_COLUMNS = {
+    "id",
+    "item_id",
+    "url",
+    "normalized_url",
+    "title",
+    "created_at",
+}
+ITEM_SOURCES_SCHEMA_4_COLUMNS = ITEM_SOURCES_SCHEMA_2_COLUMNS | {
+    "provider_key",
+    "external_id",
+    "last_checked_at",
+    "metadata_hash",
+}
+SOURCE_IDENTITY_INDEX = "uq_item_sources_provider_identity"
+
 
 @dataclass(frozen=True)
 class MigrationCheck:
@@ -414,18 +430,18 @@ def apply_upgrade(
                     raise MigrationError("precheck_failed", step.name)
 
                 step.apply(connection)
-
-                postcheck = step.postcheck(connection)
-                if not isinstance(postcheck, MigrationCheck):
-                    raise MigrationError("invalid_postcheck", step.name)
-                if not postcheck.passed:
-                    raise MigrationError("postcheck_failed", step.name)
                 connection.execute(
                     insert(SchemaMigration).values(
                         version=step.to_version,
                         name=step.name,
                     )
                 )
+
+                postcheck = step.postcheck(connection)
+                if not isinstance(postcheck, MigrationCheck):
+                    raise MigrationError("invalid_postcheck", step.name)
+                if not postcheck.passed:
+                    raise MigrationError("postcheck_failed", step.name)
 
             final_version = _read_database_version(connection)
             if final_version != target_version:
@@ -464,7 +480,30 @@ def _item_sources_precheck(connection: Connection) -> MigrationCheck:
 
 
 def _item_sources_apply(connection: Connection) -> None:
-    ItemSource.__table__.create(bind=connection)
+    connection.exec_driver_sql(
+        """
+        CREATE TABLE item_sources (
+            id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+            item_id INTEGER NOT NULL,
+            url VARCHAR(2048) NOT NULL,
+            normalized_url VARCHAR(2048) NOT NULL,
+            title VARCHAR(255),
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL,
+            CONSTRAINT ck_item_sources_url_not_blank CHECK (trim(url) != ''),
+            CONSTRAINT ck_item_sources_normalized_url_not_blank
+                CHECK (trim(normalized_url) != ''),
+            CONSTRAINT uq_item_sources_normalized_url UNIQUE (normalized_url),
+            FOREIGN KEY(item_id) REFERENCES items (id) ON DELETE CASCADE
+        )
+        """
+    )
+    connection.exec_driver_sql(
+        "CREATE INDEX ix_item_sources_item_id ON item_sources (item_id)"
+    )
+    connection.exec_driver_sql(
+        "CREATE INDEX ix_item_sources_normalized_url "
+        "ON item_sources (normalized_url)"
+    )
 
 
 def _item_sources_postcheck(connection: Connection) -> MigrationCheck:
@@ -472,8 +511,7 @@ def _item_sources_postcheck(connection: Connection) -> MigrationCheck:
     if "item_sources" not in inspector.get_table_names():
         return MigrationCheck(False, "item_sources was not created")
     columns = {column["name"] for column in inspector.get_columns("item_sources")}
-    required = {"id", "item_id", "url", "normalized_url", "title", "created_at"}
-    if not required.issubset(columns):
+    if not ITEM_SOURCES_SCHEMA_2_COLUMNS.issubset(columns):
         return MigrationCheck(False, "item_sources columns are incomplete")
     unique_columns = {
         tuple(constraint.get("column_names") or ())
@@ -523,7 +561,11 @@ def _media_index_precheck(connection: Connection) -> MigrationCheck:
         actual_columns = {
             column["name"] for column in inspector.get_columns(table.name)
         }
-        expected_columns = {column.name for column in table.columns}
+        expected_columns = (
+            ITEM_SOURCES_SCHEMA_2_COLUMNS
+            if table.name == ItemSource.__tablename__
+            else {column.name for column in table.columns}
+        )
         missing_columns = sorted(expected_columns - actual_columns)
         if missing_columns:
             return MigrationCheck(
@@ -682,6 +724,175 @@ def _media_index_postcheck(connection: Connection) -> MigrationCheck:
     return MigrationCheck(True, "empty media index structure is valid")
 
 
+def _normalized_url_is_unique(connection: Connection) -> bool:
+    inspector = inspect(connection)
+    if ("normalized_url",) in {
+        tuple(constraint.get("column_names") or ())
+        for constraint in inspector.get_unique_constraints(ItemSource.__tablename__)
+    }:
+        return True
+    return any(
+        bool(index.get("unique"))
+        and tuple(index.get("column_names") or ()) == ("normalized_url",)
+        for index in inspector.get_indexes(ItemSource.__tablename__)
+    )
+
+
+def _schema_2_item_source_shape_is_valid(connection: Connection) -> bool:
+    columns = {
+        column["name"]: column
+        for column in inspect(connection).get_columns(ItemSource.__tablename__)
+    }
+    if set(columns) < ITEM_SOURCES_SCHEMA_2_COLUMNS:
+        return False
+    expected = {
+        "id": ("INTEGER", False, 1),
+        "item_id": ("INTEGER", False, 0),
+        "url": ("VARCHAR(2048)", False, 0),
+        "normalized_url": ("VARCHAR(2048)", False, 0),
+        "title": ("VARCHAR(255)", True, 0),
+        "created_at": ("DATETIME", False, 0),
+    }
+    return all(
+        str(columns[name].get("type")).upper() == expected_type
+        and bool(columns[name].get("nullable")) is nullable
+        and int(columns[name].get("primary_key") or 0) == primary_key
+        for name, (expected_type, nullable, primary_key) in expected.items()
+    )
+
+
+def _item_source_foreign_key_exists(connection: Connection) -> bool:
+    return any(
+        foreign_key.get("referred_table") == "items"
+        and tuple(foreign_key.get("constrained_columns") or ()) == ("item_id",)
+        for foreign_key in inspect(connection).get_foreign_keys(
+            ItemSource.__tablename__
+        )
+    )
+
+
+def _source_tracking_preview(connection: Connection) -> MigrationPreview:
+    del connection
+    return MigrationPreview(
+        changes=(
+            "add nullable provider_key, external_id, last_checked_at, and metadata_hash columns",
+            "create a unique provider/external-ID index only when both values are non-null",
+            "preserve every existing item_sources row with all four new values null",
+        ),
+        warnings=(
+            "back up the Schema 3 database before applying",
+            "Schema 4 databases are not compatible with the stable v1.1.0 application",
+            "the migration performs no network or media access",
+        ),
+    )
+
+
+def _source_tracking_precheck(connection: Connection) -> MigrationCheck:
+    try:
+        if _read_database_version(connection) != 3:
+            return MigrationCheck(False, "database is not at Schema 3")
+    except MigrationError:
+        return MigrationCheck(False, "Schema 3 version record is unavailable")
+    inspector = inspect(connection)
+    if ItemSource.__tablename__ not in inspector.get_table_names():
+        return MigrationCheck(False, "item_sources table is missing")
+    columns = {
+        column["name"]: column
+        for column in inspector.get_columns(ItemSource.__tablename__)
+    }
+    if set(columns) != ITEM_SOURCES_SCHEMA_2_COLUMNS:
+        return MigrationCheck(False, "item_sources is not the expected Schema 3 shape")
+    if not _schema_2_item_source_shape_is_valid(connection):
+        return MigrationCheck(False, "item_sources column definitions are invalid")
+    indexes = inspector.get_indexes(ItemSource.__tablename__)
+    if any(index.get("name") == SOURCE_IDENTITY_INDEX for index in indexes):
+        return MigrationCheck(False, "provider identity index already exists")
+    if not _normalized_url_is_unique(connection):
+        return MigrationCheck(False, "normalized_url uniqueness is missing")
+    if not _item_source_foreign_key_exists(connection):
+        return MigrationCheck(False, "item source item foreign key is missing")
+    return MigrationCheck(True, "Schema 3 item_sources is ready for nullable metadata")
+
+
+def _source_tracking_apply(connection: Connection) -> None:
+    connection.exec_driver_sql(
+        "ALTER TABLE item_sources ADD COLUMN provider_key VARCHAR(64) NULL"
+    )
+    connection.exec_driver_sql(
+        "ALTER TABLE item_sources ADD COLUMN external_id VARCHAR(512) NULL"
+    )
+    connection.exec_driver_sql(
+        "ALTER TABLE item_sources ADD COLUMN last_checked_at DATETIME NULL"
+    )
+    connection.exec_driver_sql(
+        "ALTER TABLE item_sources ADD COLUMN metadata_hash VARCHAR(96) NULL"
+    )
+    connection.exec_driver_sql(
+        f"CREATE UNIQUE INDEX {SOURCE_IDENTITY_INDEX} "
+        "ON item_sources (provider_key, external_id) "
+        "WHERE provider_key IS NOT NULL AND external_id IS NOT NULL"
+    )
+
+
+def _source_identity_index_is_valid(connection: Connection) -> bool:
+    indexes = inspect(connection).get_indexes(ItemSource.__tablename__)
+    matching = [index for index in indexes if index.get("name") == SOURCE_IDENTITY_INDEX]
+    if len(matching) != 1:
+        return False
+    index = matching[0]
+    if not index.get("unique") or tuple(index.get("column_names") or ()) != (
+        "provider_key",
+        "external_id",
+    ):
+        return False
+    sql = connection.exec_driver_sql(
+        "SELECT sql FROM sqlite_master WHERE type = 'index' AND name = ?",
+        (SOURCE_IDENTITY_INDEX,),
+    ).scalar_one_or_none()
+    if not isinstance(sql, str) or "where" not in sql.casefold():
+        return False
+    predicate = "".join(sql.casefold().split()).split("where", 1)[1]
+    predicate = predicate.replace('"', "").replace("`", "")
+    return predicate == "provider_keyisnotnullandexternal_idisnotnull"
+
+
+def _source_tracking_postcheck(connection: Connection) -> MigrationCheck:
+    inspector = inspect(connection)
+    columns = {
+        column["name"]: column
+        for column in inspector.get_columns(ItemSource.__tablename__)
+    }
+    if set(columns) != ITEM_SOURCES_SCHEMA_4_COLUMNS:
+        return MigrationCheck(False, "Schema 4 item_sources columns are incomplete")
+    if not _schema_2_item_source_shape_is_valid(connection):
+        return MigrationCheck(False, "legacy item_sources columns changed")
+    for name, expected_type in {
+        "provider_key": "VARCHAR(64)",
+        "external_id": "VARCHAR(512)",
+        "last_checked_at": "DATETIME",
+        "metadata_hash": "VARCHAR(96)",
+    }.items():
+        column = columns[name]
+        if not column.get("nullable") or str(column.get("type")).upper() != expected_type:
+            return MigrationCheck(False, f"{name} type or nullable state is invalid")
+    if not _normalized_url_is_unique(connection):
+        return MigrationCheck(False, "normalized_url uniqueness is missing")
+    if not _item_source_foreign_key_exists(connection):
+        return MigrationCheck(False, "item source item foreign key is missing")
+    if not _source_identity_index_is_valid(connection):
+        return MigrationCheck(False, "provider identity partial unique index is invalid")
+    non_null_history = connection.exec_driver_sql(
+        "SELECT count(*) FROM item_sources WHERE provider_key IS NOT NULL "
+        "OR external_id IS NOT NULL OR last_checked_at IS NOT NULL "
+        "OR metadata_hash IS NOT NULL"
+    ).scalar_one()
+    if int(non_null_history) != 0:
+        return MigrationCheck(False, "legacy source metadata was modified")
+    if _read_database_version(connection) != 4:
+        return MigrationCheck(False, "Schema 4 version record is missing")
+    return MigrationCheck(True, "Schema 4 source tracking structure is valid")
+
+
 MIGRATION_REGISTRY = MigrationRegistry(
     (
         MigrationStep(
@@ -701,6 +912,15 @@ MIGRATION_REGISTRY = MigrationRegistry(
             apply=_media_index_apply,
             precheck=_media_index_precheck,
             postcheck=_media_index_postcheck,
+        ),
+        MigrationStep(
+            from_version=3,
+            to_version=4,
+            name="extend_item_sources_provider_metadata",
+            preview=_source_tracking_preview,
+            apply=_source_tracking_apply,
+            precheck=_source_tracking_precheck,
+            postcheck=_source_tracking_postcheck,
         ),
     )
 )

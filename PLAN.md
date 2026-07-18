@@ -14,7 +14,7 @@
 当前应用版本与开发阶段：
 
 ```text
-v1.1.0 stable / Phase 5-P1 planning complete / v1.2.0 implementation not started
+v1.1.0 stable / Phase 5-N2 local acceptance complete / awaiting Actions
 ```
 
 当前最新稳定版本为 `v1.1.0`，发布范围包含已冻结并验收完成的 Phase 3 后续媒体维护能力与 Phase 4 全部能力。
@@ -45,7 +45,7 @@ Release: https://github.com/choneer/nsfwtrack/releases/tag/v1.1.0
 维护与 CI：Phase 2-L1 至 L6 已随 v1.0.2 发布；L7 已随 v1.0.3 发布；L8 固定非 root 容器用户已随 v1.0.4 发布
 产品功能重启：Phase 3-A1 至 A6 已随 v1.0.5 发布；Phase 3-B1 / B2 已随 v1.0.6 发布；Phase 3-B3 / B4 / B5 / B6 / C1 / C2 / C3 / C4 / C5、D1 最终集成审查及 Phase 4-A1 / A2 / M1 / M2 / M3 / M4 / M5 均已随 v1.1.0 正式发布
 正式发布：Phase 4-R1 至 R3D 的审计、验收和候选冻结均已完成，Phase 4-R4 已正式发布 `v1.1.0`
-下一目标：v1.2.0 受控外部内容源与统一搜索；Phase 5-N1 基础已完成，下一阶段为 Phase 5-N2 Schema 4 来源追踪
+下一目标：v1.2.0 受控外部内容源与统一搜索；Phase 5-N1 与 N2 已完成本地实现和验收，下一功能阶段为 Phase 5-N3 首个获批 adapter
 ```
 
 当前完成度估算：
@@ -53,7 +53,7 @@ Release: https://github.com/choneer/nsfwtrack/releases/tag/v1.1.0
 ```text
 核心业务能力：已完成
 代码发布状态：v1.1.0 已正式发布，annotated tag 与正式 GitHub Release 按发布门禁验证
-当前开发状态：Phase 5-N1 受控 HTTP/adapter 基础完成；production registry 为空，无真实 provider；应用仍为 `1.1.0`、Schema 为 3
+当前开发状态：Phase 5-N2 Schema 4 来源追踪与 backup v2 已完成本地验收；production registry 为空，无真实 provider；应用仍为 `1.1.0`、Schema 为 4
 WSL 验收：已完成
 N100 部署：尚未开始，等待用户明确授权
 ```
@@ -63,6 +63,25 @@ N100 部署：尚未开始，等待用户明确授权
 Phase 5-P1 已完成静态审计与路线设计，不包含任何功能实现。此前讨论过的
 `v2.0.0` 本地媒体关系化路线已作废，不构成当前或后续阶段输入。下一目标
 版本明确为向后兼容的 `v1.2.0`。
+
+### Phase 5-N2：Schema 4 来源追踪与 Backup v2
+
+N2 已完成以下实现与本地门禁：
+
+- `ItemSource` 新增四个 nullable 来源追踪字段，双非空 provider/external-ID
+  partial unique index 使用精确 predicate；fresh Schema 4 与 3 -> 4 后结构等价
+- 生产迁移链连续覆盖 1 -> 2 -> 3 -> 4；3 -> 4 使用明确 DDL、
+  `BEGIN IMMEDIATE`、完整 precheck/postcheck，并验证全链失败整体 rollback
+- 新导出固定为 `nsfwtrack.backup.v2`，v1 继续恢复为四字段 null；Schema 3
+  在升级前仍可导出和预览显式 null 的 v2
+- payload 重复、URL/identity/metadata 矛盾和本地 hard conflict 在写入前或事务
+  内阻止；exact reuse 不覆盖本地 title/check/hash，legacy enrichment 不自动执行
+- restore 在事务内重新分类，commit 异常后使用独立 Session 对完整相关状态
+  digest 复核，区分 committed、committed-after-error、confirmed rollback 与 unknown
+- migration、backup preview、restore 零网络；应用保持 1.1.0，production registry
+  保持空，无 provider、搜索 UI、远程图片、凭据、后台同步或新依赖
+- N2 专项 33、targeted 164、全量 917 tests、`pip check`、稳定 v1.1.0
+  future-schema 拒绝与隔离 Docker 双生命周期均通过；既有 `data/` 未使用
 
 #### 审计基线与可复用能力
 

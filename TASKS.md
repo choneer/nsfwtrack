@@ -2,13 +2,13 @@
 
 按顺序执行，每完成一项打个 [x]。
 
-## 当前状态（Phase 5-N1 基础完成，下一阶段为 Phase 5-N2）
+## 当前状态（Phase 5-N2 本地验收完成，等待 Actions）
 
 当前稳定版与最新 Release：`v1.1.0`。下一目标版本为 `v1.2.0`，方向为
 受控公开元数据 adapter、单来源/多来源搜索、手动入库和手动更新。N1 已
-完成共享 client、固定空 production registry、adapter protocol、immutable DTO、
-错误模型与 mock/fake-backend 测试；应用仍为 `1.1.0`、Schema 仍为 `3`，无
-真实 provider、页面或路由。
+完成共享 client、固定空 production registry、adapter protocol、immutable DTO，
+并完成 Schema 4 来源追踪、backup v2 与 v1 restore；应用仍为 `1.1.0`、Schema
+为 `4`，无真实 provider、搜索页面或网络入口。
 
 ### Phase 5-P1 至 R2 路线
 
@@ -53,10 +53,18 @@
 
 #### Phase 5-N2 - Schema 4 来源追踪
 
-- [ ] 实现 Schema 3 -> 4 连续迁移、四个 nullable ItemSource 字段与 partial
+- [x] 实现 Schema 3 -> 4 连续迁移、四个 nullable ItemSource 字段与 partial
   provider/external-ID unique index
-- [ ] 实现 `nsfwtrack.backup.v2` 导出、v1 兼容恢复、v2 精确冲突预览和事务
+- [x] 实现 `nsfwtrack.backup.v2` 导出、v1 兼容恢复、v2 精确冲突预览和事务
   rollback；确认稳定 v1.1.0 拒绝 Schema 4
+- [x] 覆盖 fresh 4、1 -> 2 -> 3 -> 4、2 -> 3 -> 4、3 -> 4、重复 apply、
+  future schema、错误 partial predicate、全链失败整体 rollback 与结构等价
+- [x] restore 使用 `BEGIN IMMEDIATE` 并在事务内重新分类；commit 异常后由
+  独立 Session 复核完整状态 digest，明确 committed / committed-after-error /
+  confirmed rollback / unknown
+- [x] N2 专项 `33 passed`、targeted `164 passed`、全量 `917 passed`，
+  `pip check` 通过；稳定版数据库 checksum 不变，隔离断网 Docker 双生命周期
+  通过并清理，既有 `data/` 未接触
 
 #### Phase 5-N3 - 首个获批 adapter
 
