@@ -24,16 +24,21 @@ NSFWTrack 是本地单用户内容管理工具。
 
 ---
 
-## 二、长期禁止项
+## 二、外部网络与长期禁止项
 
-除非用户明确开启新的阶段，否则禁止实现：
+外部网络默认禁止。只有当前 `GOAL.md` 明确授权的 Phase 5 adapter 可以
+在用户主动提交请求后访问公开元数据接口，而且必须同时满足本节的受控
+网络边界。阶段授权不能开放通用 URL 获取能力。
 
-- 请求或抓取外部内容源
-- 爬虫
-- adapter
-- 远程图片拉取
-- 自动同步
-- 多源搜索
+除上述受控 adapter 例外外，禁止实现：
+
+- 任意 URL fetcher 或用户自定义 API base URL
+- HTML 页面抓取或爬虫
+- 未经当前阶段批准的 adapter
+- 远程图片拉取、代理或页面自动加载
+- Cookie、Token、登录凭据或浏览器配置读取与保存
+- 自动同步、后台刷新或定时请求
+- 未经批准的多源搜索
 - 随机探索接口
 - 推荐系统
 - AI 助手
@@ -57,6 +62,26 @@ Phase 3 起明确允许的本地来源范围：
 请求、获取远程标题 / 元数据 / 图片，也不允许扩展为爬虫、站点
 adapter、自动同步、推荐或 AI 分析。
 
+Phase 5 受控 adapter 必须遵守：
+
+- 只有登录用户主动触发的 POST 可以访问外部网络；GET、页面加载、备份、
+  恢复、CSV / JSON 导入、书签导入和 URL 清单导入始终零网络请求
+- router 不包含 provider HTTP 逻辑；所有 adapter 只能使用一个共享的
+  outbound HTTP service
+- provider、HTTPS host、端口和 endpoint path 均由代码固定注册；用户不能
+  提供 host、端口、协议、base URL 或任意路径
+- 只允许公开、合法、无需账号、Cookie、Token 或其他凭据的元数据接口
+- 客户端必须禁用环境代理与 Cookie，限制 DNS / IP、重定向、超时、响应
+  大小、Content-Type、分页和并发，并保持 TLS hostname 校验
+- 日志不得记录完整查询、响应、敏感 header、签名 token 或用户凭据
+- adapter 测试只使用确定性 fixture / mock transport，不请求真实 DNS 或
+  provider
+- 网络预览与数据库 apply 必须分离；apply 阶段不得再次访问 provider
+- 不允许远程图片、HTML 抓取、自动同步、后台任务、推荐、AI 或云同步
+
+新增或启用具体 provider 前，必须由用户批准来源及固定 endpoint。通用
+HTTP service 的存在不构成任何 provider 或任意地址的访问授权。
+
 危险操作禁止自动执行，必须由用户手动确认。
 
 ---
@@ -71,14 +96,17 @@ adapter、自动同步、推荐或 AI 分析。
 - 不破坏旧数据
 - 不引入 Alembic
 
-只有 `GOAL.md` 明确允许时，才可以新增本地 SQLite 表。
+只有 `GOAL.md` 明确允许时，才可以新增表、字段、索引或迁移。
 
-如果新增表，必须确认：
+如果修改 Schema，必须确认：
 
-- 旧数据库可通过 `create_all` 自动创建新表
+- 使用现有 code-owned migration registry 保持连续升级路径；不能只依赖
+  `create_all` 改造旧数据库
+- 迁移提供只读 preview、显式 apply、precheck / postcheck 和事务回滚
 - 旧数据不被破坏
 - 备份 / 恢复 / 导入 / 导出是否需要同步更新
 - 测试覆盖旧数据兼容性
+- 旧应用对未来 Schema 安全拒绝，rollback 使用升级前已验证副本，不自动降级
 
 ---
 
@@ -187,11 +215,25 @@ adapter、自动同步、推荐或 AI 分析。
 
 ## 十、验收命令
 
-每轮完成后运行：
+普通功能阶段按风险逐级验收：
 
 ```bash
-.venv/bin/python -m pytest
-docker compose build
-docker compose up -d
-curl -s -o /dev/null -w "%{http_code}\n" "http://localhost:8000/login"
-docker compose down
+targeted tests
+related regression tests
+.venv/bin/python -m pip check
+git diff --check
+```
+
+- 只有 Schema、备份、跨模块大型阶段、集成冻结、发布候选或云端复核明确
+  要求时才运行本地全量 pytest
+- 只有风险需要时才运行使用独立临时目录或隔离数据卷的 Docker 验收；不得
+  使用既有 `data/`
+- 每个实现阶段提交推送后，必须等待 GitHub Actions 的 `test` 与
+  `Docker production smoke`，再进行云端 diff 复核
+- Actions 或云端复核发现问题时，由当前开发与复核流程继续定位；不得借此
+  提前调用 Hermes
+- Hermes 只允许在当前目标版本全部功能完成、所有普通阶段云端复核通过且
+  完整集成冻结后执行一次最终独立验收
+- Phase 5 的规划、N1-N7、corrective 和 I1 阶段均不得调用 Hermes；仅
+  Phase 5-R1 可以在全部前置门禁满足后调用一次
+- tag、Release 与部署只在当前 `GOAL.md` 明确授权的发布或部署阶段执行

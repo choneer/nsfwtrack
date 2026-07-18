@@ -1,8 +1,11 @@
 # NSFWTrack — 项目进度与开发规划
 
 > NSFWTrack 是本地单用户媒体记录器 / 收藏管理器。  
-> 当前开发边界：本地管理、本地数据维护、手动确认操作、SQLite、FastAPI、Jinja2、轻量原生 JavaScript、Docker Compose。
-> Phase 3-A1 允许保存用户提供的 URL；Phase 3-A2 允许校验和保存用户上传的本地栅格图片；Phase 3-A3 允许基于本地文件名生成并手动确认媒体关联候选；Phase 3-A4 允许从未匹配本地图片手动确认创建条目；Phase 3-A5 允许对完整本地媒体扫描结果进行只读检索与分页；Phase 3-A6 允许在数据健康页只读审计本地媒体完整性；Phase 3-B1 允许按完整 SHA-256 只读定位重复媒体；Phase 3-B2 允许按重复组只读浏览路径与引用；Phase 3-B3 允许用户明确选择 keeper 后，在重扫、确认和引用安全迁移后删除同组冗余文件；Phase 3-B4 允许只读隔离和审计内部清理锚点与恢复文件；Phase 3-B5 允许用户逐项预览并手动确认将合法锚点恢复为普通媒体；Phase 3-B6 允许用户逐项确认永久删除合法且零引用的锚点残留；Phase 3-C1 允许用户逐项替换或清除 Data Health 报告的无效封面 / 头像引用；Phase 3-C2 允许用户逐项确认删除 Data Health 报告的精确 `.upload-*.tmp` 零引用残留；Phase 3-C3 允许用户只读定位媒体扫描逐项跳过路径和稳定原因；Phase 3-C4 允许用户逐项预览并确认删除仍损坏且零引用的普通媒体；Phase 3-C5 允许只读诊断不可用媒体根目录，并在真实 missing 状态下手动安全初始化；Phase 4-A1 允许登录用户通过现有安全扫描结果只读查看单个普通媒体的文件事实、引用和重复组；Phase 4-A2 允许用户预览并确认同目录安全修改普通媒体 basename，同时迁移全部封面 / 头像引用；Phase 4-M1 允许登录用户浏览现有媒体目录、跨目录安全移动单个媒体、手动管理单个封面 / 头像引用并只读审计硬链接别名；Phase 4-M2 允许当前页多选普通媒体后安全批量移动 / 重命名，并允许用户明确选择 keeper 后归一化真实硬链接别名组；Phase 4-M3 允许通过显式 Schema 2 → 3 迁移建立可重建的签名媒体索引，并由用户手动增量刷新或完整验证，只读媒体页优先使用完整快照而所有写操作继续即时重验；Phase 4-M4 允许所有应用内媒体写入和手动扫描共用固定跨进程锁，并在业务事务后按确定结果刷新或安全失效索引。仍禁止请求外部网页、远程图片、爬虫、站点 adapter、自动同步、识别、推荐、AI、多用户或云同步。
+> 当前产品边界：本地单用户管理、SQLite、FastAPI、Jinja2、轻量原生
+> JavaScript 与 Docker Compose。v1.1.0 已包含 Phase 3/4 的本地来源与媒体
+> 能力；v1.2.0 只规划通过获批 adapter 进行用户主动触发的公开元数据查询，
+> 继续禁止任意 URL fetch、HTML 爬取、远程图片、凭据、自动同步、推荐、
+> AI、多用户与云同步。
 
 ---
 
@@ -11,7 +14,7 @@
 当前应用版本与开发阶段：
 
 ```text
-v1.1.0 / Phase 4-R4 formal release complete
+v1.1.0 stable / Phase 5-P1 planning complete / v1.2.0 implementation not started
 ```
 
 当前最新稳定版本为 `v1.1.0`，发布范围包含已冻结并验收完成的 Phase 3 后续媒体维护能力与 Phase 4 全部能力。
@@ -19,8 +22,8 @@ v1.1.0 / Phase 4-R4 formal release complete
 当前发布引用：
 
 ```text
-annotated tag object: d4d5c31cd5b2fed9a90ad69742d54b4c9dbed0b4
-peeled commit: 961a3d0cc169e82b261d83207b0ec802007e292b
+annotated tag object: 07643bf6a7b36cb488c80c0ac694b6bc733e61e3
+peeled commit: c1ff2760f8ee8ca988493aa04e8b4affbc4b4b9d
 Release: https://github.com/choneer/nsfwtrack/releases/tag/v1.1.0
 ```
 
@@ -41,7 +44,8 @@ Release: https://github.com/choneer/nsfwtrack/releases/tag/v1.1.0
 完成度审计：Phase 2-K1 / K2 已随 v1.0.1 发布；代码开发与 WSL 验收已完成
 维护与 CI：Phase 2-L1 至 L6 已随 v1.0.2 发布；L7 已随 v1.0.3 发布；L8 固定非 root 容器用户已随 v1.0.4 发布
 产品功能重启：Phase 3-A1 至 A6 已随 v1.0.5 发布；Phase 3-B1 / B2 已随 v1.0.6 发布；Phase 3-B3 / B4 / B5 / B6 / C1 / C2 / C3 / C4 / C5、D1 最终集成审查及 Phase 4-A1 / A2 / M1 / M2 / M3 / M4 / M5 均已随 v1.1.0 正式发布
-正式发布：Phase 4-R1 至 R3D 的审计、验收和候选冻结均已完成，Phase 4-R4 已正式发布 `v1.1.0`；下一阶段需重新规划目标版本
+正式发布：Phase 4-R1 至 R3D 的审计、验收和候选冻结均已完成，Phase 4-R4 已正式发布 `v1.1.0`
+下一目标：v1.2.0 受控外部内容源与统一搜索；Phase 5-P1 只完成规划，功能实现从 Phase 5-N1 开始
 ```
 
 当前完成度估算：
@@ -49,10 +53,300 @@ Release: https://github.com/choneer/nsfwtrack/releases/tag/v1.1.0
 ```text
 核心业务能力：已完成
 代码发布状态：v1.1.0 已正式发布，annotated tag 与正式 GitHub Release 按发布门禁验证
-当前开发状态：Phase 4 开发、验收和发布路线全部完成；当前应用版本与正式稳定版均为 `v1.1.0`，Schema 为 3；不继续开发新功能，下一目标版本需重新规划
+当前开发状态：Phase 5-P1 规划完成；应用版本与稳定版仍为 `v1.1.0`，Schema 为 3；v1.2.0 功能尚未实现
 WSL 验收：已完成
 N100 部署：尚未开始，等待用户明确授权
 ```
+
+### Phase 5-P1：v1.2.0 外部内容源与统一搜索规划
+
+Phase 5-P1 已完成静态审计与路线设计，不包含任何功能实现。此前讨论过的
+`v2.0.0` 本地媒体关系化路线已作废，不构成当前或后续阶段输入。下一目标
+版本明确为向后兼容的 `v1.2.0`。
+
+#### 审计基线与可复用能力
+
+- 当前应用为 `1.1.0`、Schema `3`；真实迁移注册表连续包含
+  `1 -> 2 create_item_sources` 与 `2 -> 3 create_media_index`
+- `ItemSource` 当前保存 `item_id`、`url`、全局唯一 `normalized_url`、可空
+  `title` 与 `created_at`；`normalize_source_url()` 只接受无凭据 HTTP/HTTPS
+  URL，现有书签/文本导入只解析本地输入，从不请求 URL
+- `build_source_preview()` / `import_source_rows()` 已提供预览、明确确认、
+  标题歧义检查、全局 URL 冲突与事务回滚，可复用其本地映射和结果摘要模式
+- `Item`、`Creator`、`Tag` 已具备手动字段映射所需关系；现有 importer 在
+  单一事务内按大小写不敏感规则复用或创建 Creator / Tag
+- 迁移 preview 使用 SQLite `query_only` 与 authorizer，apply 使用
+  `BEGIN IMMEDIATE`；未来 Schema 拒绝、连续路径、precheck / postcheck 和
+  版本记录均已有框架
+- 当前 JSON envelope 为 `nsfwtrack.backup.v1`；`item_sources` 已进入
+  JSON / CSV / import / restore，旧备份允许缺少该可选表，restore 保持事务性
+- 所有非公开路由沿用登录 session；unsafe request 沿用
+  `require_same_origin`。same-origin 是请求边界，不应把签名快照描述为 CSRF
+  防护
+- 当前请求日志仅记录 request ID、method、route template、status、duration
+  与 exception type，适合扩展为受限 provider 事件而不记录查询或响应
+- runtime 依赖没有 outbound client；开发依赖已固定 `httpx2==2.5.0` 并提供
+  async client 与 mock transport。P1 不改依赖；N1 只有在明确审查后才可把
+  已固定 client 提升为 runtime 依赖
+- CI 对 push 运行完整 pytest 与隔离 `Docker production smoke`；生产容器
+  继续使用 UID/GID 10001、read-only root、无 capabilities 与
+  no-new-privileges
+
+#### Adapter 与领域 DTO
+
+router 不得包含 provider HTTP、解析或错误映射逻辑。采用 async
+`SourceAdapter` protocol，由代码注册表持有获批 adapter：
+
+```python
+class SourceAdapter(Protocol):
+    key: str
+    display_name: str
+
+    async def search(
+        self,
+        query: str,
+        *,
+        page: int,
+        page_size: int,
+    ) -> SourceSearchPage: ...
+
+    async def fetch_detail(self, external_id: str) -> SourceDetail: ...
+```
+
+adapter 只返回 immutable、provider-neutral DTO：
+
+- `SourceSearchResult`：provider key、opaque external ID、canonical URL、
+  title、alternate titles、summary、release date、creators、tags、provider
+  update time、result type 与 completeness
+- `SourceDetail`：同一标准字段、稳定详情标识、字段可用性和可导入字段；
+  不含图片字节，不保存未使用的完整原始响应
+- `SourceSearchPage`：provider、原始规范化 query、page、page size、total 或
+  `has_more`、results、稳定 warning/error
+- provider-specific payload、HTTP status 细节和 parser 类型不得泄漏到
+  router、模板、数据库核心服务或备份
+
+`SourceAdapterRegistry`、`OutboundHttpClient`、`SourceSearchService`、
+`SourceImportService`、`SourceRefreshService` 与 `SourceConflictService`
+保持职责分离。adapter 不能自行创建 HTTP client，也不能绕过共享 client。
+
+#### Outbound HTTP 安全边界
+
+所有 adapter 只能调用一个 `OutboundHttpClient`，其实现和测试必须同时满足：
+
+- provider、hostname、port `443`、base path 与允许的 endpoint 模板均由代码
+  固定；只允许 HTTPS，不接受用户的 scheme、host、port、base URL 或任意 path
+- `trust_env=False`，不读取代理环境、浏览器配置、Cookie、Token 或账号；不
+  发送 `Authorization`，provider 配置也不得包含凭据
+- 请求前解析并固定一个公开 IP；拒绝 loopback、private、link-local、
+  multicast、reserved、unspecified 及解析为空/混合不安全结果，连接不得因
+  DNS rebinding 改投其他地址
+- TLS hostname verification、SNI 与 HTTP Host 始终保持 allowlisted hostname，
+  不能改为固定 IP 名称或关闭证书验证
+- 默认禁用 redirect；只有 provider registry 明确批准时，最多允许一次同
+  scheme、同 host、同 port 且 path 仍获批的 redirect
+- connect timeout `3s`、total timeout `10s`、单响应上限 `1 MiB`；流式读取
+  达上限立即停止
+- 发送 `Accept-Encoding: identity`，只接受预期 JSON Content-Type；意外压缩、
+  非 JSON、malformed JSON 和超大 body 使用稳定错误，不返回原始响应
+- query 清理后不能为空且最多 `200` 字符，单页最多 `50` 条；一次聚合最多
+  `4` 个 provider，并发最多 `4`
+- 不做无限或隐式重试；DNS/security rejection、timeout、401/403、404、429、
+  5xx、redirect、content type、malformed JSON、oversized body 使用稳定错误类
+- provider 事件日志只允许 provider key、operation、受限 status class、
+  latency 与 request ID；不得记录 query、external ID、URL、response、header、
+  signed snapshot 或本地条目内容
+
+测试只能使用 `MockTransport` 或确定性 fixture，不访问真实 DNS、provider 或
+互联网。具体 provider 仍需用户批准，通用 client 不授权任何真实 endpoint。
+
+#### 页面、网络与写入状态矩阵
+
+```text
+GET  /source-search
+     login; local-only render; no network; no database write
+POST /source-search
+     login + same-origin; bounded network read; no database write
+POST /source-import/preview
+     login + same-origin; one approved detail fetch; no database write
+POST /source-import/apply
+     login + same-origin; local database write; no network
+GET  /items/{item_id}/sources
+     login; local database read; no network or write
+POST /items/{item_id}/sources/{source_id}/check
+     login + same-origin; one approved detail fetch; no database write
+POST /items/{item_id}/sources/{source_id}/update
+     login + same-origin; local database write; no network
+POST /items/{item_id}/sources/{source_id}/remove
+     login + same-origin; local database write; no network
+```
+
+网络阶段与写入阶段不得合并：
+
+```text
+search POST
+-> signed result token
+-> detail/import-preview POST
+-> signed immutable import snapshot
+-> user selects fields
+-> apply POST revalidates local conflicts under BEGIN IMMEDIATE
+```
+
+```text
+check POST
+-> provider detail + signed diff
+-> user selects non-empty fields
+-> update POST revalidates local state and applies without network
+```
+
+快照使用现有 `SECRET_KEY` 做 HMAC-SHA256，包含明确 format / purpose /
+version、expiry、provider / external ID、canonical mapped fields、目标 Item
+本地快照与冲突事实；验证使用恒定时间比较。快照不保存 secret、原始 provider
+响应或凭据，也不能与现有媒体操作 token 混用。签名只证明应用生成的预览，
+不能替代登录、same-origin、事务内本地冲突复核或 provider allowlist。
+
+preview/check 不更新 `last_checked_at`。只有 confirmed apply，或未来明确设计的
+confirmed “mark checked” 操作，才在同一事务更新 `last_checked_at` 与
+`metadata_hash`。`metadata_hash` 是带格式版本的 canonical provider-neutral
+detail 字段摘要，不是原始响应 hash，也不得包含未映射 payload。
+
+#### Schema 4 与迁移
+
+v1.2.0 采用 Schema `4`，直接向现有 `item_sources` 增加四个 nullable 字段：
+
+- `provider_key`
+- `external_id`
+- `last_checked_at`
+- `metadata_hash`
+
+增加 `(provider_key, external_id)` partial unique index，仅在两列均非 null 时
+生效。provider key 是代码定义的小写稳定标识；external ID 是 provider 内
+opaque、区分大小写的字符串，不做猜测归一化。Schema 3 旧行迁移后四列均为
+null；不创建 provider 表或持久化搜索结果缓存。
+
+Schema `3 -> 4` 必须进入现有连续迁移 registry，preview 保持 `query_only` +
+authorizer，apply 保持 `BEGIN IMMEDIATE`、备份确认、precheck、postcheck、
+版本记录与全链 rollback。必须覆盖 fresh Schema 4、1 -> 2 -> 3 -> 4、稳定
+v1.1.0 Schema 3 -> 4、重复 apply、缺失路径与未来版本拒绝。
+
+稳定 `v1.1.0` 必须通过现有 future-schema preflight 拒绝 Schema 4 数据库，
+不得尝试运行或降级。rollback 是停机后恢复升级前已验证的 Schema 3 SQLite
+副本；不实现自动 downgrade，也不把新数据库交给旧二进制。
+
+#### 冲突与手动字段映射
+
+- 同 provider / external ID 已在同一 Item：复用或 no-op
+- 同 provider / external ID 已属于另一 Item：hard conflict，零写入
+- 同 normalized URL 已属于另一 Item：hard conflict，零写入
+- 同 normalized URL 已在目标 Item 的 legacy null-provider 行：preview 必须
+  展示显式 enrichment 决定；不得静默重分配或创建重复来源
+- title 相似只作为 warning，不得自动判断同一条目或自动合并
+- apply 在 `BEGIN IMMEDIATE` 后重新查询 provider ID、normalized URL、目标
+  Item 和 Creator / Tag 冲突；签名 preview 不能替代最终查询
+- provider 的空字段不能清空本地值；现有字段默认不覆盖，只有用户逐项选择
+  的非空字段可写
+- Creator / Tag 只做 additive 映射并必须预览；case-fold 后存在歧义时阻止
+  apply，不猜测复用
+- 不修改 status、rating、review、collections、media 或 extra data；不自动创建、
+  更新、合并或删除 Item
+- 成功、复用、跳过和冲突数量必须准确；异常 rollback，不留半写入状态
+- manual check 只用已注册 `provider_key + external_id` 获取详情，绝不请求
+  ItemSource 中的用户 URL 或 provider 返回的任意 URL
+
+#### 多来源聚合
+
+- provider 失败隔离，单个 timeout / 429 / malformed response 不使整页 500；
+  页面明确展示部分成功、空结果与各 provider 稳定错误
+- 提供 provider-grouped view；aggregate view 按 provider-local rank、registry
+  order、external ID 做确定性 round-robin
+- 仅对完全一致的 canonical URL 做视觉分组，同时保留所有 provider provenance
+- provider/external ID 只在 provider 内判断唯一；title similarity 只提示
+- 不持久化搜索结果，不做自动 identity 决策、跨 provider merge 或自动 import
+
+#### 备份、恢复与兼容
+
+v1.2.0 导出新的 `nsfwtrack.backup.v2` envelope，并继续接受 v1 备份。v2 将
+四个来源追踪字段纳入 `item_sources`，但不包含搜索结果、HTTP 响应、adapter
+错误或 signed snapshots。
+
+- v1 备份恢复到 Schema 4 时，新字段按 null 处理
+- v2 preview 显示来源数量、provider/external ID 与 normalized URL 冲突摘要
+- payload 内重复 normalized URL 或 provider/external ID 是 validation error；
+  与本地映射后完全相同的来源可复用/skip 并单独计数，指向不同 Item 或事实
+  不一致的 URL / external-ID 冲突必须在 preview 阻止 restore
+- restore 在单一事务内处理；任一阻塞冲突或异常必须全量 rollback
+- 恢复不访问外部网络，不检查 provider 在线状态，不自动 refresh
+- duplicate normalized URL 与 provider/external ID 冲突分别报告，不能统称 skipped
+- v1.2.0 备份不承诺可恢复到 v1.1.0；v1.1.0 不应接受 v2 后静默丢弃元数据
+- 媒体文件和可重建媒体索引继续不进入业务备份；restore 后沿用现有索引失效规则
+
+#### Provider 批准门禁
+
+Phase 5-P1 和 N1 不实现真实 provider。每个具体 adapter 开始前，用户必须
+明确批准 provider 及 endpoint，并有证据证明：
+
+- 公开、合法、无需账号、Cookie、Token 或其他凭据
+- 有稳定官方 API 或公开机器接口，不需要抓取 HTML
+- 服务条款允许该用途，具有稳定 external ID、标题搜索和详情 JSON
+- 固定 host / endpoint 可满足上述 DNS、TLS、redirect、size 与 rate 边界
+- 字段可映射到统一 DTO，不需要下载或显示远程图片
+- 可用静态 fixture / mock transport 覆盖全部成功与失败行为
+
+N3 需要首个获批 adapter；N5 需要第二个获批 adapter。未获批时阶段停止，
+不得选择替代来源或把任意 URL 功能伪装成 adapter。
+
+#### Phase 5 路线
+
+1. **Phase 5-N1 - 受控 HTTP 与 adapter 基础**：实现 outbound client、固定
+   endpoint registry、SSRF / DNS / TLS / redirect / timeout / size /
+   Content-Type 边界、adapter protocol、统一 DTO 和错误模型；只用 mock，
+   不实现真实 provider。依赖变化必须在本阶段单独审查。
+2. **Phase 5-N2 - Schema 4 来源追踪**：实现 3 -> 4 迁移、ItemSource nullable
+   字段、partial unique index、backup v2、v1 restore 和精确冲突报告。
+3. **Phase 5-N3 - 首个获批 adapter**：只实现用户批准的第一个公开来源，
+   覆盖 search / detail parser、provider-specific limits 与确定性 fixtures。
+4. **Phase 5-N4 - 搜索 UI 与手动入库**：实现零网络 GET、主动搜索 POST、
+   signed preview、创建或关联 Item、逐项字段选择、Creator / Tag 映射和
+   `BEGIN IMMEDIATE` apply。
+5. **Phase 5-N5 - 第二个获批 adapter 与统一搜索**：加入第二个用户批准
+   来源、有界并发、分组/聚合视图、稳定 round-robin、视觉去重与部分失败。
+6. **Phase 5-N6 - 手动检查更新**：实现来源页、主动 check、signed diff、
+   逐项 update / remove、`last_checked_at` / `metadata_hash`，继续零自动同步。
+7. **Phase 5-N7 - 安全与体验收尾**：完成 rate / abuse 边界、错误文案、
+   i18n、移动端、可访问性、日志脱敏、性能上限与完整相关回归。
+8. **Phase 5-I1 - v1.2.0 集成冻结**：验证全路由状态矩阵、Schema 连续迁移、
+   v1/v2 备份、两个 adapter mock 集成、部分失败、全量 pytest、pip check、
+   Docker 双生命周期、安全边界与版本候选冻结。
+9. **Phase 5-R1 - 唯一一次 Hermes 最终验收**：只有 N1-N7、所有 Actions、
+   云端 diff 复核和 I1 集成冻结全部完成且无已知代码阻塞后才可调用一次。
+10. **Phase 5-R2 - v1.2.0 正式发布**：更新应用版本、归档 CHANGELOG、创建
+    发布提交、annotated tag 与正式 Release，并做发布后一致性验证。
+
+P1、N1-N7、corrective 与 I1 都不得调用或编写 Hermes 验收；只有 R1 可以在
+全部前置条件满足后调用一次。R2 前不得创建 v1.2.0 tag / Release，所有阶段
+均不部署 N100。
+
+#### 测试、风险与非目标
+
+每个普通阶段执行 targeted -> related regression -> `pip check` -> 风险需要时
+隔离 Docker -> GitHub Actions -> 云端 diff 复核。Schema/备份、跨模块阶段、
+I1 和 release candidate 才要求本地全量 pytest；测试与 Docker 必须使用临时
+目录或隔离 volume，绝不使用既有 `data/`。
+
+测试矩阵至少覆盖正常/空搜索、query/page/provider 上限、DNS/IP 拒绝、TLS /
+redirect、timeout、401/403/404/429/5xx、Content-Type、malformed JSON、压缩与
+oversized body、provider 部分失败、无/重复 external ID、duplicate URL、
+signed snapshot 伪造/过期/用途混用、apply 竞态、事务 rollback、Creator/Tag
+歧义、Schema 连续迁移、v1/v2 备份恢复、i18n、GET 零网络/零写入与无自动同步。
+
+主要风险是 provider 合约漂移、DNS rebinding、响应资源耗尽、来源身份冲突、
+预览到应用之间的本地竞态、备份向后兼容和日志泄漏；上述 registry、绑定
+client、稳定错误、HMAC snapshot、最终事务复核、backup v2 与脱敏日志是强制
+控制，不是可选优化。
+
+v1.2.0 非目标：通用 URL fetch、HTML crawler、remote images、credentialed
+providers、cookies/tokens、automatic sync、background jobs、scheduled refresh、
+automatic create/update/merge、recommendations、AI、cloud sync、multi-user、
+N100 deployment。破坏性兼容变化保留给未来 `v2.0.0`，不属于本路线。
 
 ### Phase 4-R 发布候选路线
 
@@ -63,7 +357,8 @@ N100 部署：尚未开始，等待用户明确授权
 - Phase 4-R3：应用内部版本已提升为 `1.1.0`；版本 targeted、全量 `785 passed`、`pip check`、隔离 Docker、云端 diff、Actions run `29586484449` 和 Hermes 独立验收均通过，无 corrective，Schema 保持 `3`
 - Phase 4-R4：`CHANGELOG` 已归档，发布提交、annotated `v1.1.0` tag、tag Actions、正式 GitHub Release 和发布后一致性验证按门禁完成
 - 当前稳定版：`v1.1.0`；Phase 4 开发和发布路线全部完成，下一目标版本需重新规划
-- 当前冻结：不继续开发新功能；N100 未部署且仍需独立授权
+- Phase 4 冻结已结束；当前为 Phase 5-P1 规划完成状态，N1 实现等待正式
+  指令；N100 未部署且仍需独立授权
 
 ### Phase 4-M3 当前实施范围
 
@@ -1356,37 +1651,23 @@ K1 审计结论：
 
 ---
 
-## 七、有限执行顺序
+## 七、Phase 5 执行顺序
 
 当前顺序：
 
 ```text
-1. Phase 2-L1 测试依赖兼容性收口（httpx2）已完成
-2. Phase 2-L2 直接依赖版本基线已完成
-3. Phase 2-L3 浏览器安全响应头基线已完成
-4. Phase 2-L4 CI Docker 冒烟验收已完成
-5. Phase 2-L5 CI 最小权限与重复运行控制已完成
-6. Phase 2-L6 Docker 健康状态与就绪验收已完成
-7. Phase 2-L7 Docker 运行时安全基线已完成
-8. Phase 2-L8 固定非 root 容器用户已随 v1.0.4 发布
-9. Phase 3-A1 至 A6 已随 v1.0.5 发布
-10. 来源同名歧义与媒体原子上传修复已随 v1.0.5 发布
-11. Phase 3-B1 / B2 已随 v1.0.6 正式发布
-12. 当前稳定版与应用版本均为 v1.0.6；Schema 为 2
-13. Phase 3-B3 重复媒体手动整理已完成并位于 Unreleased
-14. Phase 3-B4 媒体清理恢复中心已完成并位于 Unreleased
-15. Phase 3-B5 安全锚点手动恢复已完成并位于 Unreleased
-16. Phase 3-B6 无引用安全锚点手动清理已完成并位于 Unreleased
-17. Phase 3-C1 断裂媒体引用手动修复已完成并位于 Unreleased
-18. Phase 3-C2 上传残留文件手动清理已完成并位于 Unreleased
-19. Phase 3-C3 媒体扫描跳过项定位中心已完成并位于 Unreleased
-20. Phase 3-C4 损坏媒体文件手动清理已完成并位于 Unreleased
-21. Phase 3-C5 媒体根目录诊断与安全初始化已完成并位于 Unreleased
-22. Phase 3-D1 最终父链修复、本地全套验收与 Actions 完成，Unreleased 开发范围已冻结
-23. Phase 4-A1 普通媒体单文件详情页实现、本地验收与 Actions 已完成
-24. Phase 4-A2 普通媒体安全重命名实现、本地验收、推送与 Actions 已完成
-25. N100 / 目标主机部署未开始，等待用户明确授权
-26. 其余仅按实际问题做可选维护
+1. Phase 5-P1 v1.2.0 规划已完成
+2. Phase 5-N1 受控 HTTP 与 adapter 基础
+3. Phase 5-N2 Schema 4 来源追踪与 backup v2
+4. Phase 5-N3 首个用户批准 adapter
+5. Phase 5-N4 搜索 UI 与手动入库
+6. Phase 5-N5 第二个用户批准 adapter 与统一搜索
+7. Phase 5-N6 手动检查更新
+8. Phase 5-N7 安全与体验收尾
+9. Phase 5-I1 完整集成冻结
+10. Phase 5-R1 唯一一次 Hermes 最终独立验收
+11. Phase 5-R2 v1.2.0 正式发布
+12. N100 / 目标主机部署仍未授权，不属于本路线
 ```
 
 已完成依据：
@@ -1464,20 +1745,24 @@ K1 审计结论：
 - Phase 3-D1 最终父链精确竞态 2 passed、核心回归 177 passed、组合回归 365 passed、全量 584 passed，pip check 与隔离 Docker healthy / HTTP 验收通过；修复提交 `db0048d` 的 Actions run `29386547600` 两个 job 均成功，已重新记录最终冻结
 - Phase 4-A1 已完成安全只读详情聚合、全部引用与完整 SHA 重复组展示、三类来源状态返回、C1/C4 复用及外部路径 / symlink / 特殊文件 / anchor / 竞态拒绝；专项 17 passed、媒体链组合 252 passed、全量 601 passed、pip check 与隔离 Docker / HTTP 通过；提交 `c8cfb99` 与 Actions run `29389862206` 两个 job 均成功
 - Phase 4-A2 已完成同目录 basename 预览、完整身份 / 引用快照、写锁重验、verified-parent-FD no-overwrite hardlink、事务引用迁移与 commit 后身份删除；commit 歧义修复改为独立 Session 复核后才决定清理或保留双路径，修复后专项 50 passed、广泛组合 315 passed、全量 650 passed、pip check 与隔离 Docker / HTTP 通过；修复提交 `09be556` 与 Actions run `29399210087` 两个 job 均成功
-- 当前发布准备与本地验收完成后仍需单独发布指令；N100 部署须等待用户明确授权
+- Phase 4 已随 v1.1.0 发布；当前只完成 Phase 5-P1 规划，N1 实现等待正式
+  指令，N100 部署继续等待单独授权
 
 ---
 
-## 八、长期禁止项
+## 八、受控网络与长期禁止项
 
-除非用户明确重新审批，否则禁止实现：
+外部网络默认禁止。只有当前 GOAL 与用户明确批准的 provider adapter，才可
+通过共享 `OutboundHttpClient` 在登录用户主动 POST 后访问代码固定的公开
+HTTPS endpoint。该例外不开放任意 URL 能力。
 
-- 请求或抓取外部内容源
-- 爬虫
-- 站点 adapter
-- 远程图片拉取
-- 自动同步
-- 多源搜索
+继续禁止：
+
+- 通用 URL fetch、用户 host/base URL 与 HTML crawler
+- 未批准或绕过共享 client 的 adapter
+- 远程图片、Cookie、Token、账号或其他凭据
+- GET / 页面加载外部请求、自动同步、后台或定时 refresh
+- 未按 Phase 5 门禁实现的多源搜索
 - 随机探索
 - 推荐系统
 - AI 语义判断
@@ -1487,9 +1772,9 @@ K1 审计结论：
 - 前端框架重构
 - 未审批的新依赖
 
-明确允许：保存用户提供的来源 URL、解析用户上传的本地书签 HTML、
-解析用户提供的纯文本 URL 清单。允许项不得发起外部 HTTP 请求或扩展为
-远程元数据 / 图片获取、站点适配或自动化采集。
+本地来源导入继续只保存用户 URL、解析本地书签 HTML / 纯文本清单，始终
+零网络。备份、恢复、CSV / JSON 导入也始终零网络。完整边界以 RULE.md 和
+当前 GOAL.md 为准。
 
 ---
 
@@ -1499,17 +1784,18 @@ K1 审计结论：
 
 - 功能在 GOAL.md 范围内
 - 未触碰 RULE.md 禁止项
-- 测试通过
-- Docker build 通过
-- Docker compose 能启动
-- `/login` GET 返回 200
+- targeted 与相关回归通过，`pip check` 通过
+- Schema / 备份、跨模块大型阶段、I1 或 release candidate 按要求运行全量测试
+- 只有风险需要时使用独立临时目录或隔离 volume 完成 Docker 验收
+- 测试和 Docker 均未使用既有 `data/`
 - i18n key 对称
 - README 更新
 - TASKS 更新
 - REVIEW 更新
 - CHANGELOG 写入 Unreleased
 - 工作区干净
-- 已提交并推送，除非用户要求暂停
+- 已提交并推送，Actions 的 `test` / `Docker production smoke` 通过
+- 云端 diff 复核完成；R1 前绝不调用 Hermes
 
 ---
 

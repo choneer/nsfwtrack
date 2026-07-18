@@ -1,37 +1,42 @@
 # NSFWTrack
 
-NSFWTrack is a local single-user content record manager / collection tracker.
+NSFWTrack is a local-first, single-user content record manager / collection
+tracker.
 
-Current application version: `v1.1.0 / Phase 4 release complete`.
+Current application version: `1.1.0` (Schema `3`).
 
-Current stable version: `v1.1.0 / Phase 4`.
+Current stable version: `v1.1.0`.
 
 Latest Release: [NSFWTrack v1.1.0](https://github.com/choneer/nsfwtrack/releases/tag/v1.1.0).
 
-Current status: `v1.1.0 is released; Phase 4 development, release-candidate
-acceptance, and final release verification are complete`.
+Current status: `Phase 5-P1 planning is complete; v1.2.0 implementation has not
+started`.
 
-The application metadata is now `1.1.0`, while Schema remains `3`. The accepted
-R2 code basis is corrective commit
-`b7c5a634ad8c2b79ced74da9dcf0247d7af06a4b`; its full suite passed `785`
-tests and corrective Actions run `29577588841` completed both jobs
-successfully. R2 also verified the real Schema 1 → 2 → 3 and stable-v1.0.6
-Schema 2 → 3 paths, stable JSON backup compatibility, real HTTP media-directory
-operations, outcome/index fault handling, and two persisted Docker lifecycles.
-No new feature work is active. Phase 4 media management, Schema 3 indexing,
-cross-process coordination, and secure directory operations are included in
-`v1.1.0`. N100 has not been deployed.
+The next target version is `v1.2.0`: controlled public metadata adapters,
+single-provider and multi-provider search, explicit preview, manual import, and
+manual source updates. The plan does not authorize a general URL fetcher, HTML
+crawling, remote images, credentials, automatic synchronization, background
+jobs, recommendations, AI, cloud sync, or multi-user behavior. Specific
+providers require separate user approval before implementation.
+
+Phase 5-P1 changes planning documents only. Application code remains `1.1.0`,
+Schema remains `3`, and no dependency, migration, backup format, Docker, CI,
+tag, Release, or deployment has changed. N100 has not been deployed. The full
+architecture, Schema 4 proposal, compatibility rules, stage gates, and test
+strategy are recorded in `PLAN.md`.
+
+Hermes must not be called during planning, Phase 5-N1 through N7, corrective
+work, or integration development. It is reserved for one final independent
+acceptance in Phase 5-R1 after all v1.2.0 functionality, Actions, cloud review,
+and Phase 5-I1 integration freeze are complete.
 
 Cloud diff review, Actions run `29586484449`, and Hermes independent acceptance
 all passed on candidate commit
 `b565ef1ca96b2b42315e1ef322c19f9e8ac227ea` without a corrective change before
 the formal `v1.1.0` release.
 
-Phase 4-R3 local release-candidate verification passed the existing version
-assertion, all `785` pytest tests, and `pip check`. An isolated production image
-was healthy with `/login` HTTP 200, application version `1.1.0`, Schema `3`, UID
-and GID `10001:10001`, a read-only root filesystem, zero effective capabilities,
-and no-new-privileges; all temporary resources were removed afterward.
+Phase 4 release evidence remains archived below and is unchanged by this
+planning phase.
 
 ## Phase 4-M5 Secure Media Directory Management
 
@@ -80,9 +85,10 @@ removed and the existing `data/` was untouched.
 
 N100 deployment: `not started; waits for explicit user authorization`.
 
-NSFWTrack remains intentionally local-only. It is designed for manual records,
-local SQLite persistence, LAN deployment, and simple personal collection
-management.
+NSFWTrack remains local-first: records, media, credentials, and persistence stay
+local. The planned v1.2.0 network exception is limited to user-triggered public
+metadata lookup through approved adapters; it does not make remote media or
+automatic synchronization part of the product.
 
 ## Completion Audit
 
@@ -1893,12 +1899,16 @@ sync, recommendations, AI assistants, cloud sync, or multi-user support.
 
 ## Local Boundaries
 
-The current development state is still a local single-user app. It does not
-include external content sources, crawlers, adapters, remote image fetching,
-third-party cookie/token management, automatic sync, multi-source search,
-random exploration, recommendation systems, AI assistants, URL import, cloud
-backup, scheduled backup, overwrite restore, complex permissions, or multi-user
-support.
+The stable v1.1.0 application is still a local single-user app and performs no
+external metadata requests. Phase 5 plans a narrow v1.2.0 exception for
+authenticated, user-triggered POST searches and detail checks through approved,
+code-registered public metadata adapters. Page GETs, backup and restore, CSV /
+JSON import, bookmark import, and URL-list import remain zero-network paths.
+
+The plan does not include a general URL fetcher, HTML crawling, user-provided
+hosts or API base URLs, remote image fetching, credentials or cookies,
+automatic synchronization, background refresh, random exploration,
+recommendations, AI, cloud backup, complex permissions, or multi-user support.
 
 ## Local Development
 
@@ -2318,5 +2328,6 @@ enabled, so existing local HTTP, forms, and inline scripts remain intact.
 - The app is intended for local network / LAN deployment.
 - Direct public internet exposure is not recommended.
 - Backup restore is append / merge based, not an overwrite restore.
-- There are no external content sources, crawlers, recommendation systems, or
-  AI assistants.
+- Stable v1.1.0 has no external content source implementation. v1.2.0 adapters
+  are planned but not implemented; crawlers, remote images, credentials,
+  automatic synchronization, recommendation systems, and AI remain excluded.

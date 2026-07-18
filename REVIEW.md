@@ -4,15 +4,78 @@
 
 ## 当前网络边界检测（一票否决）
 
-- [ ] **0. Phase 3-A1 是否仅保存用户提供 URL、解析本地书签 HTML / 纯文本清单，且没有外部 HTTP 请求、爬虫、adapter、远程图片、自动同步、推荐或 AI？**
+- [ ] **0. 外部网络是否仅发生在当前 GOAL 与用户共同批准的 adapter 中，并且只能由登录用户主动 POST 通过共享受控 client 发起？**
 
-> 保存 URL 不等于请求 URL。出现任何网络获取或自动采集行为 → 直接判定为**超范围**，退回开发修复。
+> 本地 URL / 书签导入仍只保存用户输入。任何任意 URL fetch、HTML 抓取、
+> 用户 host/base URL、远程图片、凭据、GET 自动请求、后台同步，或绕过共享
+> client 的 provider 请求，均直接判定为超范围并退回。
+
+## Phase 5 v1.2.0 总门禁
+
+- [x] **5.P1.1. 规划范围** — P1 是否只修改七份授权文档，应用仍为 1.1.0、
+  Schema 3，且未修改代码、测试、迁移、依赖、备份格式、Docker 或 CI
+- [x] **5.P1.2. 审计依据** — 是否审计现有安全、ItemSource、来源导入、
+  migration registry、backup v1、Item/Creator/Tag、路由、i18n、Docker/CI 和测试
+- [x] **5.P1.3. 发布引用** — v1.1.0 annotated tag object 是否为
+  `07643bf6a7b36cb488c80c0ac694b6bc733e61e3`，peeled commit 是否为
+  `c1ff2760f8ee8ca988493aa04e8b4affbc4b4b9d`
+- [ ] **5.1. Provider 批准** — 每个真实 provider 是否由用户明确批准，公开合法、
+  无账号/Cookie/Token、无需 HTML 抓取，且固定 endpoint 与条款证据完整
+- [ ] **5.2. Adapter 合约** — router 是否无 provider HTTP/parser 逻辑，adapter
+  是否只经共享 client 返回 immutable provider-neutral DTO，原始 payload 不泄漏
+- [ ] **5.3. 固定 endpoint** — scheme/host/443/path 是否代码注册，完全不接受
+  用户 host、port、base URL、任意 path 或通用 URL fetch
+- [ ] **5.4. DNS/TLS/SSRF** — 是否预解析并 pin 公开 IP，拒绝 loopback/private/
+  link-local/multicast/reserved/unspecified，且 Host/SNI/证书始终验证 allowlisted host
+- [ ] **5.5. HTTP 资源边界** — 是否 `trust_env=False`、无 proxy/cookie/auth，
+  redirect 默认禁用且特批同 host 最多一次，3s connect/10s total、1 MiB、
+  identity encoding、JSON Content-Type、query 200、page 50、provider/concurrency 4
+- [ ] **5.6. 错误与日志** — DNS/security、timeout、401/403/404/429/5xx、
+  redirect、content type、malformed/oversized 是否稳定分类；日志是否只含 provider、
+  operation、bounded status、latency、request ID
+- [ ] **5.7. 路由状态矩阵** — GET 是否零网络/零写入，search/preview/check POST
+  是否只网络读，apply/update/remove POST 是否只本地写且零网络
+- [ ] **5.8. 认证与快照** — 所有入口是否登录保护，unsafe request 是否 same-origin；
+  HMAC-SHA256 snapshot 是否含 format/purpose/version/expiry/provider/external ID/
+  canonical fields/local conflict facts，恒定时间验证且不被描述为 CSRF 防护
+- [ ] **5.9. Schema 4** — 是否只为 ItemSource 增加四个 nullable 字段和双非空
+  partial unique index，provider key 稳定小写、external ID opaque/case-sensitive，
+  无 provider 表或搜索缓存表
+- [ ] **5.10. 连续迁移** — 是否覆盖 1 -> 2 -> 3 -> 4 与稳定 v1.1.0 3 -> 4，
+  preview query-only、apply `BEGIN IMMEDIATE`、全链 rollback、未来版本拒绝，且
+  rollback 明确使用停机 Schema 3 副本而非自动 downgrade
+- [ ] **5.11. 冲突与事务** — provider/external ID、normalized URL、legacy
+  enrichment、目标 Item 和 Creator/Tag 是否在 `BEGIN IMMEDIATE` 后精确复核；
+  hard conflict 是否零写入且异常不留半写入
+- [ ] **5.12. 手动映射** — 是否只写用户逐项选择的非空字段，Creator/Tag additive
+  且歧义阻止；不自动覆盖/清空/创建/更新/合并，不修改 status/rating/review/
+  collections/media/extra
+- [ ] **5.13. 多来源部分失败** — 是否 provider 失败隔离、分组和确定性
+  round-robin、exact canonical URL 仅视觉分组并保留 provenance；无持久化结果、
+  title 自动同一性判断、自动 merge/import
+- [ ] **5.14. 手动更新** — check 是否只生成 signed diff，update 是否零网络，
+  是否只用注册 provider/external ID 而不 fetch 来源 URL；`last_checked_at` /
+  versioned canonical `metadata_hash` 是否仅 confirmed apply/mark-checked 后更新
+- [ ] **5.15. 备份恢复** — backup v2 是否包含来源追踪字段并接受 v1；restore
+  是否零网络、payload 重复为 validation error、完全相同来源单独 skip、不同
+  Item/事实冲突阻止并 rollback，且明确 v2 不向 v1.1.0 兼容
+- [ ] **5.16. 无自动同步** — 是否无页面自动请求、后台/启动/定时 refresh、远程
+  图片、爬虫、凭据、推荐、AI、云同步或多用户能力
+- [ ] **5.17. 测试隔离** — adapter/HTTP 是否只用 mock transport/fixture，覆盖
+  安全与错误矩阵，绝不请求真实 DNS/provider；pytest/Docker 是否使用独立临时
+  目录或隔离 volume 且不接触既有 `data/`
+- [ ] **5.18. 版本与发布** — N1-N7 是否不提前改 1.1.0，Schema 只在 N2 明确
+  升 4，R2 前不创建 v1.2.0 tag/Release，所有阶段不部署 N100
+- [ ] **5.19. Hermes 时机** — P1、N1-N7、corrective、I1 是否均未调用或编写
+  Hermes 验收；是否仅在全部功能、Actions、云端复核与 I1 冻结完成后由 R1
+  调用一次
 
 ## 基础检查
 
 - [ ] **1. git status** — 是否只有本轮任务的变更文件
 - [ ] **2. git diff** — 是否有预期之外的改动
-- [ ] **3. 是否引入超范围功能** — 代码里是否有 Phase 2+ 的功能（推荐、AI、爬虫、外部源等）
+- [ ] **3. 是否引入超范围功能** — 是否存在推荐、AI、爬虫、未批准外部源或
+  其他当前 GOAL 未授权能力
 - [ ] **4. 是否有硬编码路径** — 如 `/home/user/`、`C:\Users\` 等
 - [ ] **5. 是否有敏感信息泄露** — API Key、密码、路径泄露
 - [ ] **6. 是否有测试** — 对应功能的 `tests/` 文件
@@ -1221,8 +1284,8 @@ Actions run `29432471537` 两个 job 均成功。
 ## 常见违规
 
 ```
-❌ 引入外部爬虫代码（Phase 1 不做）
-❌ 引入 requests/httpx 对外 HTTP 请求
+❌ 引入外部爬虫代码
+❌ 在获批 adapter 之外或绕过共享受控 client 发起对外 HTTP 请求
 ❌ 写入第三方 token/cookie 管理逻辑（自身登录 session 与语言偏好 session 除外）
 ❌ 引入推荐/ML 依赖
 ❌ 修改 database.py 加入不需要的表

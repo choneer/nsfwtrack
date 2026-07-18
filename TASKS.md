@@ -2,9 +2,96 @@
 
 按顺序执行，每完成一项打个 [x]。
 
-## 当前状态（v1.1.0 已正式发布，Phase 4 路线已完成）
+## 当前状态（Phase 5-P1 规划完成，v1.2.0 功能尚未实现）
 
-当前稳定版与最新 Release：`v1.1.0`。Phase 3 后续媒体维护能力与 Phase 4-A1 / A2 / M1 / M2 / M3 / M4 / M5、Phase 4-R1 至 R3D 均已完成验收，并已通过 Phase 4-R4 正式发布；应用版本为 `1.1.0`，Schema 为 `3`。
+当前稳定版与最新 Release：`v1.1.0`。下一目标版本为 `v1.2.0`，方向为
+受控公开元数据 adapter、单来源/多来源搜索、手动入库和手动更新。P1 只
+完成静态审计与规划；应用仍为 `1.1.0`、Schema 仍为 `3`，未修改代码、测试、
+依赖、迁移、备份格式、Docker 或 CI。
+
+### Phase 5-P1 至 R2 路线
+
+#### Phase 5-P1 - v1.2.0 规划
+
+- [x] 完整审计规则、项目文档、配置/安全、ItemSource、迁移、备份恢复、
+  本地来源导入、Item/Creator/Tag、路由/模板/i18n、Docker/CI 与相关测试
+- [x] 确定 v1.2.0 adapter protocol、provider-neutral immutable DTO、共享
+  outbound client 与固定 endpoint registry
+- [x] 确定 HTTPS/DNS/IP/TLS/redirect/timeout/size/Content-Type/并发/日志边界，
+  禁止任意 URL、HTML crawler、remote images、credentials 与 automatic sync
+- [x] 确定 authenticated POST 网络入口、signed preview、无网络 apply、
+  手动字段选择、冲突复核与多 provider 部分失败语义
+- [x] 确定 Schema 4 nullable 来源字段、partial unique index、连续迁移、
+  backup v2 / v1 restore、稳定 v1.1.0 拒绝与停机副本 rollback
+- [x] 完成 N1-N7、I1、R1、R2 路线与 provider 批准门禁；P1 未实现功能，
+  未运行 pytest / Docker，未调用 Hermes
+
+#### Phase 5-N1 - 受控 HTTP 与 adapter 基础
+
+- [ ] 实现单一 outbound client、代码固定 endpoint registry 与 async adapter
+  protocol；不实现真实 provider
+- [ ] 实现 DNS/IP pinning、TLS hostname、redirect、timeout、size、JSON、
+  query/page/provider/concurrency 上限和稳定错误分类
+- [ ] 使用 mock transport 覆盖安全边界；如需把已固定 client 提升为 runtime
+  依赖，必须在本阶段明确审查并记录
+
+#### Phase 5-N2 - Schema 4 来源追踪
+
+- [ ] 实现 Schema 3 -> 4 连续迁移、四个 nullable ItemSource 字段与 partial
+  provider/external-ID unique index
+- [ ] 实现 `nsfwtrack.backup.v2` 导出、v1 兼容恢复、v2 精确冲突预览和事务
+  rollback；确认稳定 v1.1.0 拒绝 Schema 4
+
+#### Phase 5-N3 - 首个获批 adapter
+
+- [ ] 等待用户明确批准第一个公开、无需账号/凭据、无需 HTML 抓取的 provider
+  及固定 endpoint
+- [ ] 实现获批 provider 的 search/detail mapping、provider limits 与纯 fixture /
+  mock 测试；未获批不得选择替代来源
+
+#### Phase 5-N4 - 搜索 UI 与手动入库
+
+- [ ] 实现 GET 零网络/零写入、主动 POST search/detail、HMAC signed snapshot、
+  中英文预览和 apply 无网络边界
+- [ ] 实现创建/关联 Item、逐项非空字段、additive Creator/Tag、hard conflict
+  与 `BEGIN IMMEDIATE` 最终复核；不自动覆盖、创建、合并或清空
+
+#### Phase 5-N5 - 第二 adapter 与统一搜索
+
+- [ ] 等待用户批准第二个 provider，并完成同等 adapter 合约与安全测试
+- [ ] 实现最多四 provider/四并发、分组与确定性 round-robin、canonical URL
+  视觉分组、provenance 保留和部分失败；不持久化结果或自动合并
+
+#### Phase 5-N6 - 手动检查更新
+
+- [ ] 实现 local-only sources GET、主动 check POST、signed diff、无网络 update /
+  remove POST 与逐项非空更新
+- [ ] confirmed apply 后才更新 `last_checked_at` / `metadata_hash`；无后台、
+  定时、启动或页面自动刷新
+
+#### Phase 5-N7 - 安全与体验收尾
+
+- [ ] 完成 rate/abuse boundary、稳定错误文案、i18n、响应式、可访问性、
+  日志脱敏、性能上限和完整相关回归
+
+#### Phase 5-I1 - v1.2.0 集成冻结
+
+- [ ] 完整验证路由状态矩阵、Schema 1 -> 2 -> 3 -> 4、v1/v2 备份、两个
+  adapter mock 集成、部分失败、全量 pytest、pip check 与隔离 Docker
+- [ ] 所有阶段 Actions 与云端 diff 复核成功，版本候选冻结且无已知代码阻塞
+- [ ] I1 完成前绝不调用或编写 Hermes 验收
+
+#### Phase 5-R1 - 唯一一次 Hermes 最终验收
+
+- [ ] 仅在 N1-N7、Actions、云端复核和 I1 全部完成后调用 Hermes 一次
+- [ ] 验证迁移/备份、adapter mock、网络边界、单/多来源搜索、手动入库/更新、
+  Docker 双生命周期与 `data/` 隔离
+
+#### Phase 5-R2 - v1.2.0 正式发布
+
+- [ ] 仅在 R1 通过且用户授权后更新应用版本、归档 CHANGELOG、创建发布提交、
+  annotated tag、正式 Release 与发布后一致性验证
+- [ ] N100 仍需单独授权，不属于 v1.2.0 发布动作
 
 ### Phase 4-R 发布候选准备
 
@@ -29,7 +116,7 @@
 - [x] Phase 4-R4：创建正式 GitHub Release `NSFWTrack v1.1.0`，非 draft、非 prerelease、无额外附件
 - [x] Phase 4-R4：完成 main / tag / Release / 版本 / Schema / 工作区发布后一致性验证
 - [ ] N100 部署：未授权，未开始
-- [ ] 下一目标版本：等待用户重新规划
+- [x] 下一目标版本：已规划为 `v1.2.0`，功能从 Phase 5-N1 开始
 
 - Previous stable annotated tag object：`d4d5c31cd5b2fed9a90ad69742d54b4c9dbed0b4`
 - Previous stable peeled commit：`961a3d0cc169e82b261d83207b0ec802007e292b`

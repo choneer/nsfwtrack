@@ -2,6 +2,28 @@
 
 ## Unreleased
 
+### Documentation
+
+- Planned `v1.2.0` as the next backward-compatible feature version, focused on
+  controlled public metadata adapters, explicit single-provider and
+  multi-provider search, manual import, and manual source updates.
+- Defined a single allowlisted outbound HTTP boundary, provider-neutral adapter
+  DTOs, authenticated user-triggered POST access, signed preview/apply
+  separation, stable errors, bounded resources, and deterministic mock-only
+  tests. General URL fetching, HTML crawling, remote images, credentials,
+  automatic synchronization, recommendations, AI, and cloud sync remain out of
+  scope.
+- Planned Schema 4 as a nullable extension of `item_sources`, including
+  provider/external-ID uniqueness, continuous Schema 3 migration, backup v2
+  with v1 restore compatibility, explicit conflicts, and stopped-copy rollback.
+- Split implementation and release work into Phase 5-N1 through Phase 5-R2.
+  Hermes remains forbidden until all v1.2.0 functionality, Actions, cloud diff
+  review, and Phase 5-I1 integration freeze are complete; only Phase 5-R1 may
+  invoke it once.
+- Phase 5-P1 changes documentation only. Application version remains `1.1.0`,
+  Schema remains `3`, and no code, tests, dependency, migration, backup format,
+  Docker, CI, tag, Release, or N100 deployment changed.
+
 ## [1.1.0] - 2026-07-17
 
 ### Changed
