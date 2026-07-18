@@ -12,7 +12,7 @@
 当前应用版本与开发阶段：
 
 ```text
-v1.1.0 stable / Phase 5-N1 and N2 complete / N2 Actions successful / Phase 5-P2
+v1.1.0 stable / Phase 5-N1, N2, P2, and N3 complete / N3 is documentation-only
 ```
 
 当前最新稳定版本为 `v1.1.0`，发布范围包含已冻结并验收完成的 Phase 3 后续媒体维护能力与 Phase 4 全部能力。
@@ -43,7 +43,7 @@ Release: https://github.com/choneer/nsfwtrack/releases/tag/v1.1.0
 维护与 CI：Phase 2-L1 至 L6 已随 v1.0.2 发布；L7 已随 v1.0.3 发布；L8 固定非 root 容器用户已随 v1.0.4 发布
 产品功能重启：Phase 3-A1 至 A6 已随 v1.0.5 发布；Phase 3-B1 / B2 已随 v1.0.6 发布；Phase 3-B3 / B4 / B5 / B6 / C1 / C2 / C3 / C4 / C5、D1 最终集成审查及 Phase 4-A1 / A2 / M1 / M2 / M3 / M4 / M5 均已随 v1.1.0 正式发布
 正式发布：Phase 4-R1 至 R3D 的审计、验收和候选冻结均已完成，Phase 4-R4 已正式发布 `v1.1.0`
-下一目标：v1.2.0 首个 NSFW 核心 Provider、搜索与手动入库、受控下载、手动检查更新和集成发布；Phase 5-N1 与 N2 已完成，下一阶段为 Phase 5-N3 合同与需求规划，不选择真实 Provider
+下一目标：v1.2.0 首个用户批准的 NSFW 核心 Provider、搜索与手动入库、受控下载、手动检查更新和集成发布；Phase 5-N3 合同与需求规划已完成，N4 必须等待完整 Provider Approval，不选择真实 Provider
 ```
 
 当前完成度估算：
@@ -52,6 +52,7 @@ Release: https://github.com/choneer/nsfwtrack/releases/tag/v1.1.0
 核心业务能力：已完成
 代码发布状态：v1.1.0 已正式发布，annotated tag 与正式 GitHub Release 按发布门禁验证
 当前开发状态：Phase 5-N2 Schema 4 来源追踪与 backup v2 已完成，Actions run `29637868492` 的两个 job 均成功；production registry 为空，无真实 Provider；应用仍为 `1.1.0`、Schema 为 4
+Phase 5-N3：Provider 合同、认证、资产、动态 Locator、受控下载 MVP、状态矩阵和批准模板已完成；仅新增/更新授权文档，未实现 Provider 或下载
 WSL 验收：已完成
 N100 部署：尚未开始，等待用户明确授权
 ```
@@ -72,6 +73,48 @@ Phase 5-P2 只调整文档，建立 `PRODUCT_VISION.md`，并明确：
   然后进入 I1、R1 和 R2
 
 P2 不选择或实现真实 Provider，不修改 N1/N2 代码及其历史证据。
+
+### Phase 5-N3：核心 Provider 合同、认证与下载需求规划
+
+N3 完成静态审计和文档规划，详细规范位于
+`PROVIDER_CONTRACT.md`，逐项用户批准门禁位于
+`PROVIDER_APPROVAL_TEMPLATE.md`。本阶段不选择、命名、搜索或访问真实
+Provider，也不实现网络、认证、Secret Vault、Discovery、资产解析、下载、
+路由、UI、Schema、Migration、Backup、依赖、Docker、Compose、CI 或后台任务。
+
+审计记录当前事实：SourceAdapter 只有 search/detail；Endpoint Registry 只有
+代码固定的 HTTPS/443、路径、参数、JSON 和大小边界；Outbound HTTP 只有固定
+GET+JSON，禁止任意 URL、Host、Path、Header、Cookie、Body、Token、密码和
+Locator；Schema 4 只有 ItemSource 来源身份/检查字段；Production Registry 仍
+为空。现有媒体锁、目录 FD/O_NOFOLLOW、稳定身份/映射复核、no-overwrite 发布、
+`BEGIN IMMEDIATE`、精确引用迁移、独立 Session 复核和 post-mutation 索引协调
+仅作为 N6 的安全复用模式，不被误称为已实现下载能力。
+
+规划合同分为 Metadata、Auth、Discovery、Asset、Download 五层，并要求 immutable
+且 code-owned capability manifest；Search、Detail、Discover、Asset List、Asset
+Resolve 和 Download 严格分离。认证只允许逐 Provider 批准的 `none`、`api_token`、
+`oauth`、`username_password`、`session_cookie`。推荐的 Provider Secret Vault 使用
+独立 `PROVIDER_SECRET_KEY` 和版本化 AEAD 信封，绑定 Provider/auth mode，拒绝
+symlink/hardlink/special file，且不进入普通 backup/config export；N3 不选择依赖。
+
+Outbound 未来只接受固定 typed method/body/auth/header/cookie/response/redirect
+策略和精确 Asset Host allowlist，保留 N1 的 DNS/IP/TLS/peer、超时、大小、并发、
+取消和脱敏边界。`SourceAsset` 通过 asset_list 与 asset_resolve 分离动态 Locator；
+Locator 只短期存在，必须重验精确 Host、路径/query、expiry、认证绑定和全部网络
+peer 事实，不得转化为任意 URL Fetch 权限。
+
+v1.2.0 下载 MVP 限于用户主动确认的单项或有界小批次、同一请求内执行、临时隔离、
+流式实际字节限制、MIME/magic/hash 校验、no-overwrite 发布、精确本地关系写入、
+取消传播、独立 commit 复核和每请求一次索引协调。没有隐藏后台 worker、队列、
+暂停/续传、自动重试、定时下载、启动恢复、推荐自动下载或无限批量。Auth 与
+Download 状态矩阵、稳定错误、unknown/cleanup 边界和 deterministic fixture/fake
+测试要求均已写入合同。
+
+N4 交接必须由用户填写并逐项批准 Provider 身份、核心用途、法律/条款/归属、每个
+Host/Endpoint、method/encoding/response/content-type/size/rate/redirect、认证
+生命周期、Search/Detail/Discovery/Asset/Download 映射、动态 Locator、文件命名
+和来源归属、完整故障矩阵、依赖和 Schema 影响。任何缺失信息都停止交接，Codex
+不得自行推断或搜索。
 
 ### Phase 5-P1：v1.2.0 外部内容源规划（历史，已由 P2 取代）
 
@@ -1701,9 +1744,9 @@ K1 审计结论：
 1. Phase 5-P1 v1.2.0 规划已完成
 2. Phase 5-N1 受控 HTTP 与 adapter 基础已完成
 3. Phase 5-N2 Schema 4 来源追踪与 backup v2 已完成
-4. Phase 5-P2 长期产品原则与路线对齐（当前阶段）
-5. Phase 5-N3 核心 Provider 合同、认证、内容与下载需求规划；不选择 Provider
-6. Phase 5-N4 首个用户批准的 NSFW 核心 Provider Adapter
+4. Phase 5-P2 长期产品原则与路线对齐（已完成）
+5. Phase 5-N3 核心 Provider 合同、认证、内容与下载需求规划；已完成，不选择 Provider
+6. Phase 5-N4 首个用户批准的 NSFW 核心 Provider Adapter；等待完整 Approval
 7. Phase 5-N5 搜索、详情预览与手动确认入库
 8. Phase 5-N6 用户明确确认的受控下载闭环
 9. Phase 5-N7 手动来源检查、差异更新、安全与体验收尾

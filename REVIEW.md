@@ -101,6 +101,49 @@
   diff check 是否通过；提交 `df90473` 对应 Actions run `29637868492` 的
   `test` 与 `Docker production smoke` 是否均成功
 
+### Phase 5-N3 核心 Provider 合同与下载规划（已完成）
+
+- [x] **5.N3.1. 静态审计** — 是否准确记录当前 SourceAdapter 仅 search/detail、
+  Registry 尚无 method/body/auth/cookie/asset/download、Outbound 固定 GET+JSON、
+  Schema 4 来源字段、backup v2/独立复核、媒体安全模式和空 production registry
+- [x] **5.N3.2. 能力分层** — 是否定义 immutable/code-owned Metadata、Auth、
+  Discovery、Asset、Download manifest，且 search/detail/discover/asset_list/
+  asset_resolve/download 不合并、不从响应或用户输入扩大
+- [x] **5.N3.3. 认证合同** — 是否覆盖 none/api_token/oauth/username_password/
+  session_cookie、合法授权、Provider 隔离、GET 零验证、401/403 不删秘密、
+  not-configured/configured/valid/expired/invalid/revoked/unknown 状态矩阵
+- [x] **5.N3.4. Secret Vault** — 是否选择独立 `PROVIDER_SECRET_KEY` 与本地
+  versioned AEAD envelope 规划，绑定 Provider/auth mode，安全写入、失败保留、
+  不复用 APP_PASSWORD/SECRET_KEY、不进入 database/backup/config export，且
+  N3 未选择依赖或实现 Vault
+- [x] **5.N3.5. Typed Outbound** — 是否只规划 code-owned fixed method、typed
+  body、fixed header、broker auth、isolated cookie、response kind、redirect 和
+  exact Asset Host，继续禁止任意 URL/host/path/header/cookie/body/secret 输入并
+  保留 N1 DNS/IP/TLS/peer/timeout/size/concurrency/cancellation/log 边界
+- [x] **5.N3.6. Asset 与 Locator** — 是否定义 immutable `SourceAsset`、asset
+  list/resolve 分离、opaque asset ID、短期 Locator、精确无 wildcard Asset Host、
+  path/query/expiry/auth/DNS/IP/TLS/peer/redirect 复核和零持久化/零日志暴露
+- [x] **5.N3.7. 下载 MVP** — 是否限于用户主动单项或显式有界小批次、请求内
+  执行、临时隔离、流式 actual-byte 上限、MIME/magic/hash、no-overwrite 发布、
+  精确关系、取消和每请求一次索引协调，且无 worker/queue/pause/resume/schedule/
+  retry/startup recovery/recommendation auto-download/unlimited batch
+- [x] **5.N3.8. Outcome** — 是否定义 not_started/temporary/validated/published/
+  linked/failed/cancelled/unknown 和 committed/not-committed-rolled-back/committed-
+  after-error/cleanup-failed/outcome-unknown，要求独立 Session+文件身份复核、
+  unknown 保留现场/失效索引/禁止普通成功
+- [x] **5.N3.9. Approval Template** — 是否为空白模板且要求用户逐项批准 Provider
+  定位与合法依据、每个 metadata/auth/asset Host、每个 Endpoint/method/encoding/
+  response/content type/size/rate/redirect、认证生命周期、mapping、Locator、下载、
+  fixtures/fault matrix、dependency/Schema/backup 影响和最终明确授权
+- [x] **5.N3.10. 阶段责任与测试** — 是否明确 N4/N5/N6/N7 责任、N4 缺失事实
+  即阻塞，全部未来测试只能使用静态 fixture、fake resolver/transport/clock 和
+  隔离数据，不请求真实 DNS、Provider 或远程文件
+- [x] **5.N3.11. 文档与范围** — 是否只新增 `PROVIDER_CONTRACT.md`、
+  `PROVIDER_APPROVAL_TEMPLATE.md` 并更新 GOAL/README/PLAN/TASKS/REVIEW/CHANGELOG，
+  应用仍 1.1.0、Schema 4、backup v2、registry 空，且无代码/测试/依赖/配置/
+  Migration/Backup/Adapter/Registry/Outbound/路由/模板/i18n/Docker/CI/Hermes/tag/
+  Release/N100/真实网络或既有 `data/` 访问
+
 - [ ] **5.1. Provider 批准与定位** — 每个真实 Provider 是否由用户明确批准，
   核心用途是否符合 NSFW-first 定位，且固定 Host/Endpoint、认证、搜索、详情、
   下载、响应、限流、条款与使用边界是否完整

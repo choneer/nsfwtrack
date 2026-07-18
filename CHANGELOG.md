@@ -78,6 +78,35 @@
 
 ### Documentation
 
+- Added `PROVIDER_CONTRACT.md` as the Phase 5-N3 planning contract. It records
+  the current search/detail-only Adapter, fixed GET+JSON outbound boundary,
+  Registry gaps, Schema 4 source tracking, empty production Registry, and the
+  existing local-media lock, safe-publication, exact-reference, independent-
+  review, and index-coordination patterns without claiming a download exists.
+- Defined immutable, code-owned Metadata, Auth, Discovery, Asset, and Download
+  capability layers; `none`, API-token, OAuth, username/password, and session-
+  cookie authentication contracts; a separate `PROVIDER_SECRET_KEY` and local
+  versioned AEAD Secret Vault plan; and typed fixed method/body/auth/header/
+  cookie/response/redirect extensions that continue to deny arbitrary inputs.
+- Defined the provider-neutral `SourceAsset` plan, separate asset-list and
+  asset-resolve operations, exact no-wildcard Asset Host allowlists, and strict
+  short-lived locator validation that retains DNS/IP pinning, TLS/SNI/Host,
+  peer, path/query, expiry, authentication-scope, and redirect controls.
+- Defined the `v1.2.0` request-bound controlled-download MVP: explicit single
+  or bounded selected-batch confirmation, temporary isolation, streamed byte
+  limits, MIME/magic/hash checks, no-overwrite publication, exact relationship
+  writes, cancellation, independent commit-error review, and one media-index
+  coordination per request. Hidden workers, queues, pause/resume, schedules,
+  automatic retry/recovery, recommendation downloads, and unlimited batches
+  remain outside scope.
+- Added a blank `PROVIDER_APPROVAL_TEMPLATE.md` requiring explicit user approval
+  of Provider identity and NSFW-core relevance, legal/attribution basis, every
+  metadata/auth/asset host and operation, authentication lifecycle, field and
+  asset mappings, locator/download policy, deterministic fixtures and complete
+  fault matrix, dependency/Schema/backup implications, and the final N4 scope.
+  N3 names or approves no real Provider, host, endpoint, or credential and
+  changes no runtime code, test, dependency, configuration, Schema, migration,
+  backup, Adapter, Registry, outbound service, Docker, or CI behavior.
 - Added `PRODUCT_VISION.md` as the long-term NSFW-first, local-first,
   privacy-first, single-user, self-hosted product baseline. It separates
   metadata, user records, and local content, and defines controlled downloads,

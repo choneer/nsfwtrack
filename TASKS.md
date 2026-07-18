@@ -2,14 +2,17 @@
 
 按顺序执行，每完成一项打个 [x]。
 
-## 当前状态（Phase 5-P2 产品原则与路线对齐）
+## 当前状态（Phase 5-N3 Provider 合同与下载规划完成）
 
 当前稳定版与最新 Release：`v1.1.0`。下一目标版本为 `v1.2.0`，方向为
 首个 NSFW 核心 Provider、搜索与手动入库、受控下载、手动来源检查更新和
 集成发布。N1 已完成共享 client、固定空 production registry、adapter protocol
 和 immutable DTO；N2 已完成 Schema 4 来源追踪、backup v2 与 v1 restore，
-Actions run `29637868492` 的两个 job 均成功。应用仍为 `1.1.0`、Schema 为
-`4`，无真实 Provider、搜索页面或网络入口。
+Actions run `29637868492` 的两个 job 均成功。N3 已完成 Provider capability、
+认证、Secret Vault、Asset/Locator、受控下载 MVP、状态矩阵和用户批准模板的
+纯文档规划。应用仍为 `1.1.0`、Schema 为 `4`，production registry 为空，
+无真实 Provider、搜索页面、认证、下载或新网络入口。N4 等待用户提交完整
+Provider Approval。
 
 ### Phase 5-P1 / P2 至 R2 路线
 
@@ -89,10 +92,32 @@ Actions run `29637868492` 的两个 job 均成功。应用仍为 `1.1.0`、Schem
 
 #### Phase 5-N3 - 核心 Provider 合同与需求规划
 
-- [ ] 定义 NSFW 核心 Provider 的用途、能力合同、认证类型、秘密隔离、搜索、
-  详情、内容获取、下载、限流、条款和测试要求
-- [ ] 本阶段不选择、不批准、不实现真实 Provider；不得由 Codex 自行选择
-  TVmaze 或其他替代来源
+- [x] 新增 `PROVIDER_CONTRACT.md`，准确记录当前 Adapter 只有 search/detail、
+  Registry 未表达 method/body/auth/cookie/assets/download、Outbound 固定 GET+JSON、
+  Schema 4 来源边界、空 production registry 和可复用媒体安全模式
+- [x] 定义 immutable、code-owned 的 Metadata/Auth/Discovery/Asset/Download
+  capability manifest，并保持 search/detail/discover/asset_list/asset_resolve/
+  download 独立授权和独立责任
+- [x] 定义 `none`、`api_token`、`oauth`、`username_password`、`session_cookie`
+  合同、Auth 状态矩阵和 Provider 隔离/合法授权/零回显边界
+- [x] 规划独立 `PROVIDER_SECRET_KEY`、本地版本化 AEAD Secret Vault、Provider/
+  auth-mode 绑定、安全文件写入和普通 backup/config export 排除；不选择依赖
+- [x] 规划固定 typed method/body/auth/header/cookie/response/redirect 扩展，保留
+  N1 DNS/IP/TLS/peer/timeout/size/concurrency/log 边界并继续禁止任意输入
+- [x] 定义 immutable `SourceAsset`、asset_list/asset_resolve 分离、短期 Locator
+  校验和逐项批准的精确 Asset Host allowlist；无 wildcard 或用户 Host
+- [x] 定义用户确认、请求内单项/有界小批次、临时隔离、流式限制、MIME/magic/
+  hash、no-overwrite、精确关系、取消和单次索引协调的 v1.2.0 下载 MVP
+- [x] 定义下载文件状态、committed/not-committed/committed-after-error/cleanup-
+  failed/unknown outcome、独立复核、稳定错误和无普通成功提示边界
+- [x] 新增完全空白 `PROVIDER_APPROVAL_TEMPLATE.md`，要求逐项批准身份/定位、
+  法律条款/归属、全部 Host/Endpoint/auth/mapping/assets/downloads/fixtures/faults/
+  dependency/Schema 影响和最终明确授权
+- [x] 明确 N4/N5/N6/N7 责任和 N4 阻塞门禁；所有测试只允许静态 fixture 与
+  deterministic fake，不访问真实 DNS/Provider
+- [x] 本阶段未选择、命名、搜索、访问、批准或实现真实 Provider，未修改代码、
+  测试、配置、依赖、Schema、Migration、Backup、Adapter、Registry、Outbound、
+  路由、模板、i18n、Docker 或 CI，未调用或编写 Hermes，未接触既有 `data/`
 
 #### Phase 5-N4 - 首个用户批准的核心 Provider Adapter
 

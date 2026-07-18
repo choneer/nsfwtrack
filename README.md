@@ -10,8 +10,9 @@ Current stable version: `v1.1.0`.
 
 Latest Release: [NSFWTrack v1.1.0](https://github.com/choneer/nsfwtrack/releases/tag/v1.1.0).
 
-Current status: `Phase 5-N1 and N2 are complete, their Actions gates passed,
-and the production Provider Registry remains empty`.
+Current status: `Phase 5-N1 through N3 are complete; N3 defines the Provider,
+authentication, asset, and controlled-download contract without selecting a
+real Provider, and the production Provider Registry remains empty`.
 
 The long-term product baseline is recorded in [PRODUCT_VISION.md](PRODUCT_VISION.md).
 Ordinary all-ages content may remain naturally compatible with the generic
@@ -19,12 +20,13 @@ model, but it is secondary and does not drive Provider selection, the data
 model, or the roadmap. NSFWTrack is not being renamed to MediaTrack and is not
 becoming a general film/television catalog.
 
-The next target version remains `v1.2.0`. Phase 5-N3 will define the core
-Provider contract and its authentication, content, and download requirements
-without selecting a real Provider. N4 will implement the first user-approved
-core Provider; N5 adds search, detail preview, and manual import; N6 adds an
-explicitly confirmed controlled-download loop; N7 completes manual checking,
-updates, security, and UX before integration and release.
+The next target version remains `v1.2.0`. Phase 5-N3 has defined the core
+Provider contract and its authentication, content, asset, and download
+requirements without selecting a real Provider. N4 is blocked until the user
+completes and explicitly approves the blank Provider Approval Template. N5
+adds search, detail preview, and manual import; N6 adds an explicitly confirmed
+controlled-download loop; N7 completes manual checking, updates, security, and
+UX before integration and release.
 
 Provider authentication, Provider-specific parsing, controlled downloads,
 local recommendations, optional AI, and visible default-off background sync
@@ -52,6 +54,63 @@ the formal `v1.1.0` release.
 
 Phase 4 release evidence remains archived below and is unchanged by this
 development phase.
+
+## Phase 5-N3 Core Provider Contract and Download Plan
+
+Phase 5-N3 is a static audit and planning phase. Its normative output is
+[PROVIDER_CONTRACT.md](PROVIDER_CONTRACT.md), and its mandatory user gate for
+every real Provider is the blank
+[PROVIDER_APPROVAL_TEMPLATE.md](PROVIDER_APPROVAL_TEMPLATE.md). No real
+Provider, hostname, endpoint, credential, network request, Adapter extension,
+download implementation, route, test, dependency, Schema change, migration,
+backup change, Docker change, or CI change is part of N3.
+
+The contract records the current implementation accurately: `SourceAdapter`
+has only search and detail; the Endpoint Registry expresses fixed HTTPS JSON
+operations but no method/body/auth/cookie/asset/download policy; the outbound
+client is fixed GET+JSON and accepts no URL/header/cookie/body/secret input;
+Schema 4 has only `ItemSource` identity/check fields; and the production
+Provider Registry remains empty.
+
+Future capabilities are split into Metadata, Auth, Discovery, Asset, and
+Download layers with immutable, code-owned manifests. Authentication is
+limited to separately approved `none`, `api_token`, `oauth`,
+`username_password`, and `session_cookie` modes. The recommended secret design
+is a local versioned AEAD Vault under the persistent application-data area,
+encrypted with a separate `PROVIDER_SECRET_KEY`; it does not reuse
+`APP_PASSWORD` or `SECRET_KEY` and never enters ordinary backup or configuration
+export. N3 selects no encryption dependency.
+
+Outbound extensions remain typed and code-owned: fixed GET/POST, fixed JSON or
+form body schemas, fixed non-secret headers, credential-broker auth injection,
+Provider-isolated cookies, explicit response kinds, and exact Asset Host
+allowlists. Arbitrary URL, header, cookie, body, wildcard host, user host, and
+response-expanded host inputs remain prohibited. Dynamic asset locators are
+short-lived and untrusted; they must pass exact host, path/query, expiry,
+DNS/IP pinning, TLS/SNI/Host, peer, auth-scope, and redirect checks.
+
+The planned `SourceAsset` DTO separates asset listing from locator resolution.
+The `v1.2.0` download MVP is request-bound and supports one explicitly selected
+asset or a bounded selected small batch. It requires signed confirmation,
+streamed temporary isolation, actual-byte limits, MIME/magic/hash validation,
+no-overwrite publication, exact relationship writes, cancellation propagation,
+independent commit-error review, and one media-index coordination per request.
+There is no hidden worker, pause/resume, queue, schedule, automatic retry,
+startup recovery, recommendation download, or unlimited batch.
+
+Auth and download state/outcome matrices fail closed on uncertainty. A commit
+exception does not imply rollback; mixed file/reference facts, unavailable
+independent review, or cleanup failure cannot produce ordinary success and must
+preserve evidence and invalidate derived media state where required. All future
+tests use deterministic fixtures, fake resolvers/transports/clocks, and isolated
+storage only.
+
+N4 may begin only after the user supplies and approves every Provider identity,
+legal/attribution basis, host, endpoint, method, encoding, response type,
+authentication lifecycle, metadata/asset mapping, dynamic locator rule,
+download limit, fixture, fault case, dependency implication, and Schema
+implication in the approval template. Missing facts are blockers and are never
+inferred or searched.
 
 ## Phase 5-N2 Schema 4 Source Tracking and Backup v2
 
