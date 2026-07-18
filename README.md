@@ -9,8 +9,8 @@ Current stable version: `v1.1.0`.
 
 Latest Release: [NSFWTrack v1.1.0](https://github.com/choneer/nsfwtrack/releases/tag/v1.1.0).
 
-Current status: `Phase 5-P1 planning is complete; v1.2.0 implementation has not
-started`.
+Current status: `Phase 5-N1 controlled outbound adapter foundation is complete;
+no real provider is registered`.
 
 The next target version is `v1.2.0`: controlled public metadata adapters,
 single-provider and multi-provider search, explicit preview, manual import, and
@@ -19,11 +19,11 @@ crawling, remote images, credentials, automatic synchronization, background
 jobs, recommendations, AI, cloud sync, or multi-user behavior. Specific
 providers require separate user approval before implementation.
 
-Phase 5-P1 changes planning documents only. Application code remains `1.1.0`,
-Schema remains `3`, and no dependency, migration, backup format, Docker, CI,
-tag, Release, or deployment has changed. N100 has not been deployed. The full
-architecture, Schema 4 proposal, compatibility rules, stage gates, and test
-strategy are recorded in `PLAN.md`.
+Phase 5-N1 adds only the provider-neutral transport and adapter contracts.
+Application version remains `1.1.0`, Schema remains `3`, and no model,
+migration, backup format, page, route, Docker, CI, tag, Release, or deployment
+has changed. N100 has not been deployed. The next planned stage is Phase 5-N2,
+which requires separate authorization for Schema 4 source tracking.
 
 Hermes must not be called during planning, Phase 5-N1 through N7, corrective
 work, or integration development. It is reserved for one final independent
@@ -36,7 +36,48 @@ all passed on candidate commit
 the formal `v1.1.0` release.
 
 Phase 4 release evidence remains archived below and is unchanged by this
-planning phase.
+development phase.
+
+## Phase 5-N1 Controlled Outbound Adapter Foundation
+
+Phase 5-N1 provides an async `SourceAdapter` protocol, frozen provider-neutral
+DTOs, an immutable code-owned endpoint registry, a stable outbound error model,
+and one shared JSON client. The production registry is empty: the current app
+has no real provider name, hostname, endpoint, search route, or reachable
+external metadata request.
+
+The client accepts only a provider key, operation, and typed query/detail/page
+values. It never accepts a URL, scheme, host, port, base URL, arbitrary path,
+header, proxy, cookie, or auth value. Registry definitions are restricted to
+HTTPS, port 443, fixed paths, fixed query names, bounded response types, and
+code-only construction. Fixed paths contain printable ASCII only. DTO canonical
+URLs reject credentials, fragments, literal whitespace, and backslashes.
+
+DNS results are handled as one set: empty, invalid, loopback, private,
+link-local, multicast, reserved, unspecified, and mixed safe/unsafe results are
+rejected. A fresh HTTP/1.1 pool connects exactly once to the selected approved
+numeric IP while the request origin, TLS certificate hostname, SNI, and Host
+header retain the allowlisted hostname. The TCP and post-TLS peer address must
+both exactly match the selected IP and port 443.
+
+Environment proxies and `.netrc` are disabled with `trust_env=False`; auth,
+cookies, redirects, retries, HTTP/2, and compressed responses are disabled.
+Limits are 3 seconds for connect, 10 seconds total, 1 MiB streamed body, query
+length 200, page size 50, global concurrency 4, and per-provider concurrency 1.
+Only JSON content types are accepted, and size validation completes before JSON
+parsing. Duplicate object keys, non-finite numbers, and recursive parse failures
+are rejected rather than entering adapter payloads.
+
+The existing pinned `httpx2==2.5.0` dependency is now installed at runtime and
+continues to pin `httpcore2==2.5.0`. The implementation uses only their exported
+public transport, connection-pool, network-backend, and network-stream APIs.
+
+Local verification passed 99 focused tests, 66 related security/configuration
+tests, and `pip check`. Two isolated production-container lifecycles were healthy with `/login`
+HTTP 200, runtime httpx2 2.5.0, application 1.1.0, Schema 3, UID/GID 10001,
+read-only root, zero effective capabilities, and no-new-privileges. Tests used
+fake resolvers, fake clocks, MockTransport, and fake network backends only; no
+real DNS or provider was contacted.
 
 ## Phase 4-M5 Secure Media Directory Management
 
@@ -1926,9 +1967,10 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000
 Open `http://localhost:8000` and log in with `APP_PASSWORD`.
 
 For a runtime-only environment, `pip install -r requirements.txt` is enough.
-For development and CI, use `requirements-dev.txt` to install `pytest` and the
-Starlette TestClient dependency (`httpx2`). Direct dependency versions are
-pinned; this is not a full transitive lockfile.
+For development and CI, use `requirements-dev.txt` to add `pytest`; it inherits
+the runtime requirements, including `httpx2`, for Starlette TestClient and the
+controlled outbound foundation. Direct dependency versions are pinned; this is
+not a full transitive lockfile.
 
 ## Configuration
 
@@ -2309,11 +2351,11 @@ The production image health check uses Python's standard library against the
 existing `/login` route. After `docker compose up -d`, `docker compose ps`
 shows `healthy` when the application is ready; no curl package is required.
 
-Phase 2-L1 installs `httpx2` for the Starlette TestClient path used by
-`fastapi.testclient`. Phase 2-L2 pins the verified direct runtime and test
-dependency versions used by development, CI, and Docker. Full local and CI
-pytest runs should no longer emit the previous `httpx` deprecation warning.
-A complete transitive lockfile is still not generated.
+Phase 2-L1 introduced `httpx2` for the Starlette TestClient path used by
+`fastapi.testclient`; Phase 5-N1 promotes the same pinned 2.5.0 version to
+runtime for the controlled outbound foundation. Phase 2-L2 continues to pin
+the verified direct runtime and test dependency versions. A complete transitive
+lockfile is still not generated.
 
 Phase 2-L3 adds a minimal browser security-header baseline to every HTTP
 response: `X-Content-Type-Options: nosniff`,
@@ -2328,6 +2370,7 @@ enabled, so existing local HTTP, forms, and inline scripts remain intact.
 - The app is intended for local network / LAN deployment.
 - Direct public internet exposure is not recommended.
 - Backup restore is append / merge based, not an overwrite restore.
-- Stable v1.1.0 has no external content source implementation. v1.2.0 adapters
-  are planned but not implemented; crawlers, remote images, credentials,
-  automatic synchronization, recommendation systems, and AI remain excluded.
+- The controlled adapter foundation is present, but the production registry is
+  empty and no external content source, search UI, or network route exists.
+  Crawlers, remote images, credentials, automatic synchronization,
+  recommendation systems, and AI remain excluded.

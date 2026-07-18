@@ -2,12 +2,13 @@
 
 按顺序执行，每完成一项打个 [x]。
 
-## 当前状态（Phase 5-P1 规划完成，v1.2.0 功能尚未实现）
+## 当前状态（Phase 5-N1 基础完成，下一阶段为 Phase 5-N2）
 
 当前稳定版与最新 Release：`v1.1.0`。下一目标版本为 `v1.2.0`，方向为
-受控公开元数据 adapter、单来源/多来源搜索、手动入库和手动更新。P1 只
-完成静态审计与规划；应用仍为 `1.1.0`、Schema 仍为 `3`，未修改代码、测试、
-依赖、迁移、备份格式、Docker 或 CI。
+受控公开元数据 adapter、单来源/多来源搜索、手动入库和手动更新。N1 已
+完成共享 client、固定空 production registry、adapter protocol、immutable DTO、
+错误模型与 mock/fake-backend 测试；应用仍为 `1.1.0`、Schema 仍为 `3`，无
+真实 provider、页面或路由。
 
 ### Phase 5-P1 至 R2 路线
 
@@ -28,12 +29,27 @@
 
 #### Phase 5-N1 - 受控 HTTP 与 adapter 基础
 
-- [ ] 实现单一 outbound client、代码固定 endpoint registry 与 async adapter
+- [x] 实现单一 outbound client、代码固定 endpoint registry 与 async adapter
   protocol；不实现真实 provider
-- [ ] 实现 DNS/IP pinning、TLS hostname、redirect、timeout、size、JSON、
+- [x] 实现 DNS/IP pinning、TLS hostname、redirect、timeout、size、JSON、
   query/page/provider/concurrency 上限和稳定错误分类
-- [ ] 使用 mock transport 覆盖安全边界；如需把已固定 client 提升为 runtime
-  依赖，必须在本阶段明确审查并记录
+- [x] 将相同 `httpx2==2.5.0` 提升为 runtime 依赖，不升级、不增加其他直接
+  dependency，并确认其精确 pin `httpcore2==2.5.0`
+- [x] production registry 为空；公共请求无 URL/host/port/base-url/path/header/
+  proxy/cookie/auth 输入，unknown/invalid 在 resolver 前拒绝
+- [x] 全部 DNS 结果整体验证；实际 connect 使用 selected IP，TCP/TLS peer
+  精确复核，TLS certificate/SNI/Host 保持 allowlisted hostname
+- [x] `trust_env=False`、HTTP/1.1、redirect/retry/cookie 禁用，3s connect、
+  10s total、1 MiB stream、JSON type gate、global 4/provider 1
+- [x] 稳定错误与脱敏日志覆盖 DNS、peer、TLS、timeout、status、content-type/
+  encoding、size、JSON、payload、cancelled
+- [x] 固定路径只接受可打印 ASCII；canonical URL 拒绝凭据、fragment、字面
+  空白和反斜杠；JSON 拒绝重复 object key 与非有限数
+- [x] N1 专项 `99 passed`，相关安全回归 `66 passed`，`pip check` 通过
+- [x] 隔离 Docker build/healthy/login/httpx2 import/version/Schema/runtime
+  security 通过，临时资源清理且既有 `data/` 未接触
+- [x] 未实现真实 provider、UI、Schema 4、backup v2、tag/Release/N100，未调用
+  或编写 Hermes 验收
 
 #### Phase 5-N2 - Schema 4 来源追踪
 

@@ -2,6 +2,50 @@
 
 ## Unreleased
 
+### Added
+
+- Added the Phase 5-N1 provider-neutral source-adapter foundation: async
+  `SourceAdapter`, frozen source DTOs, an immutable code-owned endpoint
+  registry, stable outbound errors, recursively immutable JSON results, and a
+  shared bounded HTTP client. The production registry is empty and contains no
+  real provider, hostname, or endpoint.
+- Added connection-bound DNS/IP protection through the public httpx2/httpcore2
+  transport APIs. Every request validates the complete A/AAAA set, connects
+  once to the selected numeric IP, keeps TLS certificate hostname/SNI/Host on
+  the allowlisted hostname, and verifies the TCP and post-TLS peer address.
+- Added deterministic fake-resolver, fake-clock, MockTransport, and fake public
+  network-backend coverage for registry/input boundaries, DNS classes, mixed
+  answers, pinning, TLS/peer mismatch, redirects, timeout, streaming limits,
+  content types, JSON, status errors, concurrency, cancellation, cookies,
+  proxies, logs, immutable DTOs, canonical URL validation, duplicate JSON keys,
+  non-finite numbers, and the empty production registry.
+
+### Changed
+
+- Promoted the existing pinned `httpx2==2.5.0` package from development-only to
+  runtime requirements without changing its version or adding another direct
+  dependency. Development requirements now inherit it from
+  `requirements.txt`; httpx2 continues to pin `httpcore2==2.5.0`.
+
+### Security
+
+- The outbound client accepts no URL, host, port, base URL, arbitrary path,
+  header, proxy, cookie, or auth input. It uses `trust_env=False`, HTTP/1.1,
+  zero redirects/retries, 3-second connect and 10-second total deadlines,
+  1-MiB streamed bodies, JSON-only content types, and bounded query/page/
+  concurrency values.
+- Fixed endpoint paths accept printable ASCII only. Source DTO canonical URLs
+  reject credentials, fragments, literal whitespace, and backslashes; JSON
+  responses reject duplicate object keys and non-finite numeric values.
+- Provider logs contain only sanitized provider/operation/outcome, bounded
+  status class, latency bucket, and request ID. Query values, URLs, external
+  IDs, response data, headers, DNS addresses, and raw exception text remain
+  excluded.
+- Phase 5-N1 local verification passed 99 focused tests, 66 related security
+  regressions, `pip check`, and an isolated production Docker smoke. Application
+  version remains `1.1.0`, Schema remains `3`, and no real provider, UI, model,
+  migration, backup v2, tag, Release, N100 deployment, or Hermes work was added.
+
 ### Documentation
 
 - Planned `v1.2.0` as the next backward-compatible feature version, focused on

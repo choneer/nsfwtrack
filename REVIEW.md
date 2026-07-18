@@ -19,6 +19,39 @@
 - [x] **5.P1.3. 发布引用** — v1.1.0 annotated tag object 是否为
   `07643bf6a7b36cb488c80c0ac694b6bc733e61e3`，peeled commit 是否为
   `c1ff2760f8ee8ca988493aa04e8b4affbc4b4b9d`
+
+### Phase 5-N1 受控 HTTP 与 Adapter 基础（已完成）
+
+- [x] **5.N1.1. 依赖范围** — 是否只将相同 `httpx2==2.5.0` 提升为 runtime，
+  dev requirements 继承且无其他直接 dependency/extra/version 变化
+- [x] **5.N1.2. 公共 API 边界** — 是否只使用 httpx2/httpcore2 2.5.0 顶层公开
+  transport/pool/backend/stream API，无私有模块、属性或 monkeypatch 核心
+- [x] **5.N1.3. 空 production registry** — 是否没有真实 provider/name/host/
+  endpoint，default client 对任何 provider 均在 resolver 前拒绝
+- [x] **5.N1.4. 输入闭合** — client 是否只接受 provider/operation/typed business
+  fields，完全没有 URL/scheme/host/port/base-url/path/header/proxy/cookie/auth 输入
+- [x] **5.N1.5. Registry 固定性** — provider/operation/hostname:443/path-template/
+  query mapping/response type/limit 是否 immutable、code-owned、严格验证，固定
+  path 是否只含可打印 ASCII
+- [x] **5.N1.6. DNS 整体拒绝** — A/AAAA 是否非空且全部为 global unicast；
+  invalid、loopback/private/link-local/multicast/reserved/unspecified、unsafe mapped
+  或 mixed set 是否整次拒绝
+- [x] **5.N1.7. Connection-bound pinning** — pool origin 是否保留 hostname，
+  backend 是否只进行一次 selected-IP TCP connect，且不再次解析 hostname、不重试
+- [x] **5.N1.8. TLS 与 peer** — TCP 与 TLS 后 `server_addr` 是否精确等于 selected
+  IP:443，SSLContext 是否 hostname-check/CERT_REQUIRED，SNI/Host 是否原 hostname
+- [x] **5.N1.9. 环境与状态隔离** — 是否 trust_env false、proxy/auth/cookies none、
+  `.netrc`/proxy env/Set-Cookie 不生效、HTTP/1.1 only、redirect 全禁
+- [x] **5.N1.10. 资源边界** — 是否 connect 3s/total 10s、query 200/page-size 50、
+  global 4/provider 1、identity encoding、1 MiB pre-copy stream gate、size 后 JSON，
+  且重复 key、非有限数和递归异常 fail closed
+- [x] **5.N1.11. 错误与日志** — stable code、bounded status/Retry-After/request-id
+  是否完整，日志是否无 query/URL/external-ID/body/header/DNS/exception text
+- [x] **5.N1.12. 测试与 Docker** — N1 99、相关安全 66、pip check 与隔离 Docker
+  是否通过，且全部 outbound 测试只用 fake resolver/clock/transport/backend
+- [x] **5.N1.13. 范围保持** — 是否保持应用 1.1.0/Schema 3，无 UI/router/model/
+  migration/backup-v2/real-provider/tag/Release/N100/Hermes，既有 data 未接触
+
 - [ ] **5.1. Provider 批准** — 每个真实 provider 是否由用户明确批准，公开合法、
   无账号/Cookie/Token、无需 HTML 抓取，且固定 endpoint 与条款证据完整
 - [ ] **5.2. Adapter 合约** — router 是否无 provider HTTP/parser 逻辑，adapter
