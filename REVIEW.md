@@ -2,13 +2,14 @@
 
 每次开发提交代码后，逐项检查：
 
-## 当前网络边界检测（一票否决）
+## 当前产品与网络边界检测（一票否决）
 
-- [ ] **0. 外部网络是否仅发生在当前 GOAL 与用户共同批准的 adapter 中，并且只能由登录用户主动 POST 通过共享受控 client 发起？**
+- [ ] **0. 外部能力是否严格限于当前 GOAL 与用户共同批准的 Provider、认证、固定 Endpoint 和操作，并且全部通过共享受控边界执行？**
 
-> 本地 URL / 书签导入仍只保存用户输入。任何任意 URL fetch、HTML 抓取、
-> 用户 host/base URL、远程图片、凭据、GET 自动请求、后台同步，或绕过共享
-> client 的 provider 请求，均直接判定为超范围并退回。
+> 任意 URL、用户自定义 Host/协议/端口/base URL、无限制爬虫、权限绕过、
+> 凭据窃取或泄漏、隐藏网络、未经确认的大量写入/覆盖/下载，以及绕过共享
+> client 的 Provider 请求，均直接退回。认证、Provider-specific 解析、下载、
+> 推荐、AI 或后台同步只有在当前 GOAL 明确授权时才进入对应专项审查。
 
 ## Phase 5 v1.2.0 总门禁
 
@@ -19,6 +20,25 @@
 - [x] **5.P1.3. 发布引用** — v1.1.0 annotated tag object 是否为
   `07643bf6a7b36cb488c80c0ac694b6bc733e61e3`，peeled commit 是否为
   `c1ff2760f8ee8ca988493aa04e8b4affbc4b4b9d`
+
+### Phase 5-P2 长期产品原则与路线对齐
+
+- [x] **5.P2.1. 纯文档范围** — 是否只新增 `PRODUCT_VISION.md` 并修改七份
+  授权文档，未修改代码、测试、Schema、迁移、Backup、依赖、Adapter、路由、
+  模板、i18n、Docker 或 CI
+- [x] **5.P2.2. 产品定位** — 是否固定 NSFW-first、local-first、privacy-first、
+  single-user、self-hosted，且普通影视仅为附带兼容能力
+- [x] **5.P2.3. 政策拆分** — 是否将任意 URL、无限爬虫、权限绕过、凭据窃取/
+  泄漏、隐藏网络和未确认大量动作列为永久禁止，并把认证、解析、下载、推荐、
+  AI、第二 Provider 与可控同步列为默认拒绝、可由未来 GOAL 授权
+- [x] **5.P2.4. 路线重构** — 是否取消 TVmaze、MediaTrack 和普通影视主线，
+  并建立 N3 合同规划、N4 首个核心 Provider、N5 手动入库、N6 受控下载、
+  N7 手动更新、安全与体验收尾、I1/R1/R2 路线
+- [x] **5.P2.5. 现状与证据** — 是否准确保留应用 1.1.0、Schema 4、backup v2、
+  空 production registry、N1/N2 实现与 N2 33/164/917、提交 `df90473`、
+  Actions run `29637868492` 双 job 成功证据
+- [x] **5.P2.6. 禁止动作** — 是否未选择真实 Provider、未请求网络、未运行
+  Hermes、未创建 tag/Release、未部署 N100 且未接触既有 `data/`
 
 ### Phase 5-N1 受控 HTTP 与 Adapter 基础（已完成）
 
@@ -52,7 +72,7 @@
 - [x] **5.N1.13. 范围保持** — 是否保持应用 1.1.0/Schema 3，无 UI/router/model/
   migration/backup-v2/real-provider/tag/Release/N100/Hermes，既有 data 未接触
 
-### Phase 5-N2 Schema 4 来源追踪与 Backup v2（本地门禁已完成）
+### Phase 5-N2 Schema 4 来源追踪与 Backup v2（已完成）
 
 - [x] **5.N2.1. 模型与约束** — 是否只为 ItemSource 增加四个 nullable 字段，
   provider key bounded lowercase、external ID opaque/case-sensitive，且双非空
@@ -77,25 +97,30 @@
 - [x] **5.N2.9. 范围保持** — 应用是否仍为 1.1.0、production registry 是否为空，
   是否无真实 provider、搜索 UI、远程图片、凭据、自动同步、新依赖、tag、Release、
   N100 或 Hermes，且既有 data 未接触
-- [x] **5.N2.10. 本地门禁** — N2 33、targeted 164、全量 917、pip check 与
-  diff check 是否通过；远端 Actions 由本阶段唯一提交推送后补充最终报告
+- [x] **5.N2.10. 最终门禁** — N2 33、targeted 164、全量 917、pip check 与
+  diff check 是否通过；提交 `df90473` 对应 Actions run `29637868492` 的
+  `test` 与 `Docker production smoke` 是否均成功
 
-- [ ] **5.1. Provider 批准** — 每个真实 provider 是否由用户明确批准，公开合法、
-  无账号/Cookie/Token、无需 HTML 抓取，且固定 endpoint 与条款证据完整
+- [ ] **5.1. Provider 批准与定位** — 每个真实 Provider 是否由用户明确批准，
+  核心用途是否符合 NSFW-first 定位，且固定 Host/Endpoint、认证、搜索、详情、
+  下载、响应、限流、条款与使用边界是否完整
 - [ ] **5.2. Adapter 合约** — router 是否无 provider HTTP/parser 逻辑，adapter
   是否只经共享 client 返回 immutable provider-neutral DTO，原始 payload 不泄漏
 - [ ] **5.3. 固定 endpoint** — scheme/host/443/path 是否代码注册，完全不接受
   用户 host、port、base URL、任意 path 或通用 URL fetch
 - [ ] **5.4. DNS/TLS/SSRF** — 是否预解析并 pin 公开 IP，拒绝 loopback/private/
   link-local/multicast/reserved/unspecified，且 Host/SNI/证书始终验证 allowlisted host
-- [ ] **5.5. HTTP 资源边界** — 是否 `trust_env=False`、无 proxy/cookie/auth，
-  redirect 默认禁用且特批同 host 最多一次，3s connect/10s total、1 MiB、
-  identity encoding、JSON Content-Type、query 200、page 50、provider/concurrency 4
-- [ ] **5.6. 错误与日志** — DNS/security、timeout、401/403/404/429/5xx、
-  redirect、content type、malformed/oversized 是否稳定分类；日志是否只含 provider、
-  operation、bounded status、latency、request ID
-- [ ] **5.7. 路由状态矩阵** — GET 是否零网络/零写入，search/preview/check POST
-  是否只网络读，apply/update/remove POST 是否只本地写且零网络
+- [ ] **5.5. 认证与秘密隔离** — 认证类型是否获批并仅使用用户合法授权；秘密
+  是否本地按 Provider 隔离、加密或进入系统密钥库，不明文、不回显、不写普通
+  日志/异常/JSON 备份，且支持测试、过期、更新与撤销
+- [ ] **5.6. HTTP 资源、错误与日志** — `trust_env=False`、HTTP/1.1、无未批准
+  proxy/cookie、redirect/retry/压缩边界、3s connect/10s total、1 MiB body、
+  query/page/concurrency 上限是否成立；DNS/security、timeout、401/403/404/429/5xx、
+  content type、malformed/oversized 是否稳定分类，日志是否只含 provider、operation、
+  bounded status、latency、request ID
+- [ ] **5.7. 搜索/预览/写入/下载分离** — GET 是否符合当前授权且无隐藏动作，
+  search/detail 是否只网络读，apply/update 是否只本地写，下载是否独立展示并
+  确认，任一阶段是否都不顺带触发下一阶段
 - [ ] **5.8. 认证与快照** — 所有入口是否登录保护，unsafe request 是否 same-origin；
   HMAC-SHA256 snapshot 是否含 format/purpose/version/expiry/provider/external ID/
   canonical fields/local conflict facts，恒定时间验证且不被描述为 CSRF 防护
@@ -111,17 +136,18 @@
 - [ ] **5.12. 手动映射** — 是否只写用户逐项选择的非空字段，Creator/Tag additive
   且歧义阻止；不自动覆盖/清空/创建/更新/合并，不修改 status/rating/review/
   collections/media/extra
-- [ ] **5.13. 多来源部分失败** — 是否 provider 失败隔离、分组和确定性
-  round-robin、exact canonical URL 仅视觉分组并保留 provenance；无持久化结果、
-  title 自动同一性判断、自动 merge/import
+- [ ] **5.13. 受控下载** — 是否只下载用户确认的来源/文件，临时隔离、资源
+  上限、类型/Hash、no-overwrite、失败回滚、数据库关系和索引协调是否完整；
+  页面/搜索是否不自动下载，且无任意 URL 或未经确认批量下载
 - [ ] **5.14. 手动更新** — check 是否只生成 signed diff，update 是否零网络，
   是否只用注册 provider/external ID 而不 fetch 来源 URL；`last_checked_at` /
   versioned canonical `metadata_hash` 是否仅 confirmed apply/mark-checked 后更新
 - [ ] **5.15. 备份恢复** — backup v2 是否包含来源追踪字段并接受 v1；restore
   是否零网络、payload 重复为 validation error、完全相同来源单独 skip、不同
   Item/事实冲突阻止并 rollback，且明确 v2 不向 v1.1.0 兼容
-- [ ] **5.16. 无自动同步** — 是否无页面自动请求、后台/启动/定时 refresh、远程
-  图片、爬虫、凭据、推荐、AI、云同步或多用户能力
+- [ ] **5.16. 可选能力授权** — 第二 Provider、多来源聚合、Provider-specific
+  HTML、后台同步、推荐或 AI 是否仅在当前 GOAL 明确授权时出现；同步是否默认
+  关闭、可见、可控、可撤销，推荐是否本地且不自动收藏/下载/上传偏好
 - [ ] **5.17. 测试隔离** — adapter/HTTP 是否只用 mock transport/fixture，覆盖
   安全与错误矩阵，绝不请求真实 DNS/provider；pytest/Docker 是否使用独立临时
   目录或隔离 volume 且不接触既有 `data/`

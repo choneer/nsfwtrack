@@ -53,10 +53,12 @@
   no longer imply rollback: a separate Session compares the complete affected
   database state and reports committed-after-error, confirmed rollback, or an
   unknown outcome when independent proof is unavailable.
-- Phase 5-N2 local acceptance passed 33 focused tests, 164 targeted tests, all
-  917 pytest tests, `pip check`, stable-version checksum verification, and
-  isolated network-disabled Docker fresh/migration/backup lifecycles. The
-  production registry remains empty and existing `data/` was not used.
+- Phase 5-N2 acceptance passed 33 focused tests, 164 targeted tests, all 917
+  pytest tests, `pip check`, stable-version checksum verification, and isolated
+  network-disabled Docker fresh/migration/backup lifecycles. Commit `df90473`
+  and Actions run `29637868492` completed both `test` and
+  `Docker production smoke` successfully. The production registry remains
+  empty and existing `data/` was not used.
 - The outbound client accepts no URL, host, port, base URL, arbitrary path,
   header, proxy, cookie, or auth input. It uses `trust_env=False`, HTTP/1.1,
   zero redirects/retries, 3-second connect and 10-second total deadlines,
@@ -76,25 +78,35 @@
 
 ### Documentation
 
-- Planned `v1.2.0` as the next backward-compatible feature version, focused on
-  controlled public metadata adapters, explicit single-provider and
-  multi-provider search, manual import, and manual source updates.
-- Defined a single allowlisted outbound HTTP boundary, provider-neutral adapter
-  DTOs, authenticated user-triggered POST access, signed preview/apply
-  separation, stable errors, bounded resources, and deterministic mock-only
-  tests. General URL fetching, HTML crawling, remote images, credentials,
-  automatic synchronization, recommendations, AI, and cloud sync remain out of
-  scope.
-- Planned Schema 4 as a nullable extension of `item_sources`, including
-  provider/external-ID uniqueness, continuous Schema 3 migration, backup v2
-  with v1 restore compatibility, explicit conflicts, and stopped-copy rollback.
-- Split implementation and release work into Phase 5-N1 through Phase 5-R2.
-  Hermes remains forbidden until all v1.2.0 functionality, Actions, cloud diff
-  review, and Phase 5-I1 integration freeze are complete; only Phase 5-R1 may
-  invoke it once.
-- Phase 5-P1 changes documentation only. Application version remains `1.1.0`,
-  Schema remains `3`, and no code, tests, dependency, migration, backup format,
-  Docker, CI, tag, Release, or N100 deployment changed.
+- Added `PRODUCT_VISION.md` as the long-term NSFW-first, local-first,
+  privacy-first, single-user, self-hosted product baseline. It separates
+  metadata, user records, and local content, and defines controlled downloads,
+  Provider authentication, Provider-specific fetching, local recommendations,
+  default-off visible background sync, and search/preview/write/download
+  separation.
+- Split permanent prohibitions from default-denied capabilities that a future
+  explicit GOAL may authorize. Arbitrary URL fetching, unrestricted crawling,
+  access-control bypass, credential theft/leakage or cross-Provider sharing,
+  hidden network activity, unconfirmed bulk writes/overwrites/downloads, and
+  default upload of local user data remain permanently prohibited.
+- Recorded Provider authentication, Provider-specific parsing, cover/preview/
+  media downloads, a second Provider, controlled background sync, local
+  recommendations, optional AI, download queues, and scheduled checks as
+  formal future capabilities that remain disabled until separately authorized.
+- Replaced the previous P1 route with P2 product alignment, N3 core-Provider
+  contract/auth/content/download planning without Provider selection, N4 the
+  first user-approved NSFW core Provider, N5 search/detail/manual import, N6
+  explicitly confirmed controlled download, N7 manual checking/update plus
+  security and UX, followed by I1, R1, and R2.
+- Cancelled TVmaze as the planned first Provider, the MediaTrack rename, and
+  the ordinary-film/television-led roadmap. Ordinary all-ages content remains
+  only an incidental compatibility of the generic model.
+- Preserved the completed N1/N2 implementation and acceptance history, updated
+  N2 to its successful Actions state, and kept the production Provider Registry
+  empty. P2 changes documentation only: application version remains `1.1.0`,
+  Schema remains `4`, backup remains `nsfwtrack.backup.v2`, and no code, test,
+  dependency, migration, Adapter, Docker, CI, tag, Release, N100 deployment, or
+  Hermes work changed.
 
 ## [1.1.0] - 2026-07-17
 

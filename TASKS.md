@@ -2,17 +2,21 @@
 
 按顺序执行，每完成一项打个 [x]。
 
-## 当前状态（Phase 5-N2 本地验收完成，等待 Actions）
+## 当前状态（Phase 5-P2 产品原则与路线对齐）
 
 当前稳定版与最新 Release：`v1.1.0`。下一目标版本为 `v1.2.0`，方向为
-受控公开元数据 adapter、单来源/多来源搜索、手动入库和手动更新。N1 已
-完成共享 client、固定空 production registry、adapter protocol、immutable DTO，
-并完成 Schema 4 来源追踪、backup v2 与 v1 restore；应用仍为 `1.1.0`、Schema
-为 `4`，无真实 provider、搜索页面或网络入口。
+首个 NSFW 核心 Provider、搜索与手动入库、受控下载、手动来源检查更新和
+集成发布。N1 已完成共享 client、固定空 production registry、adapter protocol
+和 immutable DTO；N2 已完成 Schema 4 来源追踪、backup v2 与 v1 restore，
+Actions run `29637868492` 的两个 job 均成功。应用仍为 `1.1.0`、Schema 为
+`4`，无真实 Provider、搜索页面或网络入口。
 
-### Phase 5-P1 至 R2 路线
+### Phase 5-P1 / P2 至 R2 路线
 
 #### Phase 5-P1 - v1.2.0 规划
+
+以下为已完成的历史规划；其无凭据 Provider、第二 Provider 和普通元数据主线
+已由 P2 取代。
 
 - [x] 完整审计规则、项目文档、配置/安全、ItemSource、迁移、备份恢复、
   本地来源导入、Item/Creator/Tag、路由/模板/i18n、Docker/CI 与相关测试
@@ -26,6 +30,21 @@
   backup v2 / v1 restore、稳定 v1.1.0 拒绝与停机副本 rollback
 - [x] 完成 N1-N7、I1、R1、R2 路线与 provider 批准门禁；P1 未实现功能，
   未运行 pytest / Docker，未调用 Hermes
+
+#### Phase 5-P2 - 长期产品原则与路线对齐
+
+- [x] 新增 `PRODUCT_VISION.md`，固定 NSFW-first、local-first、privacy-first、
+  single-user、self-hosted 定位和元数据/用户记录/本地内容三层边界
+- [x] 将 Provider 认证、Provider-specific 解析、受控下载、本地推荐、可选
+  AI 和默认关闭的可控后台同步定义为未来可由独立 GOAL 授权的能力
+- [x] 永久禁止任意 URL、无限爬虫、权限绕过、凭据窃取/泄漏、隐藏网络和
+  未经确认的大量写入、覆盖或下载
+- [x] 取消 TVmaze 首源、MediaTrack 更名和普通影视主线；普通全年龄内容仅
+  作为通用模型的附带兼容能力
+- [x] 重构 N3-N7、I1、R1、R2 路线，修正 N2 Actions 成功状态并保留 N1/N2
+  实现、测试和历史验收证据
+- [x] P2 只修改获授权文档，不选择真实 Provider，不运行 pytest/Docker，
+  不请求真实网络且不调用或编写 Hermes 验收
 
 #### Phase 5-N1 - 受控 HTTP 与 adapter 基础
 
@@ -65,51 +84,57 @@
 - [x] N2 专项 `33 passed`、targeted `164 passed`、全量 `917 passed`，
   `pip check` 通过；稳定版数据库 checksum 不变，隔离断网 Docker 双生命周期
   通过并清理，既有 `data/` 未接触
+- [x] 实现提交 `df90473d827be86b83da4d7d8487fd852fcff35c` 已推送 main，
+  Actions run `29637868492` 的 `test` 与 `Docker production smoke` 均成功
 
-#### Phase 5-N3 - 首个获批 adapter
+#### Phase 5-N3 - 核心 Provider 合同与需求规划
 
-- [ ] 等待用户明确批准第一个公开、无需账号/凭据、无需 HTML 抓取的 provider
-  及固定 endpoint
-- [ ] 实现获批 provider 的 search/detail mapping、provider limits 与纯 fixture /
-  mock 测试；未获批不得选择替代来源
+- [ ] 定义 NSFW 核心 Provider 的用途、能力合同、认证类型、秘密隔离、搜索、
+  详情、内容获取、下载、限流、条款和测试要求
+- [ ] 本阶段不选择、不批准、不实现真实 Provider；不得由 Codex 自行选择
+  TVmaze 或其他替代来源
 
-#### Phase 5-N4 - 搜索 UI 与手动入库
+#### Phase 5-N4 - 首个用户批准的核心 Provider Adapter
 
-- [ ] 实现 GET 零网络/零写入、主动 POST search/detail、HMAC signed snapshot、
-  中英文预览和 apply 无网络边界
-- [ ] 实现创建/关联 Item、逐项非空字段、additive Creator/Tag、hard conflict
-  与 `BEGIN IMMEDIATE` 最终复核；不自动覆盖、创建、合并或清空
+- [ ] 用户明确批准 Provider 名称、核心用途、固定 Host/Endpoint、认证方式、
+  搜索/详情/下载能力、响应类型、限流及条款边界
+- [ ] 只实现该 Provider 明确需要并获授权的访问、认证、解析、DTO 映射和
+  fixture/mock 测试；不开放任意 URL、通用 crawler 或隐藏网络
 
-#### Phase 5-N5 - 第二 adapter 与统一搜索
+#### Phase 5-N5 - 搜索、详情与手动入库
 
-- [ ] 等待用户批准第二个 provider，并完成同等 adapter 合约与安全测试
-- [ ] 实现最多四 provider/四并发、分组与确定性 round-robin、canonical URL
-  视觉分组、provenance 保留和部分失败；不持久化结果或自动合并
+- [ ] 实现 GET 零网络/零写入、用户主动 search/detail、HMAC signed snapshot、
+  中英文预览和 apply 零网络边界
+- [ ] 实现创建或关联 Item、逐项字段选择、additive Creator/Tag、hard conflict
+  与 `BEGIN IMMEDIATE` 最终复核；不自动覆盖、合并、清空或下载
 
-#### Phase 5-N6 - 手动检查更新
+#### Phase 5-N6 - 用户确认的受控下载
 
-- [ ] 实现 local-only sources GET、主动 check POST、signed diff、无网络 update /
-  remove POST 与逐项非空更新
-- [ ] confirmed apply 后才更新 `last_checked_at` / `metadata_hash`；无后台、
-  定时、启动或页面自动刷新
+- [ ] 展示来源、文件、类型、大小、目标和冲突后，以独立明确确认启动单项或
+  用户选定批次下载；搜索和页面加载不自动下载
+- [ ] 使用隔离临时区域、资源上限、内容/Hash 校验、no-overwrite 发布、失败
+  回滚、数据库关系和写后索引协调；不接受任意 URL 或跨设备猜测复制
 
-#### Phase 5-N7 - 安全与体验收尾
+#### Phase 5-N7 - 手动检查更新、安全与体验收尾
 
-- [ ] 完成 rate/abuse boundary、稳定错误文案、i18n、响应式、可访问性、
-  日志脱敏、性能上限和完整相关回归
+- [ ] 实现 local-only sources GET、用户主动 check、signed diff、零网络 update /
+  remove 和逐项非空更新；confirmed apply 后才更新 check/hash 字段
+- [ ] 完成认证/下载安全、rate/abuse boundary、稳定错误、i18n、响应式、
+  可访问性、日志脱敏、性能上限和完整相关回归；不增加隐藏后台同步
 
 #### Phase 5-I1 - v1.2.0 集成冻结
 
-- [ ] 完整验证路由状态矩阵、Schema 1 -> 2 -> 3 -> 4、v1/v2 备份、两个
-  adapter mock 集成、部分失败、全量 pytest、pip check 与隔离 Docker
+- [ ] 完整验证路由状态矩阵、Schema 1 -> 2 -> 3 -> 4、v1/v2 备份、首个
+  Provider mock 集成、手动入库、受控下载、手动更新、全量 pytest、pip check
+  与隔离 Docker
 - [ ] 所有阶段 Actions 与云端 diff 复核成功，版本候选冻结且无已知代码阻塞
 - [ ] I1 完成前绝不调用或编写 Hermes 验收
 
 #### Phase 5-R1 - 唯一一次 Hermes 最终验收
 
 - [ ] 仅在 N1-N7、Actions、云端复核和 I1 全部完成后调用 Hermes 一次
-- [ ] 验证迁移/备份、adapter mock、网络边界、单/多来源搜索、手动入库/更新、
-  Docker 双生命周期与 `data/` 隔离
+- [ ] 验证迁移/备份、Provider mock、网络/认证边界、搜索、手动入库、受控
+  下载、手动更新、Docker 双生命周期与 `data/` 隔离
 
 #### Phase 5-R2 - v1.2.0 正式发布
 

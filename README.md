@@ -1,7 +1,8 @@
 # NSFWTrack
 
-NSFWTrack is a local-first, single-user content record manager / collection
-tracker.
+NSFWTrack is an NSFW-first, local-first, privacy-first, single-user,
+self-hosted application for collecting content, aggregating sources, managing
+local media, tracking state, and supporting personalized discovery.
 
 Current application version: `1.1.0` (Schema `4`).
 
@@ -9,22 +10,35 @@ Current stable version: `v1.1.0`.
 
 Latest Release: [NSFWTrack v1.1.0](https://github.com/choneer/nsfwtrack/releases/tag/v1.1.0).
 
-Current status: `Phase 5-N2 Schema 4 source tracking and backup v2 are locally
-complete; no real provider is registered`.
+Current status: `Phase 5-N1 and N2 are complete, their Actions gates passed,
+and the production Provider Registry remains empty`.
 
-The next target version is `v1.2.0`: controlled public metadata adapters,
-single-provider and multi-provider search, explicit preview, manual import, and
-manual source updates. The plan does not authorize a general URL fetcher, HTML
-crawling, remote images, credentials, automatic synchronization, background
-jobs, recommendations, AI, cloud sync, or multi-user behavior. Specific
-providers require separate user approval before implementation.
+The long-term product baseline is recorded in [PRODUCT_VISION.md](PRODUCT_VISION.md).
+Ordinary all-ages content may remain naturally compatible with the generic
+model, but it is secondary and does not drive Provider selection, the data
+model, or the roadmap. NSFWTrack is not being renamed to MediaTrack and is not
+becoming a general film/television catalog.
+
+The next target version remains `v1.2.0`. Phase 5-N3 will define the core
+Provider contract and its authentication, content, and download requirements
+without selecting a real Provider. N4 will implement the first user-approved
+core Provider; N5 adds search, detail preview, and manual import; N6 adds an
+explicitly confirmed controlled-download loop; N7 completes manual checking,
+updates, security, and UX before integration and release.
+
+Provider authentication, Provider-specific parsing, controlled downloads,
+local recommendations, optional AI, and visible default-off background sync
+are formal future capabilities, but remain denied until a separate GOAL
+authorizes them. Arbitrary URL fetching, unrestricted crawling, access-control
+bypass, credential theft or leakage, hidden network activity, and unconfirmed
+bulk writes, overwrites, or downloads are permanently prohibited.
 
 Phase 5-N2 extends only local source identity storage, migration, and backup
 restore behavior. Application version remains `1.1.0`; Schema is now `4`, new
 JSON exports use `nsfwtrack.backup.v2`, and restore continues to accept backup
-v1. The production adapter registry remains empty. No real provider, search UI,
-remote image, credential, automatic synchronization, tag, Release, or N100
-deployment was added.
+v1. The production Provider Registry remains empty. N2 added no real Provider,
+search UI, Provider credential storage, download, synchronization, tag,
+Release, or N100 deployment.
 
 Hermes must not be called during planning, Phase 5-N1 through N7, corrective
 work, or integration development. It is reserved for one final independent
@@ -69,7 +83,7 @@ digest of every affected business table and media-index state, classifying the
 result as committed, committed after an error, confirmed rollback, or unknown.
 Migration, backup preview, and restore do not call the outbound client.
 
-Local acceptance passed 33 focused N2 tests, a 164-test targeted matrix, and all
+N2 acceptance passed 33 focused tests, a 164-test targeted matrix, and all
 917 pytest tests; `pip check` reported no broken requirements. Stable `v1.1.0`
 refused an isolated Schema 4 database with `application_outdated`, and the
 database SHA-256 remained unchanged. Isolated, network-disabled Docker
@@ -78,6 +92,11 @@ stable-Schema-3 preview/apply, legacy-null verification, and recreation while
 retaining UID/GID 10001, read-only root, dropped capabilities, and
 no-new-privileges. All temporary resources were removed and the existing
 `data/` was not used.
+
+The implementation commit is
+`df90473d827be86b83da4d7d8487fd852fcff35c`. GitHub Actions run
+[`29637868492`](https://github.com/choneer/nsfwtrack/actions/runs/29637868492)
+completed both `test` and `Docker production smoke` successfully.
 
 ## Phase 5-N1 Controlled Outbound Adapter Foundation
 
@@ -168,9 +187,9 @@ removed and the existing `data/` was untouched.
 N100 deployment: `not started; waits for explicit user authorization`.
 
 NSFWTrack remains local-first: records, media, credentials, and persistence stay
-local. The planned v1.2.0 network exception is limited to user-triggered public
-metadata lookup through approved adapters; it does not make remote media or
-automatic synchronization part of the product.
+local. Future network, download, recommendation, and synchronization abilities
+remain disabled until separately authorized and must preserve the permanent
+boundaries in `PRODUCT_VISION.md` and `RULE.md`.
 
 ## Completion Audit
 
@@ -1981,16 +2000,18 @@ sync, recommendations, AI assistants, cloud sync, or multi-user support.
 
 ## Local Boundaries
 
-The stable v1.1.0 application is still a local single-user app and performs no
-external metadata requests. Phase 5 plans a narrow v1.2.0 exception for
-authenticated, user-triggered POST searches and detail checks through approved,
-code-registered public metadata adapters. Page GETs, backup and restore, CSV /
-JSON import, bookmark import, and URL-list import remain zero-network paths.
+The stable v1.1.0 application remains local and single-user. Its production
+Provider Registry is empty, so it performs no external metadata request.
+Page GETs, backup and restore, CSV/JSON import, bookmark import, and URL-list
+import remain zero-network paths.
 
-The plan does not include a general URL fetcher, HTML crawling, user-provided
-hosts or API base URLs, remote image fetching, credentials or cookies,
-automatic synchronization, background refresh, random exploration,
-recommendations, AI, cloud backup, complex permissions, or multi-user support.
+Future GOALs may authorize fixed Provider authentication, Provider-specific
+parsing, controlled downloads, local recommendations, optional AI, or visible
+default-off background sync. They may never authorize arbitrary URL fetching,
+user-defined hosts or base URLs, unrestricted crawling, access-control bypass,
+credential theft/leakage, hidden network activity, or unconfirmed bulk writes,
+overwrites, and downloads. See `PRODUCT_VISION.md` and `RULE.md` for the full
+split between permanent prohibitions and stage-authorized capabilities.
 
 ## Local Development
 
@@ -2413,5 +2434,8 @@ enabled, so existing local HTTP, forms, and inline scripts remain intact.
 - Backup restore is append / merge based, not an overwrite restore.
 - The controlled adapter foundation is present, but the production registry is
   empty and no external content source, search UI, or network route exists.
-  Crawlers, remote images, credentials, automatic synchronization,
-  recommendation systems, and AI remain excluded.
+  Provider authentication, downloads, synchronization, recommendations, and
+  optional AI remain unimplemented and require separate explicit phases.
+- Arbitrary URL fetching, unrestricted crawling, access-control bypass,
+  credential theft/leakage, hidden network activity, and unconfirmed bulk
+  writes or downloads remain permanently prohibited.
