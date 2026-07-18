@@ -144,6 +144,38 @@
   Migration/Backup/Adapter/Registry/Outbound/路由/模板/i18n/Docker/CI/Hermes/tag/
   Release/N100/真实网络或既有 `data/` 访问
 
+### Phase 5-N4A Provider 基础设施与 Fixture Reference（已完成）
+
+- [x] **5.N4A.1. Capability** — ProviderCapabilities 是否 immutable/code-owned，
+  五层 operation 是否严格归属 Metadata/Auth/Discovery/Asset/Download，重复、
+  跨层、空 manifest 和 capability missing 是否稳定 fail closed
+- [x] **5.N4A.2. Protocol 与 DTO** — 五层 Protocol 是否 runtime-checkable，旧
+  SourceAdapter 是否安全 alias；SourceAsset 是否拒绝 URL ID、非法 kind/MIME/
+  size/checksum/bool 并保持 frozen
+- [x] **5.N4A.3. Auth 与错误** — 五种 AuthMode、七种 AuthState、checked/expiry
+  最小事实和稳定 Provider errors 是否 typed、bounded 且不携带 raw payload/secret
+- [x] **5.N4A.4. Typed Endpoint** — 是否固定 ProviderOperation、GET/POST、typed
+  JSON/form body、auth/cookie、response kind/content type、safe fixed header、
+  redirect 和 exact no-wildcard Asset Host，且无任意 request map
+- [x] **5.N4A.5. Manifest/Registry 绑定** — ProviderEndpoint 是否同 key、endpoint
+  set 与 capability exact match、auth/cookie mode 一致；Production Registry 是否
+  仍精确为空且 app 不导入 test Fixture Provider
+- [x] **5.N4A.6. Outbound 边界** — OutboundRequest 是否仍只有 provider/operation/
+  query/external/page/page_size；typed body 是否仅从 code-owned business mapping
+  生成，auth/cookie/non-JSON/redirect 未实现策略是否在 DNS 前稳定拒绝
+- [x] **5.N4A.7. Fixture-only Provider** — 是否只在 tests 使用 `.invalid` synthetic
+  hosts、静态 fixture、Fake Resolver/Clock、MockTransport/Fake Backend，实现仅
+  search/detail/asset_list 且绝不进入 Production Registry
+- [x] **5.N4A.8. 响应不可扩权** — payload 提供的新 operation/Host/Endpoint/
+  Locator/downloadable 是否均不能扩大 manifest/Registry/网络/下载权限
+- [x] **5.N4A.9. 网络与日志** — tests 是否只使用 fake network component，保留
+  DNS/IP/TLS/peer security path，日志是否无 query/external/payload/URL/Host/IP
+- [x] **5.N4A.10. 验证与范围** — 初始 N4A 17、N4A+N1 116、N2/source 46、
+  全量 934；最终安全复核后 N4A 21、全量 938、pip check/diff check 是否通过；
+  是否无真实 Provider/Auth/Vault/UI/DB import/
+  download/recommendation/sync/version/Schema/Backup/dependency/config/Docker/CI/
+  Hermes/tag/Release/N100 或既有 data 访问
+
 - [ ] **5.1. Provider 批准与定位** — 每个真实 Provider 是否由用户明确批准，
   核心用途是否符合 NSFW-first 定位，且固定 Host/Endpoint、认证、搜索、详情、
   下载、响应、限流、条款与使用边界是否完整

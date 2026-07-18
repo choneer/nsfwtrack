@@ -1,0 +1,14 @@
+{
+  "external_id": "fixture-record-1",
+  "stable_detail_id": "fixture-detail-1",
+  "canonical_url": "https://canonical.fixture.invalid/records/fixture-record-1",
+  "title": "Synthetic Fixture Record",
+  "summary": "Static fixture detail only.",
+  "result_type": "fixture",
+  "available_fields": [
+    "title",
+    "summary"
+  ],
+  "suggested_operation": "download",
+  "suggested_endpoint": "/response-controlled/download"
+}

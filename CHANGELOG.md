@@ -4,6 +4,19 @@
 
 ### Added
 
+- Added the Phase 5-N4A provider-neutral foundation: immutable five-layer
+  `ProviderCapabilities`, typed layer Protocols, `SourceAsset`, five auth modes,
+  seven auth states, and stable redacted Provider errors. No credential or
+  Secret Vault implementation is included.
+- Extended immutable Endpoint operations with typed standard operations,
+  GET/POST, code-owned JSON/form business-parameter bodies, auth/cookie
+  requirements, response kinds/content types, non-secret fixed headers,
+  redirect policy, and exact Asset Host allowlists. Provider endpoints now bind
+  the same-key capability manifest and require exact endpoint/capability parity.
+- Added a test-only synthetic Reference Provider for search, detail, and asset
+  list using static fixtures, reserved `.invalid` hosts, Fake Resolver, Fake
+  Clock, MockTransport, and Fake Network Backend. It is absent from the
+  Production Provider Registry.
 - Added Schema 4 source tracking with nullable `provider_key`, `external_id`,
   `last_checked_at`, and versioned `metadata_hash` fields on `ItemSource`.
   A SQLite partial unique index enforces provider/external-ID uniqueness only
@@ -45,6 +58,17 @@
 
 ### Security
 
+- `OutboundRequest` still exposes no URL, host, path, method, body, header,
+  cookie, token, password, or locator. Typed bodies and fixed headers are
+  generated only from Registry-owned definitions; declared auth/cookie,
+  non-JSON, and redirect policies that N4A does not implement fail before DNS.
+- Fixture payloads that suggest new operations, hosts, endpoints, locators, or
+  downloadable state cannot expand immutable capabilities or Registry policy.
+  Initial N4A verification passed 17 focused tests, 116 combined N4A/N1 tests,
+  46 N2/source regressions, and all 934 pytest tests. The final security audit
+  added four pre-DNS operation-policy regressions and passed 21 focused tests,
+  all 938 pytest tests, and `pip check` without contacting a real Provider or
+  network service.
 - Schema 4 startup validates the exact provider-identity partial-index columns,
   uniqueness, and predicate. Invalid or missing current-schema structure fails
   closed. Stable `v1.1.0` refuses Schema 4 as `application_outdated` without
@@ -78,6 +102,11 @@
 
 ### Documentation
 
+- Updated the Provider contract and project state for N4A while preserving the
+  real-N4 Provider Approval gate. Application version remains `1.1.0`, Schema
+  remains `4`, Backup remains `nsfwtrack.backup.v2`, and no real Provider,
+  credential, dependency, configuration, UI, database import, download,
+  recommendation, synchronization, Docker, or CI behavior was added.
 - Added `PROVIDER_CONTRACT.md` as the Phase 5-N3 planning contract. It records
   the current search/detail-only Adapter, fixed GET+JSON outbound boundary,
   Registry gaps, Schema 4 source tracking, empty production Registry, and the

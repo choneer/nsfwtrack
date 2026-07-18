@@ -1,0 +1,19 @@
+{
+  "assets": [
+    {
+      "external_id": "fixture-record-1",
+      "asset_id": "fixture-cover-1",
+      "kind": "cover",
+      "display_name": "Synthetic Fixture Cover",
+      "mime_type": "image/png",
+      "size_bytes": 68,
+      "checksum_algorithm": "sha256",
+      "checksum_value": "0000000000000000000000000000000000000000000000000000000000000000",
+      "requires_auth": false,
+      "downloadable": false,
+      "locator": "https://response-controlled.invalid/unapproved"
+    }
+  ],
+  "suggested_asset_host": "response-controlled.invalid",
+  "suggested_operation": "asset_resolve"
+}

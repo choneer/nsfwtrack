@@ -10,9 +10,9 @@ Current stable version: `v1.1.0`.
 
 Latest Release: [NSFWTrack v1.1.0](https://github.com/choneer/nsfwtrack/releases/tag/v1.1.0).
 
-Current status: `Phase 5-N1 through N3 are complete; N3 defines the Provider,
-authentication, asset, and controlled-download contract without selecting a
-real Provider, and the production Provider Registry remains empty`.
+Current status: `Phase 5-N4A provider-neutral infrastructure and its fixture-only
+Reference Provider are locally complete; no real Provider is selected and the
+production Provider Registry remains empty`.
 
 The long-term product baseline is recorded in [PRODUCT_VISION.md](PRODUCT_VISION.md).
 Ordinary all-ages content may remain naturally compatible with the generic
@@ -20,13 +20,13 @@ model, but it is secondary and does not drive Provider selection, the data
 model, or the roadmap. NSFWTrack is not being renamed to MediaTrack and is not
 becoming a general film/television catalog.
 
-The next target version remains `v1.2.0`. Phase 5-N3 has defined the core
-Provider contract and its authentication, content, asset, and download
-requirements without selecting a real Provider. N4 is blocked until the user
-completes and explicitly approves the blank Provider Approval Template. N5
-adds search, detail preview, and manual import; N6 adds an explicitly confirmed
-controlled-download loop; N7 completes manual checking, updates, security, and
-UX before integration and release.
+The next target version remains `v1.2.0`. Phase 5-N4A implements only the
+provider-neutral capability, Protocol, DTO, Registry, and Outbound foundations
+plus a synthetic test-only Reference Provider. Real N4 work remains blocked
+until the user completes and explicitly approves the blank Provider Approval
+Template. N5 adds search, detail preview, and manual import; N6 adds an
+explicitly confirmed controlled-download loop; N7 completes manual checking,
+updates, security, and UX before integration and release.
 
 Provider authentication, Provider-specific parsing, controlled downloads,
 local recommendations, optional AI, and visible default-off background sync
@@ -55,6 +55,46 @@ the formal `v1.1.0` release.
 Phase 4 release evidence remains archived below and is unchanged by this
 development phase.
 
+## Phase 5-N4A Provider Infrastructure and Fixture Reference
+
+Phase 5-N4A implements immutable `ProviderCapabilities` across Metadata, Auth,
+Discovery, Asset, and Download layers; typed layer Protocols; `SourceAsset`;
+`ProviderAuthMode`, `ProviderAuthState`, and `ProviderAuthStatus`; and stable
+redacted Provider errors. The compatibility `SourceAdapter` name now aliases
+the capability-bearing `SourceMetadataAdapter` Protocol.
+
+Every `ProviderEndpoint` must bind an exact same-key capability manifest, and
+its typed endpoint set must exactly match declared operations. Endpoint policy
+now fixes GET/POST, JSON/form body mappings, auth/cookie requirements, response
+kind and content types, non-secret headers, redirect rules, limits, and exact
+Asset Host allowlists. Wildcard hosts, sensitive fixed headers, cross-layer
+operations, duplicated business parameters, and manifest/endpoint mismatches
+fail during immutable construction.
+
+The public `OutboundRequest` remains unchanged and accepts no URL, host, path,
+method, body, header, cookie, token, password, or locator. The shared client can
+only generate typed GET/POST JSON or form requests from code-owned business
+parameter mappings. Authentication/cookie policies, non-JSON responses, and
+non-denied redirects remain unimplemented and fail before DNS. Existing DNS/IP
+pinning, TLS hostname/SNI/Host, TCP/TLS peer verification, deadlines, stream
+limits, concurrency, cancellation, immutable JSON, and redacted logs remain.
+
+The Reference Provider exists only in `tests/`, uses reserved synthetic
+`.invalid` hosts, static JSON fixtures, a Fake Resolver, Fake Clock,
+MockTransport, and Fake Network Backend, and implements only search, detail,
+and asset list. Fixture responses deliberately suggest unapproved operations,
+hosts, locators, and download flags; capability and Registry checks prevent
+those values from expanding authority. The Production Provider Registry is
+still exactly empty.
+
+Initial N4A verification passed 17 focused tests, 116 combined N4A/N1 tests,
+46 N2 and source regressions, and all 934 pytest tests. The final security audit
+added four pre-DNS operation-policy regressions; its rerun passed 21 focused
+tests and all 938 pytest tests. `pip check` found no broken requirements.
+Application `1.1.0`, Schema `4`, Backup v2, dependencies,
+configuration, UI, database import, authentication, Secret Vault, download,
+recommendation, synchronization, Docker, and CI remain unchanged.
+
 ## Phase 5-N3 Core Provider Contract and Download Plan
 
 Phase 5-N3 is a static audit and planning phase. Its normative output is
@@ -65,12 +105,13 @@ Provider, hostname, endpoint, credential, network request, Adapter extension,
 download implementation, route, test, dependency, Schema change, migration,
 backup change, Docker change, or CI change is part of N3.
 
-The contract records the current implementation accurately: `SourceAdapter`
+At N3 completion, the contract recorded that `SourceAdapter`
 has only search and detail; the Endpoint Registry expresses fixed HTTPS JSON
 operations but no method/body/auth/cookie/asset/download policy; the outbound
 client is fixed GET+JSON and accepts no URL/header/cookie/body/secret input;
 Schema 4 has only `ItemSource` identity/check fields; and the production
-Provider Registry remains empty.
+Provider Registry is empty. N4A implements the provider-neutral planned types
+and typed request-generation foundation while keeping that Registry empty.
 
 Future capabilities are split into Metadata, Auth, Discovery, Asset, and
 Download layers with immutable, code-owned manifests. Authentication is

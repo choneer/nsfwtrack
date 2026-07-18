@@ -32,44 +32,51 @@ Permanent boundaries remain unchanged:
 
 ### 2.1 Adapter and DTOs
 
-The current `SourceAdapter` protocol in `app/source_adapters/contracts.py` has
-only:
+The current `SourceMetadataAdapter` protocol (retained as the `SourceAdapter`
+alias for compatibility) in `app/source_adapters/contracts.py` has:
 
 ```python
 async def search(query: str, *, page: int, page_size: int) -> SourceSearchPage
 async def fetch_detail(external_id: str) -> SourceDetail
 ```
 
-Current frozen DTOs are `SourceCreator`, `SourceTag`, `SourceSearchResult`,
-`SourceDetail`, and `SourceSearchPage`. There is no capability manifest,
-authentication adapter, discovery operation, asset DTO, asset-list/resolve
-operation, download adapter, credential broker, or secret store.
+Current frozen DTOs include `SourceCreator`, `SourceTag`, `SourceSearchResult`,
+`SourceDetail`, `SourceSearchPage`, and the N4A `SourceAsset`. N4A now provides
+immutable `ProviderCapabilities`, the five layer Protocols, typed auth states,
+and stable Provider errors. `ProviderAuthAdapter`, Discovery, and Download
+Protocols are declarations only; no real authentication, vault, discovery, or
+download implementation exists. The only concrete asset-capable implementation
+is a test-only synthetic Fixture Provider.
 
 ### 2.2 Endpoint Registry
 
 The immutable registry in `app/source_adapters/registry.py` currently binds a
-Provider key to a lowercase ASCII HTTPS hostname on port 443, fixed printable
-ASCII path templates, typed business parameters, required parameters, JSON
-top-level shape, response limits, and page-size limits.
+Provider key and capabilities to a lowercase ASCII HTTPS hostname on port 443,
+typed `ProviderOperation` values, fixed printable ASCII path templates, typed
+business parameters, required parameters, method/body encoding, auth/cookie
+requirements, response kind/content types, fixed headers, redirect policy,
+response limits, page-size limits, and exact Asset Host allowlists.
 
-It does not yet express HTTP method, request body, authentication, cookies,
-fixed authentication headers, discovery, asset hosts, file response types,
-download limits, or a Provider-specific redirect policy. The production value
-is exactly an empty `EndpointRegistry`.
+The production value remains exactly an empty `EndpointRegistry`. The only
+non-empty registry is the test-only synthetic Fixture Provider registry; no
+real Provider, hostname, Endpoint, content, or production capability was added.
 
 ### 2.3 Outbound HTTP
 
-`OutboundRequest` in `app/services/outbound_http.py` currently accepts only a
-Provider key, operation, query, external ID, page, and page size. The client is
-fixed to GET and JSON, uses `trust_env=False`, and disables auth, cookies,
-environment proxy use, redirects, retries, and HTTP/2. It retains whole-set DNS
+`OutboundRequest` in `app/services/outbound_http.py` still accepts only a
+Provider key, operation, query, external ID, page, and page size. The client
+now renders only Registry-owned typed GET/POST JSON or form bodies and fixed
+headers. Auth/cookie policies, non-JSON response kinds, and non-denied redirect
+policies fail before DNS because N4A does not implement real authentication,
+file transfer, or redirects. It retains `trust_env=False`, whole-set DNS
 validation, numeric-IP connection pinning, TLS hostname/SNI/Host preservation,
 TCP and TLS peer revalidation, bounded deadlines, bounded streamed response
 size, bounded concurrency, immutable JSON, and redacted logging.
 
 It accepts no arbitrary URL, host, path, method, body, header, cookie, token,
 password, or asset locator. Future work MUST preserve that public-input
-boundary.
+boundary; typed request bodies are generated only from code-owned business
+parameter mappings.
 
 ### 2.4 Source tracking and backup
 
@@ -675,6 +682,15 @@ fake transport. It never uses the existing repository `data/`.
 
 ## 15. Phase ownership and handoff
 
+### N4A: Provider infrastructure and fixture reference
+
+N4A implements the provider-neutral capability, Protocol, DTO, typed Registry,
+Outbound request-generation, auth-state, and stable-error foundations. Its
+Reference Provider, Registry, hostnames, paths, and payloads exist only under
+`tests/`, use synthetic static fixtures and fake network components, and cannot
+enter the production Registry. N4A implements no credential handling, Secret
+Vault, UI, database import, download, recommendation, or synchronization.
+
 ### N4: first approved Provider foundation
 
 Requires a completely approved `PROVIDER_APPROVAL_TEMPLATE.md`. N4 may implement
@@ -706,6 +722,7 @@ auth/download hardening, rate/abuse controls, i18n, accessibility, performance,
 and complete related regression coverage. Background synchronization remains
 default denied unless a later GOAL explicitly authorizes it.
 
-No N4 work begins until the user completes and explicitly approves the Provider
-Approval Template. This N3 contract itself names or approves no real Provider,
+No real N4 Provider work begins until the user completes and explicitly approves
+the Provider Approval Template. N4A does not satisfy or bypass that approval.
+This contract and its fixture-only reference name or approve no real Provider,
 host, endpoint, authentication secret, or download source.

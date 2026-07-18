@@ -9,6 +9,9 @@ from pathlib import Path
 import pytest
 
 from app.source_adapters.contracts import (
+    MetadataCapabilities,
+    ProviderCapabilities,
+    ProviderOperation,
     SourceAdapter,
     SourceCreator,
     SourceDetail,
@@ -25,6 +28,18 @@ from app.source_adapters.registry import (
     ProviderEndpoint,
 )
 from app.services.outbound_http import OutboundHttpClient, OutboundRequest
+
+
+def _capabilities(
+    *operations: ProviderOperation,
+    provider_key: str = "unit_test",
+) -> ProviderCapabilities:
+    return ProviderCapabilities(
+        provider_key=provider_key,
+        display_name="Unit Test",
+        content_scope="synthetic test records",
+        metadata=MetadataCapabilities(tuple(operations)),
+    )
 
 
 def _search_result() -> SourceSearchResult:
@@ -65,7 +80,7 @@ def test_production_registry_is_empty_and_immutable() -> None:
 
 def test_registry_and_operation_definitions_are_immutable() -> None:
     operation = EndpointOperation(
-        name="detail",
+        operation=ProviderOperation.DETAIL,
         path_template="/v1/items/{external_id}",
         expected_top_level=JsonTopLevel.OBJECT,
         path_parameter=BusinessParameter.EXTERNAL_ID,
@@ -74,6 +89,7 @@ def test_registry_and_operation_definitions_are_immutable() -> None:
     provider = ProviderEndpoint(
         provider_key="unit_test",
         hostname="metadata.example",
+        capabilities=_capabilities(ProviderOperation.DETAIL),
         operations=(operation,),
     )
     registry = EndpointRegistry((provider,))
@@ -82,7 +98,7 @@ def test_registry_and_operation_definitions_are_immutable() -> None:
     assert provider.operation("detail") is operation
     assert operation.render_path("a/b ?") == "/v1/items/a%2Fb%20%3F"
     with pytest.raises(FrozenInstanceError):
-        operation.name = "changed"  # type: ignore[misc]
+        operation.operation = ProviderOperation.SEARCH  # type: ignore[misc]
     with pytest.raises(FrozenInstanceError):
         provider.hostname = "changed.example"  # type: ignore[misc]
 
@@ -100,9 +116,18 @@ def test_registry_and_operation_definitions_are_immutable() -> None:
     ],
 )
 def test_registry_rejects_non_fixed_hostname_forms(hostname: str) -> None:
-    operation = EndpointOperation("search", "/v1/search", JsonTopLevel.OBJECT)
+    operation = EndpointOperation(
+        ProviderOperation.SEARCH,
+        "/v1/search",
+        JsonTopLevel.OBJECT,
+    )
     with pytest.raises(ValueError):
-        ProviderEndpoint("unit_test", hostname, (operation,))
+        ProviderEndpoint(
+            "unit_test",
+            hostname,
+            _capabilities(ProviderOperation.SEARCH),
+            (operation,),
+        )
 
 
 @pytest.mark.parametrize(
@@ -123,7 +148,7 @@ def test_registry_rejects_non_fixed_hostname_forms(hostname: str) -> None:
 )
 def test_registry_rejects_arbitrary_or_ambiguous_paths(path: str) -> None:
     with pytest.raises(ValueError):
-        EndpointOperation("search", path, JsonTopLevel.OBJECT)
+        EndpointOperation(ProviderOperation.SEARCH, path, JsonTopLevel.OBJECT)
 
 
 def test_source_dtos_are_frozen_and_expose_only_tuples() -> None:
@@ -216,6 +241,10 @@ def test_source_adapter_protocol_is_async_and_runtime_checkable() -> None:
     class Adapter:
         key = "unit_test"
         display_name = "Unit Test"
+        capabilities = _capabilities(
+            ProviderOperation.SEARCH,
+            ProviderOperation.DETAIL,
+        )
 
         async def search(
             self,

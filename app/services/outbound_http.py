@@ -22,8 +22,10 @@ import httpcore2
 import httpx2
 
 from app.request_context import is_valid_request_id, request_id_context
+from app.source_adapters.contracts import ProviderAuthMode, ProviderOperation
 from app.source_adapters.registry import (
     BusinessParameter,
+    CookiePolicy,
     EndpointOperation,
     EndpointRegistry,
     JsonTopLevel,
@@ -31,6 +33,9 @@ from app.source_adapters.registry import (
     MAX_RESPONSE_BYTES,
     PRODUCTION_ENDPOINT_REGISTRY,
     ProviderEndpoint,
+    RedirectPolicy,
+    RequestEncoding,
+    ResponseKind,
 )
 
 CONNECT_TIMEOUT_SECONDS = 3.0
@@ -40,6 +45,14 @@ MAX_EXTERNAL_ID_LENGTH = 512
 GLOBAL_CONCURRENCY_LIMIT = 4
 PROVIDER_CONCURRENCY_LIMIT = 1
 MAX_RETRY_AFTER_SECONDS = 3600
+
+_IMPLEMENTED_OPERATIONS = frozenset(
+    {
+        ProviderOperation.SEARCH,
+        ProviderOperation.DETAIL,
+        ProviderOperation.ASSET_LIST,
+    }
+)
 
 _SAFE_IDENTIFIER_PATTERN = re.compile(r"[a-z][a-z0-9_-]{0,63}")
 _JSON_CONTENT_TYPE_PATTERN = re.compile(
@@ -73,6 +86,8 @@ class OutboundErrorCode(str, Enum):
     RESPONSE_TOO_LARGE = "response_too_large"
     MALFORMED_JSON = "malformed_json"
     INVALID_PAYLOAD = "invalid_payload"
+    AUTH_NOT_CONFIGURED = "auth_not_configured"
+    OPERATION_POLICY_NOT_SUPPORTED = "operation_policy_not_supported"
     CANCELLED = "cancelled"
 
 
@@ -116,6 +131,13 @@ class OutboundRequest:
     external_id: str | None = None
     page: int | None = None
     page_size: int | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class _PreparedOutboundRequest:
+    url: str
+    body: bytes | None
+    headers: tuple[tuple[str, str], ...]
 
 
 @dataclass(frozen=True, slots=True)
@@ -540,7 +562,13 @@ class OutboundHttpClient:
                     operation_name,
                     request_id,
                 )
-            url = self._build_url(provider, operation, request, request_id)
+            self._validate_operation_policy(provider, operation, request_id)
+            prepared = self._prepare_request(
+                provider,
+                operation,
+                request,
+                request_id,
+            )
             provider_semaphore = self._provider_semaphores[provider.provider_key]
             async with asyncio.timeout(TOTAL_TIMEOUT_SECONDS):
                 async with self._global_semaphore, provider_semaphore:
@@ -560,7 +588,7 @@ class OutboundHttpClient:
                     response = await self._send(
                         provider,
                         operation,
-                        url,
+                        prepared,
                         plan,
                         request_id,
                     )
@@ -594,6 +622,40 @@ class OutboundHttpClient:
                 outcome,
                 _status_class(status_code),
                 _latency_bucket(elapsed_ms),
+                request_id,
+            )
+
+    def _validate_operation_policy(
+        self,
+        provider: ProviderEndpoint,
+        operation: EndpointOperation,
+        request_id: str,
+    ) -> None:
+        if operation.operation not in _IMPLEMENTED_OPERATIONS:
+            raise self._error(
+                OutboundErrorCode.OPERATION_POLICY_NOT_SUPPORTED,
+                provider.provider_key,
+                operation.name,
+                request_id,
+            )
+        if (
+            operation.auth_requirement is not ProviderAuthMode.NONE
+            or operation.cookie_policy is not CookiePolicy.NONE
+        ):
+            raise self._error(
+                OutboundErrorCode.AUTH_NOT_CONFIGURED,
+                provider.provider_key,
+                operation.name,
+                request_id,
+            )
+        if (
+            operation.response_kind is not ResponseKind.JSON
+            or operation.redirect_policy is not RedirectPolicy.DENY
+        ):
+            raise self._error(
+                OutboundErrorCode.OPERATION_POLICY_NOT_SUPPORTED,
+                provider.provider_key,
+                operation.name,
                 request_id,
             )
 
@@ -633,20 +695,23 @@ class OutboundHttpClient:
                 request_id,
             ) from None
 
-    def _build_url(
+    def _prepare_request(
         self,
         provider: ProviderEndpoint,
         operation: EndpointOperation,
         request: OutboundRequest,
         request_id: str,
-    ) -> str:
+    ) -> _PreparedOutboundRequest:
         values: dict[BusinessParameter, object | None] = {
             BusinessParameter.QUERY: request.query,
             BusinessParameter.EXTERNAL_ID: request.external_id,
             BusinessParameter.PAGE: request.page,
             BusinessParameter.PAGE_SIZE: request.page_size,
         }
-        available = {key for key, _ in operation.query_parameters}
+        available = {
+            key
+            for key, _ in (*operation.query_parameters, *operation.body_parameters)
+        }
         if operation.path_parameter is not None:
             available.add(operation.path_parameter)
         if any(value is not None and key not in available for key, value in values.items()):
@@ -743,13 +808,39 @@ class OutboundHttpClient:
         ]
         query_string = urlencode(query_items, doseq=False, safe="")
         suffix = f"?{query_string}" if query_string else ""
-        return f"https://{provider.hostname}{path}{suffix}"
+        body_values = {
+            body_name: values[business_parameter]
+            for business_parameter, body_name in operation.body_parameters
+            if values[business_parameter] is not None
+        }
+        body: bytes | None = None
+        generated_headers: list[tuple[str, str]] = list(operation.fixed_headers)
+        if operation.request_encoding is RequestEncoding.JSON:
+            body = json.dumps(
+                body_values,
+                ensure_ascii=True,
+                separators=(",", ":"),
+                sort_keys=True,
+            ).encode("ascii")
+            generated_headers.append(("Content-Type", "application/json"))
+        elif operation.request_encoding is RequestEncoding.FORM:
+            body = urlencode(tuple(body_values.items()), doseq=False, safe="").encode(
+                "ascii"
+            )
+            generated_headers.append(
+                ("Content-Type", "application/x-www-form-urlencoded")
+            )
+        return _PreparedOutboundRequest(
+            f"https://{provider.hostname}{path}{suffix}",
+            body,
+            tuple(generated_headers),
+        )
 
     async def _send(
         self,
         provider: ProviderEndpoint,
         operation: EndpointOperation,
-        url: str,
+        prepared: _PreparedOutboundRequest,
         plan: ConnectionPlan,
         request_id: str,
     ) -> OutboundJsonResponse:
@@ -774,9 +865,14 @@ class OutboundHttpClient:
                     "Accept-Encoding": "identity",
                     "Connection": "close",
                     "Host": provider.hostname,
+                    **dict(prepared.headers),
                 },
             ) as client:
-                async with client.stream("GET", url) as response:
+                async with client.stream(
+                    operation.method.value,
+                    prepared.url,
+                    content=prepared.body,
+                ) as response:
                     status_code = response.status_code
                     status_error = _status_error_code(status_code)
                     if status_error is not None:
@@ -806,7 +902,10 @@ class OutboundHttpClient:
                         )
                     content_type = response.headers.get("Content-Type", "")
                     media_type = content_type.split(";", 1)[0].strip()
-                    if _JSON_CONTENT_TYPE_PATTERN.fullmatch(media_type) is None:
+                    if (
+                        _JSON_CONTENT_TYPE_PATTERN.fullmatch(media_type) is None
+                        or not operation.accepts_content_type(media_type)
+                    ):
                         raise self._error(
                             OutboundErrorCode.UNEXPECTED_CONTENT_TYPE,
                             provider.provider_key,

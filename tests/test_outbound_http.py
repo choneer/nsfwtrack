@@ -12,6 +12,11 @@ import httpx2
 import pytest
 
 from app.request_context import request_id_context
+from app.source_adapters.contracts import (
+    MetadataCapabilities,
+    ProviderCapabilities,
+    ProviderOperation,
+)
 from app.source_adapters.registry import (
     BusinessParameter,
     EndpointOperation,
@@ -108,7 +113,7 @@ def _operation(
     response_limit_bytes: int = 1024 * 1024,
 ) -> EndpointOperation:
     return EndpointOperation(
-        name="search",
+        operation=ProviderOperation.SEARCH,
         path_template="/v1/search",
         expected_top_level=expected_top_level,
         query_parameters=(
@@ -133,6 +138,12 @@ def _registry(
             ProviderEndpoint(
                 provider_key=f"unit_test_{index}",
                 hostname=HOSTNAME,
+                capabilities=ProviderCapabilities(
+                    provider_key=f"unit_test_{index}",
+                    display_name="Unit Test",
+                    content_scope="synthetic test records",
+                    metadata=MetadataCapabilities((selected_operation.operation,)),
+                ),
                 operations=(selected_operation,),
             )
             for index in range(providers)
@@ -294,14 +305,26 @@ def test_request_parameter_boundaries_fail_before_dns(
 
 def test_detail_external_id_is_encoded_as_one_path_segment() -> None:
     detail = EndpointOperation(
-        "detail",
+        ProviderOperation.DETAIL,
         "/v1/items/{external_id}",
         JsonTopLevel.OBJECT,
         path_parameter=BusinessParameter.EXTERNAL_ID,
         required_parameters=(BusinessParameter.EXTERNAL_ID,),
     )
     registry = EndpointRegistry(
-        (ProviderEndpoint("unit_test_0", HOSTNAME, (detail,)),)
+        (
+            ProviderEndpoint(
+                "unit_test_0",
+                HOSTNAME,
+                ProviderCapabilities(
+                    provider_key="unit_test_0",
+                    display_name="Unit Test",
+                    content_scope="synthetic test records",
+                    metadata=MetadataCapabilities((ProviderOperation.DETAIL,)),
+                ),
+                (detail,),
+            ),
+        )
     )
     factory = MockTransportFactory(lambda _: _response())
     _fetch(

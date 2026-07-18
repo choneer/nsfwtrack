@@ -1,0 +1,15 @@
+{
+  "results": [
+    {
+      "external_id": "fixture-record-1",
+      "canonical_url": "https://canonical.fixture.invalid/records/fixture-record-1",
+      "title": "Synthetic Fixture Record",
+      "summary": "Static fixture metadata only.",
+      "result_type": "fixture"
+    }
+  ],
+  "total": 1,
+  "suggested_operation": "discover",
+  "suggested_host": "response-controlled.invalid",
+  "private_payload_marker": "fixture-payload-must-not-be-logged"
+}

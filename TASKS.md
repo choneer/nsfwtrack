@@ -2,7 +2,7 @@
 
 按顺序执行，每完成一项打个 [x]。
 
-## 当前状态（Phase 5-N3 Provider 合同与下载规划完成）
+## 当前状态（Phase 5-N4A Provider 基础设施本地完成）
 
 当前稳定版与最新 Release：`v1.1.0`。下一目标版本为 `v1.2.0`，方向为
 首个 NSFW 核心 Provider、搜索与手动入库、受控下载、手动来源检查更新和
@@ -10,9 +10,11 @@
 和 immutable DTO；N2 已完成 Schema 4 来源追踪、backup v2 与 v1 restore，
 Actions run `29637868492` 的两个 job 均成功。N3 已完成 Provider capability、
 认证、Secret Vault、Asset/Locator、受控下载 MVP、状态矩阵和用户批准模板的
-纯文档规划。应用仍为 `1.1.0`、Schema 为 `4`，production registry 为空，
-无真实 Provider、搜索页面、认证、下载或新网络入口。N4 等待用户提交完整
-Provider Approval。
+纯文档规划。N4A 已实现 capability/Protocol/SourceAsset/Auth 状态/typed
+Registry/Outbound 基础和 test-only Fixture Provider，初始全量 `934 passed`，
+最终安全复核后全量 `938 passed`。
+应用仍为 `1.1.0`、Schema 为 `4`，production registry 为空，无真实 Provider、
+搜索页面、认证、下载或新网络入口。真实 N4 仍等待完整 Provider Approval。
 
 ### Phase 5-P1 / P2 至 R2 路线
 
@@ -118,6 +120,34 @@ Provider Approval。
 - [x] 本阶段未选择、命名、搜索、访问、批准或实现真实 Provider，未修改代码、
   测试、配置、依赖、Schema、Migration、Backup、Adapter、Registry、Outbound、
   路由、模板、i18n、Docker 或 CI，未调用或编写 Hermes，未接触既有 `data/`
+
+#### Phase 5-N4A - Provider 基础设施与 Fixture-only Reference Provider
+
+- [x] 实现 immutable `ProviderCapabilities`、五层 `ProviderOperation` 与
+  Metadata/Auth/Discovery/Asset/Download capability dataclass，跨层/重复/空
+  manifest fail closed
+- [x] 实现 runtime-checkable Metadata/Auth/Discovery/Asset/Download Protocol，
+  `SourceAdapter` 保留为 capability-bearing Metadata alias
+- [x] 实现 immutable `SourceAsset`、opaque asset ID、kind/MIME/size/checksum/
+  auth/downloadable 验证，拒绝 URL ID 和非 canonical facts
+- [x] 实现 none/api_token/oauth/username_password/session_cookie AuthMode、七种
+  AuthState、时间事实约束和不含 payload/secret 的稳定 Provider error model
+- [x] 扩展 Endpoint Operation 为 typed ProviderOperation、GET/POST、JSON/form
+  body mapping、auth/cookie、response kind/content type、fixed safe header、
+  redirect、response/page limit 和 exact Asset Host allowlist
+- [x] ProviderEndpoint 强制同 key manifest、endpoint/capability exact match 和
+  auth/cookie mode 绑定；Production Registry 保持 `EndpointRegistry(())`
+- [x] OutboundRequest 继续无 URL/Host/Path/Method/Body/Header/Cookie/Secret 输入；
+  shared client 只从 code-owned mapping 生成 typed request，未实现 policy DNS 前拒绝
+- [x] Fixture Reference Provider 只位于 tests，使用 `.invalid` synthetic hosts、
+  静态 search/detail/assets JSON、Fake Resolver/Clock、MockTransport、Fake Backend
+- [x] 覆盖 search/detail/asset_list、capability missing、响应 Host/Operation/
+  Locator/downloadable 扩权拒绝、typed POST JSON/form 和日志脱敏
+- [x] 初始 N4A 17、N4A+N1 116、N2/source 46、全量 934 passed；最终安全复核后
+  N4A 21、全量 938 passed，`pip check` 和 `git diff --check` 通过，既有
+  `data/` 未接触
+- [x] 未实现真实 Provider/Auth/Vault/UI/DB import/download/recommendation/sync，
+  未改版本/Schema/Backup/依赖/配置/Docker/CI，未调用 Hermes/tag/Release/N100
 
 #### Phase 5-N4 - 首个用户批准的核心 Provider Adapter
 
