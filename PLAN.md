@@ -12,7 +12,7 @@
 当前应用版本与开发阶段：
 
 ```text
-v1.1.0 stable / Phase 5-N4A provider infrastructure locally complete
+v1.1.0 stable / Phase 5-N4B provider approval validation locally complete
 ```
 
 当前最新稳定版本为 `v1.1.0`，发布范围包含已冻结并验收完成的 Phase 3 后续媒体维护能力与 Phase 4 全部能力。
@@ -43,7 +43,7 @@ Release: https://github.com/choneer/nsfwtrack/releases/tag/v1.1.0
 维护与 CI：Phase 2-L1 至 L6 已随 v1.0.2 发布；L7 已随 v1.0.3 发布；L8 固定非 root 容器用户已随 v1.0.4 发布
 产品功能重启：Phase 3-A1 至 A6 已随 v1.0.5 发布；Phase 3-B1 / B2 已随 v1.0.6 发布；Phase 3-B3 / B4 / B5 / B6 / C1 / C2 / C3 / C4 / C5、D1 最终集成审查及 Phase 4-A1 / A2 / M1 / M2 / M3 / M4 / M5 均已随 v1.1.0 正式发布
 正式发布：Phase 4-R1 至 R3D 的审计、验收和候选冻结均已完成，Phase 4-R4 已正式发布 `v1.1.0`
-下一目标：v1.2.0 首个用户批准的 NSFW 核心 Provider、搜索与手动入库、受控下载、手动检查更新和集成发布；Phase 5-N4A 通用基础设施已完成，真实 N4 仍等待完整 Provider Approval
+下一目标：v1.2.0 首个用户批准的 NSFW 核心 Provider、搜索与手动入库、受控下载、手动检查更新和集成发布；Phase 5-N4A/N4B 通用基础设施与 machine-checkable Approval gate 已完成，真实 N4 仍等待完整 Provider Approval
 ```
 
 当前完成度估算：
@@ -54,6 +54,7 @@ Release: https://github.com/choneer/nsfwtrack/releases/tag/v1.1.0
 当前开发状态：Phase 5-N2 Schema 4 来源追踪与 backup v2 已完成，Actions run `29637868492` 的两个 job 均成功；production registry 为空，无真实 Provider；应用仍为 `1.1.0`、Schema 为 4
 Phase 5-N3：Provider 合同、认证、资产、动态 Locator、受控下载 MVP、状态矩阵和批准模板已完成；仅新增/更新授权文档，未实现 Provider 或下载
 Phase 5-N4A：capability/Protocol/SourceAsset/Auth 状态/typed Registry/Outbound 基础和 test-only Fixture Provider 已完成；初始全量 934 passed，最终安全复核后全量 938 passed，production registry 仍为空
+Phase 5-N4B：immutable Approval/Host/Operation/Auth/Asset/Download model、纯本地一致性 Validator 与 opaque Asset ID 强化已完成；N4B 27、N4A/Adapter/Outbound 120、全量 965 passed，production registry 仍为空
 WSL 验收：已完成
 N100 部署：尚未开始，等待用户明确授权
 ```
@@ -146,6 +147,29 @@ N4A 将 N3 的 provider-neutral 合同落为基础设施，不选择或实现真
 N4A 不实现真实认证、Secret Vault、UI、数据库入库、下载、推荐、同步或真实网络，
 不修改版本、Schema、Backup、依赖、配置、Docker 或 CI。Production Provider
 Registry 继续为空，真实 N4 的 Approval 门禁不因 Fixture Provider 而放宽。
+
+### Phase 5-N4B：Provider Approval Validator 与 Asset ID 契约强化
+
+N4B 将真实 N4 前的人工 Approval 门禁落为 machine-checkable 本地合同：
+
+- frozen/slots `ProviderApproval`、exact-purpose Host、独立 Operation、Auth、Asset、
+  Download、attribution、rate、scope 与稳定错误类型
+- Approval 与 `ProviderCapabilities` / `ProviderEndpoint` 的 Provider identity、
+  operation set、Host mapping、path/typed parameter、method/encoding、auth/cookie、
+  response/content type、redirect、Asset Host、limit/rate/exclusion 精确比较
+- Approval 只用于审查，不生成 Capability/Endpoint/Registry，不写文件/数据库，
+  不访问 DNS、网络、Vault、环境变量、URL 或动态代码
+- fixture scope 强制 `.invalid` Host 并禁止 activation；当前未实现 operation/policy
+  返回 incomplete，Production Registry 继续为 `EndpointRegistry(())`
+- `SourceAsset.asset_id` 收紧为 ASCII 字母/数字/`-_.~` opaque allowlist，拒绝
+  URL/URI、绝对/相对路径、分隔符、dot segment、空白、控制和非 ASCII；
+  `external_id` 兼容语义不变
+- N4B 专项 27、N4A/Adapter/Outbound 回归 120、全量 965 tests、`pip check` 和
+  `git diff --check` 全部通过
+
+N4B 不选择或批准真实 Provider，不实现认证、Vault、UI、入库、Asset Resolve、
+下载、推荐或同步，也不修改版本、Schema、Migration、Backup、依赖、Docker 或 CI。
+真实 N4 仍需用户完整填写模板并明确批准 production-scope 合同。
 
 ### Phase 5-P1：v1.2.0 外部内容源规划（历史，已由 P2 取代）
 
@@ -1778,14 +1802,15 @@ K1 审计结论：
 4. Phase 5-P2 长期产品原则与路线对齐（已完成）
 5. Phase 5-N3 核心 Provider 合同、认证、内容与下载需求规划；已完成，不选择 Provider
 6. Phase 5-N4A Provider 基础设施与 Fixture-only Reference Provider；已完成
-7. Phase 5-N4 首个用户批准的 NSFW 核心 Provider Adapter；等待完整 Approval
-8. Phase 5-N5 搜索、详情预览与手动确认入库
-9. Phase 5-N6 用户明确确认的受控下载闭环
-10. Phase 5-N7 手动来源检查、差异更新、安全与体验收尾
-11. Phase 5-I1 完整集成冻结
-12. Phase 5-R1 唯一一次 Hermes 最终独立验收
-13. Phase 5-R2 v1.2.0 正式发布
-14. N100 / 目标主机部署仍未授权，不属于本路线
+7. Phase 5-N4B Provider Approval Validator 与 Asset ID 契约强化；已完成
+8. Phase 5-N4 首个用户批准的 NSFW 核心 Provider Adapter；等待完整 Approval
+9. Phase 5-N5 搜索、详情预览与手动确认入库
+10. Phase 5-N6 用户明确确认的受控下载闭环
+11. Phase 5-N7 手动来源检查、差异更新、安全与体验收尾
+12. Phase 5-I1 完整集成冻结
+13. Phase 5-R1 唯一一次 Hermes 最终独立验收
+14. Phase 5-R2 v1.2.0 正式发布
+15. N100 / 目标主机部署仍未授权，不属于本路线
 ```
 
 已完成依据：

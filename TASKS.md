@@ -2,7 +2,7 @@
 
 按顺序执行，每完成一项打个 [x]。
 
-## 当前状态（Phase 5-N4A Provider 基础设施本地完成）
+## 当前状态（Phase 5-N4B Provider Approval Validator 本地完成）
 
 当前稳定版与最新 Release：`v1.1.0`。下一目标版本为 `v1.2.0`，方向为
 首个 NSFW 核心 Provider、搜索与手动入库、受控下载、手动来源检查更新和
@@ -11,8 +11,9 @@
 Actions run `29637868492` 的两个 job 均成功。N3 已完成 Provider capability、
 认证、Secret Vault、Asset/Locator、受控下载 MVP、状态矩阵和用户批准模板的
 纯文档规划。N4A 已实现 capability/Protocol/SourceAsset/Auth 状态/typed
-Registry/Outbound 基础和 test-only Fixture Provider，初始全量 `934 passed`，
-最终安全复核后全量 `938 passed`。
+Registry/Outbound 基础和 test-only Fixture Provider；N4B 已实现 immutable
+Approval model、纯本地一致性 Validator 和 opaque Asset ID 强化，全量
+`965 passed`。
 应用仍为 `1.1.0`、Schema 为 `4`，production registry 为空，无真实 Provider、
 搜索页面、认证、下载或新网络入口。真实 N4 仍等待完整 Provider Approval。
 
@@ -148,6 +149,32 @@ Registry/Outbound 基础和 test-only Fixture Provider，初始全量 `934 passe
   `data/` 未接触
 - [x] 未实现真实 Provider/Auth/Vault/UI/DB import/download/recommendation/sync，
   未改版本/Schema/Backup/依赖/配置/Docker/CI，未调用 Hermes/tag/Release/N100
+
+#### Phase 5-N4B - Provider Approval Validator 与 Asset ID 契约强化
+
+- [x] 实现 frozen/slots ProviderApproval、scope、Host purpose、独立 Operation、
+  Auth、Asset、Download、attribution、rate 和稳定 ValidationError 类型
+- [x] Approval 至少含 Metadata operation，Capability/Operation exact match，
+  duplicate/cross-layer/unused Host/explicit exclusion 全部 fail closed
+- [x] exact Host 只允许 lowercase ASCII hostname:443，拒绝 wildcard、IP、
+  scheme/path/query/fragment，并隔离 metadata/auth/asset purpose 与 credential 权限
+- [x] Validator 精确比较 Provider identity、Capability/Endpoint operation set、
+  Host mapping、path/typed mapping、method/encoding、auth/cookie、response/content
+  type、redirect、Asset Host、response/page/asset/download limit 和 rate policy
+- [x] Approval 不构造或注册 Capability/Endpoint/Registry，不读文件/数据库/Vault，
+  不调用 Resolver/Transport/DNS/网络；Production Registry 保持空
+- [x] activation gate 拒绝 fixture scope，并以 incomplete 阻止当前未实现 Auth、
+  Discovery、Asset Resolve、Download、auth/cookie/non-JSON/redirect policy
+- [x] bounded secret-field scanner 拒绝 secret/password/token/cookie value、
+  NaN/Infinity、超深/超量/非 JSON 对象，稳定错误和日志不回显 marker/repr
+- [x] `SourceAsset.asset_id` 只允许有界 ASCII `A-Za-z0-9-_.~`，禁止首尾点、
+  连续点、URL/URI、路径/分隔符/dot segment、空白、控制和非 ASCII；
+  `external_id` 不变
+- [x] N4B 27、N4A/Adapter/Outbound 120、全量 965 passed，`pip check` 与
+  `git diff --check` 通过；只使用 `.invalid` synthetic Host 和内存对象
+- [x] 未新增真实 Provider/认证/Vault/UI/入库/Asset Resolve/下载/推荐/同步，
+  未改版本/Schema/Migration/Backup/依赖/Docker/CI，未接触 data/Hermes/tag/
+  Release/N100
 
 #### Phase 5-N4 - 首个用户批准的核心 Provider Adapter
 

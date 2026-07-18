@@ -25,6 +25,9 @@ MAX_MIME_TYPE_LENGTH = 255
 MAX_PROVIDER_ERROR_RETRY_SECONDS = 3600
 
 _PROVIDER_KEY_PATTERN = re.compile(r"[a-z][a-z0-9_-]{0,63}")
+_ASSET_ID_PATTERN = re.compile(
+    r"[A-Za-z0-9_~-](?:[A-Za-z0-9._~-]{0,510}[A-Za-z0-9_~-])?"
+)
 _MIME_TYPE_PATTERN = re.compile(
     r"[a-z0-9][a-z0-9!#$&^_.+-]{0,126}/"
     r"[a-z0-9][a-z0-9!#$&^_.+-]{0,126}"
@@ -525,10 +528,8 @@ class SourceAsset:
             maximum=MAX_ASSET_ID_LENGTH,
         )
         if (
-            "://" in self.asset_id
-            or self.asset_id.startswith("//")
-            or "\\" in self.asset_id
-            or any(character.isspace() for character in self.asset_id)
+            _ASSET_ID_PATTERN.fullmatch(self.asset_id) is None
+            or ".." in self.asset_id
         ):
             raise ValueError("asset_id must be an opaque identifier")
         if not isinstance(self.kind, SourceAssetKind):

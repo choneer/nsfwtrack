@@ -4,6 +4,16 @@
 
 ### Added
 
+- Added Phase 5-N4B frozen Provider Approval models and a pure local Validator
+  that compares Provider identity, capability/operation sets, exact hosts,
+  endpoint request/response policy, auth/cookies, redirects, asset hosts, rate,
+  and size limits without constructing or registering a Provider.
+- Added a separate activation gate that rejects fixture approvals and runtime
+  capabilities not implemented by the shared client. Stable validation errors
+  contain only bounded codes, and a bounded secret-field scanner rejects
+  password/token/cookie/secret value fields without echoing their contents.
+- Added 27 deterministic N4B tests using only in-memory objects and reserved
+  `.invalid` hosts. The Production Provider Registry remains empty.
 - Added the Phase 5-N4A provider-neutral foundation: immutable five-layer
   `ProviderCapabilities`, typed layer Protocols, `SourceAsset`, five auth modes,
   seven auth states, and stable redacted Provider errors. No credential or
@@ -47,6 +57,10 @@
 
 ### Changed
 
+- Strengthened `SourceAsset.asset_id` to an ASCII opaque-identifier allowlist.
+  URL/URI, absolute or relative path, slash/backslash, dot-segment, whitespace,
+  control-character, non-ASCII, leading/trailing-dot, and repeated-dot forms are
+  rejected. Existing `external_id` semantics are unchanged.
 - Changed the current database schema version from 3 to 4 without changing the
   application version (`1.1.0`). Backup restore now acquires `BEGIN IMMEDIATE`,
   treats source conflicts as whole-restore blockers, and preserves local source
@@ -58,6 +72,10 @@
 
 ### Security
 
+- Approval and runtime policy remain separate: no Approval API writes a file or
+  database, performs DNS/network access, loads code, or creates an
+  `EndpointRegistry`. N4B passed 27 focused tests, 120 N4A/Adapter/Outbound
+  regressions, all 965 pytest tests, `pip check`, and `git diff --check`.
 - `OutboundRequest` still exposes no URL, host, path, method, body, header,
   cookie, token, password, or locator. Typed bodies and fixed headers are
   generated only from Registry-owned definitions; declared auth/cookie,
@@ -102,6 +120,9 @@
 
 ### Documentation
 
+- Updated the Provider contract and approval template with the N4B
+  machine-checkable gate while preserving the requirement for a separate,
+  complete user approval before any real N4 Provider work.
 - Updated the Provider contract and project state for N4A while preserving the
   real-N4 Provider Approval gate. Application version remains `1.1.0`, Schema
   remains `4`, Backup remains `nsfwtrack.backup.v2`, and no real Provider,

@@ -1,5 +1,25 @@
 """Provider-neutral source adapter contracts and endpoint registry."""
 
+from app.source_adapters.approval import (
+    APPROVAL_FORMAT_VERSION,
+    ApprovalAttributionPolicy,
+    ApprovalValidationError,
+    ApprovalValidationErrorCode,
+    ApprovedAssetPolicy,
+    ApprovedAuth,
+    ApprovedDownloadPolicy,
+    ApprovedHost,
+    ApprovedHostPurpose,
+    ApprovedOperation,
+    ApprovedRatePolicy,
+    ProviderApproval,
+    ProviderApprovalScope,
+    validate_approval_against_capabilities,
+    validate_approval_against_endpoint,
+    validate_approval_for_activation,
+    validate_approval_secret_fields,
+    validate_provider_approval,
+)
 from app.source_adapters.contracts import (
     AssetCapabilities,
     AuthCapabilities,
@@ -45,7 +65,18 @@ from app.source_adapters.registry import (
 )
 
 __all__ = [
+    "APPROVAL_FORMAT_VERSION",
+    "ApprovalAttributionPolicy",
+    "ApprovalValidationError",
+    "ApprovalValidationErrorCode",
     "AssetCapabilities",
+    "ApprovedAssetPolicy",
+    "ApprovedAuth",
+    "ApprovedDownloadPolicy",
+    "ApprovedHost",
+    "ApprovedHostPurpose",
+    "ApprovedOperation",
+    "ApprovedRatePolicy",
     "AuthCapabilities",
     "BusinessParameter",
     "CookiePolicy",
@@ -71,6 +102,8 @@ __all__ = [
     "ProviderError",
     "ProviderErrorCode",
     "ProviderOperation",
+    "ProviderApproval",
+    "ProviderApprovalScope",
     "RedirectPolicy",
     "RequestEncoding",
     "ResponseKind",
@@ -84,4 +117,9 @@ __all__ = [
     "SourceSearchPage",
     "SourceSearchResult",
     "SourceTag",
+    "validate_approval_against_capabilities",
+    "validate_approval_against_endpoint",
+    "validate_approval_for_activation",
+    "validate_approval_secret_fields",
+    "validate_provider_approval",
 ]

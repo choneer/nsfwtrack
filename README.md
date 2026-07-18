@@ -10,9 +10,9 @@ Current stable version: `v1.1.0`.
 
 Latest Release: [NSFWTrack v1.1.0](https://github.com/choneer/nsfwtrack/releases/tag/v1.1.0).
 
-Current status: `Phase 5-N4A provider-neutral infrastructure and its fixture-only
-Reference Provider are locally complete; no real Provider is selected and the
-production Provider Registry remains empty`.
+Current status: `Phase 5-N4B Provider Approval validation and the strengthened
+opaque Asset ID contract are locally complete; no real Provider is selected and
+the production Provider Registry remains empty`.
 
 The long-term product baseline is recorded in [PRODUCT_VISION.md](PRODUCT_VISION.md).
 Ordinary all-ages content may remain naturally compatible with the generic
@@ -21,10 +21,11 @@ model, or the roadmap. NSFWTrack is not being renamed to MediaTrack and is not
 becoming a general film/television catalog.
 
 The next target version remains `v1.2.0`. Phase 5-N4A implements only the
-provider-neutral capability, Protocol, DTO, Registry, and Outbound foundations
-plus a synthetic test-only Reference Provider. Real N4 work remains blocked
-until the user completes and explicitly approves the blank Provider Approval
-Template. N5 adds search, detail preview, and manual import; N6 adds an
+provider-neutral runtime foundation, and N4B adds an immutable local Approval
+model plus exact Approval/Capability/Endpoint validation. Neither phase selects
+or registers a real Provider. Real N4 work remains blocked until the user
+completes and explicitly approves the blank Provider Approval Template. N5 adds
+search, detail preview, and manual import; N6 adds an
 explicitly confirmed controlled-download loop; N7 completes manual checking,
 updates, security, and UX before integration and release.
 
@@ -54,6 +55,34 @@ the formal `v1.1.0` release.
 
 Phase 4 release evidence remains archived below and is unchanged by this
 development phase.
+
+## Phase 5-N4B Provider Approval Validation
+
+Phase 5-N4B adds frozen `ProviderApproval`, Host, Operation, Auth, Asset,
+Download, attribution, rate, scope, and stable-error models. The pure local
+Validator checks exact Provider identity, capability and endpoint operation
+sets, Host ID/hostname/purpose mappings, typed parameters, method/encoding,
+auth/cookies, response/content type, redirects, Asset Hosts, exclusions, and
+bounded limits against code-owned `ProviderCapabilities` and
+`ProviderEndpoint` objects.
+
+Approval is review data, not runtime registration. The module performs no
+file, database, DNS, network, Vault, import, or Registry mutation and exposes no
+Approval-to-Registry builder. A separate activation gate rejects `.invalid`
+test fixtures and any current unimplemented Auth, Discovery, Asset Resolve,
+Download, auth/cookie, non-JSON, or redirect behavior. The Production Provider
+Registry remains exactly empty.
+
+`SourceAsset.asset_id` now accepts only bounded ASCII letters, digits, `-`,
+`_`, `.`, and `~`, with no leading/trailing dot or consecutive dots. URL/URI,
+absolute/relative path, slash/backslash, dot segment, whitespace, control, and
+non-ASCII forms fail closed. `external_id` compatibility is unchanged.
+
+N4B verification passed 27 focused tests, 120 combined N4A/Adapter/Outbound
+regressions, and all 965 pytest tests. `pip check` and `git diff --check`
+passed. Application `1.1.0`, Schema `4`, Backup v2, dependencies, configuration,
+Docker, CI, UI, authentication, Vault, import, download, recommendation, and
+synchronization remain unchanged.
 
 ## Phase 5-N4A Provider Infrastructure and Fixture Reference
 

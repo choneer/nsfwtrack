@@ -4,6 +4,23 @@
 > for, recommend, or substitute a Provider, host, endpoint, authentication mode,
 > or download source. Unchecked or incomplete sections are not approved.
 
+## Machine-checkable gate
+
+Phase 5-N4B adds a frozen, typed, Provider-neutral `ProviderApproval` model and
+pure local validation against code-owned `ProviderCapabilities` and
+`ProviderEndpoint` objects. Completing this human template does not construct,
+register, enable, or contact a Provider. Before any real N4 activation, every
+approved fact must be represented explicitly in the typed production-scope
+Approval and pass all capability, operation, host, method, encoding, auth,
+cookie, response, redirect, Asset Host, rate, and limit comparisons.
+
+Fixture approvals use only reserved `.invalid` hosts and are explicitly
+test-only; they can never pass the production activation gate. Approval objects
+contain policy facts only, never token, password, cookie, client-secret, or
+other credential values. Missing or mismatched facts remain blockers, and no
+Approval is loaded from a URL, environment substitution, include, template, or
+Python import.
+
 ## 1. Approval record
 
 - Approval identifier: `<required>`

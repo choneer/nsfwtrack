@@ -48,6 +48,22 @@ Protocols are declarations only; no real authentication, vault, discovery, or
 download implementation exists. The only concrete asset-capable implementation
 is a test-only synthetic Fixture Provider.
 
+### 2.1A Provider Approval validation
+
+Phase 5-N4B implements a separate frozen, typed `ProviderApproval` contract and
+pure local Validator. Approval objects describe reviewed policy; they do not
+construct a `ProviderCapabilities`, `ProviderEndpoint`, or `EndpointRegistry`
+and cannot register or contact a Provider.
+
+The Validator compares Provider identity, operation/capability parity, exact
+Host ID-to-hostname/purpose mappings, path and typed parameter mappings,
+method/encoding, auth/cookies, response shape/content type, redirect and Asset
+Host allowlists, response/page/download limits, current concurrency/retry
+policy, asset/download kinds, attribution, and explicit exclusions. Fixture
+scope requires `.invalid` hosts and is always activation-ineligible. Current
+unimplemented operations and policies return a stable incomplete result before
+activation.
+
 ### 2.2 Endpoint Registry
 
 The immutable registry in `app/source_adapters/registry.py` currently binds a
@@ -425,7 +441,12 @@ class SourceAsset:
 `preview`, `media`, and `attachment`. A Provider approval selects only the kinds
 it needs.
 
-`asset_id` is an opaque Provider-scoped identifier, never an arbitrary URL.
+`asset_id` is an opaque Provider-scoped identifier, never an arbitrary URL,
+URI, locator, or path. The current DTO accepts only bounded ASCII letters,
+digits, `-`, `_`, `.`, and `~`; the first and last character cannot be `.`, and
+consecutive dots are rejected. Slash, backslash, whitespace, control,
+non-ASCII, scheme, network-path, absolute/relative path, drive-path, and dot-
+segment forms fail closed. This strengthening does not change `external_id`.
 `downloadable=True` records Provider/manifest eligibility, not user consent.
 Search results carry no download authority. Detail may carry bounded summaries;
 the complete list comes only from `asset_list`.
@@ -690,6 +711,19 @@ Reference Provider, Registry, hostnames, paths, and payloads exist only under
 `tests/`, use synthetic static fixtures and fake network components, and cannot
 enter the production Registry. N4A implements no credential handling, Secret
 Vault, UI, database import, download, recommendation, or synchronization.
+
+### N4B: approval validator and opaque Asset ID
+
+N4B implements the machine-checkable Approval gate and strengthened Asset ID
+grammar without selecting a Provider. Its tests use only in-memory static
+objects, synthetic markers, and reserved `.invalid` hosts. It adds no loader,
+network call, registry mutation, credential field, auth flow, Vault, UI,
+database import, Asset Resolve, download, recommendation, or synchronization.
+
+The empty Production Provider Registry remains authoritative. A future real N4
+Provider must have a complete user-supplied template, an explicit
+production-scope Approval, and separately code-owned Capability/Endpoint
+objects that pass validation. N4B itself approves none of those facts.
 
 ### N4: first approved Provider foundation
 

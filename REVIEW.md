@@ -176,6 +176,36 @@
   download/recommendation/sync/version/Schema/Backup/dependency/config/Docker/CI/
   Hermes/tag/Release/N100 或既有 data 访问
 
+### Phase 5-N4B Provider Approval Validator 与 Asset ID 强化（已完成）
+
+- [x] **5.N4B.1. Immutable model** — Approval、scope、Host/Operation/Auth/Asset/
+  Download/attribution/rate/error 是否 frozen/slots/typed、bounded 且无动态字段
+- [x] **5.N4B.2. Approval completeness** — 是否至少一个 Metadata operation，
+  Capability/Operation exact match，无 duplicate/cross-layer/unused authority，
+  explicit exclusion 与批准项是否严格互斥
+- [x] **5.N4B.3. Exact Host** — 是否只接受 lowercase ASCII exact hostname:443，
+  拒绝 wildcard/IP/scheme/path/query/fragment，并按 ID 隔离 metadata/auth/asset
+  purpose、credential 与 redirect/Asset Host 权限
+- [x] **5.N4B.4. Runtime comparison** — Provider key/name/scope、Capability/
+  Endpoint operation set、path/parameter、method/encoding、auth/cookie、response/
+  content type、redirect、Asset Host、limit/rate 是否逐项比较
+- [x] **5.N4B.5. Auth/secret** — none/Auth Operation、OAuth state+PKCE、session
+  cookie、password retention、credential Host 是否 fail closed；secret marker、
+  Approval repr、URL/凭据/异常是否不进入稳定错误或日志
+- [x] **5.N4B.6. Separation** — Approval 是否无 Registry builder/auto-register、
+  文件/DB/Vault/Resolver/Transport/DNS/网络副作用；fixture scope 与未实现能力是否
+  在 activation gate 拒绝，Production Registry 是否精确为空
+- [x] **5.N4B.7. Asset ID** — 是否只允许 bounded ASCII `A-Za-z0-9-_.~`，拒绝
+  URL/URI、绝对/相对/drive/network path、slash/backslash、dot segment、空白、
+  控制、非 ASCII、首尾点和连续点，同时保持 external_id 兼容
+- [x] **5.N4B.8. Determinism** — N4B tests 是否只用 in-memory synthetic object、
+  marker 和 `.invalid` Host，不读取 data、不创建 DNS/互联网请求
+- [x] **5.N4B.9. Verification** — N4B 27、N4A/Adapter/Outbound 120、全量 965、
+  pip check/diff check 是否通过，应用是否仍 1.1.0、Schema 4、Backup v2
+- [x] **5.N4B.10. Scope** — 是否无真实 Provider/Auth/Vault/UI/DB import/Asset
+  Resolve/download/recommendation/sync/dependency/config/Schema/Migration/Backup/
+  Docker/CI/Hermes/tag/Release/N100 或既有 data 访问
+
 - [ ] **5.1. Provider 批准与定位** — 每个真实 Provider 是否由用户明确批准，
   核心用途是否符合 NSFW-first 定位，且固定 Host/Endpoint、认证、搜索、详情、
   下载、响应、限流、条款与使用边界是否完整
