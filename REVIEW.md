@@ -206,6 +206,34 @@
   Resolve/download/recommendation/sync/dependency/config/Schema/Migration/Backup/
   Docker/CI/Hermes/tag/Release/N100 或既有 data 访问
 
+### Phase 5-N4C 三类 Provider 技术研究与 Approval 草案（已完成）
+
+- [x] **5.N4C.1. 公开研究证据** — 是否记录 JavdBviewed/JavSP/FnDepot/Venera
+  的默认分支、完整 commit SHA、许可证状态、实际参考文件和 adopt/reject 结论
+- [x] **5.N4C.2. 影视模型** — 是否覆盖统一 DTO、search/detail/asset_list、
+  provenance、用户字段优先、缺失不删除、空值不覆盖、Provider-scoped identity
+  和 deterministic merge，且 Asset 不自动下载
+- [x] **5.N4C.3. 订阅目录** — 是否分离 Catalog 与 runtime Provider，定义
+  Subscription/Candidate/Revision/Diff/Validation、主动 POST refresh、全量验证、
+  候选 review/disable，且绝不访问 candidate baseUrl
+- [x] **5.N4C.4. 播放边界** — 是否只设计 PlaybackGroup/Source/Variant/Manifest/
+  Segment、playback_list/resolve 与状态机，普通/premium 不授予认证/播放/下载权限
+- [x] **5.N4C.5. 油猴边界** — 用户独立脚本缺失是否明确阻塞且不猜造，公开历史
+  脚本是否仅静态研究并拒绝执行、会员伪装、访问控制绕过、免登录提取和下载
+- [x] **5.N4C.6. 漫画模型** — 是否覆盖 search/category/detail/chapter/page/asset
+  DTO 与阅读流、远程/本地状态分离，且未来仅允许固定审查 Python Adapter，
+  禁止 JavaScript 引擎和远程 Source 安装
+- [x] **5.N4C.7. 状态矩阵** — 三份技术研究是否各自包含 Operation、网络副作用、
+  数据库写入、权限、认证、错误和结果不确定性矩阵以及完整稳定状态集合
+- [x] **5.N4C.8. Approval 草案** — 三份 Approval 是否仅 placeholder、明确
+  draft/not approved、无真实 Host/Endpoint/凭据/approved 状态且不能激活 Registry
+- [x] **5.N4C.9. 路线与缺失项** — 是否固定 N4D/N4E/N4F/N4G/N5/N6/N7 顺序，
+  明确订阅 JSON/独立脚本缺失，并要求每个真实阶段单独完整 Approval
+- [x] **5.N4C.10. 范围保持** — 是否只改最多十五个授权文档，保持应用 1.1.0、
+  Schema 4、Backup v2、空 Registry、依赖/配置/代码/测试/Docker/CI 不变，且无
+  候选地址/真实媒体/data/Hermes/tag/Release/N100 访问或动作
+- [x] **5.N4C.11. 本地门禁** — 全量 965 tests、pip check 与 diff check 是否通过
+
 - [ ] **5.1. Provider 批准与定位** — 每个真实 Provider 是否由用户明确批准，
   核心用途是否符合 NSFW-first 定位，且固定 Host/Endpoint、认证、搜索、详情、
   下载、响应、限流、条款与使用边界是否完整

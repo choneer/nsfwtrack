@@ -10,9 +10,10 @@ Current stable version: `v1.1.0`.
 
 Latest Release: [NSFWTrack v1.1.0](https://github.com/choneer/nsfwtrack/releases/tag/v1.1.0).
 
-Current status: `Phase 5-N4B Provider Approval validation and the strengthened
-opaque Asset ID contract are locally complete; no real Provider is selected and
-the production Provider Registry remains empty`.
+Current status: `Phase 5-N4C video metadata, subscription/playback, and comic
+Provider research plus placeholder-only Approval drafts are locally complete;
+no real Provider is selected and the production Provider Registry remains
+empty`.
 
 The long-term product baseline is recorded in [PRODUCT_VISION.md](PRODUCT_VISION.md).
 Ordinary all-ages content may remain naturally compatible with the generic
@@ -20,14 +21,14 @@ model, but it is secondary and does not drive Provider selection, the data
 model, or the roadmap. NSFWTrack is not being renamed to MediaTrack and is not
 becoming a general film/television catalog.
 
-The next target version remains `v1.2.0`. Phase 5-N4A implements only the
-provider-neutral runtime foundation, and N4B adds an immutable local Approval
-model plus exact Approval/Capability/Endpoint validation. Neither phase selects
-or registers a real Provider. Real N4 work remains blocked until the user
-completes and explicitly approves the blank Provider Approval Template. N5 adds
-search, detail preview, and manual import; N6 adds an
-explicitly confirmed controlled-download loop; N7 completes manual checking,
-updates, security, and UX before integration and release.
+The next target version remains `v1.2.0`. Phase 5-N4A implements the
+provider-neutral runtime foundation, N4B adds exact local Approval validation,
+and N4C records three Provider architecture directions without selecting or
+registering a real Provider. N4D, N4E, N4F, and N4G remain blocked behind
+separate complete Approvals for video metadata, a fixed subscription catalog,
+runtime streaming, and comics. N5 adds search, detail preview, and manual
+import; N6 adds an explicitly confirmed controlled-download loop; N7 completes
+manual checking, updates, security, and UX before integration and release.
 
 Provider authentication, Provider-specific parsing, controlled downloads,
 local recommendations, optional AI, and visible default-off background sync
@@ -55,6 +56,38 @@ the formal `v1.1.0` release.
 
 Phase 4 release evidence remains archived below and is unchanged by this
 development phase.
+
+## Phase 5-N4C Provider Direction Research
+
+Phase 5-N4C adds seven documentation-only outputs under
+[`docs/provider-research/`](docs/provider-research/): technical studies and
+placeholder-only Approval drafts for video metadata, subscription/future
+playback, and comics, plus a fixed Provider roadmap. The studies define
+Provider-neutral DTOs, separate operations, provenance and merge rules,
+subscription Candidate/Revision/Diff state, playback and download state
+machines, comic reading flow, and operation/network/database/permission/auth/
+error/unknown matrices.
+
+The reviewed public snapshots are `lmixture/JavdBviewed` at
+`e26dfdf97c1a68a8f27035ecf8e982208bdc79e0`, `Yuukiy/JavSP` at
+`c4cfe61188234dd24c75b53b42b054327fef3e58`, `EWEDLCM/FnDepot` at
+`e565623a1797aaf40b6b376720046d9451bc6a0d`, and `venera-app/venera` at
+`a0eba914f4c2a84ac1bc925adec2baabe920b9be`. Only architecture ideas are
+recorded; no licensed implementation code is copied.
+
+The user-provided subscription JSON and standalone userscript were unavailable,
+so their contents are not invented. Candidate addresses were not contacted,
+and the public JavdBviewed userscript was not treated as a substitute or
+executed. Future Comic Providers must be fixed reviewed Python adapters; remote
+JavaScript execution is prohibited. Ordinary and `premium` subscription groups
+remain catalog labels and grant no authentication, playback, or download
+authority.
+
+All three Approval drafts remain `draft / not approved` with placeholders only.
+Application `1.1.0`, Schema `4`, Backup `nsfwtrack.backup.v2`, dependencies,
+runtime code, tests, configuration, Docker/CI, and the empty Production
+Provider Registry are unchanged. Local verification passed all `965` pytest
+tests, `pip check`, and `git diff --check`.
 
 ## Phase 5-N4B Provider Approval Validation
 

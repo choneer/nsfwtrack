@@ -4,6 +4,17 @@
 
 ### Added
 
+- Added seven Phase 5-N4C research documents covering video metadata,
+  subscription catalogs and future playback, comic sources, three
+  placeholder-only Approval drafts, and the fixed N4D-N7 Provider roadmap.
+- Defined Provider-neutral video DTOs and separate search/detail/asset-list
+  operations with field provenance, deterministic conflict/merge rules, and
+  local user-state protection.
+- Defined subscription Candidate/Revision/Diff/Validation models, explicit
+  user-triggered refresh and review, future playback DTOs/state machines, and a
+  fixed-Python-adapter comic reading model. Every technical study includes
+  operation, network, database, permission, authentication, error, and unknown
+  matrices.
 - Added Phase 5-N4B frozen Provider Approval models and a pure local Validator
   that compares Provider identity, capability/operation sets, exact hosts,
   endpoint request/response policy, auth/cookies, redirects, asset hosts, rate,
@@ -72,6 +83,16 @@
 
 ### Security
 
+- N4C is documentation-only. Subscription candidate addresses were not
+  contacted, no script or remote JavaScript was executed, and no real Provider,
+  host, endpoint, credential, authentication, playback, download, or Registry
+  entry was added. Ordinary and `premium` catalog groups confer no authority.
+- All N4C Approval drafts remain `draft / not approved` and contain placeholders
+  only. Missing user subscription JSON and standalone userscript details are
+  recorded as blockers rather than inferred.
+- N4C local verification passed all 965 pytest tests, `pip check`, and
+  `git diff --check` while leaving application `1.1.0`, Schema `4`, Backup v2,
+  dependencies, runtime code, Docker/CI, and the Production Registry unchanged.
 - Approval and runtime policy remain separate: no Approval API writes a file or
   database, performs DNS/network access, loads code, or creates an
   `EndpointRegistry`. N4B passed 27 focused tests, 120 N4A/Adapter/Outbound
@@ -120,6 +141,16 @@
 
 ### Documentation
 
+- Recorded exact reviewed snapshots and licensing boundaries for JavdBviewed
+  `e26dfdf97c1a68a8f27035ecf8e982208bdc79e0`, JavSP
+  `c4cfe61188234dd24c75b53b42b054327fef3e58`, FnDepot
+  `e565623a1797aaf40b6b376720046d9451bc6a0d`, and Venera
+  `a0eba914f4c2a84ac1bc925adec2baabe920b9be`. Architecture concepts only were
+  retained; no reference implementation code was copied.
+- Fixed follow-up sequencing as N4D video metadata, N4E subscription catalog,
+  N4F streaming playback, N4G comics, N5 unified search/manual import, N6
+  controlled resource saving, and N7 controlled multi-source updates. Every
+  real Provider phase still requires a separate complete explicit Approval.
 - Updated the Provider contract and approval template with the N4B
   machine-checkable gate while preserving the requirement for a separate,
   complete user approval before any real N4 Provider work.
