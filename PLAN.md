@@ -12,7 +12,7 @@
 当前应用版本与开发阶段：
 
 ```text
-v1.1.0 stable / Phase 5-N4D-D-B0 repository evidence profile locally complete
+v1.1.0 stable / Phase 5-N5A Provider-neutral Search Orchestration Service locally complete
 ```
 
 当前最新稳定版本为 `v1.1.0`，发布范围包含已冻结并验收完成的 Phase 3 后续媒体维护能力与 Phase 4 全部能力。
@@ -43,7 +43,7 @@ Release: https://github.com/choneer/nsfwtrack/releases/tag/v1.1.0
 维护与 CI：Phase 2-L1 至 L6 已随 v1.0.2 发布；L7 已随 v1.0.3 发布；L8 固定非 root 容器用户已随 v1.0.4 发布
 产品功能重启：Phase 3-A1 至 A6 已随 v1.0.5 发布；Phase 3-B1 / B2 已随 v1.0.6 发布；Phase 3-B3 / B4 / B5 / B6 / C1 / C2 / C3 / C4 / C5、D1 最终集成审查及 Phase 4-A1 / A2 / M1 / M2 / M3 / M4 / M5 均已随 v1.1.0 正式发布
 正式发布：Phase 4-R1 至 R3D 的审计、验收和候选冻结均已完成，Phase 4-R4 已正式发布 `v1.1.0`
-下一目标：v1.2.0 三类 Provider 路线；Phase 5-N4A/N4B 通用基础设施、N4C 静态研究、N4D-A/B/C、N4D-D-A Artifact 离线门禁与 N4D-D-B0 固定仓库证据 profile 已完成，N4D-D-B/N4E/N4F/N4G 仍分别等待完整 Provider Approval
+下一目标：v1.2.0 三类 Provider 路线；Phase 5-N4A/N4B 通用基础设施、N4C 静态研究、N4D-A/B/C、N4D-D-A Artifact 离线门禁、N4D-D-B0 固定仓库证据 profile 与 N5A Provider-neutral Search Orchestration Service 已完成；N4D-D-B/N4E/N4F/N4G 仍分别等待完整 Provider Approval，N5B/N5C 保持独立后续阶段
 ```
 
 当前完成度估算：
@@ -51,7 +51,7 @@ Release: https://github.com/choneer/nsfwtrack/releases/tag/v1.1.0
 ```text
 核心业务能力：已完成
 代码发布状态：v1.1.0 已正式发布，annotated tag 与正式 GitHub Release 按发布门禁验证
-当前开发状态：Phase 5-N4D-D-B0 已将四个固定仓库快照收敛为字段、合并、manifest/versioning、operation taxonomy 与 production-readiness 证据 profile；应用仍为 `1.1.0`、Schema 为 4、Backup 为 `nsfwtrack.backup.v2`；Production Registry 为空，无真实 Provider。
+当前开发状态：Phase 5-N5A 已完成 Provider-neutral、零网络零写入的 Search Orchestration Service；只接收通过现有 Package 门禁的 Video Metadata Package，operation authority 仅来自 Adapter Binding，Production Search Packages 与 Production Registry 均为空。应用仍为 `1.1.0`、Schema 为 4、Backup 为 `nsfwtrack.backup.v2`，无真实 Provider。
 Phase 5-N3：Provider 合同、认证、资产、动态 Locator、受控下载 MVP、状态矩阵和批准模板已完成；仅新增/更新授权文档，未实现 Provider 或下载
 Phase 5-N4A：capability/Protocol/SourceAsset/Auth 状态/typed Registry/Outbound 基础和 test-only Fixture Provider 已完成；初始全量 934 passed，最终安全复核后全量 938 passed，production registry 仍为空
 Phase 5-N4B：immutable Approval/Host/Operation/Auth/Asset/Download model、纯本地一致性 Validator 与 opaque Asset ID 强化已完成；N4B 27、N4A/Adapter/Outbound 120、全量 965 passed，production registry 仍为空
@@ -274,6 +274,26 @@ operation taxonomy 参考。
 `detail`、可选 `asset_list`，Approval draft 仍为 `draft / not approved /
 no production activation`，Production Registry 仍为 `EndpointRegistry(())`。
 本地验证通过全量 `1161 passed`、`pip check` 与 `git diff --check`。
+
+### Phase 5-N5A：Provider-neutral Search Orchestration Service（已完成）
+
+N5A 新增 immutable/slotted `SearchProviderDescriptor`、三类独立 request、三类
+immutable envelope 和 `ProviderSearchService`。Service 构造只接受 exact Package
+tuple，逐个调用现有 `validate_provider_package`，只接受 Video Metadata Binding，
+并从 `ProviderAdapterBinding.operations` 建立唯一 operation authority。
+
+`search`、`detail`、`asset_list` 各自只调用对应 Adapter operation 一次；capability
+缺失在调用前拒绝。返回结果必须通过 exact type、Provider identity、external ID、
+query、page/page_size、bounded tuple 与 duplicate asset identity 复核。稳定、脱敏的
+Service error 不保留 query、external ID、payload、Host、Path 或原始异常文本，
+`asyncio.CancelledError` 原样传播。
+
+Production Search Packages 固定为 `()`，因此 production providers 为 `()`，任意
+Provider 请求稳定返回 `provider_not_available`；没有 synthetic Provider、真实
+Provider、Host、Endpoint、网络、数据库、文件读写或 Registry 修改。N5B 后续只负责
+search/detail empty-state 与 approved-provider UI；N5C 单独负责 signed preview 和
+manual apply plan/write gate。N5A 本地门禁为 focused `33 passed`、targeted
+`376 passed`、full `1194 passed`。
 
 ### Phase 5-P1：v1.2.0 外部内容源规划（历史，已由 P2 取代）
 
@@ -1912,13 +1932,15 @@ K1 审计结论：
 10. Phase 5-N4E 订阅目录管理；等待固定订阅格式与 Catalog Approval
 11. Phase 5-N4F 在线播放 Provider；等待独立 Streaming Approval
 12. Phase 5-N4G 漫画 Provider；等待固定 Python Adapter Approval
-13. Phase 5-N5 统一搜索、详情预览与手动确认入库
-14. Phase 5-N6 用户明确确认的受控资源保存与下载
-15. Phase 5-N7 多来源更新、受控同步和推荐
-16. Phase 5-I1 完整集成冻结
-17. Phase 5-R1 唯一一次 Hermes 最终独立验收
-18. Phase 5-R2 v1.2.0 正式发布
-19. N100 / 目标主机部署仍未授权，不属于本路线
+13. Phase 5-N5A Provider-neutral Search Orchestration Service；已完成
+14. Phase 5-N5B Search/detail empty-state 与 approved-provider UI
+15. Phase 5-N5C Signed preview 与 manual apply plan/write gate
+16. Phase 5-N6 用户明确确认的受控资源保存与下载
+17. Phase 5-N7 多来源更新、受控同步和推荐
+18. Phase 5-I1 完整集成冻结
+19. Phase 5-R1 唯一一次 Hermes 最终独立验收
+20. Phase 5-R2 v1.2.0 正式发布
+21. N100 / 目标主机部署仍未授权，不属于本路线
 ```
 
 已完成依据：

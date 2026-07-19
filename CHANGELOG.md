@@ -13,6 +13,22 @@
 
 ### Added
 
+- Added Phase 5-N5A Provider-neutral Search Orchestration Service with immutable
+  Provider descriptors, independent Video Search/Detail/Asset List requests and
+  envelopes, and a validated Package-backed read-only catalog.
+- Added strict one-operation dispatch: authority comes only from
+  `ProviderAdapterBinding.operations`, missing capability is rejected before the
+  Adapter call, each operation is invoked once, and returned Provider identity,
+  external identity, query, page/page size, exact type, asset bounds, and duplicate
+  identities are validated before success.
+- Added stable redacted Search Service errors and cancellation propagation. The
+  production Package tuple and provider catalog remain empty, so requests return
+  `provider_not_available` without loading a synthetic Provider or changing the
+  Production Registry. N5A adds no real Provider, Host, Endpoint, URL, network,
+  database write, dependency, Schema, Backup, Docker, Compose, or CI behavior.
+- Added 33 focused N5A tests; the specified Provider/Outbound regression set passes
+  376 tests and the full suite passes 1194 tests.
+
 - Added the Phase 5-N4D-D-B0 repository-derived evidence set: a fixed-revision
   ledger, video metadata field crosswalk, operation capability matrix,
   Provider-neutral metadata profile v1, and production-readiness blockers.

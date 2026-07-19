@@ -1,132 +1,155 @@
-# Phase 5-N4D-D-B0 corrective fix — Repository-derived Provider Evidence Profile
+# Phase 5-N5A — Provider-neutral Search Orchestration Service
 
 ## 完成摘要
 
-Phase 5-N4D-D-B0 corrective fix 已完成本地文档修正与验证。起始基线为
-`65001aeddaa9fae74acd46b6ff6b5cb95a35060f`，分支为 `main`。本轮只修改
-五份授权 Markdown，没有修改生产代码、测试、配置、依赖、Registry、Outbound、
-Schema、Backup、Docker、Compose 或 CI，未改变运行时行为。
+Phase 5-N5A 已在基线
+`a73d5968edc15ec69a9356f02f9ada1803ea7014` 上完成本地实现与验证。
+
+本阶段新增 Provider-neutral、零网络、零数据库写入、零文件写入的 Search
+Orchestration Service。它只消费已经通过现有 N4D-C Package 门禁的 Video
+Metadata Package，不选择、不命名、不加载或访问真实 Provider。
 
 应用版本保持 `1.1.0`，Schema 保持 `4`，Backup 保持
-`nsfwtrack.backup.v2`，Production Registry 保持 `EndpointRegistry(())`。
+`nsfwtrack.backup.v2`。Production Registry 仍为 `EndpointRegistry(())`，
+Production Search Packages 与 Production Search Providers 均为 `()`。
 
-## 固定证据
-
-证据严格固定到：
-
-```text
-lmixture/JavdBviewed
-8c9245726906ece8d49f553542874980512d4504
-
-Yuukiy/JavSP
-c4cfe61188234dd24c75b53b42b054327fef3e58
-
-EWEDLCM/FnDepot
-9a2449eaf012c352bca2ed4381e005a37f67d757
-
-venera-app/venera
-a0eba914f4c2a84ac1bc925adec2baabe920b9be
-```
-
-Evidence Ledger 记录了各仓库的 default branch、archived/maintenance 状态、
-license/extra terms、实际采用的合同概念与明确排除项。没有 clone 或 vendor
-上游代码、fixture、图片、脚本或内容。
-
-## 文档产物
+## 实现产物
 
 新增：
 
 ```text
-docs/provider-research/repository-evidence-ledger.md
-docs/provider-research/video-metadata-field-crosswalk.md
-docs/provider-research/provider-operation-matrix.md
-docs/provider-research/repository-derived-video-metadata-profile-v1.md
-docs/provider-research/provider-production-readiness.md
+app/source_search/__init__.py
+app/source_search/contracts.py
+app/source_search/service.py
+tests/test_phase5_n5a.py
 ```
 
-同步更新：
+更新：
 
 ```text
+GOAL.md
 PLAN.md
 TASKS.md
 REVIEW.md
 CHANGELOG.md
 PROVIDER_CONTRACT.md
-PROVIDER_APPROVAL_TEMPLATE.md
 docs/provider-research/provider-roadmap.md
-docs/provider-research/video-metadata.md
-docs/provider-research/video-metadata-approval-draft.md
 ```
 
-## 提取结论
+没有修改 `app/source_adapters/registry.py`、
+`app/services/outbound_http.py`、Docker、Compose、CI、依赖、Schema、Migration、
+Backup、路由、模板、i18n 或数据库模型。
 
-- JavSP 只贡献 metadata 字段体系、source-scoped provenance、显式 priority、
-  first-nonempty、missing-is-not-delete、候选资产和 required-field gate；未提取
-  真实站点、Host、Endpoint、selector、crawler 或 fixture。
-- JavdBviewed 只贡献本地状态、用户字段、manual edit protection、soft delete、
-  sync contract 与 deterministic merge；未提取页面解析、账号、登录、下载或
-  媒体搜索实现。
-- FnDepot 只贡献 versioned JSON manifest、stable key、required/optional、
-  explicit override、backward compatibility 和 parser-before-admission 规则；
-  未采纳 download locator、路径拼接、目录发现或 manifest-driven executable。
-- Venera 只贡献 source identity/version、search/detail/category/asset 分离和
-  page/next-token pagination taxonomy；未使用 JavaScript runtime、remote source、
-  login、Cookie、content load 或 download。
+## Immutable Search 合同
 
-## Profile 与批准状态
-
-四个仓库均为 `reference only`，都不是可直接激活的 Production Provider。
-当前 Production Profile 只保留：
+新增 frozen/slots：
 
 ```text
+SearchProviderDescriptor
+VideoSearchRequest
+VideoDetailRequest
+VideoAssetListRequest
+VideoSearchEnvelope
+VideoDetailEnvelope
+VideoAssetListEnvelope
+ProviderSearchServiceError
+```
+
+Request 固定 Provider selection、query、page/page_size 与 opaque external ID
+边界，拒绝 bool/int 混淆、控制字符、空 query、URL scheme、slash、backslash 和
+dot segment。Envelope 在成功返回前验证 exact DTO 类型、Provider identity、
+external identity、query、page/page_size、UTC received time、asset tuple 硬上限
+与 duplicate asset identity。
+
+DTO 不保存 raw Mapping、raw JSON、HTTP response、URL、Host、Header、Cookie、
+Token、Adapter repr、异常文本或 fixture path。
+
+## ProviderSearchService
+
+新增：
+
+```text
+list_providers
 search
 detail
-asset_list (optional)
+asset_list
+build_production_search_service
 ```
 
-`video-metadata-approval-draft.md` 继续明确为：
+构造门禁：
+
+- packages 必须是 exact tuple；
+- 每个元素必须是 exact `ProviderPackage`；
+- 每个 Package 必须先通过 `validate_provider_package`；
+- 只接受 `ProviderAdapterKind.VIDEO_METADATA`；
+- Provider key 唯一并稳定排序；
+- 构造阶段不调用任何 Adapter operation；
+- 不从目录、entry point、环境变量、Artifact 或动态 import 发现 Package。
+
+Operation authority 只来自 `ProviderAdapterBinding.operations`，并通过
+`ProviderAdapterBinding.handler_for` 获取 handler。`search`、`detail`、
+`asset_list` 严格独立，各自只调用对应 Adapter operation 一次；capability 缺失
+在 Adapter 调用前稳定拒绝，不自动调用下一操作、resolve、download 或数据库写入。
+
+## 稳定错误与取消
+
+新增稳定错误 code：
 
 ```text
-draft
-not approved
-no production activation
+invalid_request
+provider_not_available
+operation_not_approved
+adapter_mismatch
+invalid_result
+provider_error
+cancelled
+unknown
 ```
 
-任何未来真实 Provider 仍需用户单独明确批准、合法访问依据、精确固定网络事实、
-稳定 response schema、脱敏 static fixture、production Approval Artifact、
-code-owned Adapter，并通过 N4D-C/D-A 全部门禁。
+`str`/`repr` 只包含稳定 code 与可选稳定 cause code，不回显 query、external ID、
+Provider payload、Host、Path、Header、Adapter repr 或原始异常文本。
+`ProviderAdapterError` 只保留稳定 `ProviderErrorCode`；未知异常映射为 `unknown`；
+失败不伪装为空结果或成功；`asyncio.CancelledError` 原样传播。
 
-## Corrective fix
+## Production 空服务
 
-- 修正 `VideoMetadataProvenance` 边界：当前 DTO 只有
-  `provider_key`、`external_id`、`operation`、`field_name`、`observed_at`、
-  `source_updated_at`、`confidence`，不包含 digest/hash 字段。metadata
-  hash/digest 只属于独立来源快照、ItemSource tracking 或未来合同。
-- 修正 `duration_seconds` 为 optional positive integer seconds；缺失使用
-  `None`，`0`、负数、float、bool 均不合法。
-- 修正 `release_date` 为无时区 strict calendar date；不执行 UTC 或时区换算，
-  不附加 datetime/timezone 语义；无法无歧义解析时保持缺失或产生稳定解析错误。
+`PRODUCTION_SEARCH_PACKAGES` 固定为 `()`。Production Service：
 
-## 验证结果
+- `list_providers()` 返回 `()`；
+- 任意合法 Provider request 返回 `provider_not_available`；
+- 不加载 tests-only synthetic Provider；
+- 不修改或替换 `PRODUCTION_ENDPOINT_REGISTRY`；
+- import、构造、catalog 与前置拒绝路径不执行网络、DNS、Outbound、数据库、
+  文件读写、Adapter operation 或 dynamic import。
+
+N5A 不绕过 N4D-D-B 的真实 Provider Approval。N5B 后续负责 search/detail
+empty-state 与 approved-provider UI；N5C 后续负责 signed preview 与 manual apply
+plan/write gate。
+
+## 测试与验证
 
 ```text
-.venv/bin/python -m pytest
-1161 passed
-
-.venv/bin/python -m pip check
-No broken requirements found.
-
-git diff --check
-passed
+N5A focused: 33 passed
+N4A/N4B/N4D-A/N4D-B/N4D-C/N4D-D-A/N5A/Adapter/Outbound: 376 passed
+Full pytest: 1194 passed
+pip check: No broken requirements found.
+git diff --check: passed
 ```
 
-提交前范围审计确认只有本文件及其余十四份授权 Markdown；没有真实内容站点
-Host、Endpoint、URL、selector、response、凭据、login、download、playback、
-scraper、第三方代码或 fixture。既有未跟踪 `data/` 未被读取、枚举、进入、复制、
-修改、移动、删除、暂存或提交。未调用 Hermes，未创建 tag/Release，未部署 N100。
+测试覆盖 immutable/slotted/tuple 合同、request 边界、Package 构造门禁、Provider
+排序、operation exactly-once 分离、pre-call capability 拒绝、返回 identity/type/
+page parity、duplicate/overflow asset、stable provider/unknown/adapter mismatch errors、
+cancellation 和 production empty service。零副作用测试禁止 socket、httpx2、
+Outbound Client、SQLAlchemy execute/commit、Path read/write 与 dynamic import。
 
-本轮使用唯一 corrective 提交信息：
+## 安全与范围结论
 
-```text
-Correct repository metadata contract profile
-```
+- 未添加真实 Provider、Host、Endpoint、URL、response 或 fixture；
+- 未实现真实网络、认证、Cookie、Token、Vault、UI、导入、下载、播放、后台同步、
+  推荐或 AI；
+- 未新增依赖、Schema、Migration、Backup、Docker、Compose 或 CI 变化；
+- 未调用或编写 Hermes；
+- 未创建 tag 或 Release；
+- 未部署 N100；
+- 既有未跟踪 `data/` 未读取、枚举、进入、复制、修改、移动、删除、暂存或提交；
+- 本阶段使用唯一提交信息 `Add provider search orchestration service`。

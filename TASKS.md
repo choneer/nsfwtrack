@@ -2,7 +2,7 @@
 
 按顺序执行，每完成一项打个 [x]。
 
-## 当前状态（Phase 5-N4D-D-B0 Repository Evidence Profile 已完成）
+## 当前状态（Phase 5-N5A Provider-neutral Search Orchestration Service 已完成）
 
 当前稳定版与最新 Release：`v1.1.0`。下一目标版本为 `v1.2.0`，方向为
 首个 NSFW 核心 Provider、搜索与手动入库、受控下载、手动来源检查更新和
@@ -22,7 +22,9 @@ Provider Package/Evidence/Binding 的 all-or-nothing 离线激活门禁，N4D-D-
 strict canonical Approval Artifact、SHA-256 attestation 与 code-owned factory loader。
 N4D-D-B0 已从四个固定 commit 提取 metadata/local-state、manifest/versioning
 与 operation taxonomy 证据；四仓库都不是可直接激活的 Production Provider。
-N4D-D-B/N4E/N4F/N4G 分别等待完整 Provider Approval。
+N5A 已实现只接受 validated Video Package 的 Provider-neutral Search Service，
+production package tuple 和 Registry 均为空，不加载 synthetic Provider。N4D-D-B/
+N4E/N4F/N4G 分别等待完整 Provider Approval；N5B/N5C 保持独立后续阶段。
 
 ### Phase 5-P1 / P2 至 R2 路线
 
@@ -289,6 +291,24 @@ N4D-D-B/N4E/N4F/N4G 分别等待完整 Provider Approval。
   Registry、Outbound、依赖、Docker/Compose/CI，未接触 data/Hermes/tag/Release/N100
 - [x] 本地门禁通过全量 `1161 passed`、`pip check` 与 `git diff --check`
 
+#### Phase 5-N5A - Provider-neutral Search Orchestration Service
+
+- [x] 新增 frozen/slots `SearchProviderDescriptor`、Video Search/Detail/Asset List
+  request 与 envelope；collection 字段保持 tuple-only 且 identity/page/time 有界
+- [x] `ProviderSearchService` 只接受 exact Package tuple，全部先通过
+  `validate_provider_package`，只接受 Video Metadata Binding 并稳定排序 Provider
+- [x] operation authority 只来自 `ProviderAdapterBinding.operations`；search/detail/
+  asset_list 严格分离并各调用一次，未批准 capability 在 Adapter 调用前拒绝
+- [x] 验证 exact result type、Provider/external identity、query/page/page_size、
+  asset tuple/limit/duplicate；失败不伪装为空结果或成功
+- [x] stable redacted Service error 只保留稳定 code/cause；unknown 与 provider error
+  分离，`asyncio.CancelledError` 原样传播
+- [x] Production Search Packages 为 `()`、providers 为 `()`、任意请求为
+  `provider_not_available`；未加载 synthetic Provider，未修改 Production Registry
+- [x] 零网络、DNS、Outbound、数据库、文件读写与 dynamic import 前置拒绝测试通过；
+  未新增真实 Provider/Host/Endpoint/URL/fixture、依赖、Schema、Backup、Docker 或 CI
+- [x] focused `33 passed`、targeted `376 passed`、full `1194 passed`
+
 #### Phase 5-N4D-D-B - 首个明确批准的影视元数据 Provider Artifact 与 Adapter
 
 - [ ] 用户明确批准 Provider 名称、核心用途、固定 Host/Endpoint、认证方式、
@@ -317,10 +337,14 @@ N4D-D-B/N4E/N4F/N4G 分别等待完整 Provider Approval。
 - [ ] 保持 page/asset/locator、本地进度/远程状态分离，不执行 JavaScript，
   不自动整章下载或同步远程收藏
 
-#### Phase 5-N5 - 搜索、详情与手动入库
+#### Phase 5-N5B - Search/detail empty-state 与 approved-provider UI
 
-- [ ] 实现 GET 零网络/零写入、用户主动 search/detail、HMAC signed snapshot、
-  中英文预览和 apply 零网络边界
+- [ ] 仅消费 N5A service 与未来 explicitly approved Provider；实现 GET 零写入、
+  用户主动 search/detail、空 production provider 状态和中英文预览
+
+#### Phase 5-N5C - Signed preview 与 manual apply plan/write gate
+
+- [ ] 实现 HMAC signed snapshot 与 apply 零网络边界
 - [ ] 实现创建或关联 Item、逐项字段选择、additive Creator/Tag、hard conflict
   与 `BEGIN IMMEDIATE` 最终复核；不自动覆盖、合并、清空或下载
 

@@ -30,6 +30,29 @@ Permanent boundaries remain unchanged:
 
 ## 2. Current implementation audit
 
+### 2.0D Phase 5-N5A Provider-neutral Search Orchestration Service
+
+`app/source_search/` now provides immutable Provider descriptors, three exact
+request contracts, three immutable result envelopes, and a read-only
+`ProviderSearchService`. Construction accepts only an exact tuple of exact
+`ProviderPackage` objects; every Package passes `validate_provider_package`
+before catalog admission, only Video Metadata Bindings are accepted, duplicate
+Provider keys fail closed, and provider ordering is stable.
+
+Operation authority comes only from `ProviderAdapterBinding.operations` and
+`handler_for`. Search, detail, and asset-list dispatch are independent: a
+request invokes only its corresponding Adapter method once, and a missing
+operation fails before the Adapter is called. Exact result type, Provider and
+external identity, query, page/page size, tuple bounds, and duplicate Asset
+identities are verified before an envelope is returned. Failures remain stable
+and redacted; `asyncio.CancelledError` propagates unchanged.
+
+`PRODUCTION_SEARCH_PACKAGES` is exactly `()`. The production provider catalog is
+therefore empty and every Provider request fails with
+`provider_not_available`. This service does not discover Packages, load test
+factories, mutate `PRODUCTION_ENDPOINT_REGISTRY`, perform network/DNS, read or
+write files, access the database, or implement UI/import/download behavior.
+
 ### 2.0C Phase 5-N4D-D-B0 repository-derived evidence profile
 
 B0 is documentation-only and adds no runtime implementation. Four fixed
@@ -866,7 +889,19 @@ Any missing Provider identity, host, endpoint, method, encoding, response type,
 auth lifecycle, legal/attribution basis, fixture, dependency implication, or
 Schema implication is a blocker. Codex does not infer or search for it.
 
-### N5: search, detail, and manual import
+### N5A: Provider-neutral Search Orchestration Service
+
+Completed as the zero-network, zero-write service layer described in the
+current implementation audit. It does not bypass N4D-D-B Approval and exposes
+no synthetic Provider in production.
+
+### N5B: search/detail empty-state and approved-provider UI
+
+Consumes N5A descriptors and envelopes only. It may expose explicit
+search/detail actions for a separately approved Provider, but GET rendering
+remains zero-write and the empty production catalog remains a normal state.
+
+### N5C: signed preview and manual apply
 
 Implements explicit search/detail preview, field selection, purpose-specific
 signed import snapshots, zero-network apply, and Schema 4 `ItemSource`

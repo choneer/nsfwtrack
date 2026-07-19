@@ -88,6 +88,19 @@ approved / no production activation`. The Production Profile retains only
 `search`, `detail`, and optional `asset_list`, with no active Provider and an
 empty Production Registry.
 
+### N5A - Provider-neutral Search Orchestration Service
+
+Completed: validated Video Metadata Packages are exposed through immutable,
+stably ordered descriptors and strictly separate search/detail/asset-list
+dispatch. Authority comes only from each Adapter Binding operation tuple;
+missing capability is rejected before invocation, each request calls exactly
+one Adapter operation, and exact result identity/type/page/asset bounds are
+verified before success. Stable errors are redacted and cancellation propagates.
+
+Production Search Packages and providers remain `()`. No synthetic or real
+Provider, Host, Endpoint, network, Registry mutation, UI, database write,
+download, dependency, Schema, Backup, Docker, Compose, or CI change is present.
+
 ### N4D-D-B - first explicitly approved video metadata Provider Artifact and Adapter
 
 Scope:
@@ -159,7 +172,14 @@ separation, local reading progress separate from remote state, no full-chapter
 automatic fetch, and no auth/favorite/comment/rating/download unless separately
 authorized.
 
-### N5 - unified source search, preview, and manual import UI
+### N5B - search/detail empty-state and approved-provider UI
+
+Consumes the completed N5A service only. The empty production provider catalog
+is rendered as an ordinary state; any future Provider still requires the full
+N4D-D-B Approval and activation gates. GET remains zero-write and no operation
+is chained implicitly.
+
+### N5C - signed preview and manual apply plan/write gate
 
 Consumes approved Provider DTOs only. Search and detail remain network reads;
 apply is a separate signed local write with manual-field conflict review.
@@ -210,12 +230,13 @@ Every real phase must prove:
    success, and invalidate derived state where a later local mutation requires
    it.
 
-## 6. Invariants preserved by N4C
+## 6. Invariants preserved through N5A
 
 - Application version: `1.1.0`.
 - Schema: `4`.
 - Backup: `nsfwtrack.backup.v2` with v1 restore compatibility.
 - Production Provider Registry: `EndpointRegistry(())`.
+- Production Search Providers: `()`.
 - No real Provider, host, endpoint, credential, authentication, playback,
   download, background task, dependency, migration, Schema, Backup, Docker,
   Compose, or CI change.

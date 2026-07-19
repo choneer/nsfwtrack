@@ -346,6 +346,27 @@
   缺失或产生稳定解析错误
 - [x] **5.N4D-D-B0-C4. 范围** — 仅修正五份授权 Markdown，未改变代码、测试或运行时行为
 
+### Phase 5-N5A Provider-neutral Search Orchestration Service（已完成）
+
+- [x] **5.N5A.1. Immutable contracts** — Descriptor、三类 request 与三类 envelope
+  是否 frozen/slots、tuple-only、无 raw Mapping/JSON/response/URL/Host/Header/secret
+- [x] **5.N5A.2. Package gate** — Service 是否只接受 exact Package tuple，全部先过
+  `validate_provider_package`，只接受 Video Metadata Kind，duplicate/invalid 全部拒绝
+- [x] **5.N5A.3. Authority** — operation authority 是否只来自 Binding operations，
+  descriptor operations 是否精确相等，Provider 是否稳定排序且构造不调用 Adapter
+- [x] **5.N5A.4. Separation** — search/detail/asset_list 是否各只调用对应 operation 一次，
+  不链式调用其他 operation，capability 缺失是否在 Adapter 调用前失败
+- [x] **5.N5A.5. Result parity** — exact type、Provider/external identity、query、page/
+  page_size、asset tuple/limit/duplicate 是否全部在返回成功前验证
+- [x] **5.N5A.6. Stable failure** — provider/unknown/adapter mismatch/invalid result 是否
+  稳定脱敏，失败是否不伪装空结果，`asyncio.CancelledError` 是否原样传播
+- [x] **5.N5A.7. Production empty** — Production Search Packages/providers 是否为 `()`，
+  任意请求是否 `provider_not_available`，且没有 synthetic Provider 或 Registry 修改
+- [x] **5.N5A.8. Zero side effect** — 构造、catalog 与前置拒绝是否零 socket/httpx2/
+  Outbound/SQLAlchemy/Path/importlib 副作用，且无真实 Provider/Host/Endpoint/fixture
+- [x] **5.N5A.9. Gates** — focused `33 passed`、targeted `376 passed`、full
+  `1194 passed`，版本 `1.1.0`、Schema `4`、Backup v2 和空 Registry 是否保持
+
 - [ ] **5.1. Provider 批准与定位** — 每个真实 Provider 是否由用户明确批准，
   核心用途是否符合 NSFW-first 定位，且固定 Host/Endpoint、认证、搜索、详情、
   下载、响应、限流、条款与使用边界是否完整
