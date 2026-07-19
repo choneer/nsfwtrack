@@ -270,6 +270,17 @@
   Production Registry 仍为空，既有 `data/` 未接触；专项、targeted、full、pip check 和 diff check
   结果记录在最终提交报告
 
+### Phase 5-N4D-B corrective fix：VideoRating merge support
+
+- [x] **5.N4D-B-C.1. 根因** — 云端复核确认 `_DETAIL_FIELDS` 包含 `rating`，但
+  `_validate_plan_value()` 未显式允许合法 `VideoRating`
+- [x] **5.N4D-B-C.2. 最小修复** — 仅导入并允许 `VideoRating`；Mapping/list/set/frozenset
+  与其他任意对象仍 fail closed，没有泛化 dataclass allowlist
+- [x] **5.N4D-B-C.3. 状态矩阵** — 覆盖本地/Provider 快照、user/same-provider/priority/
+  equal-priority、相同评分稳定性、mutable 拒绝，以及空 Production Registry/零网络边界
+- [x] **5.N4D-B-C.4. 范围** — 应用、Schema、Backup、依赖、Registry、Outbound、Docker、Compose、
+  CI 和既有 `data/` 均保持不变；其余 N4D-B 边界不变
+
 - [ ] **5.1. Provider 批准与定位** — 每个真实 Provider 是否由用户明确批准，
   核心用途是否符合 NSFW-first 定位，且固定 Host/Endpoint、认证、搜索、详情、
   下载、响应、限流、条款与使用边界是否完整

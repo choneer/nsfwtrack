@@ -44,6 +44,15 @@ fixture 错误脱敏、零网络、操作分离和 merge 矩阵。
 `PLAN.md`、`TASKS.md`、`REVIEW.md`、`CHANGELOG.md`、`PROVIDER_CONTRACT.md` 与
 视频 Provider 研究/路线文档已同步 N4D-B 完成状态和后续真实 Provider Approval 门禁。
 
+## Corrective Fix
+
+N4D-B 云端复核发现 merge plan 的 `_validate_plan_value()` 漏允许合法的
+`VideoRating`。最小 corrective fix 仅显式导入并允许 `VideoRating`，没有泛化
+dataclass allowlist，也没有放宽 Mapping/list/set/frozenset 或其他任意对象的拒绝。
+新增评分 merge 状态矩阵覆盖本地/Provider 快照、user 优先、同 Provider 更新、
+Provider priority、equal-priority conflict、相同评分稳定性和 mutable 输入拒绝；
+其余阶段边界保持不变。
+
 ## 长期边界
 
 - 未修改 `app/source_adapters/registry.py`、`app/services/outbound_http.py`、ORM、
@@ -55,20 +64,21 @@ fixture 错误脱敏、零网络、操作分离和 merge 矩阵。
 
 ## 验收记录
 
-本地门禁结果：
+本地门禁结果（corrective 后）：
 
-- N4D-B focused：`26 passed`；
-- N4A/N4B/N4D-A/N4D-B/Source Adapter/Outbound targeted：`237 passed`；
-- full pytest：`1055 passed`；
+- N4D-B focused：`36 passed`；
+- N4A/N4B/N4D-A/N4D-B/Source Adapter/Outbound targeted：`247 passed`；
+- full pytest：`1065 passed`；
 - `pip check`：`No broken requirements found`；
 - 所有六份静态 fixture 均通过 JSON 解析；
 - `git diff --check` 与最终范围审计在暂存前通过。
 
-推送后仍需记录 GitHub Actions `test`/`Docker production smoke` 结果。唯一提交信息为：
+推送后仍需记录 GitHub Actions `test`/`Docker production smoke` 结果。唯一 corrective
+提交信息为：
 
 ```text
-Add video metadata contract framework
+Fix video rating merge support
 ```
 
-不得创建 corrective commit。完成提交前，GOAL 白名单文件以外不得出现 tracked
+不得创建额外 corrective commit。完成提交前，GOAL 白名单文件以外不得出现 tracked
 修改，既有未跟踪 `data/` 保持原样且不暂存。

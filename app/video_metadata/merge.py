@@ -13,6 +13,7 @@ from app.video_metadata.contracts import (
     VideoDetail,
     VideoOrganization,
     VideoPerson,
+    VideoRating,
     VideoSeries,
     VideoTag,
     bounded_text,
@@ -180,7 +181,14 @@ def _validate_plan_value(value: object) -> None:
         return
     if isinstance(
         value,
-        (VideoAsset, VideoPerson, VideoOrganization, VideoSeries, VideoTag),
+        (
+            VideoAsset,
+            VideoPerson,
+            VideoOrganization,
+            VideoRating,
+            VideoSeries,
+            VideoTag,
+        ),
     ):
         return
     if isinstance(value, Mapping) or isinstance(value, (list, set, frozenset)):

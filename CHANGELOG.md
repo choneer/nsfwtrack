@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+### Fixed
+
+- Fixed the N4D-B merge-plan gap where a valid non-empty `VideoRating` was rejected
+  as an unsupported merge snapshot value. The corrective allowlist is explicit and
+  keeps mutable Mapping/list/set/frozenset and arbitrary-object rejection unchanged.
+- Added the rating merge state matrix for local/user/provider ownership, same-provider
+  updates, priority selection, equal-priority conflicts, equal values, determinism,
+  and immutable-input boundaries. All other N4D-B and release boundaries remain unchanged.
+
 ### Added
 
 - Added the Phase 5-N4D-B provider-neutral video metadata contract framework:

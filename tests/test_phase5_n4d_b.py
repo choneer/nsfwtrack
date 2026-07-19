@@ -351,3 +351,144 @@ def test_merge_plan_does_not_write_database_or_resolve_assets() -> None:
     plan = build_video_metadata_merge_plan(None, incoming)
     assert plan.asset_links
     assert all(asset.identity == (FIXTURE_PROVIDER_KEY, "cover-1") for asset in plan.asset_links)
+
+
+def _rating_detail(rating: VideoRating) -> VideoDetail:
+    return _detail(
+        rating=rating,
+        available_fields=("identifier", "title", "summary", "rating"),
+    )
+
+
+def _rating_decision(
+    local: LocalVideoMetadata | None,
+    incoming: VideoRating,
+    *,
+    provider_priority: tuple[str, ...] | dict[str, int] = (),
+):
+    plan = build_video_metadata_merge_plan(
+        local,
+        _rating_detail(incoming),
+        provider_priority=provider_priority,
+    )
+    return plan, next(
+        decision for decision in plan.decisions if decision.field_name == "rating"
+    )
+
+
+def test_merge_snapshot_accepts_rating_in_local_and_provider_values() -> None:
+    rating = VideoRating(8, 0, 10, 20)
+    snapshot = LocalVideoMetadata(
+        values=(("rating", rating),),
+        provider_values=((FIXTURE_PROVIDER_KEY, (("rating", rating),)),),
+    )
+    assert snapshot.value_map()["rating"] == rating
+    assert snapshot.provider_map()[FIXTURE_PROVIDER_KEY]["rating"] == rating
+
+
+def test_rating_merge_applies_when_local_rating_is_missing() -> None:
+    incoming = VideoRating(8, 0, 10, 20)
+    _, decision = _rating_decision(None, incoming)
+    assert decision.action is VideoFieldAction.APPLY_INCOMING
+    assert decision.source is VideoFieldSource.PROVIDER
+    assert decision.incoming_value == incoming
+
+
+def test_rating_merge_keeps_user_authored_rating() -> None:
+    local_rating = VideoRating(7, 0, 10, 10)
+    local = LocalVideoMetadata(
+        values=(("rating", local_rating),),
+        authored=("rating",),
+    )
+    _, decision = _rating_decision(local, VideoRating(8, 0, 10, 20))
+    assert decision.action is VideoFieldAction.KEEP_LOCAL
+    assert decision.source is VideoFieldSource.USER
+
+
+def test_rating_merge_allows_same_provider_update() -> None:
+    local_rating = VideoRating(7, 0, 10, 10)
+    local = LocalVideoMetadata(
+        values=(("rating", local_rating),),
+        provider_values=(
+            (FIXTURE_PROVIDER_KEY, (("rating", local_rating),)),
+        ),
+    )
+    _, decision = _rating_decision(local, VideoRating(8, 0, 10, 20))
+    assert decision.action is VideoFieldAction.APPLY_INCOMING
+    assert decision.source is VideoFieldSource.PROVIDER
+
+
+def test_rating_merge_applies_higher_priority_provider() -> None:
+    local_rating = VideoRating(7, 0, 10, 10)
+    local = LocalVideoMetadata(
+        values=(("rating", local_rating),),
+        provider_values=(("other_provider", (("rating", local_rating),)),),
+    )
+    _, decision = _rating_decision(
+        local,
+        VideoRating(8, 0, 10, 20),
+        provider_priority=(FIXTURE_PROVIDER_KEY, "other_provider"),
+    )
+    assert decision.action is VideoFieldAction.APPLY_INCOMING
+    assert decision.source is VideoFieldSource.PROVIDER
+
+
+def test_rating_merge_keeps_higher_priority_existing_provider() -> None:
+    local_rating = VideoRating(7, 0, 10, 10)
+    local = LocalVideoMetadata(
+        values=(("rating", local_rating),),
+        provider_values=(("other_provider", (("rating", local_rating),)),),
+    )
+    _, decision = _rating_decision(
+        local,
+        VideoRating(8, 0, 10, 20),
+        provider_priority=("other_provider", FIXTURE_PROVIDER_KEY),
+    )
+    assert decision.action is VideoFieldAction.KEEP_LOCAL
+    assert decision.source is VideoFieldSource.PROVIDER
+
+
+def test_rating_merge_marks_equal_priority_difference_as_conflict() -> None:
+    local_rating = VideoRating(7, 0, 10, 10)
+    local = LocalVideoMetadata(
+        values=(("rating", local_rating),),
+        provider_values=(("other_provider", (("rating", local_rating),)),),
+    )
+    _, decision = _rating_decision(
+        local,
+        VideoRating(8, 0, 10, 20),
+        provider_priority={"other_provider": 10, FIXTURE_PROVIDER_KEY: 10},
+    )
+    assert decision.action is VideoFieldAction.CONFLICT
+    assert decision.source is VideoFieldSource.MIXED
+
+
+def test_equal_rating_is_not_a_conflict_and_plan_is_deterministic() -> None:
+    rating = VideoRating(8, 0, 10, 20)
+    local = LocalVideoMetadata(
+        values=(("rating", rating),),
+        provider_values=(("other_provider", (("rating", rating),)),),
+    )
+    priority = {"other_provider": 10, FIXTURE_PROVIDER_KEY: 10}
+    first, decision = _rating_decision(
+        local,
+        rating,
+        provider_priority=priority,
+    )
+    second, _ = _rating_decision(
+        local,
+        rating,
+        provider_priority=priority,
+    )
+    assert decision.action is not VideoFieldAction.CONFLICT
+    assert first == second
+
+
+@pytest.mark.parametrize("value", [{"raw": "mapping"}, ["mutable-list"]])
+def test_merge_snapshot_still_rejects_mutable_values(value: object) -> None:
+    with pytest.raises(TypeError, match="mutable mappings or collections"):
+        LocalVideoMetadata(values=(("rating", value),))
+    with pytest.raises(TypeError, match="mutable mappings or collections"):
+        LocalVideoMetadata(
+            provider_values=((FIXTURE_PROVIDER_KEY, (("rating", value),)),),
+        )
