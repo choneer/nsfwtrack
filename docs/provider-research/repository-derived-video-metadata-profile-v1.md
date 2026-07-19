@@ -32,12 +32,24 @@ The profile maps to the existing immutable contracts:
   scale-aware values;
 - `VideoAsset`: opaque asset ID and declared media facts, never a fetch
   authorization or persisted arbitrary locator;
-- `VideoMetadataProvenance`: source identity, operation, observed/source time,
-  available field and canonical-value digest;
+- `VideoMetadataProvenance`: exactly `provider_key`, `external_id`, `operation`,
+  `field_name`, `observed_at`, `source_updated_at`, and `confidence`; it has no
+  hash or digest field;
 - `VideoSearchResult`, `VideoDetail`, and `VideoSearchPage`: immutable
   operation-specific result shapes;
 - `LocalVideoMetadata` and `VideoMetadataMergePlan`: local/user state and a
   deterministic zero-write merge plan kept separate from remote candidates.
+
+## Scalar field boundaries
+
+- `duration_seconds` is optional positive integer seconds. `None` represents a
+  missing value; `0`, negative values, floats, and bools are invalid.
+- `release_date` is `date | None` with a strict calendar-date meaning. Only an
+  unambiguous source date may be converted; no UTC or timezone conversion is
+  applied, and an ambiguous value remains missing or produces a stable parse
+  error.
+- Any metadata hash/digest belongs to an independent source snapshot, ItemSource
+  tracking, or a future contract, never to `VideoMetadataProvenance`.
 
 ## Merge and local-state policy
 

@@ -207,6 +207,12 @@
 
 ### Documentation
 
+- Corrected the Phase 5-N4D-D-B0 metadata contract profile after cloud review:
+  `VideoMetadataProvenance` now lists only its seven existing fields and does
+  not claim a digest field; `duration_seconds` is documented as optional
+  positive integer seconds; and `release_date` is documented as a timezone-free
+  strict calendar date. No code or runtime behavior changed.
+
 - Recorded exact reviewed snapshots and licensing boundaries for JavdBviewed
   `8c9245726906ece8d49f553542874980512d4504`, JavSP
   `c4cfe61188234dd24c75b53b42b054327fef3e58`, FnDepot

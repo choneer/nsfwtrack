@@ -332,6 +332,20 @@
 - [x] **5.N4D-D-B0.7. 本地门禁** — 全量 `1161 passed`、`pip check` 和
   `git diff --check` 是否全部通过
 
+### Phase 5-N4D-D-B0 corrective fix（云端复核问题，已完成）
+
+- [x] **5.N4D-D-B0-C1. Provenance 边界** — 已删除把 hash/digest
+  当作 `VideoMetadataProvenance` 字段的表述；当前字段明确仅为
+  `provider_key`、`external_id`、`operation`、`field_name`、`observed_at`、
+  `source_updated_at`、`confidence`。hash/digest 仅保留为独立来源快照、
+  ItemSource tracking 或未来合同概念
+- [x] **5.N4D-D-B0-C2. Duration 边界** — `duration_seconds` 已明确为 optional
+  positive integer seconds；`None` 表示缺失，`0`、负数、float、bool 均拒绝
+- [x] **5.N4D-D-B0-C3. Release date 边界** — `release_date` 已明确为 strict
+  calendar date；不做 UTC/时区换算，不附加 datetime/timezone 语义，歧义值保持
+  缺失或产生稳定解析错误
+- [x] **5.N4D-D-B0-C4. 范围** — 仅修正五份授权 Markdown，未改变代码、测试或运行时行为
+
 - [ ] **5.1. Provider 批准与定位** — 每个真实 Provider 是否由用户明确批准，
   核心用途是否符合 NSFW-first 定位，且固定 Host/Endpoint、认证、搜索、详情、
   下载、响应、限流、条款与使用边界是否完整
