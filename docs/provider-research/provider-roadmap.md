@@ -56,7 +56,23 @@ Deliverables are these seven documents. Exit gate:
 - Approval drafts contain placeholders only and are not approved;
 - no runtime/configuration/Schema/dependency/Registry change.
 
-### N4D - first video metadata Provider
+### N4D-A - Approval policy closure
+
+Completed: typed fixed-header, timeout, error-profile, raw-retention and exact
+Approval/runtime policy checks. It approves no Provider.
+
+### N4D-B - Video Metadata DTO / fixture / merge framework
+
+Completed: immutable Video Metadata DTOs, async Protocol, tests-only static
+fixture parser and deterministic zero-write merge planning.
+
+### N4D-C - Provider Package binding and offline activation gate
+
+Completed: Approval/Capabilities/Endpoint/Adapter/Evidence exact binding,
+opaque SHA-256 fixture evidence, explicit operation authority, stable errors and
+all-or-nothing Registry/binding construction. Production Registry remains empty.
+
+### N4D-D - first video metadata Provider package
 
 Scope:
 
@@ -65,8 +81,9 @@ search + detail + optional asset_list
 ```
 
 Entry gate: one complete video Approval with exact Provider identity, lawful and
-terms basis, fixed hosts/operations, response types/limits, mappings, and static
-fixtures; typed production Approval must pass the local Validator.
+terms basis, fixed hosts/operations, response types/limits, mappings, and redacted
+static fixtures; typed production Approval and complete Provider Package must
+pass every N4D-C offline gate.
 
 Exit gate: fixed reviewed adapter, shared client only, no user URL/host input,
 no operation chaining, immutable DTOs with provenance, deterministic fixtures,

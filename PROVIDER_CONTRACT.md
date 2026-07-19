@@ -30,6 +30,27 @@ Permanent boundaries remain unchanged:
 
 ## 2. Current implementation audit
 
+### 2.0A Phase 5-N4D-C offline Provider Package gate
+
+`app/source_adapters/package.py` binds one typed Approval, Capability manifest,
+Endpoint, explicit Adapter Binding and Evidence Manifest into an immutable
+`ProviderPackage`. Provider key, display name, content scope, scope and ordered
+operations must match across all five components. Adapter authority comes only
+from the binding tuple; Source and Video Protocols are verified separately and
+extra Python methods do not grant operations.
+
+Fixture evidence stores only bounded opaque IDs, lowercase SHA-256 digests,
+typed kinds and stable outcomes. Production validation performs no path lookup or
+file I/O; tests-only fixed code maps explicitly authorized static fixtures to
+actual digests. The manifest rejects path/dynamic include/environment/executable
+forms and contains no raw response.
+
+Both builders validate every package before constructing any immutable output.
+One invalid or duplicate package fails the entire call; empty input yields an
+empty Registry/binding tuple. No global or Production Registry is mutated, and
+no adapter operation, network, DNS, database or file write runs during package
+construction, validation or build.
+
 ### 2.0 Phase 5-N4D-B video metadata foundation
 
 `app/video_metadata/contracts.py` contains immutable Provider-neutral video
@@ -773,9 +794,15 @@ Provider must have a complete user-supplied template, an explicit
 production-scope Approval, and separately code-owned Capability/Endpoint
 objects that pass validation. N4B itself approves none of those facts.
 
-### N4: first approved Provider foundation
+### N4D-C: Provider Package offline activation gate
 
-Requires a completely approved `PROVIDER_APPROVAL_TEMPLATE.md`. N4 may implement
+N4D-C is the final Provider-neutral entry gate. It does not approve or implement
+a real Provider. Its non-empty packages and fixture digest reads are tests-only;
+`PRODUCTION_ENDPOINT_REGISTRY` remains `EndpointRegistry(())`.
+
+### N4D-D: first approved Video Metadata Provider package
+
+Requires a completely approved `PROVIDER_APPROVAL_TEMPLATE.md`. N4D-D may implement
 only the approved manifest, minimum required auth/vault support, search/detail
 adapter, and approved asset metadata mapping with deterministic fixtures. It
 does not add the search UI, database import, or file download.

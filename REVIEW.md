@@ -281,6 +281,21 @@
 - [x] **5.N4D-B-C.4. 范围** — 应用、Schema、Backup、依赖、Registry、Outbound、Docker、Compose、
   CI 和既有 `data/` 均保持不变；其余 N4D-B 边界不变
 
+### Phase 5-N4D-C Provider Package 绑定与离线激活门禁（已完成）
+
+- [x] **5.N4D-C.1. Package 一致性** — Approval/Capabilities/Endpoint/Binding/Evidence
+  是否精确绑定 Provider identity、display/content scope、scope 和 operation tuple
+- [x] **5.N4D-C.2. Evidence** — fixture evidence 是否只含 opaque ID、SHA-256、kind/outcome，
+  Manifest 是否拒绝路径、环境变量、dynamic include、raw response 和 mutable collections
+- [x] **5.N4D-C.3. Binding authority** — Source/Video Protocol 是否分别验证，运行 authority
+  是否只取显式 operation tuple，额外 Adapter 方法是否不扩权且 operation 不被执行
+- [x] **5.N4D-C.4. All-or-nothing** — 全部 package 是否先验证，duplicate/第二包失败是否不返回
+  部分 Registry/binding，空 tuple 是否安全且 Production Registry 恒为空
+- [x] **5.N4D-C.5. Stable errors** — 八类 package code 是否有界脱敏，Approval cause 是否保留
+  stable code 且不回显 Host/Header/path/digest/object repr
+- [x] **5.N4D-C.6. 范围** — 是否零网络/DNS/数据库/文件写入，未改 Registry/Outbound/Schema/
+  Migration/Backup/依赖/Docker/CI，未添加真实 Provider 且既有 `data/` 未接触
+
 - [ ] **5.1. Provider 批准与定位** — 每个真实 Provider 是否由用户明确批准，
   核心用途是否符合 NSFW-first 定位，且固定 Host/Endpoint、认证、搜索、详情、
   下载、响应、限流、条款与使用边界是否完整

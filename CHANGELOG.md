@@ -13,6 +13,15 @@
 
 ### Added
 
+- Added the Phase 5-N4D-C offline Provider Package activation gate: immutable
+  Evidence/Fixture Evidence/Adapter Binding/Package contracts, stable redacted
+  package errors, explicit Source/Video operation authority, and all-or-nothing
+  Endpoint Registry and binding builders.
+- Added tests-only synthetic Source and Video Provider packages with opaque
+  fixture IDs and exact SHA-256 evidence for existing static fixtures. Validation,
+  construction, and builders perform no adapter operation, network, DNS, database,
+  or file write; the Production Registry remains empty.
+
 - Added the Phase 5-N4D-B provider-neutral video metadata contract framework:
   frozen/slots DTOs, an async search/detail/asset-list Protocol, strict field and
   provenance validation, deterministic zero-write merge planning, and a tests-only

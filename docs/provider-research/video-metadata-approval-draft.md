@@ -7,6 +7,12 @@
 > later does not activate a Provider; a separate explicit user approval and
 > machine-checkable production Approval are still required.
 
+N4D-C adds a second mandatory entry gate. Replacing these placeholders is not
+enough: a future N4D-D implementation must bind the approved identity,
+Capabilities, Endpoint, Adapter and Evidence into one production-scoped
+`ProviderPackage`, with opaque fixture IDs and reviewed SHA-256 digests, and pass
+the all-or-nothing offline package validator before a Registry may be built.
+
 ## 1. Identity and product fit
 
 Required record keys in the future typed Approval:
@@ -134,7 +140,10 @@ Final decision:
 
 - [ ] Every required placeholder has been replaced with reviewed facts
 - [ ] Typed production Approval passes the local Validator
-- [ ] User explicitly authorizes the exact N4D implementation scope
+- [ ] User explicitly authorizes the exact N4D-D implementation scope
+- [ ] Provider Evidence Manifest is complete and contains no path/raw response
+- [ ] Exact Adapter Binding grants only approved operations
+- [ ] Complete production Provider Package passes the N4D-C offline gate
 
 Until all boxes are checked in a later authorized phase, activation status is
 `not_approved` and the Production Provider Registry must remain unchanged.
