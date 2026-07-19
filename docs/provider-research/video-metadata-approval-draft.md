@@ -6,6 +6,10 @@
 > Provider, real host, endpoint, credential, or response fixture. Filling it in
 > later does not activate a Provider; a separate explicit user approval and
 > machine-checkable production Approval are still required.
+>
+> Phase 5-N4D-D-B0 repository evidence is reference-only. It does not replace
+> any placeholder and grants **no production activation**. The current profile
+> permits only future `search`, `detail`, and optional `asset_list` review.
 
 N4D-C adds a second mandatory entry gate. Replacing these placeholders is not
 enough: a future N4D-D-B implementation must bind the approved identity,

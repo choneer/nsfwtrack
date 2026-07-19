@@ -13,6 +13,14 @@
 
 ### Added
 
+- Added the Phase 5-N4D-D-B0 repository-derived evidence set: a fixed-revision
+  ledger, video metadata field crosswalk, operation capability matrix,
+  Provider-neutral metadata profile v1, and production-readiness blockers.
+- Added deterministic local-state and merge rules from JavdBviewed/JavSP,
+  parser-before-admission and explicit manifest versioning concepts from
+  FnDepot, and operation/pagination taxonomy from Venera. No upstream code,
+  fixture, response, content-site address, or executable locator was copied.
+
 - Added the Phase 5-N4D-D-A Provider Approval Artifact v1 contract and offline
   loader: strict bytes-only JSON, nested duplicate-key and exact-schema checks,
   bounded resource auditing, deterministic canonical Unicode bytes, and a
@@ -126,6 +134,13 @@
 
 ### Security
 
+- All four B0 repositories are reference-only and cannot activate a Production
+  Provider. The Video Metadata Approval remains `draft / not approved / no
+  production activation`; only `search`, `detail`, and optional `asset_list`
+  remain possible future profile slots, and `EndpointRegistry(())` is unchanged.
+- B0 local verification passed all 1161 pytest tests, `pip check`, and
+  `git diff --check` without changing runtime code or accessing existing `data/`.
+
 - N4D-A rejects forbidden and credential-like fixed Header names and
   Bearer/Basic/Token/ApiKey values. Fixed headers cannot inject authentication;
   production timeout is exactly shared `3.0` connect / `10.0` total seconds,
@@ -193,9 +208,9 @@
 ### Documentation
 
 - Recorded exact reviewed snapshots and licensing boundaries for JavdBviewed
-  `e26dfdf97c1a68a8f27035ecf8e982208bdc79e0`, JavSP
+  `8c9245726906ece8d49f553542874980512d4504`, JavSP
   `c4cfe61188234dd24c75b53b42b054327fef3e58`, FnDepot
-  `e565623a1797aaf40b6b376720046d9451bc6a0d`, and Venera
+  `9a2449eaf012c352bca2ed4381e005a37f67d757`, and Venera
   `a0eba914f4c2a84ac1bc925adec2baabe920b9be`. Architecture concepts only were
   retained; no reference implementation code was copied.
 - Fixed follow-up sequencing as N4D video metadata, N4E subscription catalog,

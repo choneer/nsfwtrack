@@ -29,6 +29,13 @@ SHA-256 integrity digest, and select only an opaque code-owned Adapter binding
 ID. The Artifact cannot carry a callable, module/class path, environment value,
 credential, raw response or remote trust statement.
 
+Phase 5-N4D-D-B0 repository evidence is contract reference only. JavSP,
+JavdBviewed, FnDepot and Venera do not fill any placeholder in this template and
+cannot be named as an approved Provider by inference. A future approval may use
+the field/provenance/merge vocabulary and the `search`/`detail`/optional
+`asset_list` operation profile, but must still supply every Provider-specific
+fact below directly and explicitly.
+
 ## 1. Approval record
 
 - Approval identifier: `<required>`

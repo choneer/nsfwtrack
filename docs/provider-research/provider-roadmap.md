@@ -20,9 +20,9 @@ Approval documents are `draft / not approved` and contain placeholders only.
 
 | Direction | Public reference | Reviewed commit | License conclusion | Adopted only as architecture |
 |---|---|---|---|---|
-| Video metadata/state | `lmixture/JavdBviewed` | `e26dfdf97c1a68a8f27035ecf8e982208bdc79e0` | `AGPL-3.0-only` | layer separation, local/source state split, parser/refresh boundaries, preview lifecycle |
+| Video metadata/state | `lmixture/JavdBviewed` | `8c9245726906ece8d49f553542874980512d4504` | `AGPL-3.0-only` | local/source state split, manual edit protection, soft delete, sync facts |
 | Video metadata aggregation | `Yuukiy/JavSP` | `c4cfe61188234dd24c75b53b42b054327fef3e58` | `GPL-3.0-only`; README adds Anti-996/additional claims | source-scoped results, metadata vocabulary, deterministic merge/required-field/fixtures |
-| Subscription catalog | `EWEDLCM/FnDepot` | `e565623a1797aaf40b6b376720046d9451bc6a0d` | no root license established | catalog identity, revision/override/diff concepts |
+| Manifest/versioning | `EWEDLCM/FnDepot` | `9a2449eaf012c352bca2ed4381e005a37f67d757` | no root license established | versioned JSON, stable key, required/optional, override/admission concepts |
 | Comic capability model | `venera-app/venera` | `a0eba914f4c2a84ac1bc925adec2baabe920b9be` | `GPL-3.0`; project states unmaintained | capability/DTO/lifecycle/reading-flow concepts |
 
 No code is copied. Site-specific networking, crawling, DOM/userscript behavior,
@@ -78,6 +78,15 @@ Completed: strict bytes-only versioned JSON, canonical Unicode serialization,
 SHA-256 payload attestation, exact typed reconstruction, opaque code-owned
 Adapter factory lookup and final N4D-C Package validation. The only Artifact and
 factory are tests-only; Production Registry remains empty.
+
+### N4D-D-B0 - repository-derived Provider evidence profile
+
+Completed: fixed-revision evidence ledger, field crosswalk, operation matrix,
+metadata profile v1 and production-readiness blockers. The four repositories
+remain reference-only; the Video Metadata Approval remains `draft / not
+approved / no production activation`. The Production Profile retains only
+`search`, `detail`, and optional `asset_list`, with no active Provider and an
+empty Production Registry.
 
 ### N4D-D-B - first explicitly approved video metadata Provider Artifact and Adapter
 

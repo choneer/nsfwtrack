@@ -313,6 +313,25 @@
 - [x] **5.N4D-D-A.7. 范围** — synthetic Artifact 是否仅 tests/.invalid/六份既有 fixture，
   Production Registry/版本/Schema/Backup/依赖/Registry/Outbound/Docker/CI/data 均不变
 
+### Phase 5-N4D-D-B0 Repository-derived Provider Evidence Profile（已完成）
+
+- [x] **5.N4D-D-B0.1. 证据固定** — 四个 repository 是否全部绑定用户指定
+  commit，并记录 default branch、archived/maintenance 与 license/extra terms
+- [x] **5.N4D-D-B0.2. 提取边界** — JavSP 是否仅 metadata/merge，JavdBviewed
+  是否仅 local state/manual edit/soft delete/sync，FnDepot 是否仅 manifest/
+  versioning/admission，Venera 是否仅 operation/pagination taxonomy
+- [x] **5.N4D-D-B0.3. 产物** — Evidence Ledger、Field Crosswalk、Operation Matrix、
+  Profile v1 和 Production Readiness 是否都存在且相互一致
+- [x] **5.N4D-D-B0.4. 不激活** — 四仓库是否全部 reference-only，Approval draft
+  是否仍为 `draft / not approved / no production activation`，Registry 是否仍空
+- [x] **5.N4D-D-B0.5. Profile** — 当前 Production Profile 是否仅允许 `search`、
+  `detail`、可选 `asset_list`，且其他 operation 明确 denied current
+- [x] **5.N4D-D-B0.6. 范围** — 是否只修改十五份授权 Markdown，无真实
+  Host/Endpoint/URL/selector/response、凭据、上游代码/fixture 复制，且无代码/
+  测试/Registry/Outbound/Schema/Backup/Docker/CI/依赖/data/Hermes/tag/Release/N100 变化
+- [x] **5.N4D-D-B0.7. 本地门禁** — 全量 `1161 passed`、`pip check` 和
+  `git diff --check` 是否全部通过
+
 - [ ] **5.1. Provider 批准与定位** — 每个真实 Provider 是否由用户明确批准，
   核心用途是否符合 NSFW-first 定位，且固定 Host/Endpoint、认证、搜索、详情、
   下载、响应、限流、条款与使用边界是否完整

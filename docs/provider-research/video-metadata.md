@@ -17,58 +17,47 @@ The study uses public source snapshots only. No implementation code is copied.
 Search, detail, and asset listing remain separate operations; none may trigger
 the next operation, write local records, or download an asset implicitly.
 
+Phase 5-N4D-D-B0 adds a fixed-revision evidence profile only. It does not alter
+these DTOs or activate a Provider. The detailed evidence, crosswalk, operation
+matrix and readiness decision are recorded in the five B0 research documents.
+
 ## 2. Reviewed public repositories
 
 | Repository | Default branch | Reviewed commit | License at reviewed commit |
 |---|---|---|---|
-| `lmixture/JavdBviewed` | `main` | `e26dfdf97c1a68a8f27035ecf8e982208bdc79e0` | `AGPL-3.0-only` (`LICENSE`, package metadata) |
+| `lmixture/JavdBviewed` | `main` | `8c9245726906ece8d49f553542874980512d4504` | `AGPL-3.0-only` (`LICENSE`, package metadata) |
 | `Yuukiy/JavSP` | `master` | `c4cfe61188234dd24c75b53b42b054327fef3e58` | Root `LICENSE` is `GPL-3.0-only`; the README also claims Anti-996 and additional terms, so reuse has extra uncertainty |
 
 ### 2.1 JavdBviewed references
 
-Reviewed files:
+Reviewed files for B0:
 
-- `README.md`, `package.json`, `LICENSE`, `docs/source-architecture.md`;
-- `apps/extension/src/types/index.ts`;
-- `apps/extension/src/features/records/refresh/domain/types.ts`;
-- `apps/extension/src/features/records/refresh/application/recordRefresh.ts`;
-- `apps/extension/src/features/records/refresh/application/javdbParsers.ts`;
-- `apps/extension/src/features/previews/listPreviewLoader.ts`;
-- `apps/extension/src/features/previews/nativeJavdbPreview.ts`;
-- `apps/extension/src/features/previews/previewSourceRules.ts`;
-- `apps/extension/src/features/previews/previewVideoPreload.ts`;
-- `apps/extension/src/apps/content/contentLifecycle.ts`;
-- `Tampermonkey/javdb.js`, as a public-repository historical artifact only.
+- `README.md`, `package.json`, and `LICENSE` for status and licensing;
+- `apps/extension/src/types/index.ts` for local record, user and manual fields;
+- `apps/extension/src/features/webdavSync/domain/types.ts` for sync facts;
+- `apps/extension/src/features/webdavSync/application/dataMerge.ts` and
+  `importSanitizer.ts` for deterministic merge and device-state preservation.
 
 Adopted as architecture ideas:
 
-- dependency direction between application, feature, platform, and shared code;
 - separation of local viewing state from refreshed source metadata;
-- search/detail/parser boundaries and protection of manually edited fields;
-- explicit preview-source identity, media type, cache age/failure facts, and
-  cleanup when a video element or page lifecycle ends;
-- deterministic feature tests and regression tests around parsing and refresh.
+- protection of manually edited fields and local user values;
+- explicit soft-delete and sync source/time/status facts;
+- deterministic priority, fallback, tag and status merge behavior.
 
 Not adopted:
 
-- site-specific DOM selectors, route hooks, browser extension messaging, or
-  userscript UI injection;
-- hard-coded third-party URLs, source fallbacks, raw URL caching, or response-
-  discovered network authority;
-- automatic page refresh, sync, preview probing, browser storage access,
-  magnet lookup, download, or raw payload/exception logging;
+- site-specific page parsing, browser extension behavior or source locators;
+- account/login, media search, remote sync transport or download behavior;
 - any AGPL implementation code or legacy userscript code.
 
 ### 2.2 JavSP references
 
-Reviewed files:
+Reviewed files for B0:
 
-- `javsp/datatype.py`;
-- `javsp/__main__.py`;
-- `javsp/config.py`;
-- `javsp/web/base.py`, `javsp/web/exceptions.py`, and source-specific files in
-  `javsp/web/`;
-- `unittest/test_crawlers.py` and static expected data under `unittest/data/`.
+- `README.md` and `LICENSE` for licensing and additional terms;
+- `javsp/datatype.py` for metadata vocabulary and output mapping;
+- `javsp/__main__.py` for source ordering, aggregation and required fields.
 
 Adopted as architecture ideas:
 
@@ -78,14 +67,13 @@ Adopted as architecture ideas:
   preview images, and preview video;
 - deterministic Provider priority, first-nonempty scalar selection, retained
   cover alternatives, and an explicit required-field gate;
-- source-specific error classification and fixture-to-DTO comparisons.
+- explicit failure when required fields remain unavailable.
 
 Not adopted:
 
-- dynamic crawler import, shared arbitrary request helpers, user-defined
-  cookies/proxies, automatic retry, or browser launch;
+- crawler modules, source-specific networking, cookies/proxies or browser use;
 - filesystem mutation, poster/media downloading, naming, moving, scraping, or
-  raw URL/exception logging;
+  raw response/exception logging;
 - direct GPL implementation reuse, especially given the README's additional
   license claims.
 

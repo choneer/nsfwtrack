@@ -30,6 +30,23 @@ Permanent boundaries remain unchanged:
 
 ## 2. Current implementation audit
 
+### 2.0C Phase 5-N4D-D-B0 repository-derived evidence profile
+
+B0 is documentation-only and adds no runtime implementation. Four fixed
+repository snapshots supply bounded contract evidence: JavSP metadata and
+source-priority merge, JavdBviewed local/user state and manual-edit protection,
+FnDepot versioned JSON/stable-key/override concepts, and Venera operation and
+pagination taxonomy. Their exact revisions, licenses, maintenance facts,
+adopted concepts and rejected behavior are recorded in the evidence ledger.
+
+None is a Production Provider. The only possible future Video Metadata Profile
+operations remain `search`, `detail`, and optional `asset_list`; every other
+observed operation is reference-only or denied current. A manifest is parsed
+and validated before admission, incomplete entries are not activated, and no
+manifest may execute code, discover adapters, grant a locator, or expand
+network authority. `PRODUCTION_ENDPOINT_REGISTRY` remains
+`EndpointRegistry(())`.
+
 ### 2.0B Phase 5-N4D-D-A Provider Approval Artifact v1
 
 `app/source_adapters/artifact.py` defines the fixed
@@ -840,6 +857,10 @@ every N4D-D-A/N4D-C gate. N4D-D-B may implement only the approved manifest,
 minimum required auth/vault support, search/detail adapter, and approved asset
 metadata mapping with deterministic fixtures. It does not add the search UI,
 database import, or file download.
+
+The B0 repository evidence profile cannot populate or waive those approval
+facts. It supplies field, merge, versioning and operation vocabulary only; all
+four reviewed repositories remain non-activatable references.
 
 Any missing Provider identity, host, endpoint, method, encoding, response type,
 auth lifecycle, legal/attribution basis, fixture, dependency implication, or
