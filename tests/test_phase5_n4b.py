@@ -14,6 +14,7 @@ from app.source_adapters import (
     ApprovedAssetPolicy,
     ApprovedAuth,
     ApprovedDownloadPolicy,
+    ApprovedFixedHeader,
     ApprovedHost,
     ApprovedHostPurpose,
     ApprovedOperation,
@@ -97,6 +98,11 @@ def _operation(
         page_size_limit=MAX_PAGE_SIZE,
         redirect_policy=RedirectPolicy.DENY,
         rate_policy=ApprovedRatePolicy(),
+        fixed_headers=(
+            (ApprovedFixedHeader("X-Fixture-Contract", "n4a"),)
+            if operation is ProviderOperation.SEARCH
+            else ()
+        ),
         path_parameter=path_parameter,
         query_parameters=query_parameters,
         required_parameters=required_parameters,
@@ -196,6 +202,7 @@ ENDPOINT = ProviderEndpoint(
                 (BusinessParameter.PAGE_SIZE, "limit"),
             ),
             required_parameters=(BusinessParameter.QUERY,),
+            fixed_headers=(("X-Fixture-Contract", "n4a"),),
         ),
         EndpointOperation(
             ProviderOperation.DETAIL,
@@ -696,6 +703,7 @@ def test_unimplemented_approval_capability_is_blocked_before_fixture_scope_check
         operation=ProviderOperation.DISCOVER,
         layer=ProviderCapabilityLayer.DISCOVERY,
         path_template="/fixture/discover",
+        fixed_headers=(),
     )
     unsupported = _approval_with_operations(
         (

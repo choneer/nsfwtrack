@@ -3,7 +3,7 @@ from __future__ import annotations
 import math
 import re
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 
 from app.source_adapters.contracts import (
@@ -40,6 +40,11 @@ MAX_APPROVAL_OPERATIONS = len(ProviderOperation)
 MAX_APPROVAL_PAYLOAD_DEPTH = 16
 MAX_APPROVAL_PAYLOAD_NODES = 4_096
 MAX_APPROVED_DOWNLOAD_BYTES = 1024 * 1024 * 1024
+APPROVED_CONNECT_TIMEOUT_SECONDS = 3.0
+APPROVED_TOTAL_TIMEOUT_SECONDS = 10.0
+MAX_APPROVED_CONNECT_TIMEOUT_SECONDS = 60.0
+MAX_APPROVED_TOTAL_TIMEOUT_SECONDS = 300.0
+MAX_APPROVED_HEADER_VALUE_LENGTH = 512
 
 _APPROVAL_ID_PATTERN = re.compile(r"[a-z][a-z0-9_-]{0,127}")
 _SENSITIVE_FIELD_NAMES = frozenset(
@@ -66,6 +71,37 @@ _SENSITIVE_FIELD_SUFFIXES = (
     "_secret_value",
     "_token_value",
 )
+_HEADER_NAME_PATTERN = re.compile(r"[A-Za-z][A-Za-z0-9-]{0,63}")
+_FORBIDDEN_APPROVED_HEADER_NAMES = frozenset(
+    {
+        "accept",
+        "accept-encoding",
+        "authorization",
+        "connection",
+        "content-length",
+        "content-type",
+        "cookie",
+        "host",
+        "proxy-authorization",
+        "set-cookie",
+        "transfer-encoding",
+    }
+)
+_CREDENTIAL_HEADER_NAME_MARKERS = (
+    "api-key",
+    "apikey",
+    "authorization",
+    "cookie",
+    "credential",
+    "password",
+    "secret",
+    "session",
+    "token",
+)
+_AUTHENTICATED_HEADER_VALUE_PATTERN = re.compile(
+    r"^(?:bearer|basic|token|apikey)(?:\s|$)",
+    re.IGNORECASE,
+)
 _ACTIVATION_SUPPORTED_OPERATIONS = frozenset(
     {
         ProviderOperation.SEARCH,
@@ -91,6 +127,15 @@ class ApprovalAttributionPolicy(str, Enum):
     REQUIRED = "required"
 
 
+class ApprovedErrorMappingProfile(str, Enum):
+    SHARED_OUTBOUND_V1 = "shared_outbound_v1"
+
+
+class ApprovedRawPayloadRetention(str, Enum):
+    DISCARD = "discard"
+    TEST_FIXTURE_ONLY = "test_fixture_only"
+
+
 class ApprovalValidationErrorCode(str, Enum):
     INVALID = "approval_invalid"
     INCOMPLETE = "approval_incomplete"
@@ -110,6 +155,66 @@ class ApprovalValidationError(ValueError):
             raise TypeError("code must be ApprovalValidationErrorCode")
         self.code = code
         super().__init__(code.value)
+
+
+@dataclass(frozen=True, slots=True)
+class ApprovedFixedHeader:
+    name: str
+    value: str = field(repr=False)
+
+    def __post_init__(self) -> None:
+        if (
+            not isinstance(self.name, str)
+            or _HEADER_NAME_PATTERN.fullmatch(self.name) is None
+        ):
+            raise ValueError("approved fixed header name is invalid")
+        normalized = self.name.casefold()
+        if (
+            normalized in _FORBIDDEN_APPROVED_HEADER_NAMES
+            or any(
+                marker in normalized for marker in _CREDENTIAL_HEADER_NAME_MARKERS
+            )
+            or any(
+                segment in {"auth", "authentication"}
+                for segment in normalized.split("-")
+            )
+        ):
+            raise ValueError("approved fixed header name is credential-like or forbidden")
+        if (
+            not isinstance(self.value, str)
+            or not self.value
+            or len(self.value) > MAX_APPROVED_HEADER_VALUE_LENGTH
+            or any(not 32 <= ord(character) <= 126 for character in self.value)
+        ):
+            raise ValueError("approved fixed header value is invalid")
+        if _AUTHENTICATED_HEADER_VALUE_PATTERN.match(self.value):
+            raise ValueError("approved fixed header value must not carry authentication")
+
+
+@dataclass(frozen=True, slots=True)
+class ApprovedTimeoutPolicy:
+    connect_timeout_seconds: float = APPROVED_CONNECT_TIMEOUT_SECONDS
+    total_timeout_seconds: float = APPROVED_TOTAL_TIMEOUT_SECONDS
+
+    def __post_init__(self) -> None:
+        for value, field, maximum in (
+            (
+                self.connect_timeout_seconds,
+                "connect_timeout_seconds",
+                MAX_APPROVED_CONNECT_TIMEOUT_SECONDS,
+            ),
+            (
+                self.total_timeout_seconds,
+                "total_timeout_seconds",
+                MAX_APPROVED_TOTAL_TIMEOUT_SECONDS,
+            ),
+        ):
+            if isinstance(value, bool) or not isinstance(value, (int, float)):
+                raise TypeError(f"{field} must be a finite number")
+            if not math.isfinite(float(value)) or not 0 < float(value) <= maximum:
+                raise ValueError(f"{field} is outside the safe range")
+        if float(self.total_timeout_seconds) < float(self.connect_timeout_seconds):
+            raise ValueError("total timeout must not be less than connect timeout")
 
 
 def _bounded_text(value: str, *, field: str) -> None:
@@ -328,6 +433,14 @@ class ApprovedOperation:
     page_size_limit: int
     redirect_policy: RedirectPolicy
     rate_policy: ApprovedRatePolicy
+    fixed_headers: tuple[ApprovedFixedHeader, ...] = ()
+    timeout_policy: ApprovedTimeoutPolicy = ApprovedTimeoutPolicy()
+    error_mapping_profile: ApprovedErrorMappingProfile = (
+        ApprovedErrorMappingProfile.SHARED_OUTBOUND_V1
+    )
+    raw_payload_retention: ApprovedRawPayloadRetention = (
+        ApprovedRawPayloadRetention.DISCARD
+    )
     path_parameter: BusinessParameter | None = None
     query_parameters: tuple[tuple[BusinessParameter, str], ...] = ()
     body_parameters: tuple[tuple[BusinessParameter, str], ...] = ()
@@ -435,6 +548,23 @@ class ApprovedOperation:
             raise ValueError("redirect allowlist requires exact hosts and a hop limit")
         if not isinstance(self.rate_policy, ApprovedRatePolicy):
             raise TypeError("rate_policy must be ApprovedRatePolicy")
+        if not isinstance(self.fixed_headers, tuple) or not all(
+            type(header) is ApprovedFixedHeader for header in self.fixed_headers
+        ):
+            raise TypeError("fixed_headers must be an immutable ApprovedFixedHeader tuple")
+        header_names = tuple(header.name.casefold() for header in self.fixed_headers)
+        if len(set(header_names)) != len(header_names):
+            raise ValueError("fixed_headers contains duplicate names")
+        if not isinstance(self.timeout_policy, ApprovedTimeoutPolicy):
+            raise TypeError("timeout_policy must be ApprovedTimeoutPolicy")
+        if not isinstance(self.error_mapping_profile, ApprovedErrorMappingProfile):
+            raise TypeError(
+                "error_mapping_profile must be ApprovedErrorMappingProfile"
+            )
+        if not isinstance(self.raw_payload_retention, ApprovedRawPayloadRetention):
+            raise TypeError(
+                "raw_payload_retention must be ApprovedRawPayloadRetention"
+            )
         _validate_identifier_tuple(self.asset_host_ids, field="asset_host_ids")
         if self.asset_host_ids and self.layer not in {
             ProviderCapabilityLayer.ASSET,
@@ -671,6 +801,27 @@ def _validation_error(code: ApprovalValidationErrorCode) -> ApprovalValidationEr
     return ApprovalValidationError(code)
 
 
+def _canonical_approved_fixed_headers(
+    values: tuple[ApprovedFixedHeader, ...],
+) -> tuple[tuple[str, str], ...]:
+    return tuple(sorted((header.name.casefold(), header.value) for header in values))
+
+
+def _canonical_runtime_fixed_headers(
+    values: tuple[tuple[str, str], ...],
+) -> tuple[tuple[str, str], ...]:
+    # EndpointOperation already applies its own grammar. Re-check only the
+    # shape here so malformed replacement objects fail with the stable code.
+    if not isinstance(values, tuple) or any(
+        not isinstance(item, tuple) or len(item) != 2 for item in values
+    ):
+        raise _validation_error(ApprovalValidationErrorCode.INVALID)
+    try:
+        return tuple(sorted((name.casefold(), value) for name, value in values))
+    except AttributeError:
+        raise _validation_error(ApprovalValidationErrorCode.INVALID) from None
+
+
 def validate_approval_secret_fields(payload: object) -> None:
     nodes = 0
 
@@ -708,6 +859,12 @@ def validate_approval_secret_fields(payload: object) -> None:
 def validate_provider_approval(approval: object) -> None:
     if type(approval) is not ProviderApproval:
         raise _validation_error(ApprovalValidationErrorCode.INVALID)
+    if approval.scope is ProviderApprovalScope.PRODUCTION and any(
+        operation.raw_payload_retention
+        is not ApprovedRawPayloadRetention.DISCARD
+        for operation in approval.operations
+    ):
+        raise _validation_error(ApprovalValidationErrorCode.INCOMPLETE)
 
 
 def validate_approval_against_capabilities(
@@ -749,7 +906,9 @@ def validate_approval_against_endpoint(
 ) -> None:
     from app.services.outbound_http import (
         AUTOMATIC_RETRY_LIMIT,
+        CONNECT_TIMEOUT_SECONDS,
         PROVIDER_CONCURRENCY_LIMIT,
+        TOTAL_TIMEOUT_SECONDS,
     )
 
     validate_provider_approval(approval)
@@ -793,7 +952,15 @@ def validate_approval_against_endpoint(
             or runtime.expected_top_level is not approved.expected_top_level
             or set(runtime.allowed_content_types)
             != set(approved.allowed_content_types)
-            or runtime.fixed_headers
+            or _canonical_runtime_fixed_headers(runtime.fixed_headers)
+            != _canonical_approved_fixed_headers(approved.fixed_headers)
+        ):
+            raise _validation_error(ApprovalValidationErrorCode.OPERATION_MISMATCH)
+        if (
+            approved.timeout_policy.connect_timeout_seconds != CONNECT_TIMEOUT_SECONDS
+            or approved.timeout_policy.total_timeout_seconds != TOTAL_TIMEOUT_SECONDS
+            or approved.error_mapping_profile
+            is not ApprovedErrorMappingProfile.SHARED_OUTBOUND_V1
         ):
             raise _validation_error(ApprovalValidationErrorCode.OPERATION_MISMATCH)
         if (
@@ -859,6 +1026,15 @@ def validate_approval_for_activation(
 ) -> None:
     validate_approval_against_capabilities(approval, capabilities)
     validate_approval_against_endpoint(approval, endpoint)
+    if (
+        approval.scope is ProviderApprovalScope.PRODUCTION
+        and any(
+            operation.raw_payload_retention
+            is not ApprovedRawPayloadRetention.DISCARD
+            for operation in approval.operations
+        )
+    ):
+        raise _validation_error(ApprovalValidationErrorCode.INCOMPLETE)
     if any(
         operation not in _ACTIVATION_SUPPORTED_OPERATIONS
         for operation in approval.capabilities

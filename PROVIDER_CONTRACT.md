@@ -386,10 +386,43 @@ injected by the credential broker. Cookies come from the one Provider-isolated
 session record. Routers, adapters, DTOs, and users cannot supply a header map,
 header name, Cookie header, or cookie jar.
 
+Phase 5-N4D-A adds the typed Approval counterpart
+`ApprovedOperation.fixed_headers`, containing immutable `ApprovedFixedHeader`
+values. Approval and runtime `EndpointOperation.fixed_headers` are compared as
+canonical `(name.casefold(), value)` pairs: name case is ignored, value case is
+significant, and order is ignored. Additions, removals, renames, duplicate names,
+or value changes are operation mismatches; a runtime subset is never silently
+accepted. Header values remain fixed printable ASCII and cannot contain
+templates, environment expansion, user input, or Provider response data.
+
+The Approval layer rejects all existing forbidden fixed headers and any
+credential-like name, including Authorization, Cookie, Set-Cookie, API-Key,
+Auth/Access/Refresh-Token, Client-Secret, credential, password, session, and
+token forms. It also rejects Bearer, Basic, Token, and ApiKey value forms. A
+fixed header is never an authentication or Secret Vault channel.
+
 `Set-Cookie` may be captured only by an approved auth operation and only for
 approved cookie names/scopes. Metadata operations cannot silently establish a
 shared session. `trust_env=False`, `.netrc` denial, and environment-proxy denial
 remain mandatory.
+
+### 7.2A Approval timeout, error, and raw-payload policies
+
+`ApprovedOperation.timeout_policy` is a typed `ApprovedTimeoutPolicy`. Its
+production value must exactly match the shared client constants
+`CONNECT_TIMEOUT_SECONDS = 3.0` and `TOTAL_TIMEOUT_SECONDS = 10.0`. It cannot
+be user-configured or enlarged by an Approval, endpoint, Provider response, or
+environment value. Invalid finite values, booleans, and a total deadline below
+the connect deadline fail closed.
+
+`ApprovedOperation.error_mapping_profile` is a bounded enum. The only current
+profile is `shared_outbound_v1`, which uses the shared
+`OutboundErrorCode`/status mapping; Provider payloads cannot define exceptions
+or error profiles. `ApprovedOperation.raw_payload_retention` is also bounded:
+production is `discard` only, while `test_fixture_only` is valid only for the
+`test_fixture` scope. No production raw response persistence is implemented or
+authorized. Raw responses never enter the database, files, ordinary backup,
+logs, exceptions, or user-visible errors.
 
 ### 7.3 Response kinds
 

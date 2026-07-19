@@ -1,289 +1,256 @@
-# Phase 5-N4C - 三类 Provider 技术研究与 Approval 草案完成摘要
+# Phase 5-N4D-A - Approval 合同闭环完成摘要
 
 ## 完成状态
 
-Phase 5-N4C 已完成本地研究、文档、范围审计和验证。本阶段仅修改授权文档，
-没有实现、批准、注册或访问任何真实 Provider。
+Phase 5-N4D-A 已完成本地实现、合同文档、测试和范围审计。本阶段只补齐首个真实
+Provider 前的 Provider-neutral Approval 合同，没有选择、命名、研究、实现、访问
+或注册任何真实 Provider。
 
 起始基线：
 
 ```text
 branch: main
-start: 410ef1b978782521ba492863945d59da64cf459e
+start: 88de1a9bf047605f735595441f280366420dfa0c
 application: 1.1.0
 schema: 4
 backup: nsfwtrack.backup.v2
 production registry: EndpointRegistry(())
+pytest baseline: 965 passed
 ```
 
-## 交付文件
-
-新增：
-
-```text
-docs/provider-research/video-metadata.md
-docs/provider-research/video-metadata-approval-draft.md
-docs/provider-research/streaming-subscription.md
-docs/provider-research/streaming-subscription-approval-draft.md
-docs/provider-research/comic-source.md
-docs/provider-research/comic-source-approval-draft.md
-docs/provider-research/provider-roadmap.md
-```
-
-更新阶段状态：
+## 修改文件
 
 ```text
 GOAL.md
-README.md
 PLAN.md
 TASKS.md
 REVIEW.md
 CHANGELOG.md
+PROVIDER_CONTRACT.md
+PROVIDER_APPROVAL_TEMPLATE.md
+docs/provider-research/video-metadata-approval-draft.md
+app/source_adapters/approval.py
+app/source_adapters/__init__.py
+tests/test_phase5_n4b.py
+tests/test_phase5_n4d_a.py
 ```
 
-共十三个授权文件，未超过十五个文件上限。未修改 `PROVIDER_CONTRACT.md` 或
-`PROVIDER_APPROVAL_TEMPLATE.md`，因为 N4C 没有改变现有运行时合同或通用
-Approval Validator 合同。
+未修改 `README.md`，因为现有顶层产品状态不需要重复 N4D-A 的实现细节。
 
-## 公开研究证据
+## 固定非敏感 Header typed 合同
 
-| Repository | Branch | Reviewed commit | License conclusion |
-|---|---|---|---|
-| `lmixture/JavdBviewed` | `main` | `e26dfdf97c1a68a8f27035ecf8e982208bdc79e0` | `AGPL-3.0-only` |
-| `Yuukiy/JavSP` | `master` | `c4cfe61188234dd24c75b53b42b054327fef3e58` | root `GPL-3.0-only`; README also claims Anti-996/additional terms |
-| `EWEDLCM/FnDepot` | `main` | `e565623a1797aaf40b6b376720046d9451bc6a0d` | no root license/SPDX established; subproject claim is not a root license |
-| `venera-app/venera` | `master` | `a0eba914f4c2a84ac1bc925adec2baabe920b9be` | `GPL-3.0`; project states it is unmaintained |
-
-每份研究文档记录了实际参考文件、采用的架构思路和明确拒绝的实现范围。仅采用
-DTO、Capability、Parser/Operation 分层、provenance、状态机、生命周期和 fixture
-测试思路；没有复制任何参考仓库实现代码。
-
-明确拒绝：
-
-- site-specific DOM/crawler/browser integration；
-- 任意 URL/Host/Path、response-discovered authority 和 raw payload logging；
-- 自动同步、重试、下载、文件系统整理或动态 import；
-- JavaScript 引擎、远程 Source 安装或更新；
-- 会员伪装、访问控制绕过、免登录受保护资源提取；
-- 浏览器凭据/cookie 提取和跨 Provider secret 使用。
-
-## 影视元数据研究结果
-
-统一 DTO：
+新增 frozen、slots、typed：
 
 ```text
-VideoSearchResult
-VideoDetail
-VideoIdentifier
-VideoPerson
-VideoOrganization
-VideoSeries
-VideoTag
-VideoRating
-VideoAsset
-VideoMetadataProvenance
+ApprovedFixedHeader
+ApprovedOperation.fixed_headers
 ```
 
-Operation：
+`ApprovedFixedHeader` 要求：
+
+- name 使用与 `EndpointOperation.fixed_headers` 相同的有界 Header 语法；
+- value 非空、最多 512 字符、只允许 printable ASCII；
+- CR、LF、NUL、DEL 和其他控制字符拒绝；
+- value 不进入 dataclass repr；
+- `ApprovedOperation.fixed_headers` 必须是 immutable typed tuple；
+- 同名 Header 按大小写不敏感规则拒绝重复；
+- 默认值为空，保持既有 Approval deny-safe 兼容。
+
+继续拒绝现有 forbidden Header，并额外拒绝 credential-like Header name，包括：
 
 ```text
-search
-detail
-asset_list (optional, separately approved)
-discover (future, not approved)
+Authorization
+Cookie
+Set-Cookie
+X-API-Key / API-Key
+Auth Token
+Access Token
+Refresh Token
+Client Secret
+credential / password / session / token forms
 ```
 
-已定义用户字段优先、单来源不覆盖用户编辑、逐字段 provenance、缺失不删除、
-空值不覆盖、标签 raw/normalized 并存、人物/组织 Provider-scoped identity、搜索
-结果非详情权威、Asset 不自动解析或下载，以及稳定 Provider priority 的
-deterministic merge。
-
-## 订阅与未来播放研究结果
-
-已分离：
+固定 Header value 拒绝大小写不敏感的认证前缀：
 
 ```text
-Subscription Catalog
--> untrusted candidate inventory
-
-Approved Streaming Provider
--> separate production Approval and code-owned Registry entry
+Bearer
+Basic
+Token
+ApiKey
 ```
 
-订阅 DTO：
+固定 Header 不是认证、Cookie、Token 或 Secret Vault 注入通道。
+
+## Header canonical exact-match
+
+`validate_approval_against_endpoint()` 将 Approval 与
+`EndpointOperation.fixed_headers` canonical 化为：
 
 ```text
-ProviderSubscription
-SubscriptionRevision
-SubscriptionCandidate
-SubscriptionDiff
-SubscriptionValidationResult
+(header_name.casefold(), exact_header_value)
 ```
 
-只使用目标中已知的订阅字段名：`id`、`name`、`baseUrl`、`group`、`enabled`、
-`priority`。候选 `baseUrl` 是不可信数据，不访问、不探测、不注册；`enabled` 只
-是订阅源建议；普通和 `premium` 只用于目录分组，不授予认证、订阅、播放或下载
-权限。
+并排序后精确比较：
 
-未来播放 DTO 和 Operation：
+- Header name 大小写不敏感；
+- Header value 大小写敏感；
+- Header 顺序不影响结果；
+- runtime 增加、减少、改名或改值均返回
+  `approval_operation_mismatch`；
+- runtime 是 Approval 子集时也失败，不允许静默收缩；
+- 错误和日志只包含稳定错误码，不回显 Header value marker 或完整对象 repr。
+
+N4B synthetic Approval/Endpoint 已最小同步，精确批准既有 N4A fixture search 的
+`X-Fixture-Contract: n4a`，没有改变 N4A runtime Fixture 行为。
+
+## Timeout typed 合同
+
+新增：
 
 ```text
-StreamingSearchResult
-StreamingDetail
-PlaybackGroup
-PlaybackSource
-PlaybackVariant
-PlaybackManifest
-PlaybackSegment
-PlaybackError
-
-search
-detail
-playback_list
-playback_resolve
+ApprovedTimeoutPolicy
+ApprovedOperation.timeout_policy
 ```
 
-已定义 playback 与 future download 状态机、expiry/cancel/unknown、短期 Locator、
-relative-reference 不扩 Host、播放不授权下载，以及 SPA/player 资源清理边界；未
-实现任何播放网络或下载。
+规则：
 
-## 漫画研究结果
+- 数值必须有限且大于零，拒绝 `bool`、NaN、Infinity、零和负数；
+- connect 上限 60 秒，total 上限 300 秒；
+- total 不得小于 connect；
+- 当前 Validator 精确绑定共享客户端实际常量：
+  - `CONNECT_TIMEOUT_SECONDS = 3.0`
+  - `TOTAL_TIMEOUT_SECONDS = 10.0`
+- 任何常量 mismatch 返回 `approval_operation_mismatch`；
+- 未修改 Outbound Client 常量、deadline、并发、重试或网络行为。
 
-漫画 DTO：
+## Stable error mapping
+
+新增 bounded enum：
 
 ```text
-ComicSearchResult
-ComicDetail
-ComicCreator
-ComicCategory
-ComicTag
-ComicChapter
-ComicPage
-ComicPageAsset
-ComicReadingProgress
+ApprovedErrorMappingProfile.SHARED_OUTBOUND_V1
+ApprovedOperation.error_mapping_profile
 ```
 
-Operation：
+当前只允许：
 
 ```text
-search
-detail
-category_list
-category_items
-chapter_list
-page_list
-asset_list
+shared_outbound_v1
 ```
 
-未来可选 auth/favorite/comment/rating/download 均保持未批准。阅读流固定为搜索或
-分类、详情、章节、页面、页面资源、本地阅读进度；Comic/Chapter/Page 均使用
-Provider-scoped opaque identity，Page/Asset/Locator 分离，本地进度和收藏与远程
-状态分离，不自动下载整章或因远端缺失删除本地记录。
+该 profile 固定使用共享 `OutboundErrorCode`/状态映射，不允许 Provider payload、
+动态字符串或原始异常定义错误策略。Unsupported/mismatch 使用稳定
+`approval_operation_mismatch`。
 
-Venera 的 JavaScript Source 模型仅作 capability/DTO/lifecycle 参考。NSFWTrack
-未来每个漫画来源必须是固定、审查过的 Python Adapter，不执行远程或本地来源
-JavaScript，不支持远程代码更新。
+## Raw payload retention
 
-## 状态与安全矩阵
-
-三份技术研究均包含：
-
-- Operation 状态矩阵；
-- 网络副作用矩阵；
-- 数据库写入矩阵；
-- 权限矩阵；
-- 认证矩阵；
-- 错误矩阵；
-- 结果不确定性矩阵。
-
-完整区分：
+新增 bounded enum：
 
 ```text
-success
-invalid_request
-not_approved
-not_supported
-unauthorized
-forbidden
-not_found
-rate_limited
-provider_unavailable
-invalid_payload
-response_too_large
-expired
-cancelled
-unknown
+ApprovedRawPayloadRetention.DISCARD
+ApprovedRawPayloadRetention.TEST_FIXTURE_ONLY
+ApprovedOperation.raw_payload_retention
 ```
 
-GET 页面保持零 Provider 网络和零写入；Operation 不自动串联；失败或 unknown
-不猜测、不清除本地状态、不产生 partial DTO 普通成功。
+规则：
 
-## Approval 草案状态
+- production Approval 只能使用 `discard`；
+- production 使用 `test_fixture_only` 时，纯本地 Validator/activation 返回
+  `approval_incomplete`；
+- `test_fixture_only` 只允许 `test_fixture` scope；
+- 测试 fixture 必须继续为静态、脱敏、受审查内容；
+- 未实现或授权任何生产 raw payload 数据库、文件、日志、异常或普通 Backup 持久化。
 
-三份 Approval 文档均明确为：
+## Approval format 兼容决策
 
 ```text
-draft / not approved
+APPROVAL_FORMAT_VERSION = 1
 ```
 
-草案只包含 placeholder 和未勾选决策，没有真实 Provider Host、Endpoint、凭据、
-Cookie、响应 payload、live locator 或已批准状态。草案本身不能构造 Capability、
-Endpoint 或 Registry，也不能授权网络。
-
-## 缺失输入
-
-用户提供的订阅 JSON 和独立油猴脚本在受保护本地数据边界外不可用。因此：
-
-- 未猜造订阅 envelope、version、类型、可选性或真实候选内容；
-- 未访问任何候选 `baseUrl`；
-- 未把 JavdBviewed 的公开历史脚本冒充为用户脚本；
-- 未执行任何脚本；
-- HLS query inheritance、segment 并发/重试/取消、TS-to-MP4 等具体行为明确
-  保持 blocked，等待未来单独静态输入授权。
-
-## 固定后续路线
+不需要升级版本。当前没有持久化或已批准的生产 Approval；新字段是代码级合同闭环，
+并使用 deny-safe 默认值：
 
 ```text
-N4D video metadata Provider: search + detail + optional asset_list
-N4E subscription catalog: refresh + parse + revision + diff + approve + disable
-N4F streaming Provider: playback_list + playback_resolve + playback UI
-N4G comic Provider: search + detail + chapter_list + page_list
-N5 unified source search, preview, and manual import UI
-N6 controlled resource save and download
-N7 controlled multi-source update, sync, and recommendation
+fixed_headers = ()
+timeout_policy = ApprovedTimeoutPolicy(3.0, 10.0)
+error_mapping_profile = shared_outbound_v1
+raw_payload_retention = discard
 ```
 
-每个真实阶段仍需单独完整 Provider Approval 和新的正式 GOAL。Catalog candidate
-Approval 不等于 runtime Provider Approval。
+现有 N4A/N4B 行为和稳定 Approval 错误码保持兼容。
 
-## 验证结果
+## 文档同步
+
+已更新：
+
+- `PROVIDER_CONTRACT.md`：Header exact-match、timeout、error profile、raw retention；
+- `PROVIDER_APPROVAL_TEMPLATE.md`：typed 字段及当前唯一允许策略；
+- `video-metadata-approval-draft.md`：placeholder-only N4D-A 字段；
+- `PLAN.md`、`TASKS.md`、`REVIEW.md`、`CHANGELOG.md`：阶段状态与门禁证据。
+
+视频 Approval 草案仍为 `draft / not approved`，没有真实 Provider、Host、Endpoint、
+Header、凭据、payload 或 Fixture。
+
+## 测试结果
 
 ```text
-git diff --check: passed
-pytest: 965 passed in 200.02s
-pip check: No broken requirements found.
+N4D-A focused:
+64 passed in 11.16s
+
+N4A + N4B + N4D-A + Adapter + Outbound:
+211 passed in 29.85s
+
+Full pytest:
+1029 passed in 184.65s
+
+pip check:
+No broken requirements found.
+
+git diff --check:
+passed
 ```
+
+测试覆盖：
+
+- frozen/slots/typed/default Header；
+- Header grammar、case/order、duplicate、empty/long/control/CRLF/NUL；
+- 全部 forbidden/credential-like name；
+- Bearer/Basic/Token/ApiKey value；
+- runtime add/remove/rename/value mismatch 与 marker redaction；
+- timeout valid/bool/zero/negative/NaN/Infinity/upper bound/ordering/constant mismatch；
+- bounded error profile；
+- production/test fixture raw retention 与 activation；
+- zero DNS/network、空 Production Registry 和 unchanged outbound constants；
+- N4A/N4B/Adapter/Outbound 完整回归。
+
+## 保持的边界
 
 静态复核确认：
 
-- 应用仍为 `1.1.0`；
+- Application 仍为 `1.1.0`；
 - `CURRENT_SCHEMA_VERSION` 仍为 `4`；
 - Backup 仍为 `nsfwtrack.backup.v2`；
-- Production Provider Registry 仍为 `EndpointRegistry(())`；
-- 没有修改 Python、测试、依赖、配置、Schema、Migration、Backup、Docker、
-  Compose 或 CI；
-- 没有真实 Provider、认证、播放、下载、后台任务或网络入口；
-- 没有调用 Hermes；
-- 没有创建 tag/Release；
-- 没有部署 N100；
-- 既有未跟踪 `data/` 未进入、读取、枚举、修改、暂存或提交。
+- Production Registry 仍为 `EndpointRegistry(())`；
+- `CONNECT_TIMEOUT_SECONDS` 仍为 `3.0`；
+- `TOTAL_TIMEOUT_SECONDS` 仍为 `10.0`；
+- Provider concurrency 仍为 `1`；
+- automatic retry 仍为 `0`；
+- `app/source_adapters/registry.py` 未修改；
+- `app/services/outbound_http.py` 未修改；
+- 未新增依赖或修改 Schema、Migration、Backup、Docker、Compose、CI；
+- 未实现真实 Provider、认证、Vault、UI、Asset Resolve、播放或下载；
+- 未添加真实 Host、Endpoint、Header 或 Fixture；
+- 未调用 Hermes；
+- 未创建 Tag/Release；
+- 未部署 N100；
+- 既有 `data/` 未读取、枚举、进入、复制、修改、移动、删除、暂存或提交。
 
 ## 提交门禁
 
 唯一提交信息：
 
 ```text
-Research provider integration directions
+Close provider approval policy gaps
 ```
 
 推送后等待 GitHub Actions `test` 与 `Docker production smoke` 均成功。

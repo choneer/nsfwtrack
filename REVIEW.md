@@ -234,6 +234,26 @@
   候选地址/真实媒体/data/Hermes/tag/Release/N100 访问或动作
 - [x] **5.N4C.11. 本地门禁** — 全量 965 tests、pip check 与 diff check 是否通过
 
+### Phase 5-N4D-A Approval 合同闭环（已完成）
+
+- [x] **5.N4D-A.1. Typed Header** — `ApprovedFixedHeader`/`fixed_headers` 是否
+  frozen/slots、默认空、语法有界、无重复且拒绝 forbidden/credential-like name 与
+  Bearer/Basic/Token/ApiKey value
+- [x] **5.N4D-A.2. Header exact-match** — name case-insensitive、value case-sensitive、
+  order-independent，Approval/runtime 增加、减少、改名、改值是否均返回
+  `approval_operation_mismatch` 且不泄露 marker
+- [x] **5.N4D-A.3. Timeout** — typed policy 是否拒绝 bool/非有限/非正/超限/total < connect，
+  并精确绑定共享 connect `3.0` / total `10.0` 常量而不改 outbound
+- [x] **5.N4D-A.4. Error/retention** — profile 是否只允许 `shared_outbound_v1`，
+  production raw payload 是否只允许 `discard`，test fixture-only 是否 scope 限制，
+  且无生产 payload 写入能力
+- [x] **5.N4D-A.5. Compatibility** — N4A/N4B tests 与稳定错误码是否保持，Approval
+  format 是否保持 1，Production Registry 是否仍精确为空
+- [x] **5.N4D-A.6. Tests/scope** — N4D-A 专项是否覆盖完整矩阵，且未修改 registry/
+  outbound、版本/Schema/Backup/依赖/Docker/Compose/CI、真实网络或既有 data
+- [x] **5.N4D-A.7. Verification** — 专项 64、核心组合 211、全量 1029、pip check
+  与 diff check 是否全部通过
+
 - [ ] **5.1. Provider 批准与定位** — 每个真实 Provider 是否由用户明确批准，
   核心用途是否符合 NSFW-first 定位，且固定 Host/Endpoint、认证、搜索、详情、
   下载、响应、限流、条款与使用边界是否完整

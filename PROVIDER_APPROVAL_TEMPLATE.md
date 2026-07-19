@@ -158,14 +158,20 @@ For each operation, complete a separate block:
 - Request encoding: `<required or none>`
 - Typed request fields: `<required or none>`
 - Fixed non-secret headers: `<required or none>`
+- Fixed header names are non-sensitive, printable, static, and exact-approved:
+  `<required or none>`
+- Fixed header name case/order comparison and duplicate rejection: `<required>`
+- Forbidden/credential-like header rejection: `<required>`
+- Fixed header value authentication-form rejection: `<required>`
 - Credential injection field/location: `<required or none>`
 - Approved cookie names/scopes: `<required or none>`
 - Response kind: `<required>`
 - Allowed response content types: `<required>`
 - Top-level response shape: `<required or not-applicable>`
 - Maximum response bytes: `<required>`
-- Connect deadline: `<required>`
-- Total deadline: `<required>`
+- Connect deadline: `<required; current shared value is 3.0 seconds>`
+- Total deadline: `<required; current shared value is 10.0 seconds>`
+- Typed timeout policy exact-match result: `<required>`
 - Provider concurrency limit: `<required>`
 - Per-operation rate limit: `<required>`
 - Pagination model and maximum: `<required or not-applicable>`
@@ -173,8 +179,10 @@ For each operation, complete a separate block:
 - Redirect maximum hops: `<required or zero>`
 - Exact redirect host/path rules: `<required or none>`
 - Authentication retained across redirect: `<required or no>`
-- Stable status/error mapping: `<required>`
-- Raw payload retention: `<required>`
+- Stable status/error mapping: `<required; current profile is shared_outbound_v1>`
+- Error mapping profile: `<required; exact typed profile>`
+- Raw payload retention: `<required; production must be discard>`
+- Test-fixture-only raw retention scope: `<required or not-applicable>`
 - User approval: `[ ]`
 
 Additional operation blocks: `<add one complete block per operation>`

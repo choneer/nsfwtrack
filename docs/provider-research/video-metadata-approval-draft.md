@@ -138,3 +138,22 @@ Final decision:
 
 Until all boxes are checked in a later authorized phase, activation status is
 `not_approved` and the Production Provider Registry must remain unchanged.
+
+## 6. N4D-A typed policy placeholders
+
+These fields are required by the current Approval contract but remain entirely
+unfilled in this draft:
+
+- `fixed_non_secret_headers`: `<placeholder-only; no real header names or values>`
+- `fixed_header_case_order_rule`: `<case-insensitive name, case-sensitive value, order-independent>`
+- `fixed_header_forbidden_name_rule`: `<placeholder for complete deny list>`
+- `fixed_header_auth_value_rule`: `<Bearer/Basic/Token/ApiKey forms denied>`
+- `connect_timeout_seconds`: `<3.0 only for current shared client>`
+- `total_timeout_seconds`: `<10.0 only for current shared client>`
+- `error_mapping_profile`: `<shared_outbound_v1 only>`
+- `raw_payload_retention`: `<discard for production>`
+- `test_fixture_raw_payload_retention`: `<test_fixture_only only with test_fixture scope>`
+
+This draft still contains no real Provider, Host, Endpoint, Header, credential,
+raw payload, or Fixture. Fixed headers are not an authentication channel, and
+the policy placeholders do not authorize any network or Registry action.

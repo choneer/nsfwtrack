@@ -4,6 +4,13 @@
 
 ### Added
 
+- Added the Phase 5-N4D-A typed Approval policy closure: immutable fixed
+  non-secret headers, exact canonical Header matching, shared-client timeout
+  policy, bounded error mapping, and raw-payload retention policy. Approval
+  format remains version `1` with deny-safe defaults.
+- Added 64 deterministic N4D-A tests covering Header grammar/sensitivity,
+  exact-match changes, timeout edge cases, shared constants, error profile,
+  production/test raw retention, scope, and empty Production Registry behavior.
 - Added seven Phase 5-N4C research documents covering video metadata,
   subscription catalogs and future playback, comic sources, three
   placeholder-only Approval drafts, and the fixed N4D-N7 Provider roadmap.
@@ -83,6 +90,14 @@
 
 ### Security
 
+- N4D-A rejects forbidden and credential-like fixed Header names and
+  Bearer/Basic/Token/ApiKey values. Fixed headers cannot inject authentication;
+  production timeout is exactly shared `3.0` connect / `10.0` total seconds,
+  error mapping is only `shared_outbound_v1`, and production raw payload
+  retention is only `discard`. No runtime network or payload persistence changed.
+- N4D-A verification passed 64 focused tests, 211 combined
+  N4A/N4B/N4D-A/Adapter/Outbound tests, all 1029 pytest tests, `pip check`, and
+  `git diff --check`. The Production Registry remains empty.
 - N4C is documentation-only. Subscription candidate addresses were not
   contacted, no script or remote JavaScript was executed, and no real Provider,
   host, endpoint, credential, authentication, playback, download, or Registry

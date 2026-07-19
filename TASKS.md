@@ -198,6 +198,26 @@ Provider Approval。
   测试、Docker/CI 和空 Production Registry；不接触 data/Hermes/tag/Release/N100
 - [x] 全量 965 passed，`pip check` 与 `git diff --check` 通过
 
+#### Phase 5-N4D-A - 首个真实 Provider 前的 Approval 合同闭环
+
+- [x] 新增 frozen/slots typed `ApprovedFixedHeader`、`ApprovedTimeoutPolicy`、
+  `ApprovedErrorMappingProfile`、`ApprovedRawPayloadRetention`，Approval format 保持 1
+- [x] `ApprovedOperation.fixed_headers` 与 runtime `EndpointOperation.fixed_headers`
+  canonical exact-match：名称 case-insensitive、值 case-sensitive、顺序无关，增加、
+  减少、改名、改值和重复项均稳定失败，不静默收缩权限
+- [x] 拒绝现有 forbidden Header、Authorization/Cookie/API-Key/Auth/Access/Refresh
+  Token/Client Secret 等 credential-like name，以及 Bearer/Basic/Token/ApiKey value
+- [x] Timeout exact-bind 当前共享 `3.0/10.0` 常量，拒绝 bool/NaN/Infinity/非正/超限/
+  total < connect，不改变 outbound、并发、重试或网络行为
+- [x] Error profile 只允许 `shared_outbound_v1`；生产 raw retention 只允许 `discard`，
+  `test_fixture_only` 只允许 test fixture，未增加任何生产 payload 存储
+- [x] 更新 `PROVIDER_CONTRACT.md`、`PROVIDER_APPROVAL_TEMPLATE.md`、影视 Approval
+  草案与阶段文档；新增 `tests/test_phase5_n4d_a.py` 完整矩阵
+- [x] N4D-A 专项 64、核心组合 211、全量 1029 passed，`pip check` 与
+  `git diff --check` 通过
+- [x] 保持 N4A/N4B 行为与错误码兼容、Production Registry 为空、无真实 Provider/
+  Host/Endpoint/Fixture/网络、未接触 data/Hermes/tag/Release/N100
+
 #### Phase 5-N4D - 首个影视元数据 Provider
 
 - [ ] 用户明确批准 Provider 名称、核心用途、固定 Host/Endpoint、认证方式、
