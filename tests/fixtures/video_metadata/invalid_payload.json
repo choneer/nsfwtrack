@@ -1,0 +1,5 @@
+{
+  "external_id": "invalid-payload",
+  "title": 7,
+  "available_fields": ["identifier", "title"]
+}

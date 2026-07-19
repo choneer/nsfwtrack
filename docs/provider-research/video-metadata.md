@@ -2,6 +2,12 @@
 
 ## 1. Status and scope
 
+Phase 5-N4D-B is complete as a Provider-neutral contract and fixture framework.
+The implementation intentionally contains no real Provider identity, Host,
+Endpoint, response locator, network call, or Registry entry. `search`, `detail`,
+and `asset_list` remain separate operations, and metadata merge is a local pure
+plan only. A real Provider remains a future separately approved phase.
+
 This document is a static architecture study. It does not approve, implement,
 register, or contact a real Provider. The Production Provider Registry remains
 `EndpointRegistry(())`. Any future Provider requires a separately completed

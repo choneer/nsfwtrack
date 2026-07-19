@@ -254,6 +254,22 @@
 - [x] **5.N4D-A.7. Verification** — 专项 64、核心组合 211、全量 1029、pip check
   与 diff check 是否全部通过
 
+### Phase 5-N4D-B Video Metadata DTO 与 Fixture Adapter Framework（已完成）
+
+- [x] **5.N4D-B.1. DTO** — Video metadata DTO 使用 frozen/slots、tuple-only、严格有界文本、
+  Provider-scoped identity、timezone-aware UTC、finite/range rating 与 opaque Asset ID
+- [x] **5.N4D-B.2. 字段一致性** — `available_fields` 严格对应实际非空字段，provenance 仅引用
+  当前 DTO 字段，构造边界不保留 raw Mapping/response/locator/credential
+- [x] **5.N4D-B.3. Protocol** — async `VideoMetadataAdapter` 独立提供 search/detail/asset_list，
+  不接受任意 URL/Host/Header/Auth 参数且不串联操作
+- [x] **5.N4D-B.4. Fixture** — tests-only provider 只解析合成 JSON；错误稳定映射为
+  `invalid_provider_payload`，不回显 marker，DNS/socket/httpx/OutboundHttpClient 均不调用
+- [x] **5.N4D-B.5. Merge** — 纯函数 merge plan 保留用户优先、missing/empty 不删除、同源更新、
+  显式 priority、equal-priority conflict、Provider-scoped list 与 asset-only association
+- [x] **5.N4D-B.6. 范围与回归** — 未修改 Registry/Outbound/Schema/Migration/Backup/依赖/Docker/CI，
+  Production Registry 仍为空，既有 `data/` 未接触；专项、targeted、full、pip check 和 diff check
+  结果记录在最终提交报告
+
 - [ ] **5.1. Provider 批准与定位** — 每个真实 Provider 是否由用户明确批准，
   核心用途是否符合 NSFW-first 定位，且固定 Host/Endpoint、认证、搜索、详情、
   下载、响应、限流、条款与使用边界是否完整

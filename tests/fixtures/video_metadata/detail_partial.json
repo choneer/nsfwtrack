@@ -1,0 +1,14 @@
+{
+  "external_id": "video-002",
+  "title": "Synthetic Partial Video",
+  "available_fields": ["identifier", "title"],
+  "provenance": [
+    {
+      "external_id": "video-002",
+      "operation": "detail",
+      "field_name": "title",
+      "observed_at": "2026-01-02T03:04:05Z",
+      "confidence": "low"
+    }
+  ]
+}

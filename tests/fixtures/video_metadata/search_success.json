@@ -1,0 +1,67 @@
+{
+  "page": 1,
+  "page_size": 2,
+  "has_next": false,
+  "total": 1,
+  "results": [
+    {
+      "external_id": "video-001",
+      "catalog_number": "SYN-001",
+      "title": "Synthetic Video One",
+      "alternate_titles": ["Synthetic One"],
+      "release_date": "2024-01-02",
+      "performers": [
+        {
+          "external_id": "person-001",
+          "display_name": "Synthetic Performer",
+          "role": "performer",
+          "alternate_names": ["S. Performer"]
+        }
+      ],
+      "studio": {
+        "external_id": "studio-001",
+        "display_name": "Synthetic Studio",
+        "organization_type": "studio"
+      },
+      "tags": [
+        {
+          "external_id": "tag-001",
+          "raw_name": "Example Tag",
+          "normalized_name": "example-tag",
+          "category": "general"
+        }
+      ],
+      "cover": {
+        "asset_id": "cover-video-001",
+        "kind": "cover",
+        "display_name": "Synthetic Cover",
+        "mime_type": "image/jpeg",
+        "width": 640,
+        "height": 360,
+        "requires_auth": false,
+        "downloadable": false
+      },
+      "summary": "Synthetic metadata used by the fixture-only adapter.",
+      "available_fields": [
+        "identifier",
+        "title",
+        "alternate_titles",
+        "release_date",
+        "performers",
+        "studio",
+        "tags",
+        "cover",
+        "summary"
+      ],
+      "provenance": [
+        {
+          "external_id": "video-001",
+          "operation": "search",
+          "field_name": "title",
+          "observed_at": "2026-01-02T03:04:05Z",
+          "confidence": "high"
+        }
+      ]
+    }
+  ]
+}

@@ -149,6 +149,11 @@ roadmap unless separately authorized.
 
 ## 5. Cross-phase gates
 
+Phase 5-N4D-B is the completed video metadata foundation: immutable DTOs,
+provenance/available-field rules, deterministic merge planning, and a tests-only
+synthetic fixture adapter. It does not satisfy the real-Provider Approval gate;
+N4D still requires explicit user approval before any network implementation.
+
 Every real phase must prove:
 
 1. Provider Approval is complete, production-scoped, explicitly approved by the

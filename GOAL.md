@@ -1,256 +1,74 @@
-# Phase 5-N4D-A - Approval 合同闭环完成摘要
+# Phase 5-N4D-B — Video Metadata DTO 与 Fixture Adapter Framework
 
-## 完成状态
+## 完成摘要
 
-Phase 5-N4D-A 已完成本地实现、合同文档、测试和范围审计。本阶段只补齐首个真实
-Provider 前的 Provider-neutral Approval 合同，没有选择、命名、研究、实现、访问
-或注册任何真实 Provider。
+Phase 5-N4D-B 已完成。起始基线为 `ccb481a141370366d8cef0b6170586d7b157e938`，
+分支为 `main`，应用版本保持 `1.1.0`，目标 Schema 保持 `4`，备份格式保持
+`nsfwtrack.backup.v2`，Production Registry 仍为 `EndpointRegistry(())`。
 
-起始基线：
+本阶段只建立 Provider-neutral 的影视元数据数据层、解析边界和 fixture-only
+测试框架；没有选择、命名、研究、访问或注册任何真实 Provider。
 
-```text
-branch: main
-start: 88de1a9bf047605f735595441f280366420dfa0c
-application: 1.1.0
-schema: 4
-backup: nsfwtrack.backup.v2
-production registry: EndpointRegistry(())
-pytest baseline: 965 passed
-```
+## 实现内容
 
-## 修改文件
+- `app/video_metadata/contracts.py` 提供 frozen/slots DTO：
+  `VideoIdentifier`、`VideoPerson`、`VideoOrganization`、`VideoSeries`、
+  `VideoTag`、`VideoRating`、`VideoAsset`、`VideoMetadataProvenance`、
+  `VideoSearchResult`、`VideoDetail` 和 `VideoSearchPage`。
+- 所有集合均为 tuple；文本有硬上限并拒绝控制字符；Provider key 与外部身份
+  按 Provider scope 验证；时间统一为 timezone-aware UTC；评分要求有限且在范围内；
+  Asset ID 使用 opaque 约束，`requires_auth`/`downloadable` 固定为 `False`。
+- `available_fields` 必须与实际非空字段完全一致；provenance 只能引用当前 DTO
+  实际存在的字段和匹配的 Provider-scoped identity；DTO 不保存 raw Mapping、raw
+  response、locator 或凭据。
+- `VideoMetadataAdapter` 是 async Protocol，只声明独立的 `search`、`detail` 和
+  `asset_list`，不接受任意 URL、Host、Header、Cookie、Auth 参数，也不负责写库。
+- `app/video_metadata/merge.py` 提供纯函数 `VideoMetadataMergePlan`、
+  `VideoFieldDecision`、`VideoFieldSource`、`VideoFieldAction` 和本地快照类型。
+  计划保留用户编辑字段、把 missing/empty 视为不删除、不覆盖非空值；同一 Provider
+  可更新自己的旧候选；不同 Provider 使用显式 priority；相同 priority 的冲突标记
+  `conflict`；people/organization/series/tag 使用 Provider-scoped identity；Asset
+  只产生关联计划，不 resolve、播放或下载。计划顺序稳定且不写 ORM、数据库或文件。
+- `tests/video_metadata_fixture_provider.py` 仅读取仓库内合成 JSON fixtures，完全分离
+  `search`/`detail`/`asset_list`，不调用 DNS、socket、httpx 或 `OutboundHttpClient`。
+  malformed、missing、wrong-type、duplicate 和 oversized payload 统一转为稳定的
+  `ProviderAdapterError(INVALID_PROVIDER_PAYLOAD)`，异常不回显原始 marker。
 
-```text
-GOAL.md
-PLAN.md
-TASKS.md
-REVIEW.md
-CHANGELOG.md
-PROVIDER_CONTRACT.md
-PROVIDER_APPROVAL_TEMPLATE.md
-docs/provider-research/video-metadata-approval-draft.md
-app/source_adapters/approval.py
-app/source_adapters/__init__.py
-tests/test_phase5_n4b.py
-tests/test_phase5_n4d_a.py
-```
+## 测试与文档
 
-未修改 `README.md`，因为现有顶层产品状态不需要重复 N4D-A 的实现细节。
+静态 fixtures 位于 `tests/fixtures/video_metadata/`：search success/empty、detail
+complete/partial、asset list success 和 invalid payload。新增 `tests/test_phase5_n4d_b.py`
+覆盖 DTO 不可变性、tuple-only、边界、UTC、评分、identity、字段/provenance 一致性、
+fixture 错误脱敏、零网络、操作分离和 merge 矩阵。
 
-## 固定非敏感 Header typed 合同
+`PLAN.md`、`TASKS.md`、`REVIEW.md`、`CHANGELOG.md`、`PROVIDER_CONTRACT.md` 与
+视频 Provider 研究/路线文档已同步 N4D-B 完成状态和后续真实 Provider Approval 门禁。
 
-新增 frozen、slots、typed：
+## 长期边界
 
-```text
-ApprovedFixedHeader
-ApprovedOperation.fixed_headers
-```
+- 未修改 `app/source_adapters/registry.py`、`app/services/outbound_http.py`、ORM、
+  路由、UI、认证、Vault、Schema、Migration、Backup、Docker、Compose、CI 或依赖。
+- 不新增真实 Host、Endpoint、Header、URL、Provider response、网络权限、后台任务、
+  Asset Resolve、播放、下载、推荐或 AI。
+- 不调用 Hermes，不创建 tag/Release，不部署 N100，不读取或接触既有 `data/`。
+- 测试只使用仓库静态合成 fixtures；既有 `data/` 不作为测试或 Docker 数据目录。
 
-`ApprovedFixedHeader` 要求：
+## 验收记录
 
-- name 使用与 `EndpointOperation.fixed_headers` 相同的有界 Header 语法；
-- value 非空、最多 512 字符、只允许 printable ASCII；
-- CR、LF、NUL、DEL 和其他控制字符拒绝；
-- value 不进入 dataclass repr；
-- `ApprovedOperation.fixed_headers` 必须是 immutable typed tuple；
-- 同名 Header 按大小写不敏感规则拒绝重复；
-- 默认值为空，保持既有 Approval deny-safe 兼容。
+本地门禁结果：
 
-继续拒绝现有 forbidden Header，并额外拒绝 credential-like Header name，包括：
+- N4D-B focused：`26 passed`；
+- N4A/N4B/N4D-A/N4D-B/Source Adapter/Outbound targeted：`237 passed`；
+- full pytest：`1055 passed`；
+- `pip check`：`No broken requirements found`；
+- 所有六份静态 fixture 均通过 JSON 解析；
+- `git diff --check` 与最终范围审计在暂存前通过。
 
-```text
-Authorization
-Cookie
-Set-Cookie
-X-API-Key / API-Key
-Auth Token
-Access Token
-Refresh Token
-Client Secret
-credential / password / session / token forms
-```
-
-固定 Header value 拒绝大小写不敏感的认证前缀：
+推送后仍需记录 GitHub Actions `test`/`Docker production smoke` 结果。唯一提交信息为：
 
 ```text
-Bearer
-Basic
-Token
-ApiKey
+Add video metadata contract framework
 ```
 
-固定 Header 不是认证、Cookie、Token 或 Secret Vault 注入通道。
-
-## Header canonical exact-match
-
-`validate_approval_against_endpoint()` 将 Approval 与
-`EndpointOperation.fixed_headers` canonical 化为：
-
-```text
-(header_name.casefold(), exact_header_value)
-```
-
-并排序后精确比较：
-
-- Header name 大小写不敏感；
-- Header value 大小写敏感；
-- Header 顺序不影响结果；
-- runtime 增加、减少、改名或改值均返回
-  `approval_operation_mismatch`；
-- runtime 是 Approval 子集时也失败，不允许静默收缩；
-- 错误和日志只包含稳定错误码，不回显 Header value marker 或完整对象 repr。
-
-N4B synthetic Approval/Endpoint 已最小同步，精确批准既有 N4A fixture search 的
-`X-Fixture-Contract: n4a`，没有改变 N4A runtime Fixture 行为。
-
-## Timeout typed 合同
-
-新增：
-
-```text
-ApprovedTimeoutPolicy
-ApprovedOperation.timeout_policy
-```
-
-规则：
-
-- 数值必须有限且大于零，拒绝 `bool`、NaN、Infinity、零和负数；
-- connect 上限 60 秒，total 上限 300 秒；
-- total 不得小于 connect；
-- 当前 Validator 精确绑定共享客户端实际常量：
-  - `CONNECT_TIMEOUT_SECONDS = 3.0`
-  - `TOTAL_TIMEOUT_SECONDS = 10.0`
-- 任何常量 mismatch 返回 `approval_operation_mismatch`；
-- 未修改 Outbound Client 常量、deadline、并发、重试或网络行为。
-
-## Stable error mapping
-
-新增 bounded enum：
-
-```text
-ApprovedErrorMappingProfile.SHARED_OUTBOUND_V1
-ApprovedOperation.error_mapping_profile
-```
-
-当前只允许：
-
-```text
-shared_outbound_v1
-```
-
-该 profile 固定使用共享 `OutboundErrorCode`/状态映射，不允许 Provider payload、
-动态字符串或原始异常定义错误策略。Unsupported/mismatch 使用稳定
-`approval_operation_mismatch`。
-
-## Raw payload retention
-
-新增 bounded enum：
-
-```text
-ApprovedRawPayloadRetention.DISCARD
-ApprovedRawPayloadRetention.TEST_FIXTURE_ONLY
-ApprovedOperation.raw_payload_retention
-```
-
-规则：
-
-- production Approval 只能使用 `discard`；
-- production 使用 `test_fixture_only` 时，纯本地 Validator/activation 返回
-  `approval_incomplete`；
-- `test_fixture_only` 只允许 `test_fixture` scope；
-- 测试 fixture 必须继续为静态、脱敏、受审查内容；
-- 未实现或授权任何生产 raw payload 数据库、文件、日志、异常或普通 Backup 持久化。
-
-## Approval format 兼容决策
-
-```text
-APPROVAL_FORMAT_VERSION = 1
-```
-
-不需要升级版本。当前没有持久化或已批准的生产 Approval；新字段是代码级合同闭环，
-并使用 deny-safe 默认值：
-
-```text
-fixed_headers = ()
-timeout_policy = ApprovedTimeoutPolicy(3.0, 10.0)
-error_mapping_profile = shared_outbound_v1
-raw_payload_retention = discard
-```
-
-现有 N4A/N4B 行为和稳定 Approval 错误码保持兼容。
-
-## 文档同步
-
-已更新：
-
-- `PROVIDER_CONTRACT.md`：Header exact-match、timeout、error profile、raw retention；
-- `PROVIDER_APPROVAL_TEMPLATE.md`：typed 字段及当前唯一允许策略；
-- `video-metadata-approval-draft.md`：placeholder-only N4D-A 字段；
-- `PLAN.md`、`TASKS.md`、`REVIEW.md`、`CHANGELOG.md`：阶段状态与门禁证据。
-
-视频 Approval 草案仍为 `draft / not approved`，没有真实 Provider、Host、Endpoint、
-Header、凭据、payload 或 Fixture。
-
-## 测试结果
-
-```text
-N4D-A focused:
-64 passed in 11.16s
-
-N4A + N4B + N4D-A + Adapter + Outbound:
-211 passed in 29.85s
-
-Full pytest:
-1029 passed in 184.65s
-
-pip check:
-No broken requirements found.
-
-git diff --check:
-passed
-```
-
-测试覆盖：
-
-- frozen/slots/typed/default Header；
-- Header grammar、case/order、duplicate、empty/long/control/CRLF/NUL；
-- 全部 forbidden/credential-like name；
-- Bearer/Basic/Token/ApiKey value；
-- runtime add/remove/rename/value mismatch 与 marker redaction；
-- timeout valid/bool/zero/negative/NaN/Infinity/upper bound/ordering/constant mismatch；
-- bounded error profile；
-- production/test fixture raw retention 与 activation；
-- zero DNS/network、空 Production Registry 和 unchanged outbound constants；
-- N4A/N4B/Adapter/Outbound 完整回归。
-
-## 保持的边界
-
-静态复核确认：
-
-- Application 仍为 `1.1.0`；
-- `CURRENT_SCHEMA_VERSION` 仍为 `4`；
-- Backup 仍为 `nsfwtrack.backup.v2`；
-- Production Registry 仍为 `EndpointRegistry(())`；
-- `CONNECT_TIMEOUT_SECONDS` 仍为 `3.0`；
-- `TOTAL_TIMEOUT_SECONDS` 仍为 `10.0`；
-- Provider concurrency 仍为 `1`；
-- automatic retry 仍为 `0`；
-- `app/source_adapters/registry.py` 未修改；
-- `app/services/outbound_http.py` 未修改；
-- 未新增依赖或修改 Schema、Migration、Backup、Docker、Compose、CI；
-- 未实现真实 Provider、认证、Vault、UI、Asset Resolve、播放或下载；
-- 未添加真实 Host、Endpoint、Header 或 Fixture；
-- 未调用 Hermes；
-- 未创建 Tag/Release；
-- 未部署 N100；
-- 既有 `data/` 未读取、枚举、进入、复制、修改、移动、删除、暂存或提交。
-
-## 提交门禁
-
-唯一提交信息：
-
-```text
-Close provider approval policy gaps
-```
-
-推送后等待 GitHub Actions `test` 与 `Docker production smoke` 均成功。
+不得创建 corrective commit。完成提交前，GOAL 白名单文件以外不得出现 tracked
+修改，既有未跟踪 `data/` 保持原样且不暂存。

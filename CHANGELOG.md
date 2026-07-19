@@ -4,6 +4,12 @@
 
 ### Added
 
+- Added the Phase 5-N4D-B provider-neutral video metadata contract framework:
+  frozen/slots DTOs, an async search/detail/asset-list Protocol, strict field and
+  provenance validation, deterministic zero-write merge planning, and a tests-only
+  static fixture adapter with synthetic JSON fixtures. No real Provider, network,
+  Registry entry, Schema, Backup, dependency, Docker, or CI behavior was added.
+
 - Added the Phase 5-N4D-A typed Approval policy closure: immutable fixed
   non-secret headers, exact canonical Header matching, shared-client timeout
   policy, bounded error mapping, and raw-payload retention policy. Approval

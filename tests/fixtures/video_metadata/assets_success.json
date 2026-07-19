@@ -1,0 +1,35 @@
+{
+  "assets": [
+    {
+      "asset_id": "cover-video-001",
+      "kind": "cover",
+      "display_name": "Synthetic Cover",
+      "mime_type": "image/jpeg",
+      "width": 1280,
+      "height": 720,
+      "requires_auth": false,
+      "downloadable": false
+    },
+    {
+      "asset_id": "preview-image-video-001",
+      "kind": "preview_image",
+      "display_name": "Synthetic Preview",
+      "mime_type": "image/jpeg",
+      "width": 640,
+      "height": 360,
+      "requires_auth": false,
+      "downloadable": false
+    },
+    {
+      "asset_id": "preview-video-video-001",
+      "kind": "preview_video",
+      "display_name": "Synthetic Preview Video",
+      "mime_type": "video/mp4",
+      "width": 640,
+      "height": 360,
+      "duration_seconds": 30,
+      "requires_auth": false,
+      "downloadable": false
+    }
+  ]
+}

@@ -30,6 +30,21 @@ Permanent boundaries remain unchanged:
 
 ## 2. Current implementation audit
 
+### 2.0 Phase 5-N4D-B video metadata foundation
+
+`app/video_metadata/contracts.py` contains immutable Provider-neutral video
+metadata DTOs and the async `VideoMetadataAdapter` Protocol. The contracts
+enforce bounded text, Provider-scoped identities, UTC-aware timestamps, finite
+ratings, opaque Asset IDs, tuple-only collections, and exact `available_fields` /
+provenance references. `app/video_metadata/merge.py` is a pure, zero-write plan
+builder; it never changes an ORM object, database, local file, or Asset locator.
+
+`tests/video_metadata_fixture_provider.py` is intentionally tests-only. It reads
+only synthetic repository JSON, maps search/detail/asset_list independently, and
+uses no DNS, socket, HTTP client, or Production Registry. N4D-B does not select or
+implement a real Provider; a future N4D approval must still define every fixed host,
+operation, response and legal boundary before network code exists.
+
 ### 2.1 Adapter and DTOs
 
 The current `SourceMetadataAdapter` protocol (retained as the `SourceAdapter`
