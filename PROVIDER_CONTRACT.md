@@ -30,6 +30,32 @@ Permanent boundaries remain unchanged:
 
 ## 2. Current implementation audit
 
+### 2.0B Phase 5-N4D-D-A Provider Approval Artifact v1
+
+`app/source_adapters/artifact.py` defines the fixed
+`nsfwtrack.provider-approval` version `1` Artifact. It serializes the complete
+typed Approval, Capabilities, Endpoint, Evidence, fixture digest catalog and an
+opaque Adapter binding reference as sorted compact Unicode JSON with one
+terminal LF. The SHA-256 attestation covers canonical payload bytes with the
+attestation field omitted; it is an integrity checksum, not a signature,
+approval, HMAC, key binding, PKI statement, or remote trust mechanism.
+
+The parser accepts exact `bytes` only. Before constructing typed objects it
+applies total-size, UTF-8, arbitrary-depth duplicate-key, depth/node/string/
+array limits, exact unknown/missing-field schema, fixed format/version and
+attestation checks. Every deny-safe field is explicit; tuples and nulls round
+trip deterministically. It retains no input bytes and emits only stable redacted
+errors.
+
+An Artifact cannot name Python code. Its opaque `binding_id` rejects module,
+class, colon, slash and URL forms and is resolved only in an explicitly supplied
+immutable `ProviderAdapterFactoryRegistry`. No importlib, entry point,
+environment, configuration, path or directory discovery exists. The factory is
+called once only after all preflight gates; its Adapter then passes the existing
+Binding and Provider Package validation without executing an operation. The only
+non-empty Artifact and registry are tests-only; Production Registry remains
+`EndpointRegistry(())`.
+
 ### 2.0A Phase 5-N4D-C offline Provider Package gate
 
 `app/source_adapters/package.py` binds one typed Approval, Capability manifest,
@@ -800,12 +826,20 @@ N4D-C is the final Provider-neutral entry gate. It does not approve or implement
 a real Provider. Its non-empty packages and fixture digest reads are tests-only;
 `PRODUCTION_ENDPOINT_REGISTRY` remains `EndpointRegistry(())`.
 
-### N4D-D: first approved Video Metadata Provider package
+### N4D-D-A: Provider Approval Artifact and offline loader
 
-Requires a completely approved `PROVIDER_APPROVAL_TEMPLATE.md`. N4D-D may implement
-only the approved manifest, minimum required auth/vault support, search/detail
-adapter, and approved asset metadata mapping with deterministic fixtures. It
-does not add the search UI, database import, or file download.
+N4D-D-A is complete and Provider-neutral. It adds no real Provider, approval,
+host, network request, credential, Registry entry, Schema, dependency, UI,
+download or background task.
+
+### N4D-D-B: first approved Video Metadata Provider Artifact and Adapter
+
+Requires a completely approved `PROVIDER_APPROVAL_TEMPLATE.md` and one reviewed
+production Artifact whose typed facts, attestation and code-owned binding pass
+every N4D-D-A/N4D-C gate. N4D-D-B may implement only the approved manifest,
+minimum required auth/vault support, search/detail adapter, and approved asset
+metadata mapping with deterministic fixtures. It does not add the search UI,
+database import, or file download.
 
 Any missing Provider identity, host, endpoint, method, encoding, response type,
 auth lifecycle, legal/attribution basis, fixture, dependency implication, or

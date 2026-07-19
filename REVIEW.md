@@ -296,6 +296,23 @@
 - [x] **5.N4D-C.6. 范围** — 是否零网络/DNS/数据库/文件写入，未改 Registry/Outbound/Schema/
   Migration/Backup/依赖/Docker/CI，未添加真实 Provider 且既有 `data/` 未接触
 
+### Phase 5-N4D-D-A Provider Approval Artifact v1（已完成）
+
+- [x] **5.N4D-D-A.1. Strict bytes** — 是否 exact bytes-only，按 size/UTF-8/duplicate key/
+  resource/strict schema/format/version/attestation 顺序 fail closed
+- [x] **5.N4D-D-A.2. Canonical** — key 排序、紧凑 Unicode、显式 null/tuple round trip、
+  非 canonical 输入收敛和相同 typed Artifact bytes 是否确定
+- [x] **5.N4D-D-A.3. Attestation** — SHA-256 是否只覆盖不含自身的 canonical payload，
+  mismatch 是否脱敏，且未引入签名/HMAC/密钥/远程信任
+- [x] **5.N4D-D-A.4. Typed parity** — Header/Approval/Capabilities/Endpoint/Evidence/
+  fixture catalog/Adapter Ref identity、scope、revision、time 与 operation 是否精确一致
+- [x] **5.N4D-D-A.5. Factory gate** — binding ID 是否 opaque，registry 是否 immutable/
+  code-owned，factory 前失败 0 次、成功 1 次，且无 importlib/entry point/扫描
+- [x] **5.N4D-D-A.6. Package handoff** — factory Adapter 是否继续经过 Binding、Package 与
+  N4D-C validator，operation 是否不执行，错误是否保留稳定 package cause
+- [x] **5.N4D-D-A.7. 范围** — synthetic Artifact 是否仅 tests/.invalid/六份既有 fixture，
+  Production Registry/版本/Schema/Backup/依赖/Registry/Outbound/Docker/CI/data 均不变
+
 - [ ] **5.1. Provider 批准与定位** — 每个真实 Provider 是否由用户明确批准，
   核心用途是否符合 NSFW-first 定位，且固定 Host/Endpoint、认证、搜索、详情、
   下载、响应、限流、条款与使用边界是否完整

@@ -13,6 +13,18 @@
 
 ### Added
 
+- Added the Phase 5-N4D-D-A Provider Approval Artifact v1 contract and offline
+  loader: strict bytes-only JSON, nested duplicate-key and exact-schema checks,
+  bounded resource auditing, deterministic canonical Unicode bytes, and a
+  redacted SHA-256 integrity attestation over the payload without itself.
+- Added an immutable code-owned Adapter Factory Registry and ordered Artifact
+  loader gate. Opaque binding IDs cannot name imports or paths; factories run
+  exactly once only after all preflight checks, and returned adapters still pass
+  the existing Binding and Provider Package validator.
+- Added a tests-only canonical synthetic Video Artifact using only the six
+  existing `.invalid` metadata fixtures. It performs no network, DNS, database,
+  file write, dynamic import, Adapter operation, or Production Registry change.
+
 - Added the Phase 5-N4D-C offline Provider Package activation gate: immutable
   Evidence/Fixture Evidence/Adapter Binding/Package contracts, stable redacted
   package errors, explicit Source/Video operation authority, and all-or-nothing

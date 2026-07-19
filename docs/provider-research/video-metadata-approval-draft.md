@@ -8,10 +8,16 @@
 > machine-checkable production Approval are still required.
 
 N4D-C adds a second mandatory entry gate. Replacing these placeholders is not
-enough: a future N4D-D implementation must bind the approved identity,
+enough: a future N4D-D-B implementation must bind the approved identity,
 Capabilities, Endpoint, Adapter and Evidence into one production-scoped
 `ProviderPackage`, with opaque fixture IDs and reviewed SHA-256 digests, and pass
 the all-or-nothing offline package validator before a Registry may be built.
+
+N4D-D-A adds the declaration handoff before that Package may exist. The same
+facts must be encoded in exact `nsfwtrack.provider-approval` version `1` bytes,
+with strict schema, canonical serialization, integrity-only SHA-256 attestation
+and an opaque code-owned Adapter binding ID. The Artifact cannot carry Python
+paths/callables, credentials, raw responses or network authority.
 
 ## 1. Identity and product fit
 
@@ -140,9 +146,12 @@ Final decision:
 
 - [ ] Every required placeholder has been replaced with reviewed facts
 - [ ] Typed production Approval passes the local Validator
-- [ ] User explicitly authorizes the exact N4D-D implementation scope
+- [ ] User explicitly authorizes the exact N4D-D-B implementation scope
 - [ ] Provider Evidence Manifest is complete and contains no path/raw response
 - [ ] Exact Adapter Binding grants only approved operations
+- [ ] Canonical Provider Approval Artifact v1 bytes and SHA-256 are reviewed
+- [ ] Opaque code-owned binding ID and factory metadata are explicitly approved
+- [ ] Artifact passes every N4D-D-A parser/attestation/loader gate
 - [ ] Complete production Provider Package passes the N4D-C offline gate
 
 Until all boxes are checked in a later authorized phase, activation status is

@@ -1,176 +1,273 @@
-# Phase 5-N4D-C — Provider Package 绑定与离线激活门禁
+# Phase 5-N4D-D-A — Provider Approval Artifact v1 与离线装载门禁
 
 ## 完成摘要
 
-Phase 5-N4D-C 已完成本地实现与验证。起始基线为
-`5da317290de4a324f83ee4dda36f4f08d50929d4`，分支为 `main`。应用版本保持
+Phase 5-N4D-D-A 已完成本地实现与验证。起始基线为
+`4a10e194a1072169e563a8ad7ce4fb527094e73d`，分支为 `main`。应用版本保持
 `1.1.0`，Schema 保持 `4`，备份格式保持 `nsfwtrack.backup.v2`，
 Production Registry 仍为 `EndpointRegistry(())`。
 
-本阶段只建立 Provider-neutral、纯本地的 Provider Package 绑定和离线激活门禁。
+本阶段只新增 Provider-neutral、纯本地、不可执行的 Approval Artifact 和装载门禁。
 没有选择、推荐、命名、研究、访问、实现或注册任何真实 Provider，也没有增加真实
-Host、Endpoint、Header、URL、响应 Fixture 或网络权限。
+Provider key、Host、Endpoint、Header、URL、响应 fixture、凭据或网络权限。
 
-## 实现内容
+## Artifact v1 合同
 
-`app/source_adapters/package.py` 新增：
-
-- frozen/slots `ProviderEvidenceManifest`；
-- frozen/slots `ProviderFixtureEvidence`；
-- bounded `ProviderEvidenceKind` 与 `ProviderFixtureOutcome`；
-- frozen/slots `ProviderAdapterBinding` 与 `ProviderAdapterKind`；
-- frozen/slots `ProviderPackage`；
-- `validate_provider_package`；
-- `build_endpoint_registry_from_packages`；
-- `build_adapter_bindings_from_packages`；
-- frozen/slots `ProviderPackageError` 与八个稳定
-  `ProviderPackageErrorCode`。
-
-`app/source_adapters/__init__.py` 只导出上述 Provider Package 公共合同，没有修改
-`app/source_adapters/registry.py`、`app/services/outbound_http.py` 或任何生产
-Registry 值。
-
-## Evidence Manifest
-
-`ProviderEvidenceManifest` 绑定 Provider key、scope、display name、content scope、
-Approval ID、review revision、UTC review time、ordered operation tuple、fixture
-evidence 和三项审查结论。所有集合均为 tuple，ID/revision 为有界 opaque identifier，
-时间规范化为 timezone-aware UTC，文本有硬上限并拒绝控制字符。
-
-Manifest 文本拒绝路径、URL、环境变量形式、dynamic include、模板/执行形式、
-凭据样式内容和 JSON/XML 等原始响应形式；不保存 Header、Host、文件路径、原始
-fixture 内容、Cookie、Token、Secret 或用户账号。notes 只作为可选审计文本，
-不构成权限来源。
-
-`ProviderFixtureEvidence` 只保存 operation、opaque fixture ID、64 字符小写
-SHA-256、bounded kind 和稳定 expected outcome。kind/outcome 必须匹配；fixture ID
-不可作为路径，operation + ID 不可重复，每个批准 operation 至少有一项 evidence。
-
-## Package 与 Adapter Binding
-
-`ProviderPackage` 精确绑定同一 Provider 的 typed Approval、Capabilities、
-Endpoint、显式 Adapter Binding、Evidence Manifest 和独立 fixture digest catalog。
-Provider key、display name、content scope、scope 与 ordered operations 必须一致；
-Approval ID 必须与 Evidence 精确一致。
-
-Adapter authority 只来自 `ProviderAdapterBinding.operations`。Source Metadata 和
-Video Metadata Protocol 分开验证；Source Adapter 的静态 display name/capabilities
-也必须与 Package 精确一致。Python 对象即使存在 download 等额外方法也不扩权，
-`handler_for` 只分发 binding 明确批准的 search/detail/asset_list。构造、验证和
-build 阶段均不执行任何 Adapter operation。
-
-test-fixture Approval 继续由既有合同强制只使用 `.invalid` Host；production
-Approval 继续拒绝 `.invalid` Host。production activation 仍调用既有
-`validate_approval_for_activation`，test fixture 只执行 fixture-scope 一致性门禁，
-不能伪装为 production activation。
-
-## 离线门禁与错误模型
-
-`validate_provider_package` 先执行精确对象类型、Provider identity、scope 和
-operation parity 检查，再调用：
-
-- `validate_provider_approval`；
-- `validate_approval_against_capabilities`；
-- `validate_approval_against_endpoint`；
-- production scope 下的 `validate_approval_for_activation`。
-
-随后验证显式 Adapter Binding、Evidence、operation 覆盖和 fixture digest。既有
-`ApprovalValidationErrorCode` 作为稳定 `cause_code` 保留，不回显原始异常文本。
-八个 package code 为：
+`app/source_adapters/artifact.py` 新增固定：
 
 ```text
-package_invalid
-package_provider_mismatch
-package_operation_mismatch
-package_adapter_mismatch
-package_evidence_mismatch
-package_fixture_mismatch
-package_duplicate_provider
-package_not_activatable
+format = nsfwtrack.provider-approval
+version = 1
+attestation algorithm = sha256
 ```
 
-`str(error)` 和 `repr(error)` 只包含稳定 code/cause code，不包含 Provider Host、
-Header、fixture path、实际/预期 digest、marker 或对象 repr。
+新增 frozen/slots typed 合同：
 
-两个 builder 都先完整验证所有 Package，再检查重复 Provider key 并按 key 稳定排序。
-任意 Package 失败时不构造、返回或写入部分 Registry/binding；空 tuple 分别返回空
-`EndpointRegistry` 和空 binding tuple。全程不修改全局或 Production Registry。
+- `ProviderArtifactHeader`；
+- `ProviderArtifactAdapterRef`；
+- `ProviderArtifactAttestation`；
+- `ProviderApprovalArtifact`；
+- `ProviderAdapterFactoryBinding`；
+- `ProviderAdapterFactoryRegistry`；
+- `ProviderArtifactError` 与 `ProviderArtifactErrorCode`。
 
-## Fixture-only 证据
+Artifact 精确表达现有 `ProviderApproval`、`ProviderCapabilities`、
+`ProviderEndpoint`、`ProviderEvidenceManifest`、fixture digest catalog 和
+opaque Adapter binding reference。所有 tuple 在 JSON 中显式为 array，optional
+字段必须显式为 null，deny-safe 默认字段不得省略。
 
-`tests/provider_package_fixture.py` 复用现有 N4A
-`FixtureReferenceProvider` 和 N4D-B `FixtureVideoMetadataProvider`，定义两个
-tests-only synthetic Package。它们只使用 `.invalid` Host，不进入生产 package 或
-Registry。
+Header 绑定 artifact ID、Provider key、scope、UTC creation time 和 review revision；
+loader 要求其 Provider/scope/revision/time 与 Approval/Evidence 精确一致。
+Adapter Ref 只保存 opaque `binding_id`、bounded Adapter kind 和 ordered
+operations，不保存 Adapter、callable、module/class path 或 import surface。
 
-固定 opaque ID 只映射到明确授权的九份仓库静态 fixture：N4A search/detail/assets
-三份和 N4D-B video metadata 六份。Manifest 中 SHA-256 为硬编码审查值，测试侧才
-读取固定映射并计算实际 digest；生产模块不导入路径、不读取 fixture、不扫描目录，
-也不会自动更新或接受新 digest。fixture 内容变化会使固定 SHA-256 比较或 Package
-validation 以稳定 mismatch 失败。
+## Strict bytes-only parser
+
+`parse_provider_artifact` 只接受 exact `bytes`；`str`、`Path`、
+`bytearray`、`memoryview` 和 bytes subclass 全部以稳定错误拒绝。
+
+固定资源上限：
+
+```text
+MAX_ARTIFACT_BYTES = 262144
+MAX_ARTIFACT_DEPTH = 32
+MAX_ARTIFACT_NODES = 20000
+MAX_ARTIFACT_STRING_LENGTH = 8192
+MAX_ARTIFACT_ARRAY_ITEMS = 512
+```
+
+parser 的顺序为：
+
+1. exact bytes type；
+2. total byte size；
+3. strict UTF-8；
+4. JSON parse 与任意层级 duplicate-key detection；
+5. depth/node/string/array resource audit；
+6. dataclass-derived exact strict schema；
+7. unknown-field rejection；
+8. missing-field rejection；
+9. fixed format；
+10. supported version；
+11. raw canonical attestation verification；
+12. typed Header；
+13. typed Approval；
+14. typed Capabilities；
+15. typed Endpoint；
+16. typed Evidence；
+17. typed fixture digest catalog；
+18. typed Adapter Ref 与 Attestation；
+19. normalized typed/raw equality。
+
+标准 `json.loads` 的 duplicate overwrite 行为通过 `object_pairs_hook` 封闭；
+NaN、Infinity、`-Infinity` 和 overflow-to-infinity number 均拒绝。所有层级字段
+必须与 typed dataclass 精确一致，既不忽略 unknown field，也不猜测 missing/default。
+资源审计在任何 typed object 构造前完成。
+
+## Canonical serialization 与 attestation
+
+`serialize_provider_artifact` 和 `canonical_provider_artifact_bytes` 使用：
+
+- object key 稳定排序；
+- 紧凑 `,` / `:` 分隔符；
+- `ensure_ascii=False` 的稳定 Unicode；
+- 禁止非有限数字；
+- timezone-aware UTC `Z` 时间；
+- exactly one terminal LF 的固定 Artifact framing。
+
+同一 typed Artifact 始终输出相同 bytes；非 canonical key order/whitespace 可解析，
+但 parse → serialize 必须收敛为同一 canonical bytes。Unicode、null、nested tuple
+均精确 round trip。
+
+`compute_provider_artifact_sha256` 只计算删除 top-level `attestation` 后的紧凑
+canonical payload bytes。`verify_provider_artifact_attestation` 使用稳定比较，
+mismatch 只返回 `artifact_attestation_mismatch`，不回显实际或预期 digest。
+
+该 SHA-256 只证明本地 canonical payload 完整性，不代表批准、真实性或远程信任；
+本阶段没有签名、HMAC、密钥、PKI、证书、远程校验或信任链。
+
+## Code-owned Adapter Factory Registry
+
+`ProviderAdapterFactoryRegistry` 由调用方以 immutable tuple 显式构造。
+`ProviderAdapterFactoryBinding` 精确绑定：
+
+```text
+binding_id
+provider_key
+adapter_kind
+operations
+factory
+```
+
+`binding_id` 仅接受小写 opaque ID，禁止点号模块路径、class path、冒号、正反斜杠
+和 URL scheme。Artifact 不能提供 callable，也不能决定 Python import。
+
+生产模块不导入或调用 `importlib`，不读取 entry points、环境变量、配置文件或目录，
+不扫描/发现 factory。duplicate binding ID 在 registry 构造时拒绝。
+
+factory 只有在 Artifact parser、format/version、attestation、typed construction、
+cross-component parity、binding lookup 和 factory metadata parity 全部通过后才调用。
+前置失败调用次数为 0；成功路径调用恰好 1 次；异常转为
+`artifact_factory_failed`，不输出异常文本或 factory repr。
+
+## Artifact → ProviderPackage loader
+
+`load_provider_package_from_artifact(artifact_bytes, factory_registry)` 的完整顺序为：
+
+1. 完成 strict parser、format/version、attestation 和 typed construction；
+2. 精确验证 Header/Approval/Capabilities/Endpoint/Evidence/fixture/Adapter Ref；
+3. 验证 Provider identity、display/content scope、scope、review revision/time、
+   Approval ID 和 ordered operations；
+4. 验证 fixture digest catalog 与 Evidence 精确一致；
+5. 拒绝审查文本中的环境模板、动态执行、URL、凭据赋值和 raw-response 形式；
+6. code-owned binding lookup；
+7. factory provider/kind/operations metadata parity；
+8. factory 调用一次；
+9. 构造 `ProviderAdapterBinding`；
+10. 构造 `ProviderPackage`；
+11. 调用既有 `validate_provider_package`；
+12. 返回完整 Package。
+
+factory 返回 Adapter 后仍必须通过 N4D-C 的 explicit authority、Source/Video Protocol、
+identity 和 Package validation。构造/parse/serialize/attestation/load 均不执行
+search/detail/asset_list，也不构建或修改 Production Registry。
+
+包装 `ProviderPackageError` 时，Artifact error 固定为
+`artifact_package_invalid`，并只保留稳定 `ProviderPackageErrorCode` cause。
+
+## 稳定错误模型
+
+十六个稳定错误码：
+
+```text
+artifact_invalid
+artifact_too_large
+artifact_invalid_utf8
+artifact_duplicate_key
+artifact_resource_limit
+artifact_unknown_field
+artifact_missing_field
+artifact_format_mismatch
+artifact_version_unsupported
+artifact_attestation_mismatch
+artifact_provider_mismatch
+artifact_operation_mismatch
+artifact_binding_not_found
+artifact_binding_mismatch
+artifact_factory_failed
+artifact_package_invalid
+```
+
+`str(error)` 只输出 code；`repr(error)` 只输出 code 与可选 stable package cause。
+错误不保存或输出 Artifact bytes、JSON 片段、Host、Header、路径、digest、binding、
+factory/Adapter repr、异常文本或 synthetic marker，也不写日志。
+
+## Tests-only synthetic Artifact
+
+`tests/provider_artifact_fixture.py` 基于 N4D-C `VIDEO_PACKAGE` 构造 tests-only
+Artifact 与 factory registry，只使用 `fixture_video`、现有 `.invalid` Host 和六份
+Video Metadata fixture digest。
+
+固定 canonical fixture：
+
+```text
+tests/fixtures/provider_artifact/synthetic_video_artifact.json
+bytes = 9279
+canonical_sha256 = d3d82efe2760808ad1c5032980936ac17ec08350082f63e81710b6177612189b
+binding_id = synthetic_video_adapter_v1
+```
+
+磁盘 fixture bytes、typed serializer bytes 和 parse → serialize bytes 完全一致。
+fixture 文件只由测试在进入 production loader 前显式读取；生产模块不含 Path/file API，
+不读取 fixture 或扫描目录。该 Artifact/Factory 不进入生产常量或 Registry。
 
 ## 测试与文档
 
-`tests/test_phase5_n4d_c.py` 覆盖：
+`tests/test_phase5_n4d_d_a.py` 覆盖：
 
-- frozen/slots、tuple-only、无动态属性与 mutable collection 拒绝；
-- opaque ID、SHA-256、UTC、有界文本、环境/路径/raw/sensitive 内容拒绝；
-- Source/Video 完整 Package 与 Protocol 精确绑定；
-- provider/display/content/scope/operation/Approval ID mismatch；
-- binding 缺少或增加 operation、Adapter kind/key/capabilities mismatch；
-- 额外 Adapter 方法不扩权且构造/验证/build 不执行 operation；
-- fixture operation 覆盖、固定 digest、digest 变化与错误脱敏；
-- 八类稳定 package error 和 Approval cause code；
-- duplicate、stable sort、empty tuple、invalid second package 的 all-or-nothing；
-- socket/DNS、HTTP client、Outbound client、SQLAlchemy、Path 读写与 Adapter
-  operation forbidden 时仍可完成 validation/build；
-- Production Registry 对象和值保持为空且未修改。
+- frozen/slots、tuple-only、无动态属性、duplicate binding ID；
+- opaque binding ID 与 module/class/path/URL rejection；
+- exact bytes、UTF-8、duplicate key、unknown/missing field；
+- bool/int 混淆、NaN/Infinity、depth/node/string/array/byte limits；
+- deterministic canonical bytes、Unicode/null/tuple round trip；
+- attestation excludes itself、mismatch/algorithm/grammar/redaction；
+- Provider/operation/evidence parity 与 policy text fail-closed；
+- binding not found、factory metadata mismatch、pre-factory zero calls；
+- factory success exactly once、factory failure redaction；
+- wrong Adapter 的 stable Package cause；
+- Adapter operation 不执行；
+- parser/serializer/attestation/loader 在 DNS/HTTP/SQLAlchemy/Path/importlib/
+  Adapter operation forbidden 时仍通过；
+- Production Registry 对象和值始终为空。
 
 `PLAN.md`、`TASKS.md`、`REVIEW.md`、`CHANGELOG.md`、
-`PROVIDER_CONTRACT.md`、Provider roadmap 和 video approval draft 已同步路线：
+`PROVIDER_CONTRACT.md`、`PROVIDER_APPROVAL_TEMPLATE.md`、Provider roadmap 和
+video approval draft 已同步路线：
 
 ```text
-N4D-A  Approval policy closure
-N4D-B  Video Metadata DTO / fixture / merge framework
-N4D-C  Provider Package binding and offline activation gate
-N4D-D  One complete, explicitly approved real Video Metadata Provider package
+N4D-A   Approval policy closure
+N4D-B   Video Metadata DTO / fixture / merge framework
+N4D-C   Provider Package binding and offline activation gate
+N4D-D-A Provider Approval Artifact v1 and offline loader
+N4D-D-B One explicitly approved Provider Artifact and Adapter
 ```
 
-N4D-D 仍要求用户明确批准 Provider identity、合法访问/条款、精确
-Host/Endpoint/Header/Operation、脱敏静态 fixture、typed production Approval，并
-通过全部 N4D-C Package 门禁。
+N4D-D-B 仍需用户单独明确提供并批准 Provider identity、合法访问/条款、精确
+Host/Endpoint/Header/Operation、脱敏 fixture、canonical production Artifact、
+SHA-256 完整性值和 code-owned binding metadata。
 
 ## 长期边界
 
-- 未修改 Registry、Outbound、ORM、路由、UI、认证、Vault、Schema、Migration、
-  Backup、Docker、Compose、CI 或依赖。
-- 不实现真实网络请求、DNS、数据库写入、Asset Resolve、播放、下载、后台任务、
+- 未修改 `app/source_adapters/registry.py`、`app/services/outbound_http.py`、
+  Production Registry、ORM、路由、UI、认证、Vault、Schema、Migration、Backup、
+  Docker、Compose、CI 或依赖。
+- 不实现真实网络请求、DNS、数据库写入、Asset Resolve、播放、下载、同步、后台任务、
   推荐、AI 或任意 URL/Host/Path 输入。
-- 构造、validation 与 builder 零网络、零 DNS、零数据库、零文件写入；生产模块
-  同时零 fixture 文件读取。
+- production parser/serializer/attestation/loader 零网络、零 DNS、零数据库、零文件
+  读写；测试只读取明确授权的 synthetic Artifact fixture。
+- 不使用 importlib、动态 import、entry points、环境/config/目录发现。
 - 不调用 Hermes，不创建 tag/Release，不部署 N100。
-- 既有未跟踪 `data/` 未读取、枚举、进入、复制、修改、移动、删除、暂存或提交；
-  测试只使用仓库静态 fixture 和隔离临时资源。
+- 既有未跟踪 `data/` 未读取、枚举、进入、复制、修改、移动、删除、暂存或提交。
 
 ## 验收记录
 
 最终本地门禁：
 
-- N4D-C focused：`38 passed`；
-- N4A/N4B/N4D-A/N4D-B/N4D-C/Source Adapter/Outbound targeted：
-  `285 passed`；
-- full pytest：`1103 passed`；
+- N4D-D-A focused：`58 passed`；
+- N4A/N4B/N4D-A/N4D-B/N4D-C/N4D-D-A/Source Adapter/Outbound targeted：
+  `343 passed`；
+- full pytest：`1161 passed`；
 - `pip check`：`No broken requirements found`；
+- canonical fixture/attestation/round-trip：通过；
 - Application：`1.1.0`；
 - Schema：`4`；
 - Backup：`nsfwtrack.backup.v2`；
 - Production Registry：`EndpointRegistry(())`；
-- `git diff --check` 与允许文件范围审计通过。
+- `git diff --check` 与 14-file allowlist 审计：通过。
 
 唯一提交信息为：
 
 ```text
-Add provider package activation gate
+Add provider approval artifact loader
 ```
 
 推送后仍需等待并记录 GitHub Actions `test` 与

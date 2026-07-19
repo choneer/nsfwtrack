@@ -72,7 +72,14 @@ Completed: Approval/Capabilities/Endpoint/Adapter/Evidence exact binding,
 opaque SHA-256 fixture evidence, explicit operation authority, stable errors and
 all-or-nothing Registry/binding construction. Production Registry remains empty.
 
-### N4D-D - first video metadata Provider package
+### N4D-D-A - Provider Approval Artifact v1 and offline loader
+
+Completed: strict bytes-only versioned JSON, canonical Unicode serialization,
+SHA-256 payload attestation, exact typed reconstruction, opaque code-owned
+Adapter factory lookup and final N4D-C Package validation. The only Artifact and
+factory are tests-only; Production Registry remains empty.
+
+### N4D-D-B - first explicitly approved video metadata Provider Artifact and Adapter
 
 Scope:
 
@@ -82,8 +89,8 @@ search + detail + optional asset_list
 
 Entry gate: one complete video Approval with exact Provider identity, lawful and
 terms basis, fixed hosts/operations, response types/limits, mappings, and redacted
-static fixtures; typed production Approval and complete Provider Package must
-pass every N4D-C offline gate.
+static fixtures; its reviewed production Artifact must pass every N4D-D-A strict
+parser/attestation/factory gate and the resulting Package every N4D-C gate.
 
 Exit gate: fixed reviewed adapter, shared client only, no user URL/host input,
 no operation chaining, immutable DTOs with provenance, deterministic fixtures,

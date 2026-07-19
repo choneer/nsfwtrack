@@ -21,6 +21,14 @@ other credential values. Missing or mismatched facts remain blockers, and no
 Approval is loaded from a URL, environment substitution, include, template, or
 Python import.
 
+Phase 5-N4D-D-A adds a separate immutable Artifact handoff. Completing this
+template still does not create an Artifact automatically: a future authorized
+phase must encode every approved typed fact into exact
+`nsfwtrack.provider-approval` version `1` canonical JSON, attach its local
+SHA-256 integrity digest, and select only an opaque code-owned Adapter binding
+ID. The Artifact cannot carry a callable, module/class path, environment value,
+credential, raw response or remote trust statement.
+
 ## 1. Approval record
 
 - Approval identifier: `<required>`
@@ -475,7 +483,32 @@ User decision:
 - [ ] Schema/migration implications approved or explicitly denied
 - [ ] Backup implications approved or explicitly denied
 
-## 16. Final explicit approval
+## 16. Provider Approval Artifact v1 handoff
+
+- Artifact ID: `<required opaque identifier>`
+- Artifact format: `nsfwtrack.provider-approval`
+- Artifact version: `1`
+- Artifact creation time (UTC): `<required>`
+- Review revision: `<required opaque identifier>`
+- Approval/Capabilities/Endpoint/Evidence parity reviewed: `<required>`
+- Fixture digest catalog reviewed: `<required>`
+- Canonical bytes reproduced independently: `<required>`
+- SHA-256 attestation verified: `<required>`
+- Attestation understood as integrity-only, not signature/trust: `<required>`
+- Opaque code-owned Adapter binding ID: `<required>`
+- Binding metadata parity reviewed: `<required>`
+- Artifact contains no callable/module/class/path/URL/credential/raw response:
+  `<required>`
+- N4D-D-A offline loader result: `<required>`
+
+User decision:
+
+- [ ] I approve the exact canonical Artifact bytes and SHA-256 integrity value.
+- [ ] I understand the Artifact does not itself authorize network access or trust.
+- [ ] I approve the exact code-owned binding ID and no dynamic import mechanism.
+- [ ] I authorize a separate N4D-D-B implementation only for these reviewed facts.
+
+## 17. Final explicit approval
 
 - Completed sections reviewed: `<required>`
 - Remaining blanks: `<required; must be none>`
