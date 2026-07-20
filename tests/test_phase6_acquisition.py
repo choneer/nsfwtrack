@@ -174,7 +174,7 @@ def test_preview_is_pure_token_is_session_bound_and_confirm_replay_is_single_tas
         assert adapter.open_calls == 0
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_asset_discovery_calls_only_the_synthetic_adapter_once() -> None:
     adapter = SyntheticAcquisitionAdapter()
     item_id, source_id = _source()
@@ -193,7 +193,7 @@ async def test_asset_discovery_calls_only_the_synthetic_adapter_once() -> None:
         assert adapter.open_calls == 0
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_safe_download_streams_validates_publishes_links_and_indexes(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -267,7 +267,7 @@ def test_production_acquisition_registry_is_empty() -> None:
     assert PRODUCTION_ACQUISITION_PACKAGES == ()
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_existing_target_is_never_overwritten_and_temp_is_cleaned(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -342,7 +342,7 @@ class PausingAdapter(SyntheticAcquisitionAdapter):
             yield remaining[start : start + 8]
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_pause_preserves_verified_temp_identity_and_resume_requires_exact_range(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

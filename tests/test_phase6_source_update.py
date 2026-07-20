@@ -41,7 +41,7 @@ def _local_source(*, summary: str | None = "Local summary") -> tuple[int, int]:
         return item.id, source.id
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_manual_check_calls_exactly_one_detail_and_does_not_mutate_item_or_source() -> None:
     item_id, source_id = _local_source()
     service, adapter = _service()
@@ -80,7 +80,7 @@ async def test_manual_check_calls_exactly_one_detail_and_does_not_mutate_item_or
     assert adapter.calls == {"search": 0, "detail": 1, "asset_list": 0}
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_per_field_signed_plan_applies_only_selected_values_and_keeps_item_title() -> None:
     item_id, source_id = _local_source()
     service, adapter = _service()
@@ -139,7 +139,7 @@ async def test_per_field_signed_plan_applies_only_selected_values_and_keeps_item
     assert adapter.calls == {"search": 0, "detail": 1, "asset_list": 0}
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_plan_is_stale_after_any_bound_local_change_and_confirm_never_calls_provider() -> None:
     item_id, source_id = _local_source()
     service, adapter = _service()
@@ -165,7 +165,7 @@ async def test_plan_is_stale_after_any_bound_local_change_and_confirm_never_call
     assert adapter.calls == {"search": 0, "detail": 1, "asset_list": 0}
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_provider_empty_value_cannot_clear_local_and_noop_has_no_plan() -> None:
     item_id, source_id = _local_source(summary="Keep this")
     service, adapter = _service()
@@ -193,7 +193,7 @@ async def test_provider_empty_value_cannot_clear_local_and_noop_has_no_plan() ->
         assert db.get(Item, item_id).summary == "Keep this"
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_forbidden_field_selection_is_rejected() -> None:
     item_id, source_id = _local_source()
     service, _adapter = _service()
