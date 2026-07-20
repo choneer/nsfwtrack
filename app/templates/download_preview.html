@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}{{ t("tasks.download_preview") }} - NSFWTrack{% endblock %}
+{% block content %}
+<h1>{{ t("tasks.download_preview") }}</h1>
+<p class="muted">{{ t("tasks.preview_no_execution") }}</p>
+<section class="card stack">
+  <p><strong>{{ plan.suggested_name }}</strong></p>
+  <p>{{ plan.asset_kind }} · {{ plan.mime_type }}{% if plan.expected_bytes %} · {{ plan.expected_bytes }} bytes{% endif %}</p>
+  <p>{{ t("tasks.download_limit") }}: {{ plan.max_bytes }} bytes</p>
+  <form method="post" action="/tasks/download-confirm">
+    <input type="hidden" name="token" value="{{ token }}">
+    <input type="hidden" name="confirmation" value="confirm">
+    <button type="submit">{{ t("tasks.confirm_create") }}</button>
+  </form>
+</section>
+{% endblock %}

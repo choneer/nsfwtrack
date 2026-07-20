@@ -93,6 +93,16 @@
               {% if danger_policy.is_strict %}data-strict-confirm-message="{{ t('danger.strict_prompt') }}"{% endif %}
             >{{ t("detail.remove_source") }}</button>
           </form>
+          {% if source.provider_key and source.external_id %}
+          <div class="actions">
+            <form action="/items/{{ item.id }}/sources/{{ source.id }}/check" method="post">
+              <button class="secondary compact" type="submit">{{ t("tasks.check_source") }}</button>
+            </form>
+            <form action="/items/{{ item.id }}/sources/{{ source.id }}/assets/check" method="post">
+              <button class="secondary compact" type="submit">{{ t("tasks.check_assets") }}</button>
+            </form>
+          </div>
+          {% endif %}
         {% else %}
           <p class="muted">{{ t("detail.no_sources") }}</p>
         {% endfor %}

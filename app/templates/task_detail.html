@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}{{ t("tasks.detail") }} #{{ task.id }} - NSFWTrack{% endblock %}
+{% block content %}
+<div class="toolbar">
+  <div><h1>{{ t("tasks.detail") }} #{{ task.id }}</h1><p class="muted">{{ t("task_type." + task.task_type) }}</p></div>
+  <a class="button secondary" href="/tasks">{{ t("tasks.back") }}</a>
+</div>
+<section class="card stack">
+  <div class="detail-meta-grid">
+    <div class="detail-field"><span class="muted">{{ t("tasks.state") }}</span><strong>{{ t("task_state." + task.state) }}</strong></div>
+    <div class="detail-field"><span class="muted">{{ t("tasks.stage") }}</span><strong>{{ task.stage }}</strong></div>
+    <div class="detail-field"><span class="muted">{{ t("tasks.version") }}</span><strong>{{ task.version }}</strong></div>
+    <div class="detail-field"><span class="muted">{{ t("tasks.provider") }}</span><strong>{{ task.provider_key or t("common.none") }}</strong></div>
+  </div>
+  <p>{{ t("tasks.progress") }}: {{ task.bytes_processed }}{% if task.expected_bytes is not none %} / {{ task.expected_bytes }}{% endif %}</p>
+  {% if task.error_code %}<p class="validation-severity-error">{{ t("tasks.error_code") }}: {{ task.error_code }}</p>{% endif %}
+  <div class="actions">
+    {% if task.task_type == "asset_download" and task.state == "queued" %}<form method="post" action="/tasks/{{ task.id }}/start"><button type="submit">{{ t("tasks.start") }}</button></form>{% endif %}
+    {% if task.state == "running" %}<form method="post" action="/tasks/{{ task.id }}/pause"><button class="secondary" type="submit">{{ t("tasks.pause") }}</button></form>{% endif %}
+    {% if task.task_type == "asset_download" and task.state == "paused" %}<form method="post" action="/tasks/{{ task.id }}/resume"><button type="submit">{{ t("tasks.resume") }}</button></form>{% endif %}
+    {% if task.state in ["planned","awaiting_confirmation","queued","running","paused","cancelling","blocked","failed"] %}<form method="post" action="/tasks/{{ task.id }}/cancel"><button class="danger" type="submit">{{ t("tasks.cancel") }}</button></form>{% endif %}
+    {% if task.state in ["failed","blocked"] %}<form method="post" action="/tasks/{{ task.id }}/retry"><button class="secondary" type="submit">{{ t("tasks.retry") }}</button></form>{% endif %}
+    {% if task.state in ["cancelled","succeeded","failed"] %}<form method="post" action="/tasks/{{ task.id }}/delete-history"><button class="secondary" type="submit">{{ t("tasks.delete_history") }}</button></form>{% endif %}
+  </div>
+</section>
+{% if check_fact %}
+<section class="card stack">
+  <h2>{{ t("tasks.diff") }}</h2>
+  <form method="post" action="/tasks/{{ task.id }}/update-preview" class="stack">
+    {% for field, old, new in [
+      ("item.summary", "", check_fact.proposed_summary),
+      ("item.release_date", "", check_fact.proposed_release_date),
+      ("item_source.title", "", check_fact.proposed_source_title),
+      ("item_source.last_checked_at", "", check_fact.proposed_checked_at),
+      ("item_source.metadata_hash", "", check_fact.proposed_metadata_hash)
+    ] %}
+      <label class="card"><input type="checkbox" name="selected_fields" value="{{ field }}" checked> <strong>{{ t("update_field." + field) }}</strong><br><span class="muted">{{ t("tasks.proposed") }}:</span> {{ new if new is not none else t("common.none") }}</label>
+    {% endfor %}
+    <button type="submit">{{ t("tasks.preview_update") }}</button>
+  </form>
+</section>
+{% endif %}
+{% if assets %}
+<section class="card stack">
+  <h2>{{ t("tasks.assets") }}</h2>
+  {% for asset in assets %}
+    <article class="card">
+      <strong>{{ asset.display_name }}</strong>
+      <p class="muted">{{ asset.asset_kind }} · {{ asset.mime_type }}{% if asset.expected_bytes %} · {{ asset.expected_bytes }} bytes{% endif %}</p>
+      <form method="post" action="/tasks/{{ task.id }}/assets/{{ asset.id }}/download-preview"><button type="submit">{{ t("tasks.preview_download") }}</button></form>
+    </article>
+  {% endfor %}
+</section>
+{% endif %}
+<section class="card">
+  <h2>{{ t("tasks.history") }}</h2>
+  <ol>{% for event in events %}<li>{{ event.created_at }} · {{ event.event_type }} · {{ event.to_state }}</li>{% endfor %}</ol>
+</section>
+{% endblock %}

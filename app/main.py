@@ -8,7 +8,7 @@ from fastapi import Depends, FastAPI
 from starlette.middleware.sessions import SessionMiddleware
 
 from app.config import get_settings
-from app.database import init_db
+from app.database import SessionLocal, init_db
 from app.errors import install_exception_handlers
 from app.request_context import RequestContextMiddleware, configure_request_logging
 from app.routers import (
@@ -22,14 +22,25 @@ from app.routers import (
     source_search,
     stats,
     tags,
+    tasks,
 )
 from app.security import require_same_origin
 from app.security_headers import SecurityHeadersMiddleware
+from app.services.schema_version import SCHEMA_STATUS_CURRENT
+from app.tasks import PersistentTaskService
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.schema_status = init_db()
+    app.state.recovered_task_count = 0
+    if app.state.schema_status.state == SCHEMA_STATUS_CURRENT:
+        with SessionLocal() as db:
+            app.state.recovered_task_count = PersistentTaskService(
+                db,
+                max_concurrency=get_settings().task_max_concurrency,
+            ).recover_interrupted()
+            db.commit()
     yield
 
 
@@ -66,6 +77,7 @@ def create_app() -> FastAPI:
     app.include_router(importer.router)
     app.include_router(backup.router)
     app.include_router(source_search.router)
+    app.include_router(tasks.router)
     app.include_router(pages.router)
     return app
 

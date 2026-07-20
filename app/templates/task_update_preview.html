@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}{{ t("tasks.update_preview") }} - NSFWTrack{% endblock %}
+{% block content %}
+<h1>{{ t("tasks.update_preview") }}</h1>
+<p class="muted">{{ t("tasks.preview_no_provider") }}</p>
+<section class="card stack">
+  {% for change in plan.selected %}
+  <div class="detail-field"><strong>{{ t("update_field." + change.field) }}</strong><p>{{ t("tasks.old") }}: {{ change.old if change.old is not none else t("common.none") }}</p><p>{{ t("tasks.new") }}: {{ change.new if change.new is not none else t("common.none") }}</p></div>
+  {% endfor %}
+  <form method="post" action="/tasks/update-confirm">
+    <input type="hidden" name="token" value="{{ token }}">
+    <input type="hidden" name="confirmation" value="apply">
+    <button type="submit">{{ t("tasks.confirm_apply") }}</button>
+  </form>
+</section>
+{% endblock %}
