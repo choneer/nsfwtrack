@@ -282,18 +282,22 @@ Every real phase must prove:
 
 ## 6. Invariants preserved through N5C-B2
 
-Phase 5-R1 freeze state:
+Phase 5-R3 release-candidate state:
 
 ```text
 N5C = complete/frozen
 N6/N7 = not implemented
-R1 = PASS — no R2 corrective required
-R3 = Application 1.2.0 / RC freeze
+R1 = PASS
+R2 = skipped
+R3 = Application 1.2.0 release candidate
 Hermes = not called
+Hermes acceptance = pending
 R4 = not released
+Production catalogs = empty
 ```
 
-- Application version: `1.1.0`.
+- Application version: `1.2.0` release candidate; latest stable release remains
+  `v1.1.0`.
 - Schema: `4`.
 - Backup: `nsfwtrack.backup.v2` with v1 restore compatibility.
 - Production Provider Registry: `EndpointRegistry(())`.

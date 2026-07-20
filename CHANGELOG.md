@@ -4,6 +4,18 @@
 
 ### Added
 
+- Froze the Application `1.2.0` release candidate while retaining `v1.1.0` as
+  the latest stable release. The candidate includes controlled outbound,
+  Schema 4 source identity/check/hash fields, Backup v2 export with v1/v2
+  restore, Approval/Package/Artifact gates, Search/Detail, signed and
+  Session-bound Preview/Confirm, and transactional local Apply with stale,
+  replay, rollback, field-ownership, post-check, and independent final-state
+  proof. Production Provider Registry, Search Packages, and Search Providers
+  remain empty; no real Provider, authentication/Vault, playback, download,
+  background synchronization, tag, or Release is included.
+- Added Phase 5-R3 release-candidate invariants for Application `1.2.0`, Schema
+  `4`, Backup v1/v2, empty production activation, the exact Source Search route
+  matrix, RC documentation state, and the retained `Unreleased` changelog.
 - Added a Phase 5-R1 integration-freeze test covering Application `1.1.0`,
   Schema `4`, Backup v1/v2 identifiers, empty production Provider catalogs,
   the exact Search/Detail/Preview/Confirm route method matrix, production/test

@@ -12,7 +12,7 @@
 当前应用版本与开发阶段：
 
 ```text
-v1.1.0 stable / Phase 5-R1 Integration Freeze Audit completed and cloud-reviewed
+Application 1.2.0 release candidate / Phase 5-R3 candidate freeze
 ```
 
 当前最新稳定版本为 `v1.1.0`，发布范围包含已冻结并验收完成的 Phase 3 后续媒体维护能力与 Phase 4 全部能力。
@@ -43,7 +43,7 @@ Release: https://github.com/choneer/nsfwtrack/releases/tag/v1.1.0
 维护与 CI：Phase 2-L1 至 L6 已随 v1.0.2 发布；L7 已随 v1.0.3 发布；L8 固定非 root 容器用户已随 v1.0.4 发布
 产品功能重启：Phase 3-A1 至 A6 已随 v1.0.5 发布；Phase 3-B1 / B2 已随 v1.0.6 发布；Phase 3-B3 / B4 / B5 / B6 / C1 / C2 / C3 / C4 / C5、D1 最终集成审查及 Phase 4-A1 / A2 / M1 / M2 / M3 / M4 / M5 均已随 v1.1.0 正式发布
 正式发布：Phase 4-R1 至 R3D 的审计、验收和候选冻结均已完成，Phase 4-R4 已正式发布 `v1.1.0`
-下一目标：v1.2.0 三类 Provider 路线；Phase 5-N4A/N4B 通用基础设施、N4C 静态研究、N4D-A/B/C、N4D-D-A Artifact 离线门禁、N4D-D-B0 固定仓库证据 profile、N5A/N5B 与完整 N5C Signed Preview/Confirm/local Apply 闭环已完成；N4D-D-B/N4E/N4F/N4G 仍分别等待完整 Provider Approval
+当前候选：Application `1.2.0`；Phase 5-N4A/N4B 通用基础设施、N4C 静态研究、N4D-A/B/C、N4D-D-A Artifact 离线门禁、N4D-D-B0 固定仓库证据 profile、N5A/N5B 与完整 N5C Signed Preview/Confirm/local Apply 闭环已完成；N4D-D-B/N4E/N4F/N4G 仍分别等待完整 Provider Approval
 ```
 
 当前完成度估算：
@@ -51,7 +51,7 @@ Release: https://github.com/choneer/nsfwtrack/releases/tag/v1.1.0
 ```text
 核心业务能力：已完成
 代码发布状态：v1.1.0 已正式发布，annotated tag 与正式 GitHub Release 按发布门禁验证
-当前开发状态：Phase 5-N5C-B2 已完成登录 Session 绑定的 Preview/Confirm Web 闭环。Detail 只调用 Provider 一次并以只读 Plan 生成 600 秒 hidden Token；Confirm 精确校验用户确认、零 Provider 调用且每请求最多调用 B1 apply 一次。跨 Session、logout 与 generation rotation 会使旧 Token 失效，`commit_state_unknown` 不重试并要求先检查本地条目。N5C 的 Search → Detail → signed Preview → explicit Confirm → local Apply 已完整成立。应用仍为 `1.1.0`、Schema 为 4、Backup 为 `nsfwtrack.backup.v2`，Production Search Packages、Providers 与 Registry 均为空。
+当前开发状态：Phase 5-N5C-B2 已完成登录 Session 绑定的 Preview/Confirm Web 闭环。Detail 只调用 Provider 一次并以只读 Plan 生成 600 秒 hidden Token；Confirm 精确校验用户确认、零 Provider 调用且每请求最多调用 B1 apply 一次。跨 Session、logout 与 generation rotation 会使旧 Token 失效，`commit_state_unknown` 不重试并要求先检查本地条目。N5C 的 Search → Detail → signed Preview → explicit Confirm → local Apply 已完整成立。Application 已更新为 `1.2.0` release candidate，Schema 为 4、Backup 为 `nsfwtrack.backup.v2`，Production Search Packages、Providers 与 Registry 均为空；最新稳定发布仍为 `v1.1.0`。
 Phase 5-N3：Provider 合同、认证、资产、动态 Locator、受控下载 MVP、状态矩阵和批准模板已完成；仅新增/更新授权文档，未实现 Provider 或下载
 Phase 5-N4A：capability/Protocol/SourceAsset/Auth 状态/typed Registry/Outbound 基础和 test-only Fixture Provider 已完成；初始全量 934 passed，最终安全复核后全量 938 passed，production registry 仍为空
 Phase 5-N4B：immutable Approval/Host/Operation/Auth/Asset/Download model、纯本地一致性 Validator 与 opaque Asset ID 强化已完成；N4B 27、N4A/Adapter/Outbound 120、全量 965 passed，production registry 仍为空
@@ -61,15 +61,19 @@ WSL 验收：已完成
 N100 部署：尚未开始，等待用户明确授权
 ```
 
-Phase 5-R1 冻结状态：
+Phase 5-R3 候选状态：
 
 ```text
 N5C = complete/frozen
 N6/N7 = not implemented
-R1 = PASS — no R2 corrective required
-R3 = Application 1.2.0 / RC freeze
+R1 = PASS
+R2 = skipped
+R3 = Application 1.2.0 release candidate
 Hermes = not called
+Hermes acceptance = pending for exact candidate SHA
 R4 = not released
+Production catalogs = empty
+Latest stable release = v1.1.0
 ```
 
 ### Phase 5-P2：长期产品原则与路线对齐

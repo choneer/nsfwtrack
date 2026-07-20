@@ -2,9 +2,10 @@
 
 按顺序执行，每完成一项打个 [x]。
 
-## 当前状态（Phase 5-N5C-B2 Session-Bound Preview/Confirm UI 已完成）
+## 当前状态（Phase 5-R3 Application 1.2.0 Release Candidate Freeze）
 
-当前稳定版与最新 Release：`v1.1.0`。下一目标版本为 `v1.2.0`，方向为
+当前稳定版与最新 Release：`v1.1.0`。当前 release candidate 为 Application
+`1.2.0`，方向为
 首个 NSFW 核心 Provider、搜索与手动入库、受控下载、手动来源检查更新和
 集成发布。N1 已完成共享 client、固定空 production registry、adapter protocol
 和 immutable DTO；N2 已完成 Schema 4 来源追踪、backup v2 与 v1 restore，
@@ -15,7 +16,7 @@ Registry/Outbound 基础和 test-only Fixture Provider；N4B 已实现 immutable
 Approval model、纯本地一致性 Validator 和 opaque Asset ID 强化，全量
 `965 passed`。N4C 已完成影视元数据、订阅/未来播放与漫画 Provider 静态研究、
 三份 placeholder-only Approval 草案和固定后续路线；没有选择或批准真实来源。
-应用仍为 `1.1.0`、Schema 为 `4`，production registry 为空，无真实 Provider、
+Application 已更新为 `1.2.0` release candidate、Schema 仍为 `4`，production registry 为空，无真实 Provider、
 Provider 认证、播放、下载或新网络入口。N4D-B 已固定影视元数据 DTO、字段
 provenance、纯函数 merge plan 和 tests-only fixture adapter；N4D-C 已完成
 Provider Package/Evidence/Binding 的 all-or-nothing 离线激活门禁，N4D-D-A 已完成
@@ -449,7 +450,14 @@ Apply 闭环已成立。N4D-D-B/N4E/N4F/N4G
 
 #### Phase 5-R3 - Application 1.2.0 / RC freeze
 
-- [ ] 更新 Application 到 `1.2.0` 并完成 RC 冻结
+- [x] 仅更新 `app/main.py` version literal 到 `1.2.0`，同步当前版本测试断言
+- [x] 同步 RC 文档并新增候选不变量测试；latest stable 仍为 `v1.1.0`
+- [x] 保持 Schema 4、Backup v2/v1 restore、空 production catalogs 和全部安全边界
+- [x] focused `9 passed`、N5 `236 passed`、all Phase 5 `513 passed`、full
+  `1397 passed`、`pip check`、diff 与隔离 Docker 双生命周期均通过
+- [x] R3 本地 Gate：`RC READY — pending cloud review`
+- [x] 唯一候选提交的 GitHub Actions `test` 与 `Docker production smoke` 必须
+  均成功；run ID 与最终结果由 push 后交接报告记录，不 amend 候选提交
 - [ ] 仅在候选完全冻结后调用 Phase 5 唯一一次 Hermes 验收
 
 #### Phase 5-R4 - v1.2.0 formal release

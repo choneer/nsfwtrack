@@ -20,7 +20,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def test_release_candidate_constants_and_production_catalogs_remain_frozen() -> None:
-    assert app.version == "1.1.0"
+    assert app.version == "1.2.0"
     assert CURRENT_SCHEMA_VERSION == 4
     assert BACKUP_SCHEMA_V1 == "nsfwtrack.backup.v1"
     assert BACKUP_SCHEMA_V2 == "nsfwtrack.backup.v2"
@@ -70,7 +70,7 @@ def test_r1_freeze_documentation_records_current_and_future_state() -> None:
         text = (ROOT / relative_path).read_text(encoding="utf-8")
         assert "N5C = complete/frozen" in text
         assert "N6/N7 = not implemented" in text
-        assert "R3 = Application 1.2.0 / RC freeze" in text
+        assert "R3 = Application 1.2.0 release candidate" in text
         assert "Hermes = not called" in text
 
 

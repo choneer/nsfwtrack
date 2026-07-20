@@ -611,6 +611,110 @@ Apply 无 GET 变体。
 - 唯一 R1 提交的 GitHub Actions `test` 与 `Docker production smoke` 结果由
   push 后最终交接报告记录，不对已验证提交执行 amend。
 
+## Phase 5-R3 v1.2.0 Release Candidate Freeze
+
+### 基线与阶段状态
+
+- Base：`04ca2d87ae93b85affbe3eeb4c7558b2d6fdf674`；开始时
+  `HEAD == origin/main`，工作区仅 `M GOAL.md` 与未跟踪 `data/`。
+- Phase 5-R1：`PASS — no R2 corrective required`；`R1 = PASS`。
+- Phase 5-R2：无阻塞 corrective，`R2 = skipped`。
+- 最新稳定发布仍为 `v1.1.0`；R3 仅冻结 Application `1.2.0` candidate，
+  未创建 tag/Release。
+
+### 版本引用 inventory
+
+必须升级为当前 `1.2.0` candidate：
+
+- `app/main.py` 的唯一 FastAPI `version` literal。
+- 当前运行版本断言：`tests/test_phase5_n5b.py`、
+  `tests/test_phase5_n5c_a.py`、`tests/test_phase5_n5c_b1.py`、
+  `tests/test_phase5_n5c_b2.py`、`tests/test_phase5_r1_integration.py`、
+  `tests/test_release_security.py`，以及新增 R3 candidate test。
+- README/PLAN/TASKS/REVIEW/CHANGELOG/Provider contract/roadmap 的当前候选状态。
+
+必须保留为 `v1.1.0`：
+
+- latest stable Release、annotated tag object、peeled commit 与 Phase 4 发布证据。
+- N1-N5C 各阶段当时的 Application/测试/Actions 历史记录。
+- `app/services/migrations.py` 中稳定 v1.1.0 对 Schema 4 的兼容性拒绝说明。
+- Backup v2 不向 v1.1.0 回退兼容的历史说明，以及 CHANGELOG `[1.1.0]`
+  正式发布章节。
+
+条件授权并实际修改的 Phase 5 测试文件：
+
+```text
+tests/test_phase5_n5b.py
+tests/test_phase5_n5c_a.py
+tests/test_phase5_n5c_b1.py
+```
+
+固定允许且实际修改的版本测试文件：
+
+```text
+tests/test_phase5_n5c_b2.py
+tests/test_phase5_r1_integration.py
+```
+
+用户追加授权且只修改 expected literal：
+
+```text
+tests/test_release_security.py
+```
+
+### 唯一生产变化与候选范围
+
+唯一生产代码变化是 `app/main.py` 的 `version="1.1.0"` →
+`version="1.2.0"`。没有其他生产逻辑、导入、路由、中间件、认证、Session、
+数据库、安全、Schema、Migration、Backup format、依赖、Docker、Compose 或 CI
+变化。
+
+Included：controlled outbound/adapter foundation、Schema 4 ItemSource identity/
+check/hash、Backup v2 export 与 v1/v2 restore、Approval/Package/Artifact gates、
+provider-neutral metadata、Search/Detail service 与认证 UI、deterministic Apply
+Plan、purpose-bound HMAC Token、Session-bound Preview/Confirm、`BEGIN IMMEDIATE`
+transactional local Apply，以及 stale/replay/field ownership/rollback/post-check/
+independent final-state proof。
+
+Excluded：真实 Provider activation、Provider auth/Vault/Cookie、remote image、
+playback、asset resolve、N6 download、N7 update/sync/recommendation、background
+jobs、cloud sync、AI、multi-user 和 N100 deployment。
+
+### 冻结不变量与验证
+
+```text
+N5C = complete/frozen
+N6/N7 = not implemented
+R1 = PASS
+R2 = skipped
+R3 = Application 1.2.0 release candidate
+Hermes = not called
+Hermes acceptance = pending
+R4 = not released
+Production catalogs = empty
+```
+
+- Schema 保持 `4`；Backup export 保持 `nsfwtrack.backup.v2`，v1/v2 restore
+  均保留；Production Registry、Search Packages、Search Providers 均为空。
+- Token-first、HMAC purpose/context/TTL、Session generation/nonce binding、
+  `BEGIN IMMEDIATE`、locked stale revalidation、字段白名单、rollback、post-check、
+  independent final-state proof 与 replay rejection 保持。
+- Focused R1+R3：`9 passed`；N5：`236 passed`；all Phase 5：`513 passed`；
+  full：`1397 passed`；`pip check` 与 `git diff --check` 通过。
+- 隔离 production Docker 双生命周期通过：Application `1.2.0`、UID/GID
+  10001、read-only root、`CapEff=0`、no-new-privileges、`/tmp` tmpfs、隔离
+  `/app/data`、`/login` headers、fresh Schema 4 与 recreate 后 SQLite/media-index
+  persistence 均成立；临时容器、镜像与 `/tmp/nsfwtrack-r3-smoke.*` 已清理。
+- 候选提交的 Actions `test` 与 `Docker production smoke` 由 push 后最终报告
+  记录，不对已验证候选执行 amend。
+
+### Local gate
+
+**RC READY — pending cloud review**
+
+Hermes 尚未调用；只允许在云端复核成功后针对精确 candidate SHA 调用一次。
+R4、Tag/Release 和 N100 均保持 pending/未执行。
+
 ## 基础检查
 
 - [ ] **1. git status** — 是否只有本轮任务的变更文件

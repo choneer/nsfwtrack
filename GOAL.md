@@ -1,78 +1,101 @@
-# Phase 5-R1 — v1.2.0 Integration Freeze Audit
+# Phase 5-R3 — Application 1.2.0 / Release Candidate Freeze
 
 ## Outcome
 
-Phase 5-R1 completed the static integration freeze at base
-`e5be8388561306fb3711574e6302d24752721941`.
+Phase 5-R3 completed the release-candidate freeze from base
+`04ca2d87ae93b85affbe3eeb4c7558b2d6fdf674`.
 
 ```text
-Gate = PASS — no R2 corrective required
-Application = 1.1.0
+Local gate = RC READY — pending cloud review
+Application = 1.2.0 release candidate
+Latest stable release = v1.1.0
 Schema = 4
-Backup = nsfwtrack.backup.v2 (v1 restore compatible)
+Backup = nsfwtrack.backup.v2
+Backup v1 restore = supported
 Production Registry = EndpointRegistry(())
 Production Search Packages = ()
 Production Search Providers = ()
 N5C = complete/frozen
 N6/N7 = not implemented
+R1 = PASS
+R2 = skipped
 Hermes = not called
-Tag/Release = not created
+R4 = not released
 N100 = not deployed
 ```
 
-R1 added no product capability and changed no production behavior. The only
-production-file edit is the `app/routers/source_search.py` module docstring,
-which now accurately describes Search, Detail, signed Preview, and explicit
-Confirm. Documentation was synchronized and a small static integration-freeze
-test was added.
+R3 adds no feature and activates no Provider. The only production-code change
+is the FastAPI version literal in `app/main.py`, from `1.1.0` to `1.2.0`.
+Current-version test expectations, release-candidate documentation, and a small
+R3 invariant test were synchronized. Historical v1.1.0 release and compatibility
+evidence remains unchanged.
 
-## Audit evidence
+## Version-reference inventory
 
-- `HEAD` and `origin/main` both began at
-  `e5be8388561306fb3711574e6302d24752721941`.
-- Annotated tag object `07643bf6a7b36cb488c80c0ac694b6bc733e61e3`
-  still peels to v1.1.0 commit
-  `c1ff2760f8ee8ca988493aa04e8b4affbc4b4b9d`.
-- The documented 21-commit Phase 5 chain is exact and linear, with no merge or
-  unexpected product-code commit.
-- N1 outbound boundaries, N2 Schema/Backup behavior, N4 Approval/Package/
-  Artifact gates, metadata contracts, N5 Search/UI, signed Plan/Token,
-  transactional Apply, and Session-bound Web invariants all passed review.
-- GET remains operation/DB/material/apply-free. Confirm remains POST-only,
-  performs zero Provider/catalog work, and attempts B1 Apply at most once.
-- Production imports no tests-only fixture and activates no Provider, host,
-  endpoint, credential, cookie, playback, download, sync, background task,
-  recommendation, or AI capability.
-- Findings were four documentation-level notes; all were disposed within R1.
-  `REVIEW.md` contains the evidence, impact, disposition, and R2 decision.
+Current candidate references updated to `1.2.0`:
+
+- `app/main.py` FastAPI metadata.
+- Executable current-version assertions in the five existing Phase 5 tests.
+- The explicitly user-authorized expected literal in
+  `tests/test_release_security.py`.
+- README, PLAN, TASKS, REVIEW, CHANGELOG, Provider contract, roadmap, and the new
+  R3 candidate test.
+
+References retained as v1.1.0:
+
+- latest stable Release, annotated tag object, peeled commit, and Phase 4 release
+  evidence;
+- historical Phase 5 checkpoint versions, tests, and Actions evidence;
+- stable v1.1.0 Schema 4 rejection and Backup compatibility documentation;
+- the formal CHANGELOG `[1.1.0]` section.
+
+No global replacement was used. No other runtime application-version definition
+exists under `app/`.
+
+## Candidate scope
+
+Included: controlled outbound/adapter foundation; Schema 4 ItemSource identity,
+check, and hash fields; Backup v2 export and v1/v2 restore; Approval/Package/
+Artifact gates; provider-neutral metadata; authenticated Search/Detail;
+deterministic Apply Plan; purpose-bound HMAC Token; Session-bound Preview/
+Confirm; transactional local Apply with `BEGIN IMMEDIATE`, stale/replay/field
+ownership/rollback/post-check/independent final-state proof; synthetic-only
+tests; and an empty production state.
+
+Excluded: real Provider activation, Provider authentication/Vault/Cookie,
+remote images, playback, asset resolve, N6 download, N7 update/sync/
+recommendation, background jobs, cloud sync, AI, multi-user, published images,
+Tag/Release, and N100 deployment.
 
 ## Verification
 
 ```text
-R1 focused                 5 passed
-N5 targeted              232 passed
-Full pytest             1393 passed
-pip check                  passed
-git diff --check           passed
-Docker production smoke    passed
+Application version check       1.2.0
+R1 + R3 focused                 9 passed
+N5 targeted                   236 passed
+All Phase 5                   513 passed
+Full pytest                  1397 passed
+pip check                       passed
+git diff --check                passed
+Docker production smoke         passed
 ```
 
-The isolated production Docker smoke verified non-root UID/GID 10001,
-read-only root filesystem, all capabilities dropped, no-new-privileges,
-temporary `/tmp`, writable isolated `/app/data`, required `/login` security
-headers, Schema 4, and SQLite/media-index persistence across container
-recreation. It mounted a temporary directory outside the repository and did
-not access the existing `data/` directory.
+The isolated Docker double-lifecycle smoke verified Application `1.2.0`, fresh
+Schema 4, `/login` health and security headers, UID/GID 10001, read-only root,
+all capabilities dropped, no-new-privileges, `/tmp` tmpfs, isolated writable
+`/app/data`, and SQLite/media-index persistence after container recreation.
+Temporary containers, image, credentials, and `/tmp/nsfwtrack-r3-smoke.*` data
+were cleaned up. The repository `data/` directory was not mounted or accessed.
 
-The resulting single normal fast-forward commit is validated by the repository
-Actions jobs `test` and `Docker production smoke`; their run ID and final status
-are external post-push evidence reported in the handoff, so this tracked file
-is not amended after validation.
+The resulting single normal fast-forward candidate commit is validated by the
+repository Actions jobs `test` and `Docker production smoke`; the run ID and
+final result are external post-push evidence reported in the handoff, so the
+candidate is not amended after validation.
 
 ## Release state
 
-R2 corrective is not required. Application version remains `1.1.0`. Phase
-5-R3 owns the `1.2.0` version update, RC freeze, and the one Phase 5 Hermes
-acceptance only after that candidate is fully frozen. Phase 5-R4 formal release
-has not been published and still requires separate authorization. N100 remains
-unauthorized.
+R3 remains a release candidate, not a formal release. No v1.2.0 tag or Release
+exists from this phase. Hermes has not been called. After cloud review succeeds,
+the next separately authorized action is the single Phase 5 Hermes acceptance
+against the exact candidate SHA. R4 formal release and N100 deployment remain
+pending and unauthorized.

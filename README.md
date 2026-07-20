@@ -4,16 +4,20 @@ NSFWTrack is an NSFW-first, local-first, privacy-first, single-user,
 self-hosted application for collecting content, aggregating sources, managing
 local media, tracking state, and supporting personalized discovery.
 
-Current application version: `1.1.0` (Schema `4`).
+Current application version: `1.2.0` release candidate (Schema `4`).
 
-Current stable version: `v1.1.0`.
+Latest stable release: `v1.1.0`.
+
+Current release candidate: `v1.2.0`.
 
 Latest Release: [NSFWTrack v1.1.0](https://github.com/choneer/nsfwtrack/releases/tag/v1.1.0).
 
-Current status: `Phase 5-N5C Search → Detail → signed Preview → explicit
-Confirm → local Apply is complete and frozen; Phase 5-R1 integration audit is
-complete. No real Provider is selected and every production Provider catalog
-remains empty`.
+Current status: `Phase 5-R3 has frozen the Application 1.2.0 release candidate.
+R1 passed and R2 was skipped. N5C is complete/frozen; N6/N7 are not implemented.
+Production Registry, Search Packages, and Search Providers remain empty`.
+
+The R3 candidate is not tagged or released. Hermes acceptance is pending for
+the exact candidate SHA, and R4 formal release remains pending.
 
 The long-term product baseline is recorded in [PRODUCT_VISION.md](PRODUCT_VISION.md).
 Ordinary all-ages content may remain naturally compatible with the generic
@@ -21,13 +25,13 @@ model, but it is secondary and does not drive Provider selection, the data
 model, or the roadmap. NSFWTrack is not being renamed to MediaTrack and is not
 becoming a general film/television catalog.
 
-The next target version remains `v1.2.0`. The provider-neutral N1-N5C
+The current candidate version is `v1.2.0`. The provider-neutral N1-N5C
 foundation and explicit local Apply flow are complete and frozen. No real
 Provider has been approved or activated. N6 controlled download and N7 manual
 update/hardening are not implemented. A corrective R2 is unnecessary because
-R1 found no blocking defect; R3 owns the Application `1.2.0` update, RC freeze,
-and the single Hermes acceptance after that candidate is fully frozen. R4
-formal release has not been published.
+R1 found no blocking defect, so R2 was skipped. R3 owns the Application `1.2.0`
+update and RC freeze. The single Hermes acceptance follows cloud review of the
+exact frozen candidate. R4 formal release has not been published.
 
 Provider authentication, Provider-specific parsing, controlled downloads,
 local recommendations, optional AI, and visible default-off background sync
