@@ -471,12 +471,35 @@
 | commit 抛异常且独立 post-state 成立 | durable exact post-state 已证明 | `committed_verified_after_exception` |
 | pre/post 都不能独立证明 | final durable state 不可证明 | `commit_state_unknown` |
 
-### Phase 5-N5C-B2 Preview/Confirm UI（未实现）
+### Phase 5-N5C-B2 Session-Bound Preview/Confirm UI（已完成）
 
-- [ ] **5.N5C-B2.1. Explicit confirmation** — Preview/Confirm routes、session-bound
-  secret/context、模板、i18n 与用户可见 result 需新的独立 GOAL；B1 不提供页面入口
-- [ ] **5.N5C-B2.2. Preserved boundaries** — GET 零写入、空 production catalogs、无自动
-  Provider 重调/下载/播放/后台任务，且不把签名有效误当成当前数据库状态有效
+- [x] **5.N5C-B2.1. Session material** — nonce 是否只由已认证 Detail Preview 按需创建或
+  修复，Confirm 是否只读；generation/session auth 是否精确复核；两个固定 domain 是否从
+  SECRET_KEY/generation/nonce 分别派生 exact 32-byte secret 与 opaque context
+- [x] **5.N5C-B2.2. Preview operation boundary** — Detail 是否只调用 Provider detail 一次，
+  search/asset_list 为 0；Plan builder 是否只执行批准的 bounded SELECT 且无 add/flush/commit/
+  rollback/write；no-op 是否无 Token、表单和 nonce
+- [x] **5.N5C-B2.3. Preview disclosure/cache** — executable Token 是否只在 autocomplete-off
+  hidden input，响应是否 `Cache-Control: no-store` / `Pragma: no-cache`；可见页面是否不含
+  canonical URL、external ID、metadata hash、secret、context 或 nonce
+- [x] **5.N5C-B2.4. Deterministic UI** — create/update、will-write、keep-local、current/proposed、
+  duplicate-title count/link、10-minute expiry、Confirm 不重调 Provider 与 local stale 提示是否
+  同时提供中英文；duplicate title 是否只警告且绝不自动绑定
+- [x] **5.N5C-B2.5. Exact Confirm** — POST route 是否 `require_page_auth` 且只接受 exact
+  `confirmation=apply`；是否不注入/读取 Provider catalog/service，所有 Provider operations 为 0，
+  每请求最多调用一次 B1 apply 并使用 timezone-aware UTC 与 `SessionLocal` 独立验证 factory
+- [x] **5.N5C-B2.6. Session invalidation** — Client A Token 是否不能在 Client B 使用；logout/
+  relogin、generation rotation、missing/malformed nonce 是否在业务写入前拒绝且 Confirm 不创建 nonce
+- [x] **5.N5C-B2.7. PRG/result mapping** — committed 与 verified-after-exception 是否 303 到
+  Item 并分别使用 success/info flash；expired/stale/conflict/write/database/session/unknown 是否
+  稳定本地化且 Token 不进入 Location/flash/log
+- [x] **5.N5C-B2.8. Unknown outcome** — `commit_state_unknown` 是否不重试、不转成普通失败，
+  303 到 `/items` 并明确“先检查本地条目，禁止直接重复提交”
+- [x] **5.N5C-B2.9. GET/production boundary** — GET Provider operations/DB calls/material/Token/
+  apply 是否全部为 0；Production Registry/Search Packages/Search Providers 是否仍为空且空状态不变
+- [x] **5.N5C-B2.10. Gates and scope** — focused `36 passed`、指定组合 `323 passed`、full
+  `1388 passed`；Application `1.1.0`、Schema `4`、Backup v2 保持；无真实 Provider、认证/Vault、
+  播放、下载、后台任务、依赖、Docker/CI、Hermes、Tag/Release、N100 或既有 `data/` 接触
 
 - [ ] **5.1. Provider 批准与定位** — 每个真实 Provider 是否由用户明确批准，
   核心用途是否符合 NSFW-first 定位，且固定 Host/Endpoint、认证、搜索、详情、

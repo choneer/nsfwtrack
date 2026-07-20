@@ -2,14 +2,35 @@
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, Form, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
+from sqlalchemy.orm import Session
 
 from app.auth import is_authenticated, require_page_auth
+from app.database import SessionLocal, get_db
+from app.flash import add_flash, pop_flash_messages
 from app.i18n import get_language, translate, translator
+from app.provider_apply.contracts import (
+    ProviderApplyCommitStatus,
+    ProviderApplyError,
+    ProviderApplyErrorCode,
+    ProviderApplyPlan,
+    ProviderApplyResult,
+)
+from app.provider_apply.service import (
+    build_provider_apply_plan,
+    sign_provider_apply_plan,
+)
+from app.provider_apply.transaction import apply_provider_apply_token
+from app.provider_apply.web import (
+    ProviderApplyWebError,
+    ensure_provider_apply_web_material,
+    get_provider_apply_web_material,
+)
 from app.source_adapters import ProviderOperation
 from app.source_search import (
     ProviderSearchService,
@@ -36,6 +57,23 @@ _ERROR_STATUS = {
     ProviderSearchServiceErrorCode.INVALID_RESULT: 502,
     ProviderSearchServiceErrorCode.PROVIDER_ERROR: 502,
     ProviderSearchServiceErrorCode.UNKNOWN: 503,
+}
+
+_APPLY_ERROR_FLASH = {
+    ProviderApplyErrorCode.INVALID_REQUEST: "flash.provider_apply_invalid_request",
+    ProviderApplyErrorCode.TOKEN_INVALID: "flash.provider_apply_token_invalid",
+    ProviderApplyErrorCode.TOKEN_TOO_LARGE: "flash.provider_apply_token_invalid",
+    ProviderApplyErrorCode.TOKEN_SIGNATURE_INVALID: "flash.provider_apply_token_invalid",
+    ProviderApplyErrorCode.TOKEN_CONTEXT_MISMATCH: "flash.provider_apply_session_invalid",
+    ProviderApplyErrorCode.TOKEN_NOT_YET_VALID: "flash.provider_apply_token_invalid",
+    ProviderApplyErrorCode.TOKEN_EXPIRED: "flash.provider_apply_expired",
+    ProviderApplyErrorCode.NOTHING_TO_APPLY: "flash.provider_apply_nothing_to_apply",
+    ProviderApplyErrorCode.STALE_PLAN: "flash.provider_apply_stale",
+    ProviderApplyErrorCode.DATABASE_STATE_INVALID: "flash.provider_apply_database_invalid",
+    ProviderApplyErrorCode.WRITE_CONFLICT: "flash.provider_apply_conflict",
+    ProviderApplyErrorCode.WRITE_FAILED: "flash.provider_apply_write_failed",
+    ProviderApplyErrorCode.COMMIT_STATE_UNKNOWN: "flash.provider_apply_commit_state_unknown",
+    ProviderApplyErrorCode.UNKNOWN: "flash.provider_apply_unknown",
 }
 
 
@@ -106,6 +144,9 @@ def _render(
     providers: tuple[SearchProviderDescriptor, ...],
     search_envelope: VideoSearchEnvelope | None = None,
     detail_envelope: VideoDetailEnvelope | None = None,
+    apply_plan: ProviderApplyPlan | None = None,
+    apply_token: str | None = None,
+    apply_error: bool = False,
     error: ProviderSearchServiceError | None = None,
     status_code: int = 200,
 ) -> HTMLResponse:
@@ -116,7 +157,7 @@ def _render(
             language,
             f"source_search.error_{error.code.value}",
         )
-    return templates.TemplateResponse(
+    response = templates.TemplateResponse(
         request,
         "source_search.html",
         {
@@ -139,11 +180,18 @@ def _render(
                 if detail_envelope is not None
                 else ()
             ),
+            "apply_plan": apply_plan,
+            "apply_token": apply_token,
+            "apply_error": apply_error,
             "error_message": error_message,
-            "flash_messages": [],
+            "flash_messages": pop_flash_messages(request, language),
         },
         status_code=status_code,
     )
+    if apply_token is not None:
+        response.headers["Cache-Control"] = "no-store"
+        response.headers["Pragma"] = "no-cache"
+    return response
 
 
 def _render_error(
@@ -237,6 +285,7 @@ async def source_search_detail_page(
     provider_key: str = Form(default=""),
     external_id: str = Form(default=""),
     service: ProviderSearchService = Depends(get_provider_search_service),
+    db: Session = Depends(get_db),
 ) -> HTMLResponse:
     providers: tuple[SearchProviderDescriptor, ...] = ()
     try:
@@ -263,8 +312,86 @@ async def source_search_detail_page(
         )
     except ProviderSearchServiceError as error:
         return _render_error(request, providers, error)
+
+    try:
+        plan = build_provider_apply_plan(db, envelope)
+        token: str | None = None
+        if plan.has_writes:
+            material = ensure_provider_apply_web_material(request)
+            token = sign_provider_apply_plan(
+                plan,
+                secret=material.secret,
+                context=material.context,
+                now=datetime.now(UTC),
+                ttl_seconds=600,
+            )
+    except (ProviderApplyError, ProviderApplyWebError):
+        return _render(
+            request,
+            providers=providers,
+            detail_envelope=envelope,
+            apply_error=True,
+        )
     return _render(
         request,
         providers=providers,
         detail_envelope=envelope,
+        apply_plan=plan,
+        apply_token=token,
     )
+
+
+def _apply_failure(
+    request: Request,
+    code: ProviderApplyErrorCode,
+) -> RedirectResponse:
+    key = _APPLY_ERROR_FLASH.get(code, "flash.provider_apply_unknown")
+    add_flash(request, "error", key)
+    location = "/items" if code is ProviderApplyErrorCode.COMMIT_STATE_UNKNOWN else "/source-search"
+    return RedirectResponse(location, status_code=303)
+
+
+@router.post(
+    "/source-search/apply",
+    response_class=RedirectResponse,
+    dependencies=[Depends(require_page_auth)],
+)
+def source_search_apply(
+    request: Request,
+    token: str = Form(default=""),
+    confirmation: str = Form(default=""),
+    db: Session = Depends(get_db),
+) -> RedirectResponse:
+    if confirmation != "apply":
+        return _apply_failure(request, ProviderApplyErrorCode.INVALID_REQUEST)
+    try:
+        material = get_provider_apply_web_material(request)
+    except ProviderApplyWebError:
+        add_flash(request, "error", "flash.provider_apply_session_invalid")
+        return RedirectResponse("/source-search", status_code=303)
+
+    try:
+        result = apply_provider_apply_token(
+            db,
+            token,
+            secret=material.secret,
+            context=material.context,
+            now=datetime.now(UTC),
+            verification_session_factory=SessionLocal,
+        )
+    except ProviderApplyError as error:
+        return _apply_failure(request, error.code)
+    except Exception:
+        return _apply_failure(request, ProviderApplyErrorCode.UNKNOWN)
+
+    if type(result) is not ProviderApplyResult:
+        return _apply_failure(request, ProviderApplyErrorCode.UNKNOWN)
+    if result.commit_status is ProviderApplyCommitStatus.COMMITTED:
+        add_flash(request, "success", "flash.provider_apply_committed")
+    else:
+        add_flash(
+            request,
+            "info",
+            "flash.provider_apply_committed_verified_after_exception",
+        )
+    return RedirectResponse(f"/items/{result.item_id}", status_code=303)

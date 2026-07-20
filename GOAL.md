@@ -1,162 +1,68 @@
-# Phase 5-N5C-B1 — Transactional Provider Apply Service
+# Phase 5-N5C-B2 — Session-Bound Preview / Confirm UI（完成）
 
-## 完成状态
+## 完成结果
 
-Phase 5-N5C-B1 已完成并通过本地门禁。本阶段只实现服务层，不实现页面、Router、
-按钮、表单、模板、JavaScript 或真实 Provider。
-
-基线与不变项：
+Phase 5-N5C-B2 已完成。N5C 现已形成：
 
 ```text
-repository: /home/nsfwtrack
-branch: main
-base: 433e4b1c2bc9e58816df237a26a91e88082f39e0
-Application: 1.1.0
-Schema: 4
-Backup: nsfwtrack.backup.v2
-Production Endpoint Registry: EndpointRegistry(())
-Production Search Packages: ()
-Production Search Providers: ()
+Search → Detail → signed Preview → explicit Confirm → local Apply
 ```
 
-起始工作区预置修改为 `GOAL.md`，并有既有未跟踪 `data/`。该 `data/` 属于用户本地
-数据，本阶段没有读取、枚举、进入、复制、修改、移动、删除、格式化、暂存或提交
-其中任何内容。测试使用 pytest 隔离临时数据库；没有向既有 `data/` 写入测试文件。
+- 新增 `app/provider_apply/web.py`，只负责 Session-bound Web key material。
+- 已认证 Detail Preview 按需创建或修复 64 lowercase-hex Session nonce；Confirm
+  只读取既有 nonce，绝不隐式创建。
+- Session generation 与 app generation 使用 constant-time exact comparison；
+  cross-session、logout/relogin、generation rotation 后旧 Token 均失效。
+- `SECRET_KEY`、generation 与 nonce 通过两个独立 HMAC-SHA256 domain 分别派生
+  exact 32-byte secret 与 bounded opaque context；secret/context/nonce/generation
+  不进入模板可见内容、URL、flash、日志、错误、数据库或 app/module cache。
+- POST `/source-search/detail` 保持 Provider detail exactly once，search/asset_list 为 0；
+  N5C-A Plan builder 只执行 bounded SELECT，数据库零写入。
+- 有变化时签发固定 600 秒 Token；Token 只在 autocomplete-off hidden input，响应为
+  `Cache-Control: no-store` / `Pragma: no-cache`。
+- no-op 不签 Token、不显示确认表单、不创建 nonce。
+- Preview 显示 create/update、安全字段 current/proposed、will-write/keep-local、
+  duplicate-title warning/link、10-minute expiry、Confirm 不重调 Provider 与 stale 提示；
+  不显示 canonical/source URL、external ID、metadata hash 或 key material。
+- 新增认证 POST `/source-search/apply`，精确要求 `confirmation=apply`；不读取 Provider
+  catalog，不调用任何 Provider operation，每请求最多调用 N5C-B1 apply 一次。
+- 成功使用 303 Item PRG 与稳定中英文 success/info flash；普通失败返回 source search。
+- `commit_state_unknown` 不自动重试，303 到 `/items`，明确要求先检查本地条目并禁止
+  直接重复提交。Token 不进入 Location、flash 或日志。
+- GET `/source-search` 继续保持 Provider operation 0、DB call 0、nonce/Token/apply 0，
+  production empty state 不变。
 
-## 实现
-
-新增或更新的唯一授权代码/测试文件：
+## 验证证据
 
 ```text
-app/provider_apply/transaction.py
-app/provider_apply/contracts.py
-app/provider_apply/__init__.py
-tests/test_phase5_n5c_b1.py
+focused B2: 36 passed
+specified N4D/N5A/N5B/N5C regression: 323 passed
+full suite: 1388 passed
 ```
 
-公开服务入口为：
-
-```python
-apply_provider_apply_token(
-    db,
-    token,
-    *,
-    secret,
-    context,
-    now,
-    verification_session_factory,
-) -> ProviderApplyResult
-```
-
-### Token-first 与事务边界
-
-- 先调用既有 `verify_provider_apply_token`；在验签失败、过期、错误 context/secret、
-  no-op 等路径，不访问 DB、Session transaction、Provider、Outbound、网络、文件或
-  dynamic import。
-- 验证后拒绝 `new/dirty/deleted` 的调用方 Session、既有 transaction、非 SQLite bind、
-  非 callable verification factory 和没有 `will_write=True` 字段的 Plan；不替调用方
-  自动 rollback/commit 或吸收其 pending 状态。
-- 所有业务 SELECT/INSERT/UPDATE 前执行 SQLite `BEGIN IMMEDIATE`。不使用无锁
-  read-then-write，也不改变 engine/global isolation level。
-
-### Exact stale revalidation
-
-写锁内重新读取并比较：
-
-- Provider identity source：`provider_key + external_id`、`ORDER BY id ASC LIMIT 2`；
-- normalized URL source：`ORDER BY id ASC LIMIT 2`；
-- linked Item：按 snapshot ID 读取 title、summary、release_date，并保留 cover/extra
-  的当前值用于 post-state 保护；
-- duplicate-title Item IDs：`ORDER BY id ASC LIMIT 32`。
-
-create 必须再次证明 identity、URL 均不存在且 duplicate-title ID tuple 未改变；不得
-按标题关联已有 Item。update 必须再次证明 source ID、item ID、Provider identity、
-raw/normalized URL、tracking values、linked Item title/summary/release_date 和
-duplicate-title tuple 全部匹配。任一合法快照变化返回 `stale_plan`，且不产生业务
-写入；多行或损坏数据库状态返回 `database_state_invalid`。
-
-### 最小写入白名单
-
-create 只用固定列 INSERT 创建一个 Item 和一个 ItemSource：
-
-- Item：title，以及 Plan 中实际存在的 summary/release_date；不写 cover_path/extra；
-- ItemSource：item_id、url、normalized_url、title、provider_key、external_id、
-  last_checked_at、metadata_hash。
-
-update 只写 Plan 中 `will_write=True` 的以下字段：
-
-- `Item.summary`
-- `Item.release_date`
-- `ItemSource.last_checked_at`
-- `ItemSource.metadata_hash`
-
-Item.title、cover_path、extra，ItemSource URL、normalized URL、title、Provider identity，
-以及 Tag、Creator、Collection、State、Activity、Media 或任何关系表都不修改。不会
-执行 DELETE/DDL、目录/文件操作、标题合并、覆盖或第二个 ItemSource 创建。
-
-### Post-state、commit 与异常分类
-
-- flush 后、commit 前在同一事务中重新读取并证明 exact expected post-state；post-check
-  不通过时不返回普通 success。
-- `commit()` 正常返回也必须由独立、clean、同 bind 的 verification Session 通过有界
-  SELECT 证明 durable post-state；factory/session/lifecycle/state proof 失败返回
-  `commit_state_unknown`。
-- flush/commit/post-check/rollback 异常后，先由独立 Session 证明 exact post-state，再
-  证明 exact pre-state；不得用异常类型或 commit 返回值替代事实：
-
-| 独立事实 | 返回 |
-|---|---|
-| exact post-state，commit 正常 | `committed` |
-| exact post-state，commit 抛异常 | `committed_verified_after_exception` |
-| exact pre-state，Integrity/唯一约束失败 | `write_conflict` |
-| exact pre-state，其他写入失败 | `write_failed` |
-| pre/post 均不能证明 | `commit_state_unknown` |
-
-异常、SQL、Provider identity、URL、title、Token、Secret、context 和 marker 不进入
-稳定错误文本、Result、`str`、`repr` 或日志。
-
-## Result 与 replay 合同
-
-新增 frozen/slotted/redacted `ProviderApplyResult`：
+提交前还需执行并记录：
 
 ```text
-format: nsfwtrack.provider-apply-result
-version: 1
-action: create_item | update_item
-item_id: positive integer
-source_id: positive integer
-written_fields: exact non-empty tuple in Plan order
-commit_status: committed | committed_verified_after_exception
+.venv/bin/python -m pip check
+git diff --check
+git status --short
 ```
 
-`written_fields` 严格等于 Plan 中 `will_write=True` 的字段顺序，不包含 Token、Secret、
-context、URL、external ID、title、SQL 或原始异常。成功 create/update 后使用同一 Token
-重放必须返回 `stale_plan`，不得第二次写入或新增 ItemSource。
-
-## 外部副作用与长期边界
-
-- 不重新调用 Provider，不注册或激活真实 Provider，不增加网络、爬虫、远程媒体、
-  识别、推荐、AI、多用户、云同步、下载、播放或后台任务。
-- 不新增依赖、Schema、Migration、Backup format、Docker/Compose/CI 行为。
-- 不从环境、Request、Session、文件或 Registry 自动派生 secret/context。
-- 不创建 Tag/Release，不部署 N100，不调用或编写 Hermes 验收。
-- 未创建、读取或输出任何凭据。
-
-## 验证结果
+固定不变量：
 
 ```text
-focused: 47 passed
-specified N4D/N5A/N5B/N5C regression set: 287 passed
-full pytest: 1352 passed
-pip check: passed
-git diff --check: passed
-Application: 1.1.0
-Schema: 4
-Backup: nsfwtrack.backup.v2
-Production Registry/Packages/Providers: empty
+Application = 1.1.0
+Schema = 4
+Backup = nsfwtrack.backup.v2
+Production Registry = EndpointRegistry(())
+Production Search Packages = ()
+Production Search Providers = ()
 ```
 
-N5C-B1 的本地实现和验证完成。N5C-B2 仍待独立授权，范围为显式 Preview/Confirm
-routes、session-bound secret/context 派生、模板、i18n 与用户可见结果；B2 不得弱化
-本摘要中的 Token-first、`BEGIN IMMEDIATE`、字段白名单、独立状态证明、replay rejection
-或 `data/` 边界。
+未接入真实 Provider、Host、Endpoint 或 fixture；未实现认证/Vault、远程图片、播放、
+下载、自动 Apply、后台任务、同步、Schema/Migration/Backup format/依赖、Docker/Compose/CI
+变化。未调用 Hermes，未创建 Tag/Release，未部署 N100，既有 `data/` 未接触。
+
+最终发布门禁仍为：创建并普通 fast-forward 推送唯一提交
+`Add session-bound provider apply UI`，等待 GitHub Actions `test` 与
+`Docker production smoke` 均成功后报告。

@@ -223,6 +223,75 @@
         </div>
       </section>
     {% endif %}
+
+    {% if apply_error %}
+      <section class="card stack" role="alert">
+        <h3>{{ t("source_search.apply_preview_title") }}</h3>
+        <p>{{ t("source_search.apply_preview_error") }}</p>
+      </section>
+    {% elif apply_plan %}
+      <section class="card stack" aria-labelledby="source-apply-preview">
+        <h3 id="source-apply-preview">{{ t("source_search.apply_preview_title") }}</h3>
+        {% if apply_plan.action.value == "create_item" %}
+          <p><strong>{{ t("source_search.apply_action") }}:</strong> {{ t("source_search.apply_action_create") }}</p>
+        {% else %}
+          <p><strong>{{ t("source_search.apply_action") }}:</strong> {{ t("source_search.apply_action_update") }}</p>
+        {% endif %}
+
+        {% if apply_plan.has_writes %}
+          <div class="stack">
+            {% for change in apply_plan.field_changes %}
+              {% if change.field_name in ("item.title", "item.summary", "item.release_date", "item_source.last_checked_at") %}
+                <div class="card stack">
+                  <p><strong>{{ t("source_search.apply_field_" + change.field_name | replace(".", "_")) }}</strong></p>
+                  <p><strong>{{ t("source_search.apply_current") }}:</strong> {{ change.current_value if change.current_value is not none and change.current_value != "" else t("common.none") }}</p>
+                  <p><strong>{{ t("source_search.apply_proposed") }}:</strong> {{ change.proposed_value if change.proposed_value is not none and change.proposed_value != "" else t("common.none") }}</p>
+                  {% if change.will_write %}
+                    <p class="pill">{{ t("source_search.apply_will_write") }}</p>
+                  {% else %}
+                    <p class="muted">{{ t("source_search.apply_keep_local") }}</p>
+                  {% endif %}
+                </div>
+              {% endif %}
+            {% endfor %}
+            {% if apply_plan.action.value == "create_item" %}
+              <div class="card stack">
+                <p><strong>{{ t("source_search.apply_source_association") }}</strong></p>
+                <p class="pill">{{ t("source_search.apply_will_write") }}</p>
+              </div>
+            {% endif %}
+          </div>
+
+          {% if apply_plan.duplicate_title_item_ids %}
+            <div class="flash info stack">
+              <p>{{ t("source_search.apply_duplicate_warning", count=apply_plan.duplicate_title_item_ids | length) }}</p>
+              <div class="actions">
+                {% for item_id in apply_plan.duplicate_title_item_ids %}
+                  <a class="button secondary" href="/items/{{ item_id }}">{{ t("source_search.apply_duplicate_link", item_id=item_id) }}</a>
+                {% endfor %}
+              </div>
+            </div>
+          {% endif %}
+
+          <p class="muted">{{ t("source_search.apply_expiry") }}</p>
+          <p class="muted">{{ t("source_search.apply_no_provider_recall") }}</p>
+          <p class="muted">{{ t("source_search.apply_stale_notice") }}</p>
+
+          <form class="stack" action="/source-search/apply" method="post">
+            <input type="hidden" name="token" value="{{ apply_token }}" autocomplete="off">
+            <label>
+              <input type="checkbox" name="confirmation" value="apply" required>
+              {{ t("source_search.apply_confirmation") }}
+            </label>
+            <div class="actions">
+              <button type="submit">{{ t("source_search.apply_confirm") }}</button>
+            </div>
+          </form>
+        {% else %}
+          <p>{{ t("source_search.apply_no_changes") }}</p>
+        {% endif %}
+      </section>
+    {% endif %}
   </section>
 {% endif %}
 {% endblock %}

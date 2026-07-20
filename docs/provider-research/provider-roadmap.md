@@ -220,11 +220,20 @@ Schema, dependency, background task, Docker, Compose, or CI change.
 
 ### N5C-B2 - explicit Preview/Confirm UI
 
-Not implemented. It requires a separate GOAL for authenticated Preview/Confirm
-routes, session-bound secret/context derivation, template/i18n integration, and
-user-visible results. It must consume B1 without re-calling the Provider and keep
-GET zero-write, production catalogs empty, and download/playback/background work
-outside this phase.
+Completed. Authenticated Detail Preview builds the N5C-A Plan with bounded
+SELECT-only database access after exactly one Provider detail call. Writable Plans
+receive a 600-second Token only in a hidden input and a `no-store` response; no-op
+Plans receive no Token, form, or nonce.
+
+Session/app generation and a Preview-owned 64-hex nonce are combined with
+`SECRET_KEY` under separate HMAC-SHA256 domains to derive the exact secret and opaque
+context. Confirm never creates nonce state, reads no Provider catalog, performs zero
+Provider operations, and invokes B1 at most once after exact user confirmation.
+Cross-Session, logout/relogin, and generation rotation invalidate old Tokens.
+Committed results use Item PRG; unknown commit state is not retried and requires
+local inspection first. N5C is complete as Search → Detail → signed Preview →
+explicit Confirm → local Apply, while production catalogs remain empty and
+download/playback/background work remains outside this phase.
 
 ### N6 - controlled asset save and download tasks
 
@@ -271,13 +280,13 @@ Every real phase must prove:
    success, and invalidate derived state where a later local mutation requires
    it.
 
-## 6. Invariants preserved through N5C-B1
+## 6. Invariants preserved through N5C-B2
 
 - Application version: `1.1.0`.
 - Schema: `4`.
 - Backup: `nsfwtrack.backup.v2` with v1 restore compatibility.
 - Production Provider Registry: `EndpointRegistry(())`.
-- Production Search Providers: `()`.
+- Production Search Packages and Providers: `()` / `()`.
 - No real Provider, host, endpoint, credential, authentication, playback,
   download, background task, dependency, migration, Schema, Backup, Docker,
   Compose, or CI change.

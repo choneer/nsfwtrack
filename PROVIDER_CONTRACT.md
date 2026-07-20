@@ -30,6 +30,42 @@ Permanent boundaries remain unchanged:
 
 ## 2. Current implementation audit
 
+### 2.0H Phase 5-N5C-B2 Session-Bound Preview/Confirm UI
+
+`app/provider_apply/web.py` is the only Web key-material boundary. In an already
+authenticated Session, Detail Preview may create or repair one canonical 64-character
+lowercase-hex nonce; Confirm can only consume an existing valid nonce. Session and app
+generation are bounded exact non-empty strings and must match with constant-time
+comparison. `SECRET_KEY`, generation, and nonce are fed to two distinct fixed
+HMAC-SHA256 domains, producing an exact 32-byte secret and a bounded opaque context.
+The derived values are not stored in Session or cached in app/module state. Nonce and
+generation remain only in the existing signed Session; none of these values is exposed
+through a template, URL, flash, log, error, or database.
+
+POST `/source-search/detail` preserves N5B authority: it reads the current catalog,
+approves DETAIL, and calls Provider detail exactly once. It then calls the N5C-A plan
+builder through a request-scoped Session; this stage remains bounded SELECT-only and
+zero-write. Plans with writes receive a fixed 600-second Signed Token. The Token exists
+only in an autocomplete-off hidden input and its response is `no-store` / `no-cache`.
+No-change plans receive no Token, no confirmation form, and no nonce creation.
+
+POST `/source-search/apply` requires page authentication and exact
+`confirmation=apply`. It has no Provider service dependency, does not read a catalog,
+and cannot call search/detail/asset_list. It derives existing Session material and
+invokes `apply_provider_apply_token` at most once with timezone-aware UTC and
+`SessionLocal` for independent durable-state proof. Success uses 303 PRG to the Item;
+ordinary safe failures return to source search. `commit_state_unknown` is not retried,
+redirects to the Item list, and explicitly requires local inspection before another
+action. Cross-Session, logout/relogin, generation rotation, and missing nonce reject an
+old Token before business writes.
+
+The Preview exposes only safe deterministic Item changes, keep-local decisions,
+duplicate-title warning IDs as local Item links, expiry, no-Provider-recall, and stale
+notices. Canonical/source URLs, external IDs, metadata hashes, raw payload, SQL, asset
+locators, Token text, secret, context, nonce, and generation are excluded from visible
+output. N5C is complete as Search → Detail → signed Preview → explicit Confirm → local
+Apply. Production Registry, Search Packages, and Search Providers remain empty.
+
 ### 2.0G Phase 5-N5C-B1 Transactional Provider Apply Service
 
 `app/provider_apply/transaction.py` exposes the service-only
@@ -76,8 +112,8 @@ commit status. Successful create and update change at least one snapshotted fact
 so the same Token replay returns `stale_plan` without a second ItemSource or
 tracking write. N5C-B1 performs no Provider, Outbound, DNS, network, file, dynamic
 import, Schema, migration, Backup, dependency, Docker, Compose, or CI expansion.
-N5C-B2 remains responsible for explicit Preview/Confirm routes, session-bound
-secret/context derivation, templates, i18n, and user-visible result handling.
+N5C-B2 now supplies the explicit Preview/Confirm routes, session-bound secret/context
+derivation, templates, i18n, and user-visible result handling described above.
 
 ### 2.0F Phase 5-N5C-A Signed Provider Apply Plan Foundation
 
@@ -1059,11 +1095,15 @@ revalidation.
 
 ### N5C-B2: explicit Preview/Confirm UI
 
-Not implemented. A future independently authorized GOAL must define authenticated
-Preview/Confirm routes, session-bound secret/context derivation, templates, i18n,
-and user-visible result handling. B2 must consume B1 without re-calling the
-Provider, preserve GET zero-write behavior and the empty production catalogs, and
-must not add download, playback, background work, or real Provider activation.
+Completed. Authenticated Detail Preview creates only Session-bound Web material,
+builds the N5C-A Plan with bounded read-only queries, and signs a 600-second Token only
+when writes exist. Explicit Confirm consumes existing Session material, performs zero
+Provider/catalog operations, and invokes B1 at most once. PRG and bilingual flashes
+distinguish committed, independently verified committed, safe failures, and the
+non-retryable `commit_state_unknown` outcome. Token and key material remain out of
+URLs, visible text, flashes, logs, and errors; GET remains operation/DB/material-free,
+the production catalogs remain empty, and no download, playback, background work, or
+real Provider activation was added.
 
 ### N6: controlled download
 

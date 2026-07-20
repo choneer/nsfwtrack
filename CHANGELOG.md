@@ -4,6 +4,30 @@
 
 ### Added
 
+- Added Phase 5-N5C-B2 session-bound Provider apply Web material. Authenticated
+  Detail Preview owns a canonical 64-hex Session nonce; Confirm can only read an
+  existing nonce. Separate HMAC-SHA256 domains derive an exact 32-byte secret and
+  opaque context from `SECRET_KEY`, Session generation, and nonce, so tokens fail
+  across browser Sessions, logout/relogin, and generation rotation.
+- Extended Provider Detail POST with a read-only N5C-A apply plan and deterministic
+  create/update preview. Detail remains exactly one Provider call; search and asset
+  list remain zero. Writable plans receive one 600-second Token stored only in an
+  autocomplete-off hidden input with `no-store`; no-op plans receive no Token,
+  confirmation form, or nonce.
+- Added explicit authenticated POST `/source-search/apply`. It validates exact
+  confirmation, never reads or calls the Provider catalog/service, derives existing
+  Session material, invokes N5C-B1 at most once, and returns stable 303 PRG results.
+  `commit_state_unknown` is never retried and directs the user to inspect local
+  items before any further action.
+- Added safe bilingual Preview/Confirm copy, field/keep-local and duplicate-title
+  warnings, stable success/error flashes, and redaction gates that keep Token,
+  canonical URL, external ID, metadata hash, secret, context, nonce, and generation
+  out of visible text, redirects, flashes, and logs.
+- Added 36 focused N5C-B2 tests covering key derivation, no-op, create, fill-blank
+  and tracking-only update, duplicate-title non-binding, session invalidation,
+  exact confirmation, Provider zero-call Confirm, one-attempt failures, PRG, cache,
+  and leakage boundaries. The specified regression set passes 323 tests and the
+  full suite passes 1388 tests.
 - Added Phase 5-N5C-B1 `apply_provider_apply_token`, a pure service-layer entry
   that verifies the existing purpose-bound Signed Token before any database or
   external action, rejects pending/existing Session state, and acquires SQLite

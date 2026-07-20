@@ -12,7 +12,7 @@
 当前应用版本与开发阶段：
 
 ```text
-v1.1.0 stable / Phase 5-N5C-B1 Transactional Provider Apply Service locally complete
+v1.1.0 stable / Phase 5-N5C-B2 Session-Bound Preview/Confirm UI locally complete
 ```
 
 当前最新稳定版本为 `v1.1.0`，发布范围包含已冻结并验收完成的 Phase 3 后续媒体维护能力与 Phase 4 全部能力。
@@ -43,7 +43,7 @@ Release: https://github.com/choneer/nsfwtrack/releases/tag/v1.1.0
 维护与 CI：Phase 2-L1 至 L6 已随 v1.0.2 发布；L7 已随 v1.0.3 发布；L8 固定非 root 容器用户已随 v1.0.4 发布
 产品功能重启：Phase 3-A1 至 A6 已随 v1.0.5 发布；Phase 3-B1 / B2 已随 v1.0.6 发布；Phase 3-B3 / B4 / B5 / B6 / C1 / C2 / C3 / C4 / C5、D1 最终集成审查及 Phase 4-A1 / A2 / M1 / M2 / M3 / M4 / M5 均已随 v1.1.0 正式发布
 正式发布：Phase 4-R1 至 R3D 的审计、验收和候选冻结均已完成，Phase 4-R4 已正式发布 `v1.1.0`
-下一目标：v1.2.0 三类 Provider 路线；Phase 5-N4A/N4B 通用基础设施、N4C 静态研究、N4D-A/B/C、N4D-D-A Artifact 离线门禁、N4D-D-B0 固定仓库证据 profile、N5A/N5B、N5C-A 只读 Signed Apply Plan Foundation 与 N5C-B1 事务服务已完成；N4D-D-B/N4E/N4F/N4G 仍分别等待完整 Provider Approval，N5C-B2 页面确认流程保持独立后续阶段
+下一目标：v1.2.0 三类 Provider 路线；Phase 5-N4A/N4B 通用基础设施、N4C 静态研究、N4D-A/B/C、N4D-D-A Artifact 离线门禁、N4D-D-B0 固定仓库证据 profile、N5A/N5B 与完整 N5C Signed Preview/Confirm/local Apply 闭环已完成；N4D-D-B/N4E/N4F/N4G 仍分别等待完整 Provider Approval
 ```
 
 当前完成度估算：
@@ -51,7 +51,7 @@ Release: https://github.com/choneer/nsfwtrack/releases/tag/v1.1.0
 ```text
 核心业务能力：已完成
 代码发布状态：v1.1.0 已正式发布，annotated tag 与正式 GitHub Release 按发布门禁验证
-当前开发状态：Phase 5-N5C-B1 已完成纯服务层 Signed Token apply：Token-first、SQLite `BEGIN IMMEDIATE`、锁内 exact stale revalidation、create/update 字段白名单、事务内 post-check、commit 后独立 Session durable-state proof、异常后的 pre/post-state 分类与 replay rejection。N5C-B2 的 Preview/Confirm route、session-bound secret/context、模板、i18n 与用户可见结果尚未实现。应用仍为 `1.1.0`、Schema 为 4、Backup 为 `nsfwtrack.backup.v2`，Production Search Packages 与 Production Registry 均为空。
+当前开发状态：Phase 5-N5C-B2 已完成登录 Session 绑定的 Preview/Confirm Web 闭环。Detail 只调用 Provider 一次并以只读 Plan 生成 600 秒 hidden Token；Confirm 精确校验用户确认、零 Provider 调用且每请求最多调用 B1 apply 一次。跨 Session、logout 与 generation rotation 会使旧 Token 失效，`commit_state_unknown` 不重试并要求先检查本地条目。N5C 的 Search → Detail → signed Preview → explicit Confirm → local Apply 已完整成立。应用仍为 `1.1.0`、Schema 为 4、Backup 为 `nsfwtrack.backup.v2`，Production Search Packages、Providers 与 Registry 均为空。
 Phase 5-N3：Provider 合同、认证、资产、动态 Locator、受控下载 MVP、状态矩阵和批准模板已完成；仅新增/更新授权文档，未实现 Provider 或下载
 Phase 5-N4A：capability/Protocol/SourceAsset/Auth 状态/typed Registry/Outbound 基础和 test-only Fixture Provider 已完成；初始全量 934 passed，最终安全复核后全量 938 passed，production registry 仍为空
 Phase 5-N4B：immutable Approval/Host/Operation/Auth/Asset/Download model、纯本地一致性 Validator 与 opaque Asset ID 强化已完成；N4B 27、N4A/Adapter/Outbound 120、全量 965 passed，production registry 仍为空
@@ -292,7 +292,7 @@ Production Search Packages 固定为 `()`，因此 production providers 为 `()`
 Provider 请求稳定返回 `provider_not_available`；没有 synthetic Provider、真实
 Provider、Host、Endpoint、网络、数据库、文件读写或 Registry 修改。N5B 已完成
 search/detail empty-state 与 approved-provider UI；N5C-A 已完成只读 signed plan，
-N5C-B1 已完成重验与事务写入服务，N5C-B2 单独负责显式确认页面集成。N5A 本地门禁为 focused `33 passed`、targeted
+N5C-B1 已完成重验与事务写入服务，N5C-B2 已完成显式确认页面集成。N5A 本地门禁为 focused `33 passed`、targeted
 `376 passed`、full `1194 passed`。
 
 ### Phase 5-N5B：Search/Detail Empty-State and Approved-Provider UI（已完成）
@@ -339,7 +339,7 @@ N5C-A 当时冻结的独立强制合同现已由 N5C-B1 服务层落实：验签
 Provider，必须在 `BEGIN IMMEDIATE` 后重读 identity source、URL source、linked Item
 和 duplicate-title IDs，与 snapshot 逐项比较；任何变化返回 `stale_plan` 且零写入。
 最终写入在单一事务中完成，commit 后由独立 Session 证明 bounded result，Token 重放
-因状态变化失败。签名有效不等于状态有效；N5C-B2 只负责后续页面确认集成。
+因状态变化失败。签名有效不等于状态有效；N5C-B2 页面确认集成现已完成且仍依赖 B1 锁内重验。
 
 N5C-A focused `59 passed`、N4D/N5A/N5B/N5C-A 组合 `226 passed`、full
 `1291 passed`。没有 Router/UI、数据库写入、真实 Provider、网络、依赖、Schema、
@@ -364,9 +364,34 @@ transaction post-state；commit 正常返回也必须由独立 Session 证明 du
 `write_conflict` / `write_failed`，两者都不能证明时返回 `commit_state_unknown`。
 成功 create/update 的同 Token 重放均为 `stale_plan`。B1 不新增 Router、页面、
 Secret/context 派生、Provider 调用、网络、依赖、Schema、Backup、Docker 或 CI 变化；
-N5C-B2 仍负责 Preview/Confirm UI、session-bound secret/context、模板与 i18n。
+N5C-B2 现已负责并完成 Preview/Confirm UI、session-bound secret/context、模板与 i18n。
 本地门禁为 focused `47 passed`、指定 N4D/N5A/N5B/N5C 组合 `287 passed`、full
 `1352 passed`；`pip check` 与 diff/status 门禁在提交前再次执行。
+
+### Phase 5-N5C-B2：Session-Bound Preview/Confirm UI（已完成）
+
+`app/provider_apply/web.py` 仅从现有已认证 Session 派生 Web key material。Preview
+按需创建 64 位 lowercase-hex nonce；Confirm 只能读取既有 nonce。当前 Session
+generation 必须与 app generation 精确恒定时间匹配。`SECRET_KEY`、generation 与 nonce
+使用两个独立 domain 的 HMAC-SHA256，分别派生 exact 32-byte secret 和 bounded opaque
+context；这些值不进入 Session、模板、URL、flash、日志或数据库。
+
+Detail POST 仍只调用一次 Provider detail，随后只用 N5C-A bounded SELECT 构建 Plan，
+零数据库写入。有变化时签发固定 600 秒 Token，Token 只出现在 `autocomplete=off` 的
+hidden input，响应为 `no-store`；no-op 不签发 Token、不显示表单且不创建 nonce。页面只
+显示允许的确定性本地字段、keep-local 决策和 duplicate-title 本地链接，不显示 canonical
+URL、external ID、metadata hash 或任何 key material。
+
+Confirm POST 受 `require_page_auth` 保护并精确要求 `confirmation=apply`，不读取 Provider
+catalog，不调用 search/detail/asset_list，每请求最多调用 B1 apply 一次。成功按 303 PRG
+跳转 Item；普通失败回到 source search。`commit_state_unknown` 跳转 Item 列表，明确要求
+先检查本地条目且禁止直接重试。跨浏览器 Session、logout/relogin、generation rotation、
+缺失 nonce 均在业务写入前拒绝旧 Token。
+
+N5C-B2 focused `36 passed`、指定 N4D/N5A/N5B/N5C 组合 `323 passed`、full
+`1388 passed`。N5C 完成 Search → Detail → signed Preview → explicit Confirm → local
+Apply；Production Registry、Search Packages 与 Search Providers 继续为空，没有真实
+Provider、认证/Vault、播放、下载、后台任务、Schema、Backup、依赖、Docker 或 CI 变化。
 
 ### Phase 5-P1：v1.2.0 外部内容源规划（历史，已由 P2 取代）
 
@@ -2009,7 +2034,7 @@ K1 审计结论：
 14. Phase 5-N5B Search/detail empty-state 与 approved-provider UI；已完成
 15. Phase 5-N5C-A Signed Provider Apply Plan Foundation；已完成，只读零写入
 16. Phase 5-N5C-B1 Transactional Provider Apply Service；已完成，纯服务层
-17. Phase 5-N5C-B2 Preview/Confirm routes、session-bound secret/context 与 UI；待授权
+17. Phase 5-N5C-B2 Preview/Confirm routes、session-bound secret/context 与 UI；已完成
 18. Phase 5-N6 用户明确确认的受控资源保存与下载
 19. Phase 5-N7 多来源更新、受控同步和推荐
 20. Phase 5-I1 完整集成冻结
@@ -2093,9 +2118,9 @@ K1 审计结论：
 - Phase 3-D1 最终父链精确竞态 2 passed、核心回归 177 passed、组合回归 365 passed、全量 584 passed，pip check 与隔离 Docker healthy / HTTP 验收通过；修复提交 `db0048d` 的 Actions run `29386547600` 两个 job 均成功，已重新记录最终冻结
 - Phase 4-A1 已完成安全只读详情聚合、全部引用与完整 SHA 重复组展示、三类来源状态返回、C1/C4 复用及外部路径 / symlink / 特殊文件 / anchor / 竞态拒绝；专项 17 passed、媒体链组合 252 passed、全量 601 passed、pip check 与隔离 Docker / HTTP 通过；提交 `c8cfb99` 与 Actions run `29389862206` 两个 job 均成功
 - Phase 4-A2 已完成同目录 basename 预览、完整身份 / 引用快照、写锁重验、verified-parent-FD no-overwrite hardlink、事务引用迁移与 commit 后身份删除；commit 歧义修复改为独立 Session 复核后才决定清理或保留双路径，修复后专项 50 passed、广泛组合 315 passed、全量 650 passed、pip check 与隔离 Docker / HTTP 通过；修复提交 `09be556` 与 Actions run `29399210087` 两个 job 均成功
-- Phase 4 已随 v1.1.0 发布；Phase 5-N1 至 N5C-B1 的已授权基础、UI、只读 signed
-  plan 与事务服务层均已完成，Production Provider/Search catalog 仍为空，N5C-B2
-  页面确认与 session-bound secret/context 尚未实现
+- Phase 4 已随 v1.1.0 发布；Phase 5-N1 至 N5C-B2 的已授权基础、UI、只读 signed
+  plan、事务服务层与 Session-bound Preview/Confirm 闭环均已完成，Production
+  Provider/Search catalog 仍为空
 
 ---
 
