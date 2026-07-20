@@ -1,4 +1,4 @@
-"""Read-only approved-Provider search and detail pages."""
+"""Approved-Provider Search, Detail, signed Preview, and explicit Confirm UI."""
 
 from __future__ import annotations
 

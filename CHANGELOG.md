@@ -4,6 +4,11 @@
 
 ### Added
 
+- Added a Phase 5-R1 integration-freeze test covering Application `1.1.0`,
+  Schema `4`, Backup v1/v2 identifiers, empty production Provider catalogs,
+  the exact Search/Detail/Preview/Confirm route method matrix, production/test
+  import isolation, and frozen roadmap markers. The audit changed no production
+  behavior and found no issue requiring R2 corrective work.
 - Added Phase 5-N5C-B2 session-bound Provider apply Web material. Authenticated
   Detail Preview owns a canonical 64-hex Session nonce; Confirm can only read an
   existing nonce. Separate HMAC-SHA256 domains derive an exact 32-byte secret and

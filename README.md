@@ -10,10 +10,10 @@ Current stable version: `v1.1.0`.
 
 Latest Release: [NSFWTrack v1.1.0](https://github.com/choneer/nsfwtrack/releases/tag/v1.1.0).
 
-Current status: `Phase 5-N4C video metadata, subscription/playback, and comic
-Provider research plus placeholder-only Approval drafts are locally complete;
-no real Provider is selected and the production Provider Registry remains
-empty`.
+Current status: `Phase 5-N5C Search → Detail → signed Preview → explicit
+Confirm → local Apply is complete and frozen; Phase 5-R1 integration audit is
+complete. No real Provider is selected and every production Provider catalog
+remains empty`.
 
 The long-term product baseline is recorded in [PRODUCT_VISION.md](PRODUCT_VISION.md).
 Ordinary all-ages content may remain naturally compatible with the generic
@@ -21,14 +21,13 @@ model, but it is secondary and does not drive Provider selection, the data
 model, or the roadmap. NSFWTrack is not being renamed to MediaTrack and is not
 becoming a general film/television catalog.
 
-The next target version remains `v1.2.0`. Phase 5-N4A implements the
-provider-neutral runtime foundation, N4B adds exact local Approval validation,
-and N4C records three Provider architecture directions without selecting or
-registering a real Provider. N4D, N4E, N4F, and N4G remain blocked behind
-separate complete Approvals for video metadata, a fixed subscription catalog,
-runtime streaming, and comics. N5 adds search, detail preview, and manual
-import; N6 adds an explicitly confirmed controlled-download loop; N7 completes
-manual checking, updates, security, and UX before integration and release.
+The next target version remains `v1.2.0`. The provider-neutral N1-N5C
+foundation and explicit local Apply flow are complete and frozen. No real
+Provider has been approved or activated. N6 controlled download and N7 manual
+update/hardening are not implemented. A corrective R2 is unnecessary because
+R1 found no blocking defect; R3 owns the Application `1.2.0` update, RC freeze,
+and the single Hermes acceptance after that candidate is fully frozen. R4
+formal release has not been published.
 
 Provider authentication, Provider-specific parsing, controlled downloads,
 local recommendations, optional AI, and visible default-off background sync
@@ -44,10 +43,8 @@ v1. The production Provider Registry remains empty. N2 added no real Provider,
 search UI, Provider credential storage, download, synchronization, tag,
 Release, or N100 deployment.
 
-Hermes must not be called during planning, Phase 5-N1 through N7, corrective
-work, or integration development. It is reserved for one final independent
-acceptance in Phase 5-R1 after all v1.2.0 functionality, Actions, cloud review,
-and Phase 5-I1 integration freeze are complete.
+Hermes has not been called for Phase 5. It remains reserved for one independent
+acceptance only after the R3 release candidate is fully frozen.
 
 Cloud diff review, Actions run `29586484449`, and Hermes independent acceptance
 all passed on candidate commit

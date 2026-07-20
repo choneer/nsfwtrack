@@ -551,11 +551,65 @@
 - [ ] **5.17. 测试隔离** — adapter/HTTP 是否只用 mock transport/fixture，覆盖
   安全与错误矩阵，绝不请求真实 DNS/provider；pytest/Docker 是否使用独立临时
   目录或隔离 volume 且不接触既有 `data/`
-- [ ] **5.18. 版本与发布** — N1-N7 是否不提前改 1.1.0，Schema 只在 N2 明确
-  升 4，R2 前不创建 v1.2.0 tag/Release，所有阶段不部署 N100
-- [ ] **5.19. Hermes 时机** — P1、N1-N7、corrective、I1 是否均未调用或编写
-  Hermes 验收；是否仅在全部功能、Actions、云端复核与 I1 冻结完成后由 R1
-  调用一次
+- [x] **5.18. 版本与发布** — R1 是否保持 Application `1.1.0` 与 Schema `4`，
+  由 R3 负责 `1.2.0`/RC 冻结，R4 前不创建 tag/Release，且不部署 N100
+- [x] **5.19. Hermes 时机** — Phase 5 是否尚未调用或编写 Hermes 验收，且仅在
+  R3 候选完全冻结后调用一次
+
+## Phase 5-R1 v1.2.0 Integration Freeze Audit
+
+### 审计基线
+
+- Base/起始 HEAD/origin main：`e5be8388561306fb3711574e6302d24752721941`。
+- v1.1.0 annotated tag object：`07643bf6a7b36cb488c80c0ac694b6bc733e61e3`；
+  peeled commit：`c1ff2760f8ee8ca988493aa04e8b4affbc4b4b9d`。
+- 稳定发布提交是当前 HEAD 祖先；其后的 21 个 Phase 5 SHA、顺序和 message
+  与冻结清单一致，无 merge commit、无额外产品代码提交。
+- Application `1.1.0`、Schema `4`、Backup `nsfwtrack.backup.v2`（保留 v1
+  restore）；Production Registry、Search Packages、Search Providers 均为空。
+
+### 冻结状态
+
+```text
+N5C = complete/frozen
+N6/N7 = not implemented
+R1 = PASS — no R2 corrective required
+R3 = Application 1.2.0 / RC freeze
+Hermes = not called
+R4 = not released
+```
+
+### Findings
+
+| ID | Severity | Area | Evidence | Impact | Disposition | R2 required |
+|---|---|---|---|---|---|---|
+| R1-N01 | note | Router documentation | `app/routers/source_search.py` 模块 docstring 仍称整个页面只读，未覆盖已完成的 signed Preview/Confirm | 仅说明失真；路由行为与安全合同不受影响 | R1 内仅修正 docstring，并以冻结测试固定完整 Web flow 名称 | no |
+| R1-N02 | note | Goal lifecycle wording | 完成前 GOAL 保留“提交前执行”和未来发布门禁措辞 | 若完成后保留会使阶段状态不清 | R1 完成时将 GOAL 收敛为实际结果摘要 | no |
+| R1-N03 | note | Roadmap synchronization | README/PLAN/TASKS/REVIEW 的旧阶段名仍将 Hermes 放在 R1、发布放在 R2，且 N6/N7 文案可误读为已实现 | 仅发布流程和能力状态说明过期 | 同步为 R1 audit、R2 conditional corrective、R3 RC/Hermes、R4 release，并明确 N6/N7 未实现 | no |
+| R1-N04 | note | Contract tense | `PROVIDER_CONTRACT.md` 的 N6/N7 小节使用现在时 “Implements” | 可能把未来合同误读为现有能力 | 改为明确的 “Not implemented” 未来时描述 | no |
+
+### 审计结论
+
+N1 outbound、N2 Schema 4/Backup v2、N4 Approval/Package/Artifact、Metadata、
+N5 Search/UI、Apply Plan/Token、transactional Apply 与 Session-bound Web 合同均
+保持；没有生产 fixture 导入、真实 Provider/Host/Endpoint、隐式网络、GET 写入、
+Confirm Provider recall 或未授权能力。路由矩阵保持 GET list 与三个显式 POST，
+Apply 无 GET 变体。
+
+**PASS — no R2 corrective required**
+
+### 验证证据
+
+- R1 focused：`5 passed`。
+- N5A/N5B/N5C-A/N5C-B1/N5C-B2/R1 targeted：`232 passed`。
+- Full pytest：`1393 passed`；`pip check` 与 `git diff --check` 通过。
+- 隔离 production Docker build/smoke 通过：UID/GID 10001、read-only root、
+  `CapEff=0`、no-new-privileges、`/tmp` tmpfs、隔离 `/app/data` 写入、`/login`
+  headers、Schema 4 和容器 recreate 后 SQLite/media-index persistence 均成立。
+- Docker 临时目录位于 `/tmp/nsfwtrack-r1-smoke.*`，未挂载或访问仓库 `data/`，
+  临时容器、镜像和目录均已清理。
+- 唯一 R1 提交的 GitHub Actions `test` 与 `Docker production smoke` 结果由
+  push 后最终交接报告记录，不对已验证提交执行 amend。
 
 ## 基础检查
 

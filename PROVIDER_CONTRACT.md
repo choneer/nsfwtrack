@@ -1107,17 +1107,19 @@ real Provider activation was added.
 
 ### N6: controlled download
 
-Implements asset preview, signed confirmation, streamed isolated transfer,
-validation, safe publication, exact relationship write, one index coordination,
-cancellation, and the complete download outcome matrix. It adds no hidden
-worker or unapproved Schema/dependency.
+Not implemented. A future separately authorized phase would implement asset
+preview, signed confirmation, streamed isolated transfer, validation, safe
+publication, exact relationship write, one index coordination, cancellation,
+and the complete download outcome matrix. It may add no hidden worker or
+unapproved Schema/dependency.
 
 ### N7: manual update and hardening
 
-Implements user-triggered source check, signed diff, manual update, approved
-auth/download hardening, rate/abuse controls, i18n, accessibility, performance,
-and complete related regression coverage. Background synchronization remains
-default denied unless a later GOAL explicitly authorizes it.
+Not implemented. A future separately authorized phase would implement
+user-triggered source check, signed diff, manual update, approved auth/download
+hardening, rate/abuse controls, i18n, accessibility, performance, and complete
+related regression coverage. Background synchronization remains default denied
+unless a later GOAL explicitly authorizes it.
 
 No real N4 Provider work begins until the user completes and explicitly approves
 the Provider Approval Template. N4A does not satisfy or bypass that approval.

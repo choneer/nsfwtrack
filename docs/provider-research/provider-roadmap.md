@@ -237,16 +237,16 @@ download/playback/background work remains outside this phase.
 
 ### N6 - controlled asset save and download tasks
 
-Requires separate per-Provider download Approval and explicit user
-confirmation. Reuses temporary isolation, streamed actual-byte bounds,
+Not implemented. It requires separate per-Provider download Approval and
+explicit user confirmation. Reuses temporary isolation, streamed actual-byte bounds,
 MIME/magic/hash checks, no-overwrite publication, exact reference writes,
 independent commit-error review, cancellation, and one media-index coordination
 per request. No hidden worker, unlimited batch, or inferred download right.
 
 ### N7 - multi-source update, controlled sync, and recommendation
 
-Still requires a new GOAL. Any background work is visible, default-off,
-bounded, cancellable, and separately approved. Local recommendations do not
+Not implemented and still requires a new GOAL. Any background work is visible,
+default-off, bounded, cancellable, and separately approved. Local recommendations do not
 create network/download authority. Optional AI remains outside the current
 roadmap unless separately authorized.
 
@@ -281,6 +281,17 @@ Every real phase must prove:
    it.
 
 ## 6. Invariants preserved through N5C-B2
+
+Phase 5-R1 freeze state:
+
+```text
+N5C = complete/frozen
+N6/N7 = not implemented
+R1 = PASS — no R2 corrective required
+R3 = Application 1.2.0 / RC freeze
+Hermes = not called
+R4 = not released
+```
 
 - Application version: `1.1.0`.
 - Schema: `4`.

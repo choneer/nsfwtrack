@@ -422,6 +422,7 @@ Apply 闭环已成立。N4D-D-B/N4E/N4F/N4G
 
 #### Phase 5-N6 - 用户确认的受控下载
 
+- [x] 状态明确为 `N6/N7 = not implemented`；本次 R1 未实现下载能力
 - [ ] 展示来源、文件、类型、大小、目标和冲突后，以独立明确确认启动单项或
   用户选定批次下载；搜索和页面加载不自动下载
 - [ ] 使用隔离临时区域、资源上限、内容/Hash 校验、no-overwrite 发布、失败
@@ -429,29 +430,31 @@ Apply 闭环已成立。N4D-D-B/N4E/N4F/N4G
 
 #### Phase 5-N7 - 手动检查更新、安全与体验收尾
 
+- [x] 状态明确为未实现；本次 R1 未实现更新、同步或后台任务
 - [ ] 实现 local-only sources GET、用户主动 check、signed diff、零网络 update /
   remove 和逐项非空更新；confirmed apply 后才更新 check/hash 字段
 - [ ] 完成认证/下载安全、rate/abuse boundary、稳定错误、i18n、响应式、
   可访问性、日志脱敏、性能上限和完整相关回归；不增加隐藏后台同步
 
-#### Phase 5-I1 - v1.2.0 集成冻结
+#### Phase 5-R1 - v1.2.0 Integration Freeze Audit
 
-- [ ] 完整验证路由状态矩阵、Schema 1 -> 2 -> 3 -> 4、v1/v2 备份、首个
-  Provider mock 集成、手动入库、受控下载、手动更新、全量 pytest、pip check
-  与隔离 Docker
-- [ ] 所有阶段 Actions 与云端 diff 复核成功，版本候选冻结且无已知代码阻塞
-- [ ] I1 完成前绝不调用或编写 Hermes 验收
+- [x] 静态复核提交链、生产空激活、N1-N5C 安全合同、Schema 4/Backup v2、
+  Web/Apply 路由矩阵、文档和冻结测试
+- [x] `N5C = complete/frozen`；`N6/N7 = not implemented`；`Hermes = not called`
+- [x] 结论 `PASS — no R2 corrective required`
 
-#### Phase 5-R1 - 唯一一次 Hermes 最终验收
+#### Phase 5-R2 - conditional corrective
 
-- [ ] 仅在 N1-N7、Actions、云端复核和 I1 全部完成后调用 Hermes 一次
-- [ ] 验证迁移/备份、Provider mock、网络/认证边界、搜索、手动入库、受控
-  下载、手动更新、Docker 双生命周期与 `data/` 隔离
+- [x] R1 未发现生产、安全、Schema/Backup 或集成阻塞，因此不需要 R2 corrective
 
-#### Phase 5-R2 - v1.2.0 正式发布
+#### Phase 5-R3 - Application 1.2.0 / RC freeze
 
-- [ ] 仅在 R1 通过且用户授权后更新应用版本、归档 CHANGELOG、创建发布提交、
-  annotated tag、正式 Release 与发布后一致性验证
+- [ ] 更新 Application 到 `1.2.0` 并完成 RC 冻结
+- [ ] 仅在候选完全冻结后调用 Phase 5 唯一一次 Hermes 验收
+
+#### Phase 5-R4 - v1.2.0 formal release
+
+- [ ] 尚未发布；仅在 R3 通过且用户单独授权后执行 tag、Release 与发布后验证
 - [ ] N100 仍需单独授权，不属于 v1.2.0 发布动作
 
 ### Phase 4-R 发布候选准备
