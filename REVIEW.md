@@ -2,6 +2,28 @@
 
 每次开发提交代码后，逐项检查：
 
+## Phase 6 v1.3.0 开发门禁
+
+- [x] **6.1 版本边界** — Application 仍为 1.2.0、latest stable 仍为 v1.2.0，
+  只将开发数据库推进到 Schema 5，未创建 Tag/Release/镜像/N100 部署
+- [x] **6.2 空生产激活** — endpoint、Provider package、Search provider 与
+  acquisition package 的 production catalog 均为空；测试 adapter 只使用合成数据
+- [x] **6.3 Task 事实** — 三类任务、状态矩阵、乐观版本、租约、UTC、进度、
+  redacted error、重启恢复、终态/retry/history 规则均有 DB 约束与测试
+- [x] **6.4 Preview/Confirm** — 下载 Preview 零网络/零文件，Confirm 先验签并
+  只创建一个任务、不自动执行；replay 不创建第二任务
+- [x] **6.5 安全文件发布** — 目录 descriptor、`O_NOFOLLOW`、mode 600 随机 temp、
+  symlink/hardlink/identity 复核、stream 上限、MIME/magic/SHA、无覆盖原子发布、
+  fsync、失败清理与 outcome-unknown 禁止盲重试成立
+- [x] **6.6 手动更新** — Check 只调用 detail 一次，Confirm 零 Provider；仅 summary、
+  release date、source title、checked time、metadata hash 可选写入且 stale fail closed
+- [x] **6.7 UI/安全** — Task Center 全部写操作 authenticated POST/PRG，GET 不运行、
+  token 页面 no-store，详情不展示 locator/完整 external ID/敏感相对路径
+- [x] **6.8 Backup/Docker** — Backup v2/v1-v2 restore 不含任务运行事实；临时根位于
+  `/app/data` 持久卷且容器继续 non-root/read-only/cap-drop/no-new-privileges
+- [ ] **6.9 完整验证** — focused/full pytest、pip check、diff check、Docker build/
+  recreate/smoke 与最终 GitHub Actions 全部成功后勾选
+
 ## 当前产品与网络边界检测（一票否决）
 
 - [ ] **0. 外部能力是否严格限于当前 GOAL 与用户共同批准的 Provider、认证、固定 Endpoint 和操作，并且全部通过共享受控边界执行？**

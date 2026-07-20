@@ -4,16 +4,18 @@ NSFWTrack is an NSFW-first, local-first, privacy-first, single-user,
 self-hosted application for collecting content, aggregating sources, managing
 local media, tracking state, and supporting personalized discovery.
 
-Current application version: `1.2.0` (Schema `4`).
+Current application version: `1.2.0` (development Schema `5`).
 
 Latest stable release: `v1.2.0`.
 
 Latest Release: [NSFWTrack v1.2.0](https://github.com/choneer/nsfwtrack/releases/tag/v1.2.0).
 
-Current status: `Phase 5-R4 formally released v1.2.0. R1 passed, R2 was
-skipped, R3 froze the candidate, and Hermes acceptance passed. N5C is
-complete/frozen; N6/N7 are not implemented. Production Registry, Search
-Packages, and Search Providers remain empty. N100 is not deployed`.
+Current status: `Phase 5-R4 formally released v1.2.0. Phase 6 is the unreleased
+v1.3.0 development bundle: Schema 5 persistent tasks, controlled acquisition,
+manual source Check/Diff/Confirm/Apply, and the bilingual Task Center are
+implemented without activating a production Provider. Production endpoint,
+search-package, search-provider, and acquisition catalogs remain empty. N100
+is not deployed`.
 
 Hermes acceptance: PASS. Phase 5-R4: released. N100: not deployed.
 
@@ -23,13 +25,44 @@ model, but it is secondary and does not drive Provider selection, the data
 model, or the roadmap. NSFWTrack is not being renamed to MediaTrack and is not
 becoming a general film/television catalog.
 
-The current stable version is `v1.2.0`. The provider-neutral N1-N5C
-foundation and explicit local Apply flow are complete and frozen. No real
-Provider has been approved or activated. N6 controlled download and N7 manual
-update/hardening are not implemented. A corrective R2 is unnecessary because
+The current stable version is `v1.2.0`; Application remains `1.2.0` during
+Phase 6 development. The provider-neutral N1-N5C foundation remains frozen.
+Phase 6 adds only test-driven synthetic acquisition authority and generic
+runtime contracts; no real Provider, endpoint, hostname, or credential has
+been approved or activated. A corrective R2 was unnecessary because
 R1 found no blocking defect, so R2 was skipped. R3 froze Application `1.2.0`,
 the single Phase 5 Hermes acceptance passed, and R4 formally published the
 release.
+
+## Phase 6 — v1.3.0 development bundle
+
+Schema 5 adds `operation_tasks`, bounded event/download/check/discovery facts,
+and transactional local-asset links. The closed state matrix uses optimistic
+versions, explicit leases, bounded redacted failures, pause/cancel/retry rules,
+and conservative restart recovery: interrupted work becomes paused or blocked
+and never performs automatic network access.
+
+Controlled acquisition accepts only an approved code-owned acquisition package
+and opaque Provider/source/asset identities. Preview is pure and creates no
+file or network request. Confirm verifies a short-lived Session-bound signed
+plan and creates one queued task without executing it. Explicit Start/Resume
+uses a directory-descriptor downloader with `O_NOFOLLOW`, random mode-600 temp
+files, streamed byte limits, MIME/magic/SHA checks, no-overwrite atomic link
+publication, transactional Item/source/task linkage, and one coordinated media
+index refresh or invalidation.
+
+Manual source Check is an authenticated POST that calls exactly one approved
+detail operation. Diff and per-field selection persist normalized facts only;
+Confirm performs no Provider call and applies only summary, release date,
+source title, checked time, and metadata hash after signed-plan and snapshot
+revalidation. Item title, state, rating, review, tags, collections, creators,
+cover, source identity, and source URL remain locally owned.
+
+The bilingual Task Center provides paginated/filterable list/detail pages and
+explicit Start, Pause, Resume, Cancel, safe Retry, and history deletion. GET
+routes never run tasks or call Providers. Backup export remains v2, restore
+continues to accept v1/v2, and all task/runtime/progress/lease/history tables
+remain excluded from backup payloads.
 
 Provider authentication, Provider-specific parsing, controlled downloads,
 local recommendations, optional AI, and visible default-off background sync

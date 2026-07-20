@@ -30,6 +30,37 @@ Permanent boundaries remain unchanged:
 
 ## 2. Current implementation audit
 
+### 2.0I Phase 6 controlled acquisition and manual update
+
+Phase 6 implements the previously planned provider-neutral acquisition boundary
+without activating any production Provider. `app/acquisition/registry.py` fixes
+the production acquisition package tuple to empty. Public forms accept only
+local Item/ItemSource/task/fact IDs; a user cannot submit a URL, host, path,
+header, cookie, credential, locator, or raw response.
+
+An explicit asset-list POST invokes one approved package operation and persists
+only bounded safe descriptors. Download Preview is database-only. Its signed
+plan binds Session context, Item/Source/provider/asset identities, relative
+target, snapshot, size/MIME/hash facts, issuance, and expiry. Confirm performs
+no Provider or file operation and idempotently creates one queued task.
+Start/Resume resolves the current source identity internally and opens the asset
+through the same approved package; locators remain adapter-local and ephemeral.
+
+The downloader uses verified directory descriptors and no-follow opens, mode-600
+random temporary files, hard streamed limits, bounded chunks/timeouts,
+cancellation checks, exact range resume, MIME/magic/SHA verification, and an
+atomic no-overwrite directory entry publication followed by file/parent fsync.
+It links Item, ItemSource, task, provider/asset digest, relative path, MIME, size,
+and SHA transactionally, then coordinates the media index once. Published or
+commit-uncertain states are never blindly retried.
+
+Manual source Check remains separate from asset operations: it calls exactly one
+approved detail method and no search, asset, or download method. Diff/selection
+is based on normalized expiring facts. Signed Confirm calls no Provider and can
+write only summary, release date, source title, checked time, and metadata hash
+after immediate snapshot revalidation. Production endpoint, Search Package,
+Search Provider, and acquisition catalogs all remain empty.
+
 ### 2.0H Phase 5-N5C-B2 Session-Bound Preview/Confirm UI
 
 `app/provider_apply/web.py` is the only Web key-material boundary. In an already

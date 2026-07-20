@@ -15,6 +15,12 @@
 Application 1.2.0 / Phase 5-R4 formally released
 ```
 
+Phase 6 当前开发基线：Application 仍为 `1.2.0`，Schema 已推进到 `5`，
+目标发布版本仅记录为 `v1.3.0`。已实现统一持久任务模型、受控资产下载、
+手动来源 Check/Diff/Confirm/Apply、双语任务中心及其迁移/事务/安全测试；
+production endpoint/package/provider/acquisition catalog 全部保持空，不创建
+Tag/Release、不发布镜像、不部署 N100。
+
 当前最新稳定版本为 `v1.2.0`；`v1.1.0` 发布证据作为上一稳定版本历史保留。
 
 上一稳定版本 v1.1.0 发布引用（历史保留）：

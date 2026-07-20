@@ -2,6 +2,36 @@
 
 ## Unreleased
 
+### Added
+
+- Added development Schema 5 with a unified persistent task model for controlled
+  asset downloads, manual source checks, and metadata updates. Tasks have a
+  closed state-transition matrix, optimistic fact versions, bounded progress and
+  redacted errors, owner/generation leases, explicit pause/cancel/retry/history
+  rules, and conservative restart recovery that performs no automatic network
+  access.
+- Added a provider-neutral acquisition contract and fixed-empty production
+  acquisition catalog. Pure download Preview and Session-bound signed Confirm
+  create one queued task without execution; explicit Start/Resume streams only
+  through an approved code-owned adapter.
+- Added a directory-descriptor safe downloader with no-follow traversal, random
+  mode-600 temp files, streamed hard limits, cancellation checks, MIME/magic/SHA
+  validation, resume range validation, no-overwrite atomic publication, fsync,
+  transactional local-asset linking, and coordinated media-index refresh or
+  invalidation.
+- Added manual ItemSource Check → Diff → per-field signed Preview → Confirm →
+  transactional Apply. Check invokes exactly one detail operation; Confirm invokes
+  none. Only summary, release date, source title, checked time, and metadata digest
+  can change, while local title and all user/media relationships remain untouched.
+- Added the bilingual Task Center with authenticated POST/PRG Start, Pause, Resume,
+  Cancel, safe Retry, and history deletion plus read-only paginated/filterable GET
+  pages. Token-bearing previews use `no-store` and never expose locators, full
+  external identities, credentials, or private paths.
+- Added strict task/download concurrency, byte, chunk, timeout, temp-retention,
+  and history-retention settings. Backup remains `nsfwtrack.backup.v2`, restore
+  continues to accept v1/v2, and all task/runtime/progress/error/lease/history
+  facts remain excluded from backup payloads.
+
 ## [1.2.0] - 2026-07-20
 
 ### Added
