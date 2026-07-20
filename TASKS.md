@@ -22,6 +22,13 @@
   history、临时事实和 local acquisition 关系不进入备份 payload
 - [x] 增加严格 runtime 配置边界与 `/app/data/.downloads` 受控临时根；
   Application 保持 1.2.0，latest stable 保持 v1.2.0
+- [x] 下载执行在 chunk、progress commit、完整性、publication、DB link、index
+  与最终成功前实施 owner/generation/expiry/cancel fencing；heartbeat 与并发 claim
+  使用原子条件更新，旧 generation 无法继续写入或覆盖新执行器状态
+- [x] 下载成功通过新 Session 独立验证 task/link、目录 FD 文件身份/SHA/size 与
+  media index；异常按精确 post-state、pre-state、outcome unknown 顺序分类
+- [x] 手动更新通过新 Session 独立验证选中与未选字段、Provider/source identity、
+  task intent/snapshot/events 和 replay 唯一性后才返回 committed_verified
 
 ## 当前状态（Phase 6 / v1.3.0 development）
 

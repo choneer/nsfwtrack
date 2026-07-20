@@ -9,10 +9,10 @@ from dataclasses import asdict, dataclass
 from datetime import UTC, datetime, timedelta
 from enum import Enum
 
-from sqlalchemy import select, update
+from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
-from app.models import Item, ItemSource, OperationTask, SourceCheckFact
+from app.models import Item, ItemSource, OperationTask, SourceCheckFact, TaskEvent
 from app.source_search import ProviderSearchService, VideoDetailRequest
 from app.tasks import PersistentTaskService, TaskState, TaskType
 
@@ -358,6 +358,225 @@ class ManualUpdateResult:
     commit_status: str
 
 
+class _IndependentManualVerificationFailed(RuntimeError):
+    pass
+
+
+def _manual_intent_key(plan: ManualUpdatePlan) -> str:
+    material = json.dumps(asdict(plan), sort_keys=True, default=str).encode()
+    return f"metadata-update:{hashlib.sha256(material).hexdigest()}"
+
+
+def _item_proof_values(item: Item) -> dict[str, object]:
+    return {
+        "id": item.id,
+        "title": item.title,
+        "cover_path": item.cover_path,
+        "summary": item.summary,
+        "release_date": item.release_date,
+        "extra": item.extra,
+        "created_at": item.created_at,
+    }
+
+
+def _source_proof_values(source: ItemSource) -> dict[str, object]:
+    return {
+        "id": source.id,
+        "item_id": source.item_id,
+        "url": source.url,
+        "normalized_url": source.normalized_url,
+        "title": source.title,
+        "provider_key": source.provider_key,
+        "external_id": source.external_id,
+        "last_checked_at": source.last_checked_at,
+        "metadata_hash": source.metadata_hash,
+        "created_at": source.created_at,
+    }
+
+
+def _expected_manual_values(
+    plan: ManualUpdatePlan,
+    *,
+    pre_item: dict[str, object],
+    pre_source: dict[str, object],
+) -> tuple[dict[str, object], dict[str, object]]:
+    expected_item = dict(pre_item)
+    expected_source = dict(pre_source)
+    for change in plan.selected:
+        if change.field == "item.summary":
+            expected_item["summary"] = change.new
+        elif change.field == "item.release_date":
+            expected_item["release_date"] = change.new
+        elif change.field == "item_source.title":
+            expected_source["title"] = change.new
+        elif change.field == "item_source.last_checked_at":
+            expected_source["last_checked_at"] = datetime.fromisoformat(change.new or "")
+        elif change.field == "item_source.metadata_hash":
+            expected_source["metadata_hash"] = change.new
+    return expected_item, expected_source
+
+
+def _verify_manual_update_state(
+    bind: object,
+    *,
+    plan: ManualUpdatePlan,
+    task_id: int,
+    expected_state: TaskState,
+    expected_stage: str,
+    expected_version: int,
+    pre_item: dict[str, object],
+    pre_source: dict[str, object],
+) -> None:
+    expected_item, expected_source = _expected_manual_values(
+        plan,
+        pre_item=pre_item,
+        pre_source=pre_source,
+    )
+    intent_key = _manual_intent_key(plan)
+    try:
+        with Session(bind=bind) as verification:
+            item = verification.get(Item, plan.item_id)
+            source = verification.get(ItemSource, plan.source_id)
+            tasks = tuple(
+                verification.scalars(
+                    select(OperationTask).where(OperationTask.intent_key == intent_key)
+                ).all()
+            )
+            if (
+                item is None
+                or source is None
+                or _item_proof_values(item) != expected_item
+                or _source_proof_values(source) != expected_source
+                or len(tasks) != 1
+                or tasks[0].id != task_id
+            ):
+                raise _IndependentManualVerificationFailed
+            task = tasks[0]
+            if (
+                task.task_type != TaskType.METADATA_UPDATE.value
+                or task.state != expected_state.value
+                or task.stage != expected_stage
+                or task.version != expected_version
+                or task.item_id != plan.item_id
+                or task.source_id != plan.source_id
+                or task.provider_key != plan.provider_key
+                or task.snapshot_hash != plan.detail_hash
+                or task.external_identity_hash is not None
+                or task.asset_identity_hash is not None
+                or task.relative_target is not None
+            ):
+                raise _IndependentManualVerificationFailed
+            events = tuple(
+                verification.scalars(
+                    select(TaskEvent)
+                    .where(TaskEvent.task_id == task_id)
+                    .order_by(TaskEvent.version)
+                ).all()
+            )
+            expected_events = (
+                ("created", "metadata_apply_started")
+                if expected_state is TaskState.RUNNING
+                else ("created", "metadata_apply_started", "metadata_apply_succeeded")
+            )
+            if tuple(event.event_type for event in events) != expected_events:
+                raise _IndependentManualVerificationFailed
+            fact = verification.get(SourceCheckFact, plan.check_task_id)
+            check_task = verification.get(OperationTask, plan.check_task_id)
+            if (
+                fact is None
+                or check_task is None
+                or check_task.state != TaskState.SUCCEEDED.value
+                or fact.detail_hash != plan.detail_hash
+                or fact.item_snapshot_hash != plan.item_snapshot_hash
+                or fact.source_snapshot_hash != plan.source_snapshot_hash
+            ):
+                raise _IndependentManualVerificationFailed
+    except _IndependentManualVerificationFailed:
+        raise
+    except Exception as error:
+        raise _IndependentManualVerificationFailed from error
+
+
+def _verify_manual_pre_state(
+    bind: object,
+    *,
+    plan: ManualUpdatePlan,
+    pre_item: dict[str, object],
+    pre_source: dict[str, object],
+) -> None:
+    try:
+        with Session(bind=bind) as verification:
+            item = verification.get(Item, plan.item_id)
+            source = verification.get(ItemSource, plan.source_id)
+            count = verification.scalar(
+                select(func.count())
+                .select_from(OperationTask)
+                .where(OperationTask.intent_key == _manual_intent_key(plan))
+            )
+            if (
+                item is None
+                or source is None
+                or _item_proof_values(item) != pre_item
+                or _source_proof_values(source) != pre_source
+                or int(count or 0) != 0
+            ):
+                raise _IndependentManualVerificationFailed
+    except _IndependentManualVerificationFailed:
+        raise
+    except Exception as error:
+        raise _IndependentManualVerificationFailed from error
+
+
+def _verify_manual_replay(
+    bind: object,
+    *,
+    plan: ManualUpdatePlan,
+    task_id: int,
+) -> None:
+    changes = {change.field: change.new for change in plan.selected}
+    try:
+        with Session(bind=bind) as verification:
+            item = verification.get(Item, plan.item_id)
+            source = verification.get(ItemSource, plan.source_id)
+            tasks = tuple(
+                verification.scalars(
+                    select(OperationTask).where(
+                        OperationTask.intent_key == _manual_intent_key(plan)
+                    )
+                ).all()
+            )
+            if item is None or source is None or len(tasks) != 1 or tasks[0].id != task_id:
+                raise _IndependentManualVerificationFailed
+            task = tasks[0]
+            if (
+                task.state != TaskState.SUCCEEDED.value
+                or task.stage != "committed_verified"
+                or task.snapshot_hash != plan.detail_hash
+                or task.item_id != plan.item_id
+                or task.source_id != plan.source_id
+                or task.provider_key != plan.provider_key
+            ):
+                raise _IndependentManualVerificationFailed
+            actual = {
+                "item.summary": item.summary,
+                "item.release_date": item.release_date,
+                "item_source.title": source.title,
+                "item_source.last_checked_at": _datetime_text(source.last_checked_at),
+                "item_source.metadata_hash": source.metadata_hash,
+            }
+            if any(actual[field] != value for field, value in changes.items()):
+                raise _IndependentManualVerificationFailed
+            event_count = verification.scalar(
+                select(func.count()).select_from(TaskEvent).where(TaskEvent.task_id == task_id)
+            )
+            if int(event_count or 0) != 3:
+                raise _IndependentManualVerificationFailed
+    except _IndependentManualVerificationFailed:
+        raise
+    except Exception as error:
+        raise _IndependentManualVerificationFailed from error
+
+
 def apply_manual_update(
     db: Session,
     *,
@@ -374,6 +593,28 @@ def apply_manual_update(
     except Exception:
         db.rollback()
         _raise(ManualUpdateErrorCode.WRITE_FAILED)
+    written_fields = tuple(change.field for change in plan.selected)
+    intent_key = _manual_intent_key(plan)
+    tasks = PersistentTaskService(db, max_concurrency=max_concurrency)
+    existing = db.scalar(
+        select(OperationTask).where(OperationTask.intent_key == intent_key)
+    )
+    if existing is not None:
+        existing_id = existing.id
+        if existing.state != TaskState.SUCCEEDED.value:
+            db.rollback()
+            _raise(ManualUpdateErrorCode.STALE_PLAN)
+        db.rollback()
+        try:
+            _verify_manual_replay(db.get_bind(), plan=plan, task_id=existing_id)
+        except _IndependentManualVerificationFailed:
+            _raise(ManualUpdateErrorCode.OUTCOME_UNKNOWN)
+        return ManualUpdateResult(
+            existing_id,
+            written_fields,
+            "already_applied_verified",
+        )
+
     item = db.get(Item, plan.item_id)
     source = db.get(ItemSource, plan.source_id)
     fact = db.get(SourceCheckFact, plan.check_task_id)
@@ -385,12 +626,13 @@ def apply_manual_update(
         or _source_snapshot(source) != plan.source_snapshot_hash
         or fact.detail_hash != plan.detail_hash
     ):
+        db.rollback()
         _raise(ManualUpdateErrorCode.STALE_PLAN)
-    tasks = PersistentTaskService(db, max_concurrency=max_concurrency)
-    intent_material = json.dumps(asdict(plan), sort_keys=True, default=str).encode()
+    pre_item = _item_proof_values(item)
+    pre_source = _source_proof_values(source)
     task, created = tasks.create(
         task_type=TaskType.METADATA_UPDATE,
-        intent_key=f"metadata-update:{hashlib.sha256(intent_material).hexdigest()}",
+        intent_key=intent_key,
         initial_state=TaskState.QUEUED,
         item_id=plan.item_id,
         source_id=plan.source_id,
@@ -398,10 +640,16 @@ def apply_manual_update(
         snapshot_hash=plan.detail_hash,
     )
     if not created:
-        if task.state == TaskState.SUCCEEDED.value:
-            return ManualUpdateResult(task.id, tuple(change.field for change in plan.selected), "already_applied")
+        db.rollback()
         _raise(ManualUpdateErrorCode.STALE_PLAN)
-    task = tasks.transition(task.id, TaskState.RUNNING, expected_version=task.version, event_type="metadata_apply_started")
+    task = tasks.transition(
+        task.id,
+        TaskState.RUNNING,
+        expected_version=task.version,
+        event_type="metadata_apply_started",
+    )
+    task_id = task.id
+    written_version = task.version
     changes = {change.field: change.new for change in plan.selected}
     item_values: dict[str, str | None] = {}
     source_values: dict[str, object] = {}
@@ -439,45 +687,117 @@ def apply_manual_update(
             )
             if result.rowcount != 1:
                 _raise(ManualUpdateErrorCode.STALE_PLAN)
+        task.stage = "written"
+        db.commit()
+    except ManualUpdateError:
+        db.rollback()
+        raise
+    except Exception:
+        db.rollback()
+        try:
+            _verify_manual_update_state(
+                db.get_bind(),
+                plan=plan,
+                task_id=task_id,
+                expected_state=TaskState.RUNNING,
+                expected_stage="written",
+                expected_version=written_version,
+                pre_item=pre_item,
+                pre_source=pre_source,
+            )
+        except _IndependentManualVerificationFailed:
+            try:
+                _verify_manual_pre_state(
+                    db.get_bind(),
+                    plan=plan,
+                    pre_item=pre_item,
+                    pre_source=pre_source,
+                )
+            except _IndependentManualVerificationFailed:
+                _raise(ManualUpdateErrorCode.OUTCOME_UNKNOWN)
+            _raise(ManualUpdateErrorCode.WRITE_FAILED)
+
+    try:
+        _verify_manual_update_state(
+            db.get_bind(),
+            plan=plan,
+            task_id=task_id,
+            expected_state=TaskState.RUNNING,
+            expected_stage="written",
+            expected_version=written_version,
+            pre_item=pre_item,
+            pre_source=pre_source,
+        )
+    except _IndependentManualVerificationFailed:
+        try:
+            _verify_manual_pre_state(
+                db.get_bind(),
+                plan=plan,
+                pre_item=pre_item,
+                pre_source=pre_source,
+            )
+        except _IndependentManualVerificationFailed:
+            _raise(ManualUpdateErrorCode.OUTCOME_UNKNOWN)
+        else:
+            _raise(ManualUpdateErrorCode.WRITE_FAILED)
+
+    db.expire_all()
+    task = tasks.get(task_id)
+    try:
         task = tasks.transition(
             task.id,
             TaskState.SUCCEEDED,
             expected_version=task.version,
             event_type="metadata_apply_succeeded",
         )
+        task.stage = "committed_verified"
+        success_version = task.version
         db.commit()
-        return ManualUpdateResult(task.id, tuple(change.field for change in plan.selected), "committed")
-    except ManualUpdateError:
-        db.rollback()
-        raise
     except Exception:
         db.rollback()
-        # The plan is single-use and a commit exception is never blindly retried.
-        verification = Session(bind=db.get_bind())
+        success_version = written_version + 1
+
+    try:
+        _verify_manual_update_state(
+            db.get_bind(),
+            plan=plan,
+            task_id=task_id,
+            expected_state=TaskState.SUCCEEDED,
+            expected_stage="committed_verified",
+            expected_version=success_version,
+            pre_item=pre_item,
+            pre_source=pre_source,
+        )
+        return ManualUpdateResult(task_id, written_fields, "committed_verified")
+    except _IndependentManualVerificationFailed:
         try:
-            current_item = verification.get(Item, plan.item_id)
-            current_source = verification.get(ItemSource, plan.source_id)
-            matches = current_item is not None and current_source is not None
-            matches_pre = matches
-            for field, value in changes.items():
-                actual = {
-                    "item.summary": current_item.summary if current_item else None,
-                    "item.release_date": current_item.release_date if current_item else None,
-                    "item_source.title": current_source.title if current_source else None,
-                    "item_source.last_checked_at": _datetime_text(current_source.last_checked_at) if current_source else None,
-                    "item_source.metadata_hash": current_source.metadata_hash if current_source else None,
-                }[field]
-                matches = matches and actual == value
-                old = next(change.old for change in plan.selected if change.field == field)
-                matches_pre = matches_pre and actual == old
-        finally:
-            verification.close()
-        if matches:
-            return ManualUpdateResult(
-                task.id,
-                tuple(change.field for change in plan.selected),
-                "committed_verified_after_exception",
+            _verify_manual_update_state(
+                db.get_bind(),
+                plan=plan,
+                task_id=task_id,
+                expected_state=TaskState.RUNNING,
+                expected_stage="written",
+                expected_version=written_version,
+                pre_item=pre_item,
+                pre_source=pre_source,
             )
-        if matches_pre:
-            _raise(ManualUpdateErrorCode.WRITE_FAILED)
-        _raise(ManualUpdateErrorCode.OUTCOME_UNKNOWN)
+        except _IndependentManualVerificationFailed:
+            try:
+                db.expire_all()
+                current = tasks.get(task_id)
+                if (
+                    current.state == TaskState.SUCCEEDED.value
+                    and current.stage == "committed_verified"
+                    and current.version == success_version
+                ):
+                    tasks.mark_verification_unknown(
+                        task_id,
+                        expected_version=success_version,
+                        expected_stage="committed_verified",
+                        event_type="metadata_verification_unknown",
+                    )
+                    db.commit()
+            except Exception:
+                db.rollback()
+            _raise(ManualUpdateErrorCode.OUTCOME_UNKNOWN)
+        _raise(ManualUpdateErrorCode.WRITE_FAILED)

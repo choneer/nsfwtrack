@@ -29,9 +29,12 @@ class DownloadServiceErrorCode(str, Enum):
     RANGE_INVALID = "range_invalid"
     CANCELLED = "cancelled"
     PAUSED = "paused"
+    LEASE_LOST = "lease_lost"
+    LEASE_CONFLICT = "lease_conflict"
     STORAGE_UNSAFE = "storage_unsafe"
     PUBLISH_FAILED = "publish_failed"
     LINK_FAILED = "link_failed"
+    WRITE_FAILED = "write_failed"
     OUTCOME_UNKNOWN = "outcome_unknown"
     PROVIDER_ERROR = "provider_error"
 

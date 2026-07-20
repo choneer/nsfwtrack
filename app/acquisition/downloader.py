@@ -6,9 +6,10 @@ import os
 import secrets
 import stat
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from pathlib import Path, PurePosixPath
 
-from sqlalchemy import select
+from sqlalchemy import func, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -18,13 +19,20 @@ from app.acquisition.contracts import (
     DownloadServiceErrorCode,
 )
 from app.acquisition.registry import AcquisitionRegistry
-from app.models import DownloadTaskFact, ItemLocalAsset, ItemSource, OperationTask
+from app.models import (
+    DownloadTaskFact,
+    ItemLocalAsset,
+    ItemSource,
+    MediaIndexEntry,
+    MediaIndexState,
+    OperationTask,
+)
 from app.services.media_operation_lock import media_operation_lock
 from app.services.media_write_coordination import (
     MediaFilesystemOutcome,
     synchronize_media_index_after_mutation,
 )
-from app.tasks import PersistentTaskService, TaskState
+from app.tasks import PersistentTaskService, TaskState, TaskTransitionError
 
 _ALLOWED_MIME_EXTENSIONS = {
     "image/avif": {".avif"},
@@ -111,6 +119,330 @@ class DownloadExecutionResult:
     size_bytes: int
     sha256: str
     mime_type: str
+    commit_status: str = "committed_verified"
+
+
+class _IndependentVerificationFailed(RuntimeError):
+    pass
+
+
+@dataclass(frozen=True, slots=True)
+class _DownloadPreState:
+    task_state: str
+    task_stage: str
+    task_version: int
+    task_bytes: int
+    task_expected_bytes: int | None
+    task_mime_type: str | None
+    task_sha256: str | None
+    lease_owner: str | None
+    lease_generation: int
+    lease_expires_at: datetime | None
+    fact_temp_name: str | None
+    fact_temp_device: int | None
+    fact_temp_inode: int | None
+    fact_resume_offset: int
+    target_identity: tuple[int, int, int, str] | None
+
+
+def _hash_open_file(fd: int, *, chunk_bytes: int) -> str:
+    digest = hashlib.sha256()
+    os.lseek(fd, 0, os.SEEK_SET)
+    while True:
+        chunk = os.read(fd, chunk_bytes)
+        if not chunk:
+            break
+        digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _verify_download_file(
+    *,
+    media_root: Path,
+    relative_path: str,
+    expected_size: int,
+    expected_sha256: str,
+    chunk_bytes: int,
+) -> os.stat_result:
+    root_fd = parent_fd = file_fd = None
+    try:
+        root_fd = os.open(media_root, _directory_flags())
+        _validate_directory(root_fd)
+        parent_fd, basename = _open_target_parent(root_fd, relative_path)
+        file_fd = os.open(
+            basename,
+            os.O_RDONLY
+            | getattr(os, "O_CLOEXEC", 0)
+            | getattr(os, "O_NOFOLLOW", 0),
+            dir_fd=parent_fd,
+        )
+        identity = os.fstat(file_fd)
+        if (
+            not stat.S_ISREG(identity.st_mode)
+            or identity.st_nlink != 1
+            or identity.st_size != expected_size
+            or _hash_open_file(file_fd, chunk_bytes=chunk_bytes) != expected_sha256
+        ):
+            raise _IndependentVerificationFailed
+        return identity
+    except _IndependentVerificationFailed:
+        raise
+    except Exception as error:
+        raise _IndependentVerificationFailed from error
+    finally:
+        for descriptor in (file_fd, parent_fd, root_fd):
+            if descriptor is not None:
+                try:
+                    os.close(descriptor)
+                except OSError:
+                    pass
+
+
+def _read_target_identity(
+    *,
+    media_root: Path,
+    relative_path: str,
+    chunk_bytes: int,
+) -> tuple[int, int, int, str] | None:
+    root_fd = parent_fd = file_fd = None
+    try:
+        root_fd = os.open(media_root, _directory_flags())
+        _validate_directory(root_fd)
+        parent_fd, basename = _open_target_parent(root_fd, relative_path)
+        file_fd = os.open(
+            basename,
+            os.O_RDONLY
+            | getattr(os, "O_CLOEXEC", 0)
+            | getattr(os, "O_NOFOLLOW", 0),
+            dir_fd=parent_fd,
+        )
+        identity = os.fstat(file_fd)
+        if not stat.S_ISREG(identity.st_mode):
+            raise _IndependentVerificationFailed
+        return (
+            identity.st_dev,
+            identity.st_ino,
+            identity.st_size,
+            _hash_open_file(file_fd, chunk_bytes=chunk_bytes),
+        )
+    except FileNotFoundError:
+        return None
+    except _IndependentVerificationFailed:
+        raise
+    except Exception as error:
+        raise _IndependentVerificationFailed from error
+    finally:
+        for descriptor in (file_fd, parent_fd, root_fd):
+            if descriptor is not None:
+                try:
+                    os.close(descriptor)
+                except OSError:
+                    pass
+
+
+def _capture_download_pre_state(
+    *,
+    task: OperationTask,
+    fact: DownloadTaskFact,
+    media_root: Path,
+    relative_path: str,
+    chunk_bytes: int,
+) -> _DownloadPreState:
+    return _DownloadPreState(
+        task_state=task.state,
+        task_stage=task.stage,
+        task_version=task.version,
+        task_bytes=task.bytes_processed,
+        task_expected_bytes=task.expected_bytes,
+        task_mime_type=task.mime_type,
+        task_sha256=task.sha256,
+        lease_owner=task.lease_owner,
+        lease_generation=task.lease_generation,
+        lease_expires_at=task.lease_expires_at,
+        fact_temp_name=fact.temp_name,
+        fact_temp_device=fact.temp_device,
+        fact_temp_inode=fact.temp_inode,
+        fact_resume_offset=fact.resume_offset,
+        target_identity=_read_target_identity(
+            media_root=media_root,
+            relative_path=relative_path,
+            chunk_bytes=chunk_bytes,
+        ),
+    )
+
+
+def _verify_download_pre_state(
+    bind: object,
+    *,
+    task_id: int,
+    expected: _DownloadPreState,
+    media_root: Path,
+    relative_path: str,
+    chunk_bytes: int,
+) -> None:
+    try:
+        with Session(bind=bind) as verification:
+            task = verification.get(OperationTask, task_id)
+            fact = verification.get(DownloadTaskFact, task_id)
+            link_count = verification.scalar(
+                select(func.count())
+                .select_from(ItemLocalAsset)
+                .where(ItemLocalAsset.task_id == task_id)
+            )
+            if task is None or fact is None or int(link_count or 0) != 0:
+                raise _IndependentVerificationFailed
+            actual = _DownloadPreState(
+                task_state=task.state,
+                task_stage=task.stage,
+                task_version=task.version,
+                task_bytes=task.bytes_processed,
+                task_expected_bytes=task.expected_bytes,
+                task_mime_type=task.mime_type,
+                task_sha256=task.sha256,
+                lease_owner=task.lease_owner,
+                lease_generation=task.lease_generation,
+                lease_expires_at=task.lease_expires_at,
+                fact_temp_name=fact.temp_name,
+                fact_temp_device=fact.temp_device,
+                fact_temp_inode=fact.temp_inode,
+                fact_resume_offset=fact.resume_offset,
+                target_identity=_read_target_identity(
+                    media_root=media_root,
+                    relative_path=relative_path,
+                    chunk_bytes=chunk_bytes,
+                ),
+            )
+            if actual != expected:
+                raise _IndependentVerificationFailed
+    except _IndependentVerificationFailed:
+        raise
+    except Exception as error:
+        raise _IndependentVerificationFailed from error
+
+
+def _verify_download_committed_state(
+    bind: object,
+    *,
+    task_id: int,
+    expected_state: TaskState,
+    expected_stage: str,
+    expected_version: int,
+    lease_owner: str | None,
+    lease_generation: int | None,
+    media_root: Path,
+    relative_path: str,
+    item_id: int,
+    source_id: int,
+    provider_key: str,
+    asset_identity_hash: str,
+    mime_type: str,
+    size_bytes: int,
+    sha256: str,
+    chunk_bytes: int,
+    require_index: bool = True,
+) -> None:
+    try:
+        with Session(bind=bind) as verification:
+            task = verification.get(OperationTask, task_id)
+            links = tuple(
+                verification.scalars(
+                    select(ItemLocalAsset).where(ItemLocalAsset.task_id == task_id)
+                ).all()
+            )
+            index_rows = (
+                tuple(
+                    verification.scalars(
+                        select(MediaIndexEntry).where(
+                            MediaIndexEntry.media_path == f"/media/{relative_path}"
+                        )
+                    ).all()
+                )
+                if require_index
+                else ()
+            )
+            index_state = verification.get(MediaIndexState, 1) if require_index else None
+            if task is None:
+                raise _IndependentVerificationFailed("task_missing")
+            if (
+                task.state != expected_state.value
+                or task.stage != expected_stage
+                or task.version != expected_version
+                or task.item_id != item_id
+                or task.source_id != source_id
+                or task.provider_key != provider_key
+                or task.asset_identity_hash != asset_identity_hash
+                or task.relative_target != relative_path
+                or task.mime_type != mime_type
+                or task.expected_bytes != size_bytes
+                or task.bytes_processed != size_bytes
+                or task.sha256 != sha256
+            ):
+                raise _IndependentVerificationFailed("task_facts")
+            if len(links) != 1:
+                raise _IndependentVerificationFailed("link_count")
+            if require_index and len(index_rows) != 1:
+                raise _IndependentVerificationFailed("index_count")
+            if require_index and (
+                index_state is None
+                or not index_state.valid
+                or index_state.last_scan_result != "success"
+            ):
+                raise _IndependentVerificationFailed("index_state")
+            if expected_state is TaskState.RUNNING:
+                if (
+                    task.lease_owner != lease_owner
+                    or task.lease_generation != lease_generation
+                    or task.cancel_requested
+                    or task.lease_expires_at is None
+                    or task.lease_expires_at <= datetime.now(UTC)
+                ):
+                    raise _IndependentVerificationFailed("lease")
+            elif any(
+                value is not None
+                for value in (
+                    task.lease_owner,
+                    task.lease_started_at,
+                    task.lease_heartbeat_at,
+                    task.lease_expires_at,
+                )
+            ):
+                raise _IndependentVerificationFailed("lease_clear")
+            link = links[0]
+            if (
+                link.item_id != item_id
+                or link.source_id != source_id
+                or link.provider_key != provider_key
+                or link.asset_identity_hash != asset_identity_hash
+                or link.relative_path != relative_path
+                or link.mime_type != mime_type
+                or link.size_bytes != size_bytes
+                or link.sha256 != sha256
+            ):
+                raise _IndependentVerificationFailed("link")
+            identity = _verify_download_file(
+                media_root=media_root,
+                relative_path=relative_path,
+                expected_size=size_bytes,
+                expected_sha256=sha256,
+                chunk_bytes=chunk_bytes,
+            )
+            if not require_index:
+                return
+            index = index_rows[0]
+            if index.record_type != "media" or not index.valid:
+                raise _IndependentVerificationFailed("index_validity")
+            if index.mime_type != mime_type:
+                raise _IndependentVerificationFailed("index_mime")
+            if index.size != size_bytes:
+                raise _IndependentVerificationFailed("index_size")
+            if index.sha256 != sha256:
+                raise _IndependentVerificationFailed("index_sha256")
+            if index.device != identity.st_dev or index.inode != identity.st_ino:
+                raise _IndependentVerificationFailed("index_identity")
+    except _IndependentVerificationFailed:
+        raise
+    except Exception as error:
+        raise _IndependentVerificationFailed from error
 
 
 class SafeDownloadExecutor:
@@ -214,7 +546,6 @@ class SafeDownloadExecutor:
             fact.temp_device = identity.st_dev
             fact.temp_inode = identity.st_ino
             fact.resume_offset = 0
-            self.db.commit()
             return fd, name, 0, hashlib.sha256(), b""
         except DownloadServiceError:
             raise
@@ -254,43 +585,193 @@ class SafeDownloadExecutor:
         ):
             _raise(DownloadServiceErrorCode.RANGE_INVALID)
 
+    def _assert_lease(
+        self,
+        task_id: int,
+        *,
+        owner: str,
+        generation: int,
+        initial: bool = False,
+    ) -> OperationTask:
+        try:
+            with Session(bind=self.db.get_bind()) as verification:
+                task = verification.get(OperationTask, task_id)
+                now = datetime.now(UTC)
+                if (
+                    task is not None
+                    and task.state == TaskState.RUNNING.value
+                    and task.lease_owner == owner
+                    and task.lease_generation == generation
+                    and task.lease_expires_at is not None
+                    and task.lease_expires_at > now
+                    and not task.cancel_requested
+                ):
+                    verification.expunge(task)
+                    return task
+                if task is not None and not initial:
+                    if task.cancel_requested or task.state == TaskState.CANCELLING.value:
+                        _raise(DownloadServiceErrorCode.CANCELLED)
+                    if task.state == TaskState.PAUSED.value:
+                        _raise(DownloadServiceErrorCode.PAUSED)
+                    if (
+                        task.lease_owner != owner
+                        or task.lease_generation != generation
+                        or task.lease_expires_at is None
+                        or task.lease_expires_at <= now
+                    ):
+                        _raise(DownloadServiceErrorCode.LEASE_LOST)
+        except DownloadServiceError:
+            raise
+        except Exception:
+            _raise(DownloadServiceErrorCode.LEASE_CONFLICT)
+        _raise(
+            DownloadServiceErrorCode.LEASE_CONFLICT
+            if initial
+            else DownloadServiceErrorCode.LEASE_LOST
+        )
+
+    @staticmethod
+    def _lease_ttl(task: OperationTask) -> int:
+        if task.lease_expires_at is None:
+            return 30
+        anchor = task.lease_heartbeat_at or datetime.now(UTC)
+        seconds = int((task.lease_expires_at - anchor).total_seconds())
+        return max(5, min(300, seconds))
+
+    def _commit_progress(
+        self,
+        task_id: int,
+        *,
+        fact: DownloadTaskFact,
+        owner: str,
+        generation: int,
+        ttl_seconds: int,
+        bytes_processed: int,
+        stage: str,
+    ) -> None:
+        self._assert_lease(task_id, owner=owner, generation=generation)
+        fact.resume_offset = bytes_processed
+        try:
+            self.tasks.heartbeat(
+                task_id,
+                owner=owner,
+                generation=generation,
+                ttl_seconds=ttl_seconds,
+                bytes_processed=bytes_processed,
+                stage=stage,
+            )
+            self.db.commit()
+        except TaskTransitionError:
+            self.db.rollback()
+            self._assert_lease(task_id, owner=owner, generation=generation)
+            _raise(DownloadServiceErrorCode.LEASE_LOST)
+        self._assert_lease(task_id, owner=owner, generation=generation)
+
+    def _write_fenced_chunk(
+        self,
+        task_id: int,
+        *,
+        file_fd: int,
+        chunk: bytes,
+        owner: str,
+        generation: int,
+        ttl_seconds: int,
+        bytes_processed: int,
+    ) -> None:
+        try:
+            # The conditional UPDATE acquires the database write fence before
+            # any file byte is written. The transaction remains open until the
+            # matching resume offset and chunk are both durable.
+            self.tasks.heartbeat(
+                task_id,
+                owner=owner,
+                generation=generation,
+                ttl_seconds=ttl_seconds,
+                bytes_processed=bytes_processed,
+                stage="downloading",
+            )
+        except TaskTransitionError:
+            self.db.rollback()
+            self._assert_lease(task_id, owner=owner, generation=generation)
+            _raise(DownloadServiceErrorCode.LEASE_LOST)
+        view = memoryview(chunk)
+        while view:
+            written = os.write(file_fd, view)
+            if written < 1:
+                self.db.rollback()
+                _raise(DownloadServiceErrorCode.STORAGE_UNSAFE)
+            view = view[written:]
+        self.db.execute(
+            update(DownloadTaskFact)
+            .where(DownloadTaskFact.task_id == task_id)
+            .values(resume_offset=bytes_processed)
+        )
+        self.db.commit()
+        self._assert_lease(task_id, owner=owner, generation=generation)
+
     async def execute(self, task_id: int, *, lease_owner: str, lease_generation: int) -> DownloadExecutionResult:
+        lease = self._assert_lease(
+            task_id,
+            owner=lease_owner,
+            generation=lease_generation,
+            initial=True,
+        )
+        ttl_seconds = self._lease_ttl(lease)
+        self.db.expire_all()
         task, fact, source = self._load(task_id)
-        if (
-            task.state != TaskState.RUNNING.value
-            or task.lease_owner != lease_owner
-            or task.lease_generation != lease_generation
-        ):
-            _raise(DownloadServiceErrorCode.INVALID_REQUEST)
         package = self.registry.require(task.provider_key or "", download=True)
         if hashlib.sha256(source.external_id.encode()).hexdigest() != task.external_identity_hash:
             _raise(DownloadServiceErrorCode.SNAPSHOT_CHANGED)
         if hashlib.sha256(fact.asset_id.encode()).hexdigest() != task.asset_identity_hash:
             _raise(DownloadServiceErrorCode.SNAPSHOT_CHANGED)
-        declared_mime = task.mime_type or None
-        if declared_mime is None:
-            declared_mime = self.db.scalar(
-                select(OperationTask.mime_type).where(OperationTask.id == task.id)
-            )
-        if declared_mime is None:
-            declared_mime = "application/octet-stream"
+        declared_mime = task.mime_type or "application/octet-stream"
         allowed_extensions = _ALLOWED_MIME_EXTENSIONS.get(declared_mime)
-        suffix = PurePosixPath(task.relative_target or "").suffix.casefold()
+        relative_path = task.relative_target or ""
+        suffix = PurePosixPath(relative_path).suffix.casefold()
         if allowed_extensions is None or suffix not in allowed_extensions:
             _raise(DownloadServiceErrorCode.TYPE_REJECTED)
 
-        media_fd = temp_fd = file_fd = None
-        temp_name = None
+        item_id = task.item_id or 0
+        source_id = task.source_id or 0
+        provider_key = task.provider_key or ""
+        asset_identity_hash = task.asset_identity_hash or ""
+        external_id = source.external_id
+        asset_id = fact.asset_id
+        max_bytes = fact.max_bytes
+        expected_sha256 = fact.expected_sha256
+        expected_bytes = task.expected_bytes
+        pre_state = _capture_download_pre_state(
+            task=task,
+            fact=fact,
+            media_root=self.media_root,
+            relative_path=relative_path,
+            chunk_bytes=self.chunk_bytes,
+        )
+        media_fd = temp_fd = file_fd = parent_fd = None
+        temp_name: str | None = None
         published = False
-        parent_fd = None
+        total = 0
+        digest = hashlib.sha256()
+        final_sha256 = ""
+        expected_success_version: int | None = None
         try:
             media_fd, temp_fd = self._prepare_roots()
             file_fd, temp_name, offset, digest, existing_header = self._open_temp(temp_fd, fact)
+            total = offset
+            self._commit_progress(
+                task_id,
+                fact=fact,
+                owner=lease_owner,
+                generation=lease_generation,
+                ttl_seconds=ttl_seconds,
+                bytes_processed=total,
+                stage="downloading",
+            )
             try:
                 response = await asyncio.wait_for(
                     package.adapter.open_asset(
-                        source.external_id,
-                        fact.asset_id,
+                        external_id,
+                        asset_id,
                         offset=offset,
                         timeout_seconds=self.timeout_seconds,
                     ),
@@ -300,10 +781,9 @@ class SafeDownloadExecutor:
                 _raise(DownloadServiceErrorCode.PROVIDER_ERROR)
             if type(response) is not DownloadOpenResult:
                 _raise(DownloadServiceErrorCode.PROVIDER_ERROR)
-            self._validate_response(response, offset=offset, max_bytes=fact.max_bytes)
+            self._validate_response(response, offset=offset, max_bytes=max_bytes)
             if response.mime_type != declared_mime:
                 _raise(DownloadServiceErrorCode.TYPE_REJECTED)
-            total = offset
             header = bytearray(existing_header)
             stream = response.chunks.__aiter__()
             while True:
@@ -318,48 +798,59 @@ class SafeDownloadExecutor:
                     _raise(DownloadServiceErrorCode.PROVIDER_ERROR)
                 if not isinstance(chunk, bytes) or not chunk or len(chunk) > self.chunk_bytes:
                     _raise(DownloadServiceErrorCode.PROVIDER_ERROR)
-                self.db.refresh(task)
-                if task.state == TaskState.PAUSED.value:
-                    _raise(DownloadServiceErrorCode.PAUSED)
-                if task.cancel_requested or task.state == TaskState.CANCELLING.value:
-                    _raise(DownloadServiceErrorCode.CANCELLED)
-                total += len(chunk)
-                if total > fact.max_bytes:
+                next_total = total + len(chunk)
+                if next_total > max_bytes:
                     _raise(DownloadServiceErrorCode.TOO_LARGE)
+                self._write_fenced_chunk(
+                    task_id,
+                    file_fd=file_fd,
+                    chunk=chunk,
+                    owner=lease_owner,
+                    generation=lease_generation,
+                    ttl_seconds=ttl_seconds,
+                    bytes_processed=next_total,
+                )
                 if len(header) < 32:
                     header.extend(chunk[: 32 - len(header)])
-                view = memoryview(chunk)
-                while view:
-                    written = os.write(file_fd, view)
-                    if written < 1:
-                        _raise(DownloadServiceErrorCode.STORAGE_UNSAFE)
-                    view = view[written:]
                 digest.update(chunk)
-                task.bytes_processed = total
-                task.stage = "downloading"
-                fact.resume_offset = total
-                self.db.commit()
+                total = next_total
+
+            self._assert_lease(task_id, owner=lease_owner, generation=lease_generation)
             if total == 0 or total == offset:
                 _raise(DownloadServiceErrorCode.INTEGRITY_FAILED)
             if response.content_length is not None and total - offset != response.content_length:
                 _raise(DownloadServiceErrorCode.INTEGRITY_FAILED)
-            if task.expected_bytes is not None and total != task.expected_bytes:
+            task = self.tasks.get(task_id)
+            fact = self.db.get(DownloadTaskFact, task_id)
+            if fact is None:
+                _raise(DownloadServiceErrorCode.SNAPSHOT_CHANGED)
+            final_sha256 = digest.hexdigest()
+            if expected_bytes is not None and total != expected_bytes:
                 _raise(DownloadServiceErrorCode.INTEGRITY_FAILED)
-            if fact.expected_sha256 is not None and digest.hexdigest() != fact.expected_sha256:
+            if expected_sha256 is not None and final_sha256 != expected_sha256:
                 _raise(DownloadServiceErrorCode.INTEGRITY_FAILED)
             if _detected_mime(bytes(header)) != declared_mime:
                 _raise(DownloadServiceErrorCode.TYPE_REJECTED)
             os.fsync(file_fd)
             _validate_temp(file_fd, expected_device=fact.temp_device, expected_inode=fact.temp_inode)
-            task.stage = "verified"
-            task.sha256 = digest.hexdigest()
+            task.sha256 = final_sha256
             task.expected_bytes = total
             task.mime_type = declared_mime
-            self.db.commit()
+            self._commit_progress(
+                task_id,
+                fact=fact,
+                owner=lease_owner,
+                generation=lease_generation,
+                ttl_seconds=ttl_seconds,
+                bytes_processed=total,
+                stage="verified",
+            )
 
+            self._assert_lease(task_id, owner=lease_owner, generation=lease_generation)
             with media_operation_lock() as lock:
                 lock.verify()
-                parent_fd, basename = _open_target_parent(media_fd, task.relative_target or "")
+                self._assert_lease(task_id, owner=lease_owner, generation=lease_generation)
+                parent_fd, basename = _open_target_parent(media_fd, relative_path)
                 try:
                     os.link(temp_name, basename, src_dir_fd=temp_fd, dst_dir_fd=parent_fd, follow_symlinks=False)
                 except FileExistsError:
@@ -381,40 +872,124 @@ class SafeDownloadExecutor:
                 temp_name = None
                 os.fsync(temp_fd)
                 lock.verify()
-            task.stage = "published"
+            self._assert_lease(task_id, owner=lease_owner, generation=lease_generation)
+            fact = self.db.get(DownloadTaskFact, task_id)
+            if fact is None:
+                _raise(DownloadServiceErrorCode.SNAPSHOT_CHANGED)
             fact.temp_name = None
             fact.temp_device = None
             fact.temp_inode = None
-            self.db.commit()
+            self._commit_progress(
+                task_id,
+                fact=fact,
+                owner=lease_owner,
+                generation=lease_generation,
+                ttl_seconds=ttl_seconds,
+                bytes_processed=total,
+                stage="published",
+            )
 
+            self._assert_lease(task_id, owner=lease_owner, generation=lease_generation)
             try:
                 self.db.add(
                     ItemLocalAsset(
-                        item_id=task.item_id,
-                        source_id=task.source_id,
-                        task_id=task.id,
-                        provider_key=task.provider_key,
-                        asset_identity_hash=task.asset_identity_hash,
-                        relative_path=task.relative_target,
+                        item_id=item_id,
+                        source_id=source_id,
+                        task_id=task_id,
+                        provider_key=provider_key,
+                        asset_identity_hash=asset_identity_hash,
+                        relative_path=relative_path,
                         mime_type=declared_mime,
                         size_bytes=total,
-                        sha256=digest.hexdigest(),
+                        sha256=final_sha256,
                     )
                 )
-                task.stage = "db_linked"
-                self.db.commit()
+                fact = self.db.get(DownloadTaskFact, task_id)
+                if fact is None:
+                    _raise(DownloadServiceErrorCode.SNAPSHOT_CHANGED)
+                self._commit_progress(
+                    task_id,
+                    fact=fact,
+                    owner=lease_owner,
+                    generation=lease_generation,
+                    ttl_seconds=ttl_seconds,
+                    bytes_processed=total,
+                    stage="db_linked",
+                )
             except IntegrityError:
                 self.db.rollback()
                 _raise(DownloadServiceErrorCode.LINK_FAILED)
+
+            task = self._assert_lease(
+                task_id,
+                owner=lease_owner,
+                generation=lease_generation,
+            )
+            _verify_download_committed_state(
+                self.db.get_bind(),
+                task_id=task_id,
+                expected_state=TaskState.RUNNING,
+                expected_stage="db_linked",
+                expected_version=task.version,
+                lease_owner=lease_owner,
+                lease_generation=lease_generation,
+                media_root=self.media_root,
+                relative_path=relative_path,
+                item_id=item_id,
+                source_id=source_id,
+                provider_key=provider_key,
+                asset_identity_hash=asset_identity_hash,
+                mime_type=declared_mime,
+                size_bytes=total,
+                sha256=final_sha256,
+                chunk_bytes=self.chunk_bytes,
+                require_index=False,
+            )
+            self._assert_lease(task_id, owner=lease_owner, generation=lease_generation)
             coordination = synchronize_media_index_after_mutation(
                 self.db,
                 outcome=MediaFilesystemOutcome.FILESYSTEM_CHANGED_KNOWN,
                 source="asset_download",
             )
+            self._assert_lease(task_id, owner=lease_owner, generation=lease_generation)
             task = self.tasks.get(task_id)
-            task.stage = "index_coordinated"
             task.error_detail = coordination.status.value if coordination.error_code else None
-            self.db.commit()
+            fact = self.db.get(DownloadTaskFact, task_id)
+            if fact is None:
+                _raise(DownloadServiceErrorCode.SNAPSHOT_CHANGED)
+            self._commit_progress(
+                task_id,
+                fact=fact,
+                owner=lease_owner,
+                generation=lease_generation,
+                ttl_seconds=ttl_seconds,
+                bytes_processed=total,
+                stage="index_coordinated",
+            )
+
+            task = self._assert_lease(task_id, owner=lease_owner, generation=lease_generation)
+            _verify_download_committed_state(
+                self.db.get_bind(),
+                task_id=task_id,
+                expected_state=TaskState.RUNNING,
+                expected_stage="index_coordinated",
+                expected_version=task.version,
+                lease_owner=lease_owner,
+                lease_generation=lease_generation,
+                media_root=self.media_root,
+                relative_path=relative_path,
+                item_id=item_id,
+                source_id=source_id,
+                provider_key=provider_key,
+                asset_identity_hash=asset_identity_hash,
+                mime_type=declared_mime,
+                size_bytes=total,
+                sha256=final_sha256,
+                chunk_bytes=self.chunk_bytes,
+            )
+            self._assert_lease(task_id, owner=lease_owner, generation=lease_generation)
+            self.db.expire_all()
+            task = self.tasks.get(task_id)
             task = self.tasks.transition(
                 task.id,
                 TaskState.SUCCEEDED,
@@ -422,58 +997,159 @@ class SafeDownloadExecutor:
                 event_type="download_succeeded",
             )
             task.stage = "durable_verified"
+            expected_success_version = task.version
             self.db.commit()
-            return DownloadExecutionResult(task.id, task.relative_target or "", total, digest.hexdigest(), declared_mime)
+            _verify_download_committed_state(
+                self.db.get_bind(),
+                task_id=task_id,
+                expected_state=TaskState.SUCCEEDED,
+                expected_stage="durable_verified",
+                expected_version=expected_success_version,
+                lease_owner=None,
+                lease_generation=None,
+                media_root=self.media_root,
+                relative_path=relative_path,
+                item_id=item_id,
+                source_id=source_id,
+                provider_key=provider_key,
+                asset_identity_hash=asset_identity_hash,
+                mime_type=declared_mime,
+                size_bytes=total,
+                sha256=final_sha256,
+                chunk_bytes=self.chunk_bytes,
+            )
+            return DownloadExecutionResult(
+                task_id,
+                relative_path,
+                total,
+                final_sha256,
+                declared_mime,
+            )
         except Exception as caught:
-            error = (
-                caught
-                if isinstance(caught, DownloadServiceError)
-                else DownloadServiceError(
+            requires_outcome_proof = not isinstance(caught, DownloadServiceError)
+            if isinstance(caught, DownloadServiceError):
+                error = caught
+            elif isinstance(caught, _IndependentVerificationFailed):
+                error = DownloadServiceError(DownloadServiceErrorCode.OUTCOME_UNKNOWN)
+            else:
+                error = DownloadServiceError(
                     DownloadServiceErrorCode.STORAGE_UNSAFE
                     if isinstance(caught, OSError)
                     else DownloadServiceErrorCode.PROVIDER_ERROR
                 )
-            )
-            try:
-                self.db.rollback()
-                task = self.tasks.get(task_id)
-                target = (
-                    TaskState.CANCELLED
-                    if error.code is DownloadServiceErrorCode.CANCELLED
-                    else TaskState.OUTCOME_UNKNOWN
-                    if published or error.code is DownloadServiceErrorCode.OUTCOME_UNKNOWN
-                    else TaskState.FAILED
-                )
-                if (
-                    error.code is not DownloadServiceErrorCode.PAUSED
-                    and task.state in {TaskState.RUNNING.value, TaskState.CANCELLING.value}
-                ):
-                    self.tasks.transition(
-                        task.id,
-                        target,
-                        expected_version=task.version,
-                        event_type="download_stopped",
-                        error_code=error.code.value,
+            if published and error.code not in {
+                DownloadServiceErrorCode.LEASE_LOST,
+                DownloadServiceErrorCode.LEASE_CONFLICT,
+                DownloadServiceErrorCode.CANCELLED,
+                DownloadServiceErrorCode.PAUSED,
+            }:
+                error = DownloadServiceError(DownloadServiceErrorCode.OUTCOME_UNKNOWN)
+            lease_failure = error.code in {
+                DownloadServiceErrorCode.LEASE_LOST,
+                DownloadServiceErrorCode.LEASE_CONFLICT,
+            }
+            self.db.rollback()
+            if published and expected_success_version is not None:
+                try:
+                    _verify_download_committed_state(
+                        self.db.get_bind(),
+                        task_id=task_id,
+                        expected_state=TaskState.SUCCEEDED,
+                        expected_stage="durable_verified",
+                        expected_version=expected_success_version,
+                        lease_owner=None,
+                        lease_generation=None,
+                        media_root=self.media_root,
+                        relative_path=relative_path,
+                        item_id=item_id,
+                        source_id=source_id,
+                        provider_key=provider_key,
+                        asset_identity_hash=asset_identity_hash,
+                        mime_type=declared_mime,
+                        size_bytes=total,
+                        sha256=final_sha256,
+                        chunk_bytes=self.chunk_bytes,
                     )
-                    self.db.commit()
-            except Exception:
-                self.db.rollback()
+                    return DownloadExecutionResult(
+                        task_id,
+                        relative_path,
+                        total,
+                        final_sha256,
+                        declared_mime,
+                    )
+                except _IndependentVerificationFailed:
+                    try:
+                        task = self.tasks.get(task_id)
+                        if (
+                            task.state == TaskState.SUCCEEDED.value
+                            and task.stage == "durable_verified"
+                            and task.version == expected_success_version
+                        ):
+                            self.tasks.mark_verification_unknown(
+                                task_id,
+                                expected_version=expected_success_version,
+                                expected_stage="durable_verified",
+                                event_type="download_verification_unknown",
+                            )
+                            self.db.commit()
+                    except Exception:
+                        self.db.rollback()
+            if requires_outcome_proof:
+                try:
+                    _verify_download_pre_state(
+                        self.db.get_bind(),
+                        task_id=task_id,
+                        expected=pre_state,
+                        media_root=self.media_root,
+                        relative_path=relative_path,
+                        chunk_bytes=self.chunk_bytes,
+                    )
+                    error = DownloadServiceError(DownloadServiceErrorCode.WRITE_FAILED)
+                except _IndependentVerificationFailed:
+                    error = DownloadServiceError(DownloadServiceErrorCode.OUTCOME_UNKNOWN)
+            if not lease_failure:
+                try:
+                    self.db.expire_all()
+                    task = self.tasks.get(task_id)
+                    target = (
+                        TaskState.CANCELLED
+                        if error.code is DownloadServiceErrorCode.CANCELLED
+                        else TaskState.OUTCOME_UNKNOWN
+                        if published or error.code is DownloadServiceErrorCode.OUTCOME_UNKNOWN
+                        else TaskState.FAILED
+                    )
+                    if (
+                        error.code is not DownloadServiceErrorCode.PAUSED
+                        and task.state in {TaskState.RUNNING.value, TaskState.CANCELLING.value}
+                    ):
+                        self.tasks.transition(
+                            task.id,
+                            target,
+                            expected_version=task.version,
+                            event_type="download_stopped",
+                            error_code=error.code.value,
+                        )
+                        self.db.commit()
+                except Exception:
+                    self.db.rollback()
             if (
-                error.code is not DownloadServiceErrorCode.PAUSED
+                not lease_failure
+                and error.code is not DownloadServiceErrorCode.PAUSED
                 and not published
                 and temp_fd is not None
                 and temp_name is not None
             ):
                 try:
                     os.unlink(temp_name, dir_fd=temp_fd)
-                    fact.temp_name = None
-                    fact.temp_device = None
-                    fact.temp_inode = None
-                    fact.resume_offset = 0
-                    self.db.commit()
+                    fact = self.db.get(DownloadTaskFact, task_id)
+                    if fact is not None:
+                        fact.temp_name = None
+                        fact.temp_device = None
+                        fact.temp_inode = None
+                        fact.resume_offset = 0
+                        self.db.commit()
                 except Exception:
                     self.db.rollback()
-                    pass
             raise error from None
         finally:
             for descriptor in (parent_fd, file_fd, temp_fd, media_fd):

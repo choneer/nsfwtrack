@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 import hashlib
 import os
 import time
@@ -8,6 +9,7 @@ from pathlib import Path
 
 import pytest
 
+import app.acquisition.downloader as downloader_module
 from app.acquisition import (
     AcquisitionPackage,
     AcquisitionRegistry,
@@ -25,13 +27,25 @@ from app.acquisition.service import (
     verify_download_token,
 )
 from app.database import SessionLocal
-from app.models import DiscoveredAssetFact, DownloadTaskFact, Item, ItemLocalAsset, ItemSource, OperationTask
+from app.models import (
+    DiscoveredAssetFact,
+    DownloadTaskFact,
+    Item,
+    ItemLocalAsset,
+    ItemSource,
+    MediaIndexEntry,
+    OperationTask,
+    TaskEvent,
+)
 from app.services import local_media
 from app.source_adapters.contracts import SourceAssetKind
 from app.tasks import PersistentTaskService, TaskState
 
 
-PNG_BYTES = b"\x89PNG\r\n\x1a\n" + b"synthetic-phase-six-image"
+PNG_BYTES = base64.b64decode(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUB"
+    "AScY42YAAAAASUVORK5CYII="
+)
 
 
 class SyntheticAcquisitionAdapter:
@@ -342,6 +356,53 @@ class PausingAdapter(SyntheticAcquisitionAdapter):
             yield remaining[start : start + 8]
 
 
+class GenerationRacingAdapter(SyntheticAcquisitionAdapter):
+    def __init__(self) -> None:
+        super().__init__()
+        self.task_id: int | None = None
+        self.rotated = False
+        self.new_generation: int | None = None
+
+    async def _chunks(self, offset: int):
+        remaining = self.payload[offset:]
+        if offset == 0 and not self.rotated:
+            yield remaining[:8]
+            assert self.task_id is not None
+            with SessionLocal() as control:
+                service = PersistentTaskService(control, max_concurrency=2)
+                task = service.get(self.task_id)
+                task = service.transition(
+                    task.id,
+                    TaskState.PAUSED,
+                    expected_version=task.version,
+                    event_type="pause_requested",
+                )
+                task = service.transition(
+                    task.id,
+                    TaskState.QUEUED,
+                    expected_version=task.version,
+                    event_type="resume_requested",
+                )
+                task = service.transition(
+                    task.id,
+                    TaskState.RUNNING,
+                    expected_version=task.version,
+                    event_type="start_requested",
+                )
+                task = service.acquire_lease(
+                    task.id,
+                    owner="new-generation",
+                    expected_version=task.version,
+                )
+                self.new_generation = task.lease_generation
+                control.commit()
+            self.rotated = True
+            yield remaining[8:16]
+            return
+        for start in range(0, len(remaining), 8):
+            yield remaining[start : start + 8]
+
+
 @pytest.mark.anyio
 async def test_pause_preserves_verified_temp_identity_and_resume_requires_exact_range(
     tmp_path: Path,
@@ -396,6 +457,328 @@ async def test_pause_preserves_verified_temp_identity_and_resume_requires_exact_
         assert result.size_bytes == len(PNG_BYTES)
         assert adapter.last_offset == 8
         assert (media_root / "library" / "resume.png").read_bytes() == PNG_BYTES
+
+
+@pytest.mark.anyio
+async def test_old_generation_is_fenced_after_pause_immediate_resume(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    adapter = GenerationRacingAdapter()
+    item_id, source_id = _source()
+    media_root = tmp_path / "media"
+    (media_root / "library").mkdir(parents=True, mode=0o700)
+    temp_root = tmp_path / "temp"
+    monkeypatch.setattr(local_media, "LOCAL_MEDIA_ROOT", media_root)
+    with SessionLocal() as db:
+        preview = build_download_preview(
+            db,
+            item_id=item_id,
+            source_id=source_id,
+            descriptor=adapter.descriptor(asset_id="cover-race", filename="race.png"),
+            relative_target="library/race.png",
+            max_bytes=1_000_000,
+        )
+        task, _ = confirm_download_plan(db, plan=preview.plan, max_concurrency=2)  # type: ignore[arg-type]
+        adapter.task_id = task.id
+        service = PersistentTaskService(db, max_concurrency=2)
+        task = service.transition(
+            task.id,
+            TaskState.RUNNING,
+            expected_version=task.version,
+            event_type="start_requested",
+        )
+        task = service.acquire_lease(
+            task.id,
+            owner="old-generation",
+            expected_version=task.version,
+        )
+        old_generation = task.lease_generation
+        db.commit()
+        executor = SafeDownloadExecutor(
+            db,
+            _registry(adapter),
+            media_root=media_root,
+            temp_root=temp_root,
+            chunk_bytes=4096,
+            timeout_seconds=30,
+            max_concurrency=2,
+        )
+        with pytest.raises(DownloadServiceError) as fenced:
+            await executor.execute(
+                task.id,
+                lease_owner="old-generation",
+                lease_generation=old_generation,
+            )
+        assert fenced.value.code.value == "lease_lost"
+        db.expire_all()
+        current = db.get(OperationTask, task.id)
+        fact = db.get(DownloadTaskFact, task.id)
+        assert current is not None and current.state == TaskState.RUNNING.value
+        assert current.lease_owner == "new-generation"
+        assert current.lease_generation == adapter.new_generation
+        assert fact is not None and fact.resume_offset == 8 and fact.temp_name is not None
+        assert (temp_root / fact.temp_name).stat().st_size == 8
+        assert not (media_root / "library" / "race.png").exists()
+        assert db.query(ItemLocalAsset).count() == 0
+
+        result = await executor.execute(
+            task.id,
+            lease_owner="new-generation",
+            lease_generation=adapter.new_generation,  # type: ignore[arg-type]
+        )
+        assert result.commit_status == "committed_verified"
+        assert (media_root / "library" / "race.png").read_bytes() == PNG_BYTES
+        assert db.query(ItemLocalAsset).count() == 1
+        assert db.query(TaskEvent).filter_by(
+            task_id=task.id,
+            event_type="download_succeeded",
+        ).count() == 1
+
+
+@pytest.mark.anyio
+async def test_final_independent_verification_failure_downgrades_apparent_success(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    adapter = SyntheticAcquisitionAdapter()
+    item_id, source_id = _source()
+    media_root = tmp_path / "media"
+    (media_root / "library").mkdir(parents=True, mode=0o700)
+    temp_root = tmp_path / "temp"
+    monkeypatch.setattr(local_media, "LOCAL_MEDIA_ROOT", media_root)
+    original = downloader_module._verify_download_committed_state
+
+    def reject_final(*args, **kwargs):
+        if kwargs["expected_state"] is TaskState.SUCCEEDED:
+            raise downloader_module._IndependentVerificationFailed
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(
+        downloader_module,
+        "_verify_download_committed_state",
+        reject_final,
+    )
+    with SessionLocal() as db:
+        preview = build_download_preview(
+            db,
+            item_id=item_id,
+            source_id=source_id,
+            descriptor=adapter.descriptor(asset_id="cover-final-proof", filename="proof.png"),
+            relative_target="library/proof.png",
+            max_bytes=1_000_000,
+        )
+        task, _ = confirm_download_plan(db, plan=preview.plan, max_concurrency=2)  # type: ignore[arg-type]
+        service = PersistentTaskService(db, max_concurrency=2)
+        task = service.transition(task.id, TaskState.RUNNING, expected_version=task.version, event_type="start_requested")
+        task = service.acquire_lease(task.id, owner="proof-runner", expected_version=task.version)
+        generation = task.lease_generation
+        db.commit()
+        executor = SafeDownloadExecutor(
+            db,
+            _registry(adapter),
+            media_root=media_root,
+            temp_root=temp_root,
+            chunk_bytes=4096,
+            timeout_seconds=30,
+            max_concurrency=2,
+        )
+        with pytest.raises(DownloadServiceError) as failure:
+            await executor.execute(task.id, lease_owner="proof-runner", lease_generation=generation)
+        assert failure.value.code.value == "outcome_unknown"
+        db.expire_all()
+        current = db.get(OperationTask, task.id)
+        assert current is not None
+        assert current.state == TaskState.OUTCOME_UNKNOWN.value
+        assert current.stage == "verification_unknown"
+
+
+@pytest.mark.anyio
+async def test_publication_commit_exception_and_index_proof_failure_never_claim_success(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    adapter = SyntheticAcquisitionAdapter()
+    item_id, source_id = _source()
+    media_root = tmp_path / "media"
+    (media_root / "library").mkdir(parents=True, mode=0o700)
+    temp_root = tmp_path / "temp"
+    monkeypatch.setattr(local_media, "LOCAL_MEDIA_ROOT", media_root)
+    with SessionLocal() as db:
+        preview = build_download_preview(
+            db,
+            item_id=item_id,
+            source_id=source_id,
+            descriptor=adapter.descriptor(asset_id="cover-commit", filename="commit.png"),
+            relative_target="library/commit.png",
+            max_bytes=1_000_000,
+        )
+        task, _ = confirm_download_plan(db, plan=preview.plan, max_concurrency=2)  # type: ignore[arg-type]
+        service = PersistentTaskService(db, max_concurrency=2)
+        task = service.transition(task.id, TaskState.RUNNING, expected_version=task.version, event_type="start_requested")
+        task = service.acquire_lease(task.id, owner="commit-runner", expected_version=task.version)
+        generation = task.lease_generation
+        db.commit()
+        original_commit = db.commit
+        injected = False
+
+        def commit_then_raise() -> None:
+            nonlocal injected
+            stage = db.get(OperationTask, task.id).stage
+            original_commit()
+            if stage == "published" and not injected:
+                injected = True
+                raise RuntimeError("synthetic commit uncertainty")
+
+        monkeypatch.setattr(db, "commit", commit_then_raise)
+        executor = SafeDownloadExecutor(
+            db,
+            _registry(adapter),
+            media_root=media_root,
+            temp_root=temp_root,
+            chunk_bytes=4096,
+            timeout_seconds=30,
+            max_concurrency=2,
+        )
+        with pytest.raises(DownloadServiceError) as failure:
+            await executor.execute(task.id, lease_owner="commit-runner", lease_generation=generation)
+        assert failure.value.code.value == "outcome_unknown"
+        db.expire_all()
+        current = db.get(OperationTask, task.id)
+        assert current is not None and current.state == TaskState.OUTCOME_UNKNOWN.value
+        assert current.stage != "durable_verified"
+        assert (media_root / "library" / "commit.png").is_file()
+        assert db.query(ItemLocalAsset).count() == 0
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("rejected_stage", ("db_linked", "index_coordinated"))
+async def test_link_and_index_independent_proof_failures_are_outcome_unknown(
+    rejected_stage: str,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    adapter = SyntheticAcquisitionAdapter()
+    item_id, source_id = _source()
+    media_root = tmp_path / "media"
+    (media_root / "library").mkdir(parents=True, mode=0o700)
+    temp_root = tmp_path / "temp"
+    monkeypatch.setattr(local_media, "LOCAL_MEDIA_ROOT", media_root)
+    original = downloader_module._verify_download_committed_state
+
+    def reject_selected_stage(*args, **kwargs):
+        if kwargs["expected_stage"] == rejected_stage:
+            raise downloader_module._IndependentVerificationFailed
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(
+        downloader_module,
+        "_verify_download_committed_state",
+        reject_selected_stage,
+    )
+    with SessionLocal() as db:
+        preview = build_download_preview(
+            db,
+            item_id=item_id,
+            source_id=source_id,
+            descriptor=adapter.descriptor(
+                asset_id=f"cover-{rejected_stage}",
+                filename=f"{rejected_stage}.png",
+            ),
+            relative_target=f"library/{rejected_stage}.png",
+            max_bytes=1_000_000,
+        )
+        task, _ = confirm_download_plan(db, plan=preview.plan, max_concurrency=2)  # type: ignore[arg-type]
+        service = PersistentTaskService(db, max_concurrency=2)
+        task = service.transition(task.id, TaskState.RUNNING, expected_version=task.version, event_type="start_requested")
+        task = service.acquire_lease(task.id, owner="stage-proof", expected_version=task.version)
+        generation = task.lease_generation
+        db.commit()
+        executor = SafeDownloadExecutor(
+            db,
+            _registry(adapter),
+            media_root=media_root,
+            temp_root=temp_root,
+            chunk_bytes=4096,
+            timeout_seconds=30,
+            max_concurrency=2,
+        )
+        with pytest.raises(DownloadServiceError) as failure:
+            await executor.execute(task.id, lease_owner="stage-proof", lease_generation=generation)
+        assert failure.value.code.value == "outcome_unknown"
+        db.expire_all()
+        current = db.get(OperationTask, task.id)
+        assert current is not None and current.state == TaskState.OUTCOME_UNKNOWN.value
+        assert current.stage == rejected_stage
+        assert db.query(ItemLocalAsset).filter_by(task_id=task.id).count() == 1
+        index_count = db.query(MediaIndexEntry).filter_by(
+            media_path=f"/media/library/{rejected_stage}.png"
+        ).count()
+        assert index_count == (1 if rejected_stage == "index_coordinated" else 0)
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("pre_verification_available", (True, False))
+async def test_download_commit_exception_uses_exact_pre_state_or_outcome_unknown(
+    pre_verification_available: bool,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    adapter = SyntheticAcquisitionAdapter()
+    item_id, source_id = _source()
+    media_root = tmp_path / "media"
+    (media_root / "library").mkdir(parents=True, mode=0o700)
+    temp_root = tmp_path / "temp"
+    monkeypatch.setattr(local_media, "LOCAL_MEDIA_ROOT", media_root)
+    with SessionLocal() as db:
+        preview = build_download_preview(
+            db,
+            item_id=item_id,
+            source_id=source_id,
+            descriptor=adapter.descriptor(
+                asset_id="cover-pre-proof",
+                filename="pre-proof.png",
+            ),
+            relative_target="library/pre-proof.png",
+            max_bytes=1_000_000,
+        )
+        task, _ = confirm_download_plan(db, plan=preview.plan, max_concurrency=2)  # type: ignore[arg-type]
+        service = PersistentTaskService(db, max_concurrency=2)
+        task = service.transition(task.id, TaskState.RUNNING, expected_version=task.version, event_type="start_requested")
+        task = service.acquire_lease(task.id, owner="pre-proof", expected_version=task.version)
+        generation = task.lease_generation
+        db.commit()
+
+        if not pre_verification_available:
+            def unavailable(*args, **kwargs):
+                raise downloader_module._IndependentVerificationFailed
+
+            monkeypatch.setattr(
+                downloader_module,
+                "_verify_download_pre_state",
+                unavailable,
+            )
+        executor = SafeDownloadExecutor(
+            db,
+            _registry(adapter),
+            media_root=media_root,
+            temp_root=temp_root,
+            chunk_bytes=4096,
+            timeout_seconds=30,
+            max_concurrency=2,
+        )
+        monkeypatch.setattr(
+            executor,
+            "_prepare_roots",
+            lambda: (_ for _ in ()).throw(RuntimeError("synthetic write failure")),
+        )
+        with pytest.raises(DownloadServiceError) as failure:
+            await executor.execute(task.id, lease_owner="pre-proof", lease_generation=generation)
+        assert failure.value.code.value == (
+            "write_failed" if pre_verification_available else "outcome_unknown"
+        )
+        assert "synthetic.invalid" not in str(failure.value)
+        assert "pre-proof.png" not in str(failure.value)
 
 
 def test_symlinked_target_parent_is_rejected_by_directory_descriptor(

@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
+from threading import Barrier
 
 import pytest
-from sqlalchemy import create_engine, inspect, select
+from sqlalchemy import create_engine, func, inspect, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -187,6 +189,129 @@ def test_leases_concurrency_and_restart_recovery_require_explicit_action() -> No
         assert recovered == 1
         assert task is not None and task.state == TaskState.PAUSED.value
         assert task.lease_owner is None and task.lease_expires_at is None
+
+
+def test_heartbeat_is_generation_fenced_and_expiry_fails_closed() -> None:
+    with SessionLocal() as db:
+        service = PersistentTaskService(db, max_concurrency=2)
+        task, _ = service.create(
+            task_type=TaskType.ASSET_DOWNLOAD,
+            intent_key="test:fenced-heartbeat",
+            initial_state=TaskState.QUEUED,
+        )
+        task = service.transition(
+            task.id,
+            TaskState.RUNNING,
+            expected_version=task.version,
+            event_type="start_requested",
+        )
+        task = service.acquire_lease(
+            task.id,
+            owner="current-owner",
+            expected_version=task.version,
+            ttl_seconds=30,
+        )
+        task_id = task.id
+        generation = task.lease_generation
+        first_heartbeat = task.lease_heartbeat_at
+        first_expiry = task.lease_expires_at
+        db.commit()
+
+        refreshed = service.heartbeat(
+            task_id,
+            owner="current-owner",
+            generation=generation,
+            ttl_seconds=60,
+            bytes_processed=4096,
+            stage="downloading",
+        )
+        db.commit()
+        assert refreshed.lease_generation == generation
+        assert refreshed.lease_heartbeat_at >= first_heartbeat
+        assert refreshed.lease_expires_at > first_expiry
+        assert refreshed.bytes_processed == 4096
+
+        for owner, candidate_generation in (
+            ("stale-owner", generation),
+            ("current-owner", generation - 1),
+        ):
+            with pytest.raises(TaskTransitionError) as conflict:
+                service.heartbeat(
+                    task_id,
+                    owner=owner,
+                    generation=candidate_generation,
+                    ttl_seconds=30,
+                )
+            assert conflict.value.code is TaskErrorCode.LEASE_CONFLICT
+            db.rollback()
+
+        db.execute(
+            update(OperationTask)
+            .where(OperationTask.id == task_id)
+            .values(lease_expires_at=datetime.now(UTC) - timedelta(seconds=1))
+        )
+        db.commit()
+        with pytest.raises(TaskTransitionError) as expired:
+            service.heartbeat(
+                task_id,
+                owner="current-owner",
+                generation=generation,
+                ttl_seconds=30,
+            )
+        assert expired.value.code is TaskErrorCode.LEASE_CONFLICT
+
+
+def test_concurrent_start_and_resume_claims_obey_atomic_max_concurrency() -> None:
+    with SessionLocal() as db:
+        service = PersistentTaskService(db, max_concurrency=1)
+        first, _ = service.create(
+            task_type=TaskType.ASSET_DOWNLOAD,
+            intent_key="test:atomic-start",
+            initial_state=TaskState.QUEUED,
+        )
+        second, _ = service.create(
+            task_type=TaskType.ASSET_DOWNLOAD,
+            intent_key="test:atomic-resume",
+            initial_state=TaskState.PAUSED,
+        )
+        second = service.transition(
+            second.id,
+            TaskState.QUEUED,
+            expected_version=second.version,
+            event_type="resume_requested",
+        )
+        first_id, second_id = first.id, second.id
+        db.commit()
+
+    barrier = Barrier(2)
+
+    def claim(task_id: int) -> str:
+        with SessionLocal() as candidate:
+            service = PersistentTaskService(candidate, max_concurrency=1)
+            task = service.get(task_id)
+            barrier.wait()
+            try:
+                service.transition(
+                    task.id,
+                    TaskState.RUNNING,
+                    expected_version=task.version,
+                    event_type="start_requested",
+                )
+                candidate.commit()
+                return "running"
+            except TaskTransitionError as error:
+                candidate.rollback()
+                return error.code.value
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        results = tuple(pool.map(claim, (first_id, second_id)))
+    assert sorted(results) == ["concurrency_limit", "running"]
+    with SessionLocal() as db:
+        assert db.scalar(
+            select(func.count()).select_from(OperationTask).where(
+                OperationTask.state == TaskState.RUNNING.value
+            )
+        ) == 1
 
 
 def test_database_constraints_reject_unknown_task_state() -> None:

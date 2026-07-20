@@ -31,6 +31,16 @@
   and history-retention settings. Backup remains `nsfwtrack.backup.v2`, restore
   continues to accept v1/v2, and all task/runtime/progress/error/lease/history
   facts remain excluded from backup payloads.
+- Strengthened download execution with atomic owner/generation/expiry/cancel
+  fencing at every chunk and durable boundary. Each chunk now holds the database
+  write fence through file write and resume-offset commit, heartbeat renewal is
+  generation-conditional, and concurrent Start/Resume claims cannot exceed the
+  configured limit.
+- Added independent post-commit proof for downloads and manual metadata updates.
+  Success now requires fresh-Session verification of exact task/version/intent,
+  authorized and unauthorized fields, unique local-asset linkage, descriptor-opened
+  file identity and digest, and matching media-index facts; uncertain outcomes are
+  downgraded without exposing locators, identities, paths, or secrets.
 
 ## [1.2.0] - 2026-07-20
 

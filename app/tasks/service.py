@@ -4,7 +4,7 @@ import hashlib
 import re
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import delete, func, select, update
+from sqlalchemy import delete, func, or_, select, update
 from sqlalchemy.orm import Session
 
 from app.models import ItemLocalAsset, OperationTask, TaskEvent
@@ -186,12 +186,34 @@ class PersistentTaskService:
             values["lease_started_at"] = None
             values["lease_heartbeat_at"] = None
             values["lease_expires_at"] = None
-        result = self.db.execute(
-            update(OperationTask)
-            .where(OperationTask.id == task.id, OperationTask.version == expected_version)
-            .values(**values)
+        statement = update(OperationTask).where(
+            OperationTask.id == task.id,
+            OperationTask.version == expected_version,
+            OperationTask.state == current.value,
         )
+        if target is TaskState.RUNNING:
+            running_count = (
+                select(func.count())
+                .select_from(OperationTask)
+                .where(
+                    OperationTask.state == TaskState.RUNNING.value,
+                    OperationTask.id != task.id,
+                )
+                .scalar_subquery()
+            )
+            statement = statement.where(running_count < self.max_concurrency)
+        result = self.db.execute(statement.values(**values))
         if result.rowcount != 1:
+            if target is TaskState.RUNNING:
+                self.db.expire_all()
+                running = self.db.scalar(
+                    select(func.count()).select_from(OperationTask).where(
+                        OperationTask.state == TaskState.RUNNING.value,
+                        OperationTask.id != task.id,
+                    )
+                )
+                if int(running or 0) >= self.max_concurrency:
+                    raise TaskTransitionError(TaskErrorCode.CONCURRENCY_LIMIT)
             raise TaskTransitionError(TaskErrorCode.VERSION_CONFLICT)
         self.db.add(
             TaskEvent(
@@ -227,34 +249,161 @@ class PersistentTaskService:
             or not 5 <= ttl_seconds <= 300
         ):
             raise TaskTransitionError(TaskErrorCode.LEASE_CONFLICT)
-        if task.lease_expires_at is not None and task.lease_expires_at > now and task.lease_owner != owner:
+        result = self.db.execute(
+            update(OperationTask)
+            .where(
+                OperationTask.id == task_id,
+                OperationTask.version == expected_version,
+                OperationTask.state == TaskState.RUNNING.value,
+                OperationTask.cancel_requested.is_(False),
+                or_(
+                    OperationTask.lease_expires_at.is_(None),
+                    OperationTask.lease_expires_at <= now,
+                    OperationTask.lease_owner == owner,
+                ),
+            )
+            .values(
+                lease_owner=owner,
+                lease_generation=OperationTask.lease_generation + 1,
+                lease_started_at=now,
+                lease_heartbeat_at=now,
+                lease_expires_at=now + timedelta(seconds=ttl_seconds),
+                updated_at=now,
+            )
+        )
+        if result.rowcount != 1:
             raise TaskTransitionError(TaskErrorCode.LEASE_CONFLICT)
-        task.lease_owner = owner
-        task.lease_generation += 1
-        task.lease_started_at = now
-        task.lease_heartbeat_at = now
-        task.lease_expires_at = now + timedelta(seconds=ttl_seconds)
-        task.updated_at = now
         self.db.flush()
+        self.db.expire(task)
+        task = self.get(task_id)
         return task
 
-    def heartbeat(self, task_id: int, *, owner: str, generation: int, ttl_seconds: int = 30) -> OperationTask:
-        task = self.get(task_id)
+    def heartbeat(
+        self,
+        task_id: int,
+        *,
+        owner: str,
+        generation: int,
+        ttl_seconds: int = 30,
+        bytes_processed: int | None = None,
+        stage: str | None = None,
+    ) -> OperationTask:
         now = utc_now()
         if (
-            task.state != TaskState.RUNNING.value
-            or task.lease_owner != owner
-            or task.lease_generation != generation
-            or task.lease_expires_at is None
-            or task.lease_expires_at <= now
+            not isinstance(task_id, int)
+            or task_id < 1
+            or not isinstance(owner, str)
+            or _SAFE_KEY.fullmatch(owner) is None
+            or not isinstance(generation, int)
+            or generation < 1
+            or not isinstance(ttl_seconds, int)
             or not 5 <= ttl_seconds <= 300
+            or (
+                bytes_processed is not None
+                and (
+                    not isinstance(bytes_processed, int)
+                    or isinstance(bytes_processed, bool)
+                    or bytes_processed < 0
+                )
+            )
+            or (
+                stage is not None
+                and (
+                    not isinstance(stage, str)
+                    or _SAFE_CODE.fullmatch(stage) is None
+                )
+            )
         ):
             raise TaskTransitionError(TaskErrorCode.LEASE_CONFLICT)
-        task.lease_heartbeat_at = now
-        task.lease_expires_at = now + timedelta(seconds=ttl_seconds)
-        task.updated_at = now
+        values: dict[str, object] = {
+            "lease_heartbeat_at": now,
+            "lease_expires_at": now + timedelta(seconds=ttl_seconds),
+            "updated_at": now,
+        }
+        if bytes_processed is not None:
+            values["bytes_processed"] = bytes_processed
+        if stage is not None:
+            values["stage"] = stage
+        result = self.db.execute(
+            update(OperationTask)
+            .where(
+                OperationTask.id == task_id,
+                OperationTask.state == TaskState.RUNNING.value,
+                OperationTask.lease_owner == owner,
+                OperationTask.lease_generation == generation,
+                OperationTask.lease_expires_at.is_not(None),
+                OperationTask.lease_expires_at > now,
+                OperationTask.cancel_requested.is_(False),
+            )
+            .values(**values)
+        )
+        if result.rowcount != 1:
+            raise TaskTransitionError(TaskErrorCode.LEASE_CONFLICT)
         self.db.flush()
-        return task
+        self.db.expire_all()
+        return self.get(task_id)
+
+    def mark_verification_unknown(
+        self,
+        task_id: int,
+        *,
+        expected_version: int,
+        expected_stage: str,
+        event_type: str,
+    ) -> OperationTask:
+        """Downgrade an unprovable apparent success without reopening work."""
+
+        if (
+            not isinstance(task_id, int)
+            or task_id < 1
+            or not isinstance(expected_version, int)
+            or expected_version < 1
+            or not isinstance(expected_stage, str)
+            or _SAFE_CODE.fullmatch(expected_stage) is None
+            or not isinstance(event_type, str)
+            or _SAFE_CODE.fullmatch(event_type) is None
+        ):
+            raise TaskTransitionError(TaskErrorCode.INVALID_REQUEST)
+        now = utc_now()
+        next_version = expected_version + 1
+        result = self.db.execute(
+            update(OperationTask)
+            .where(
+                OperationTask.id == task_id,
+                OperationTask.version == expected_version,
+                OperationTask.state == TaskState.SUCCEEDED.value,
+                OperationTask.stage == expected_stage,
+            )
+            .values(
+                state=TaskState.OUTCOME_UNKNOWN.value,
+                stage="verification_unknown",
+                version=next_version,
+                error_code="outcome_unknown",
+                error_detail=None,
+                updated_at=now,
+                finished_at=now,
+                lease_owner=None,
+                lease_started_at=None,
+                lease_heartbeat_at=None,
+                lease_expires_at=None,
+            )
+        )
+        if result.rowcount != 1:
+            raise TaskTransitionError(TaskErrorCode.VERSION_CONFLICT)
+        self.db.add(
+            TaskEvent(
+                task_id=task_id,
+                version=next_version,
+                event_type=event_type,
+                from_state=TaskState.SUCCEEDED.value,
+                to_state=TaskState.OUTCOME_UNKNOWN.value,
+                error_code="outcome_unknown",
+                created_at=now,
+            )
+        )
+        self.db.flush()
+        self.db.expire_all()
+        return self.get(task_id)
 
     def request_cancel(self, task_id: int, *, expected_version: int) -> OperationTask:
         task = self.get(task_id)
