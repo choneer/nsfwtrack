@@ -367,6 +367,28 @@
 - [x] **5.N5A.9. Gates** — focused `33 passed`、targeted `376 passed`、full
   `1194 passed`，版本 `1.1.0`、Schema `4`、Backup v2 和空 Registry 是否保持
 
+### Phase 5-N5B Search/Detail Empty-State and Approved-Provider UI（已完成）
+
+- [x] **5.N5B.1. Auth and routes** — 三个页面入口是否全部使用 `require_page_auth`，
+  unsafe POST 是否继续受全局 same-origin 保护，Main 是否只增加 Router 注册
+- [x] **5.N5B.2. GET boundary** — GET 是否只调用 `list_providers()`，production 空
+  catalog 是否作为 HTTP 200 普通状态且 Search/Detail/Asset List 调用全部为 0
+- [x] **5.N5B.3. Dependency isolation** — production 是否只使用
+  `build_production_search_service()`，tests-only Service 是否只通过 dependency override
+  注入，且 Package 不来自 Request/Form/Query/Session/env/path/artifact
+- [x] **5.N5B.4. Explicit operations** — Search/Detail 是否分别经过 request contract、
+  当前 catalog 与 operation authority 前置复核，并且每个 POST 只调用对应 operation 一次
+- [x] **5.N5B.5. Safe rendering** — Jinja 是否自动转义 Provider/result 文本，canonical
+  URL 是否不链接，cover/preview/asset 是否不成为远程资源、播放或下载入口
+- [x] **5.N5B.6. No persistence** — 路由是否不依赖 DB、不写 Session/Cookie/文件/缓存，
+  返回 GET 是否不恢复或重复 Search，Asset List 是否始终不调用
+- [x] **5.N5B.7. Stable failure** — 七类可渲染 Service code 是否稳定映射到
+  400/409/502/503 i18n，cause/query/external ID/Provider marker 是否脱敏，取消是否传播
+- [x] **5.N5B.8. Production invariants** — Application `1.1.0`、Schema `4`、Backup v2、
+  Production Registry/Search Packages/providers 空状态是否保持，无真实 Provider 或网络扩张
+- [x] **5.N5B.9. Gates** — focused `38 passed`、N5A+N5B `71 passed`、安全相关
+  `37 passed`、full `1232 passed`，`pip check` 与 `git diff --check` 是否通过
+
 - [ ] **5.1. Provider 批准与定位** — 每个真实 Provider 是否由用户明确批准，
   核心用途是否符合 NSFW-first 定位，且固定 Host/Endpoint、认证、搜索、详情、
   下载、响应、限流、条款与使用边界是否完整

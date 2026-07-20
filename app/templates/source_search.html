@@ -1,0 +1,228 @@
+{% extends "base.html" %}
+{% block title %}{{ t("source_search.title") }} - NSFWTrack{% endblock %}
+{% block content %}
+<div class="toolbar">
+  <div>
+    <h1>{{ t("source_search.title") }}</h1>
+    <p class="muted">{{ t("source_search.subtitle") }}</p>
+  </div>
+  <span class="pill">{{ t("source_search.approved_only") }}</span>
+</div>
+
+{% if error_message %}
+  <section class="flash error stack" role="alert">
+    <h2>{{ t("source_search.error_title") }}</h2>
+    <p>{{ error_message }}</p>
+  </section>
+{% endif %}
+
+{% if not providers %}
+  <section class="card empty-state">
+    <h2>{{ t("source_search.empty_title") }}</h2>
+    <p class="muted">{{ t("source_search.empty_description") }}</p>
+  </section>
+{% else %}
+  <section class="card stack">
+    <h2>{{ t("source_search.search_title") }}</h2>
+    <form class="stack" action="/source-search/search" method="post">
+      <div class="form-grid">
+        <label>
+          {{ t("source_search.provider") }}
+          <select name="provider_key" required>
+            {% for provider in providers %}
+              <option
+                value="{{ provider.provider_key }}"
+                {% if search_operation not in provider.operations %}disabled{% endif %}
+                {% if search_envelope and search_envelope.request.provider_key == provider.provider_key %}selected{% endif %}
+              >{{ provider.display_name }} — {{ provider.content_scope }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label>
+          {{ t("source_search.query") }}
+          <input
+            type="search"
+            name="query"
+            maxlength="200"
+            required
+            value="{% if search_envelope %}{{ search_envelope.request.query }}{% endif %}"
+          >
+        </label>
+        <label>
+          {{ t("source_search.page_size") }}
+          <select name="page_size">
+            {% for size in (10, 20, 50) %}
+              <option value="{{ size }}" {% if search_envelope and search_envelope.request.page_size == size %}selected{% endif %}>{{ size }}</option>
+            {% endfor %}
+          </select>
+        </label>
+      </div>
+      <input type="hidden" name="page" value="1">
+      <div class="actions">
+        <button type="submit" {% if not has_search_provider %}disabled{% endif %}>{{ t("source_search.search") }}</button>
+      </div>
+    </form>
+  </section>
+{% endif %}
+
+{% if search_envelope %}
+  <section class="stack stats-section" aria-labelledby="source-search-results">
+    <div class="toolbar">
+      <div>
+        <h2 id="source-search-results">{{ t("source_search.results") }}</h2>
+        <p class="muted">
+          {{ t("source_search.result_provider") }}: {{ search_envelope.provider.display_name }}
+          · {{ t("source_search.page_status", page=search_envelope.page.page) }}
+          {% if search_envelope.page.total is not none %}
+            · {{ t("source_search.total_results", total=search_envelope.page.total) }}
+          {% endif %}
+        </p>
+      </div>
+    </div>
+
+    {% if search_envelope.page.items %}
+      <div class="item-grid">
+        {% for result in search_envelope.page.items %}
+          <article class="card stack">
+            <h3>{{ result.title }}</h3>
+            {% if result.alternate_titles %}
+              <p><strong>{{ t("source_search.aliases") }}:</strong> {{ result.alternate_titles | join(", ") }}</p>
+            {% endif %}
+            {% if result.release_date %}
+              <p><strong>{{ t("source_search.release_date") }}:</strong> {{ result.release_date }}</p>
+            {% endif %}
+            {% if result.performers %}
+              <p><strong>{{ t("source_search.performers") }}:</strong> {% for person in result.performers %}{{ person.display_name }}{% if not loop.last %}, {% endif %}{% endfor %}</p>
+            {% endif %}
+            {% if result.studio %}
+              <p><strong>{{ t("source_search.studio") }}:</strong> {{ result.studio.display_name }}</p>
+            {% endif %}
+            {% if result.tags %}
+              <div>
+                <strong>{{ t("source_search.tags") }}:</strong>
+                <div class="tag-row">
+                  {% for tag in result.tags %}<span class="pill">{{ tag.raw_name }}</span>{% endfor %}
+                </div>
+              </div>
+            {% endif %}
+            {% if result.summary %}
+              <p><strong>{{ t("source_search.summary") }}:</strong> {{ result.summary }}</p>
+            {% endif %}
+            {% if detail_operation in search_envelope.provider.operations %}
+              <form class="inline-form" action="/source-search/detail" method="post">
+                <input type="hidden" name="provider_key" value="{{ result.provider_key }}">
+                <input type="hidden" name="external_id" value="{{ result.external_id }}">
+                <button class="secondary" type="submit">{{ t("source_search.view_detail") }}</button>
+              </form>
+            {% endif %}
+          </article>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="card empty-state">
+        <h3>{{ t("source_search.no_results") }}</h3>
+      </div>
+    {% endif %}
+
+    {% if search_envelope.page.page > 1 or search_envelope.page.has_next %}
+      <nav class="page-links" aria-label="{{ t('source_search.pagination') }}">
+        {% if search_envelope.page.page > 1 %}
+          <form class="inline-form" action="/source-search/search" method="post">
+            <input type="hidden" name="provider_key" value="{{ search_envelope.request.provider_key }}">
+            <input type="hidden" name="query" value="{{ search_envelope.request.query }}">
+            <input type="hidden" name="page" value="{{ search_envelope.request.page - 1 }}">
+            <input type="hidden" name="page_size" value="{{ search_envelope.request.page_size }}">
+            <button class="secondary" type="submit">{{ t("source_search.previous") }}</button>
+          </form>
+        {% endif %}
+        {% if search_envelope.page.has_next %}
+          <form class="inline-form" action="/source-search/search" method="post">
+            <input type="hidden" name="provider_key" value="{{ search_envelope.request.provider_key }}">
+            <input type="hidden" name="query" value="{{ search_envelope.request.query }}">
+            <input type="hidden" name="page" value="{{ search_envelope.request.page + 1 }}">
+            <input type="hidden" name="page_size" value="{{ search_envelope.request.page_size }}">
+            <button class="secondary" type="submit">{{ t("source_search.next") }}</button>
+          </form>
+        {% endif %}
+      </nav>
+    {% endif %}
+  </section>
+{% endif %}
+
+{% if detail_envelope %}
+  <section class="stack stats-section" aria-labelledby="source-search-detail">
+    <div class="toolbar">
+      <div>
+        <p class="muted">{{ detail_envelope.provider.display_name }}</p>
+        <h2 id="source-search-detail">{{ t("source_search.detail_title") }}</h2>
+      </div>
+      <a class="button secondary" href="/source-search">{{ t("source_search.back") }}</a>
+    </div>
+
+    <article class="card stack">
+      <h3>{{ detail_envelope.detail.title }}</h3>
+      {% if detail_envelope.detail.alternate_titles %}
+        <p><strong>{{ t("source_search.aliases") }}:</strong> {{ detail_envelope.detail.alternate_titles | join(", ") }}</p>
+      {% endif %}
+      {% if detail_envelope.detail.summary %}
+        <p><strong>{{ t("source_search.summary") }}:</strong> {{ detail_envelope.detail.summary }}</p>
+      {% endif %}
+      {% if detail_envelope.detail.release_date %}
+        <p><strong>{{ t("source_search.release_date") }}:</strong> {{ detail_envelope.detail.release_date }}</p>
+      {% endif %}
+      {% if detail_envelope.detail.duration_seconds %}
+        <p><strong>{{ t("source_search.duration") }}:</strong> {{ t("source_search.duration_value", seconds=detail_envelope.detail.duration_seconds) }}</p>
+      {% endif %}
+      {% if detail_envelope.detail.performers %}
+        <p><strong>{{ t("source_search.performers") }}:</strong> {% for person in detail_envelope.detail.performers %}{{ person.display_name }}{% if not loop.last %}, {% endif %}{% endfor %}</p>
+      {% endif %}
+      {% if detail_envelope.detail.director %}
+        <p><strong>{{ t("source_search.director") }}:</strong> {{ detail_envelope.detail.director.display_name }}</p>
+      {% endif %}
+      {% if detail_envelope.detail.studio %}
+        <p><strong>{{ t("source_search.studio") }}:</strong> {{ detail_envelope.detail.studio.display_name }}</p>
+      {% endif %}
+      {% if detail_envelope.detail.publisher %}
+        <p><strong>{{ t("source_search.publisher") }}:</strong> {{ detail_envelope.detail.publisher.display_name }}</p>
+      {% endif %}
+      {% if detail_envelope.detail.series %}
+        <p><strong>{{ t("source_search.series") }}:</strong> {{ detail_envelope.detail.series.display_name }}</p>
+      {% endif %}
+      {% if detail_envelope.detail.tags %}
+        <div>
+          <strong>{{ t("source_search.tags") }}:</strong>
+          <div class="tag-row">
+            {% for tag in detail_envelope.detail.tags %}<span class="pill">{{ tag.raw_name }}</span>{% endfor %}
+          </div>
+        </div>
+      {% endif %}
+      {% if detail_envelope.detail.rating %}
+        <p>
+          <strong>{{ t("source_search.rating") }}:</strong>
+          {{ t("source_search.rating_value", value=detail_envelope.detail.rating.value, minimum=detail_envelope.detail.rating.scale_min, maximum=detail_envelope.detail.rating.scale_max) }}
+          {% if detail_envelope.detail.rating.vote_count is not none %}
+            · {{ t("source_search.vote_count", count=detail_envelope.detail.rating.vote_count) }}
+          {% endif %}
+        </p>
+      {% endif %}
+    </article>
+
+    {% if detail_assets %}
+      <section class="card stack">
+        <h3>{{ t("source_search.assets") }}</h3>
+        <div class="grid">
+          {% for asset in detail_assets %}
+            <div class="card stack">
+              <p><strong>{{ t("source_search.asset_kind") }}:</strong> {{ asset.kind.value }}</p>
+              {% if asset.display_name %}<p><strong>{{ t("source_search.asset_name") }}:</strong> {{ asset.display_name }}</p>{% endif %}
+              {% if asset.mime_type %}<p><strong>{{ t("source_search.mime_type") }}:</strong> {{ asset.mime_type }}</p>{% endif %}
+              {% if asset.width and asset.height %}<p><strong>{{ t("source_search.dimensions") }}:</strong> {{ t("source_search.dimensions_value", width=asset.width, height=asset.height) }}</p>{% endif %}
+              {% if asset.duration_seconds %}<p><strong>{{ t("source_search.duration") }}:</strong> {{ t("source_search.duration_value", seconds=asset.duration_seconds) }}</p>{% endif %}
+            </div>
+          {% endfor %}
+        </div>
+      </section>
+    {% endif %}
+  </section>
+{% endif %}
+{% endblock %}

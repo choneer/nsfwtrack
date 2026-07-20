@@ -13,6 +13,24 @@
 
 ### Added
 
+- Added Phase 5-N5B authenticated Search/Detail pages with a normal empty
+  production state, an injectable Provider Search Service dependency, and
+  explicit POST-only Search and Detail actions. GET calls only the catalog;
+  Search and Detail each invoke exactly one approved operation and never chain
+  Detail, Asset List, import, playback, or download.
+- Added a Jinja-only bilingual External Sources template and navigation. Provider
+  and result text is escaped, canonical URLs are not links, cover/preview/asset
+  values never become remote images or media sources, and Detail renders only
+  non-locator asset facts. Search/Detail responses are not persisted to the
+  database, session, cookies, files, or caches.
+- Added stable redacted UI mappings for all renderable Search Service errors and
+  preserved cancellation propagation. The production Package tuple, Provider
+  catalog, and Endpoint Registry remain empty; no real Provider, Host, Endpoint,
+  dependency, Schema, Backup, Docker, Compose, or CI behavior was added.
+- Added 38 focused N5B tests. N5A+N5B passes 71 tests, related authentication,
+  security-header, and page regression passes 37 tests, and the full suite
+  passes 1232 tests.
+
 - Added Phase 5-N5A Provider-neutral Search Orchestration Service with immutable
   Provider descriptors, independent Video Search/Detail/Asset List requests and
   envelopes, and a validated Package-backed read-only catalog.

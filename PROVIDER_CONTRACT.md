@@ -30,6 +30,29 @@ Permanent boundaries remain unchanged:
 
 ## 2. Current implementation audit
 
+### 2.0E Phase 5-N5B Search/Detail Empty-State and Approved-Provider UI
+
+`app/routers/source_search.py` exposes authenticated GET `/source-search` and
+explicit POST Search/Detail actions. Its production dependency constructs only
+`build_production_search_service()`; tests may inject a tests-only Service only
+through FastAPI dependency overrides. No request, form, query, session,
+environment, path, Artifact, or Provider response can construct or add a Package.
+
+GET calls only `list_providers()`. The empty production catalog returns HTTP 200
+as a normal localized state and does not call search, detail, asset-list, an
+Adapter, Outbound HTTP, DNS, the database, or a file API. Search and Detail each
+validate the corresponding N5A request, recheck current catalog membership and
+approved operation authority, then invoke exactly one matching Service method.
+Search never chains Detail, and Detail never chains Asset List.
+
+The Jinja-only template escapes all Provider content. Canonical URLs are not
+links; cover, preview, and asset values cannot become remote image, playback, or
+download sources. Detail displays only non-locator asset kind, display name,
+MIME type, dimensions, and duration facts. Search/Detail responses are not saved
+to the database, session, cookies, files, cache, or local storage. Stable Service
+errors map to redacted localized 400/409/502/503 responses, while
+`asyncio.CancelledError` continues to propagate.
+
 ### 2.0D Phase 5-N5A Provider-neutral Search Orchestration Service
 
 `app/source_search/` now provides immutable Provider descriptors, three exact
@@ -897,9 +920,11 @@ no synthetic Provider in production.
 
 ### N5B: search/detail empty-state and approved-provider UI
 
-Consumes N5A descriptors and envelopes only. It may expose explicit
-search/detail actions for a separately approved Provider, but GET rendering
-remains zero-write and the empty production catalog remains a normal state.
+Completed. It consumes N5A descriptors and envelopes only, exposes explicit
+authenticated POST Search/Detail actions, keeps GET catalog-only and zero-write,
+and renders the empty production catalog as a normal state. It does not grant
+Provider approval, chain operations, persist responses, render remote assets, or
+add import/download authority.
 
 ### N5C: signed preview and manual apply
 

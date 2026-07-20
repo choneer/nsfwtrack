@@ -11,7 +11,18 @@ from app.config import get_settings
 from app.database import init_db
 from app.errors import install_exception_handlers
 from app.request_context import RequestContextMiddleware, configure_request_logging
-from app.routers import auth, backup, creators, importer, items, pages, search, stats, tags
+from app.routers import (
+    auth,
+    backup,
+    creators,
+    importer,
+    items,
+    pages,
+    search,
+    source_search,
+    stats,
+    tags,
+)
 from app.security import require_same_origin
 from app.security_headers import SecurityHeadersMiddleware
 
@@ -54,6 +65,7 @@ def create_app() -> FastAPI:
     app.include_router(stats.router)
     app.include_router(importer.router)
     app.include_router(backup.router)
+    app.include_router(source_search.router)
     app.include_router(pages.router)
     return app
 

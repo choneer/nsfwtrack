@@ -174,10 +174,18 @@ authorized.
 
 ### N5B - search/detail empty-state and approved-provider UI
 
-Consumes the completed N5A service only. The empty production provider catalog
-is rendered as an ordinary state; any future Provider still requires the full
-N4D-D-B Approval and activation gates. GET remains zero-write and no operation
-is chained implicitly.
+Completed: consumes the N5A service only through a production dependency or
+tests-only override. The empty production provider catalog is rendered as an
+ordinary localized HTTP 200 state; any future Provider still requires the full
+N4D-D-B Approval and activation gates. GET only lists descriptors. Search and
+Detail require explicit authenticated POST, each invokes only its matching
+approved operation once, and neither chains Asset List, import, playback, or
+download.
+
+Canonical URLs are not links, assets are not remote images or media sources,
+and only non-locator asset facts may be displayed. Responses are not persisted.
+Stable errors are localized and redacted, cancellation propagates, and the
+Production Registry, Search Packages, and Search Providers remain empty.
 
 ### N5C - signed preview and manual apply plan/write gate
 
@@ -230,7 +238,7 @@ Every real phase must prove:
    success, and invalidate derived state where a later local mutation requires
    it.
 
-## 6. Invariants preserved through N5A
+## 6. Invariants preserved through N5B
 
 - Application version: `1.1.0`.
 - Schema: `4`.
