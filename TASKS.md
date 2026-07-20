@@ -2,7 +2,7 @@
 
 按顺序执行，每完成一项打个 [x]。
 
-## 当前状态（Phase 5-N5B Search/Detail Empty-State and Approved-Provider UI 已完成）
+## 当前状态（Phase 5-N5C-A Signed Provider Apply Plan Foundation 已完成）
 
 当前稳定版与最新 Release：`v1.1.0`。下一目标版本为 `v1.2.0`，方向为
 首个 NSFW 核心 Provider、搜索与手动入库、受控下载、手动来源检查更新和
@@ -25,8 +25,10 @@ N4D-D-B0 已从四个固定 commit 提取 metadata/local-state、manifest/versio
 N5A 已实现只接受 validated Video Package 的 Provider-neutral Search Service；N5B
 已实现生产安全空状态和显式 Search/Detail UI，GET 只列 catalog，两个 POST 各只
 调用对应 operation 一次。production package tuple 和 Registry 均为空，不加载
-synthetic Provider。N4D-D-B/N4E/N4F/N4G 分别等待完整 Provider Approval；N5C
-保持独立后续阶段。
+synthetic Provider。N5C-A 已实现只读数据库 snapshot、确定性 apply plan、canonical
+serialization 与 purpose-bound HMAC token，全程零数据库写入和零 Provider/Outbound；
+N5C-B 的 stale-plan 重验与事务写入仍为独立后续阶段。N4D-D-B/N4E/N4F/N4G
+分别等待完整 Provider Approval。
 
 ### Phase 5-P1 / P2 至 R2 路线
 
@@ -356,11 +358,32 @@ synthetic Provider。N4D-D-B/N4E/N4F/N4G 分别等待完整 Provider Approval；
 - [x] 新增中英文导航、无 JavaScript 模板和 `38` 个专项测试；N5A+N5B `71 passed`、
   认证/安全 Header/页面回归 `37 passed`、全量 `1232 passed`
 
-#### Phase 5-N5C - Signed preview 与 manual apply plan/write gate
+#### Phase 5-N5C-A - Signed Provider Apply Plan Foundation
 
-- [ ] 实现 HMAC signed snapshot 与 apply 零网络边界
-- [ ] 实现创建或关联 Item、逐项字段选择、additive Creator/Tag、hard conflict
-  与 `BEGIN IMMEDIATE` 最终复核；不自动覆盖、合并、清空或下载
+- [x] 新增 frozen/slots Provider Apply action、field policy、Item/ItemSource snapshot、
+  field change、duplicate-title hints、plan 与稳定脱敏 error contract
+- [x] Builder 只执行 Provider identity source、normalized URL source、linked Item、
+  exact-title Item ID 四类 SELECT，并显式禁用/恢复 autoflush；零 DB mutation method
+- [x] create 仅在 identity/URL 同时不存在时生成，相同 title 只作最多 32 个提示；
+  update 要求 source/URL/identity/Item 精确一致，不按 title 自动绑定
+- [x] update 永不覆盖 Item.title；summary/release_date 仅 fill blank，Source 仅计划刷新
+  last_checked_at 与 apply projection metadata hash，不修改 URL/identity 或其他关系
+- [x] canonical plan parser 严格 bytes/UTF-8/duplicate-key/schema/type/resource/parity，
+  parse→serialize 收敛；projection hash 只覆盖固定 Provider apply 字段
+- [x] `nspap1` 使用固定 HMAC-SHA256、exact >=32-byte secret、context domain binding、
+  600/900 秒 TTL、恒定时间比较；Token 可解码且不提供加密或保密
+- [x] focused `59 passed`、N4D/N5A/N5B/N5C-A `226 passed`、full `1291 passed`
+
+#### Phase 5-N5C-B - Confirmed apply revalidation and transaction gate
+
+- [ ] 验证 Token 后不重新调用 Provider；重读 identity source、URL source、linked Item
+  与 duplicate-title IDs，并与 snapshot 逐项比较，任一变化 `stale_plan`、零写入
+- [ ] create 再确认 identity/URL 均不存在；update 再确认 source/Item 精确一致；
+  签名有效不得替代数据库状态有效性判断
+- [ ] 单一事务完成有限写入，唯一约束冲突完整 rollback，commit 后返回 bounded
+  result；Token 重放必须因已变化的数据库状态失败
+- [ ] N5C-B 不自动覆盖 title、不静默合并/清空、不创建 Tag/Creator/Collection/State，
+  不触发 Provider、Asset、播放、下载或后台操作，除非后续 GOAL 明确授权
 
 #### Phase 5-N6 - 用户确认的受控下载
 

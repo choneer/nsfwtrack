@@ -187,11 +187,29 @@ and only non-locator asset facts may be displayed. Responses are not persisted.
 Stable errors are localized and redacted, cancellation propagates, and the
 Production Registry, Search Packages, and Search Providers remain empty.
 
-### N5C - signed preview and manual apply plan/write gate
+### N5C-A - signed Provider apply-plan foundation
 
-Consumes approved Provider DTOs only. Search and detail remain network reads;
-apply is a separate signed local write with manual-field conflict review.
-Subscription review and playback are not implicit search side effects.
+Completed: consumes exact approved Provider Detail envelopes and produces only a
+read-only immutable apply plan. Four bounded SELECT categories snapshot Provider
+identity/URL source state, the linked Item, and exact-title hints. Create never
+binds by title; update never overwrites local title and can only fill blank
+summary/release date plus refresh bounded source tracking facts.
+
+Canonical plan bytes reject duplicate keys, schema/type/resource violations and
+non-finite values. Purpose-bound HMAC-SHA256 tokens use exact byte secrets,
+bounded TTL, context binding, and constant-time verification. They are decodable
+integrity tokens, not encryption. N5C-A adds no route, UI, DB write, Provider
+call, network, Schema, dependency, or production activation.
+
+### N5C-B - confirmed apply revalidation and transaction gate
+
+Not implemented. After token verification it must perform no Provider call,
+reread identity source, URL source, linked Item and duplicate-title IDs, and
+compare every snapshot field. Any change returns `stale_plan` with zero writes.
+Create must reprove identity/URL absence; update must reprove exact source/Item
+state. The bounded write is one transaction, uniqueness conflicts fully roll
+back, and replay after success fails because state changed. Signature validity
+never substitutes for current-state validity.
 
 ### N6 - controlled asset save and download tasks
 
@@ -238,7 +256,7 @@ Every real phase must prove:
    success, and invalidate derived state where a later local mutation requires
    it.
 
-## 6. Invariants preserved through N5B
+## 6. Invariants preserved through N5C-A
 
 - Application version: `1.1.0`.
 - Schema: `4`.

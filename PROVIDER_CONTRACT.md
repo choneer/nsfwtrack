@@ -30,6 +30,38 @@ Permanent boundaries remain unchanged:
 
 ## 2. Current implementation audit
 
+### 2.0F Phase 5-N5C-A Signed Provider Apply Plan Foundation
+
+`app/provider_apply/` now defines immutable create/update apply plans without
+implementing an apply route or any database mutation. It accepts only an exact
+`VideoDetailEnvelope`, rechecks descriptor/request/detail identity, requires a
+canonical URL, and keeps only the value returned by the existing
+`normalize_source_url`; it never accesses or follows that URL.
+
+The builder disables Session autoflush and issues only four bounded SELECT
+categories: source by Provider identity, source by normalized URL, linked Item,
+and exact-title Item ID hints. Create requires identity and URL both absent;
+same-title Items are bounded hints and never automatic links. Update requires the
+identity source, URL source, normalized URL, raw stored URL, and linked Item to
+match exactly. Item title is always `keep_local`; summary and release date may
+only `fill_blank`; only source `last_checked_at` and the deterministic apply
+projection hash may refresh. There is no add/add_all/delete/flush/commit/rollback,
+SQL mutation, Provider call, Outbound call, file access, or dynamic import.
+
+Plans serialize as bounded canonical Unicode JSON bytes with exact schema,
+nested duplicate-key rejection, strict bool/int handling, non-finite-number
+rejection, resource auditing, and typed parity. The projection hash covers only
+Provider identity, normalized source URL, title, summary, release date,
+received time, and source-updated time; it is not a complete response hash.
+
+`nspap1` tokens use code-fixed HMAC-SHA256 with an exact byte secret of at least
+32 bytes, explicit domain separation, a purpose context binding that is not
+stored as plaintext, a 600-second default TTL, a 900-second maximum TTL, and
+`hmac.compare_digest`. They reject malformed, oversized, tampered, wrong-secret,
+wrong-context, future, and expired values. A token is decodable and supplies
+integrity only; it is neither encryption nor confidentiality and contains no
+secret, Cookie, Header, Endpoint, response, or asset locator.
+
 ### 2.0E Phase 5-N5B Search/Detail Empty-State and Approved-Provider UI
 
 `app/routers/source_search.py` exposes authenticated GET `/source-search` and
@@ -926,11 +958,33 @@ and renders the empty production catalog as a normal state. It does not grant
 Provider approval, chain operations, persist responses, render remote assets, or
 add import/download authority.
 
-### N5C: signed preview and manual apply
+### N5C-A: signed Provider apply-plan foundation
 
-Implements explicit search/detail preview, field selection, purpose-specific
-signed import snapshots, zero-network apply, and Schema 4 `ItemSource`
-association. It does not download.
+Completed as the read-only plan, canonical serialization, projection hash, and
+purpose-bound HMAC token layer described above. It does not expose a route,
+button, form, database write, Provider call, or apply authority.
+
+### N5C-B: confirmed apply revalidation and transaction gate
+
+N5C-B remains unimplemented and MUST preserve this contract:
+
+1. Verify the token without calling the Provider again.
+2. Reread the Provider-identity source, normalized-URL source, linked Item, and
+   bounded duplicate-title IDs.
+3. Compare every snapshotted/read-or-write field exactly; any change returns
+   `stale_plan` with zero writes.
+4. For create, reprove identity and URL absence. For update, reprove exact
+   source/URL/Item identity and local field values.
+5. Perform the bounded write in one transaction. Any uniqueness conflict or
+   write failure rolls the entire transaction back.
+6. Return only a bounded committed result after commit succeeds or is safely
+   classified under an explicitly authorized outcome contract.
+7. Replaying a successfully applied token fails because the database state no
+   longer matches its snapshots.
+
+A valid signature proves only application issuance and token integrity. It is
+not proof that current database state is valid and cannot replace stale-state
+revalidation.
 
 ### N6: controlled download
 

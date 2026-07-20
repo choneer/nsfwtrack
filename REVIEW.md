@@ -389,6 +389,36 @@
 - [x] **5.N5B.9. Gates** — focused `38 passed`、N5A+N5B `71 passed`、安全相关
   `37 passed`、full `1232 passed`，`pip check` 与 `git diff --check` 是否通过
 
+### Phase 5-N5C-A Signed Provider Apply Plan Foundation（已完成）
+
+- [x] **5.N5C-A.1. Immutable plan** — action/policy/snapshot/change/plan/error 是否
+  frozen/slots、tuple-only、exact type，且 repr/str 不泄漏 URL、identity、title、Token
+- [x] **5.N5C-A.2. Read-only query scope** — Builder 是否只执行 identity source、URL
+  source、linked Item、exact-title IDs 四类 SELECT，显式防 autoflush，零 mutation method
+- [x] **5.N5C-A.3. Create matrix** — identity/URL 是否必须同时不存在；相同 title 是否
+  仅成为 bounded hint，绝不自动关联已有 Item
+- [x] **5.N5C-A.4. Update matrix** — identity/source/URL/linked Item 是否精确一致；
+  title 是否永不覆盖，summary/release_date 是否仅 fill blank，tracking 是否唯一可刷新
+- [x] **5.N5C-A.5. URL and projection** — canonical URL 是否必需且只经现有 normalizer，
+  raw URL 是否丢弃，projection hash 是否仅覆盖固定 apply 字段且确定性/变更敏感
+- [x] **5.N5C-A.6. Canonical parser** — exact bytes/UTF-8/nested duplicate/schema/
+  bool-int/nonfinite/depth/node/string/array/size/parity 是否 fail closed 并收敛
+- [x] **5.N5C-A.7. HMAC token** — HMAC-SHA256、>=32-byte exact secret、domain/context
+  binding、600/900 秒 TTL、tamper/wrong secret/context/future/expiry 与 compare_digest
+- [x] **5.N5C-A.8. Zero side effect** — 成功/失败是否零 DB write、Provider/Outbound、
+  DNS、文件读写、dynamic import，且没有 Router/UI/真实 Provider/依赖/Schema 变化
+- [x] **5.N5C-A.9. Gates** — focused `59 passed`、组合 `226 passed`、full
+  `1291 passed`，Application `1.1.0`、Schema `4`、Backup v2、空 production catalog 保持
+
+### Phase 5-N5C-B 强制合同（未实现）
+
+- [ ] **5.N5C-B.1. State revalidation** — 验签后是否不调用 Provider，重读四类数据库
+  状态并逐项比较 snapshot；任一变化是否稳定 `stale_plan` 且零写入
+- [ ] **5.N5C-B.2. Transaction boundary** — create/update 前置事实是否在同一事务内重验，
+  唯一约束冲突是否完整 rollback，commit 后结果是否 bounded
+- [ ] **5.N5C-B.3. Replay rejection** — 首次成功后同 Token 是否因数据库状态变化失败；
+  是否明确“签名有效不等于状态有效”
+
 - [ ] **5.1. Provider 批准与定位** — 每个真实 Provider 是否由用户明确批准，
   核心用途是否符合 NSFW-first 定位，且固定 Host/Endpoint、认证、搜索、详情、
   下载、响应、限流、条款与使用边界是否完整

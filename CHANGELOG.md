@@ -13,6 +13,29 @@
 
 ### Added
 
+- Added Phase 5-N5C-A immutable Provider Apply Plan contracts and a read-only
+  builder for create/update projections. The builder uses only four bounded
+  SELECT categories, disables autoflush during planning, never binds by title,
+  and performs no add/delete/flush/commit/rollback or SQL mutation.
+- Added conservative local-state policy: create requires both Provider identity
+  and normalized URL to be absent; update requires the existing identity, URL,
+  source, and linked Item to match exactly. Local titles are never overwritten,
+  summary/release date only fill blanks, and only source check time and the
+  deterministic apply-projection hash may be refreshed.
+- Added exact bytes-only canonical Unicode plan serialization with nested
+  duplicate-key, schema, strict type, non-finite number, resource-limit, and
+  typed-parity rejection. Added purpose-bound `nspap1` HMAC-SHA256 tokens with
+  exact >=32-byte secrets, context domain separation, 600-second default and
+  900-second maximum TTL, constant-time verification, and stable redacted errors.
+  Tokens provide integrity only, are decodable, and do not provide encryption or
+  confidentiality.
+- Froze N5C-B as a separate future gate: after token verification it must reread
+  all snapshotted database state, return `stale_plan` on any change, write in one
+  transaction, fully roll back uniqueness conflicts, and reject replay after a
+  successful state change. A valid signature is not proof of valid current state.
+- Added 59 focused N5C-A tests; the specified N4D/N5A/N5B/N5C-A regression set
+  passes 226 tests and the full suite passes 1291 tests.
+
 - Added Phase 5-N5B authenticated Search/Detail pages with a normal empty
   production state, an injectable Provider Search Service dependency, and
   explicit POST-only Search and Detail actions. GET calls only the catalog;

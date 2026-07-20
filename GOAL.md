@@ -1,8 +1,8 @@
-# Phase 5-N5B — Search/Detail Empty-State and Approved-Provider UI
+# Phase 5-N5C-A — Signed Provider Apply Plan Foundation
 
 ## 完成状态
 
-Phase 5-N5B 已按授权范围完成本地实现与验证。
+Phase 5-N5C-A 已完成本地实现与验证。N5C-B 数据库重验和事务写入尚未实现。
 
 保持不变：
 
@@ -17,54 +17,80 @@ Production Search Providers: ()
 
 ## 已完成实现
 
-- 新增 `app/routers/source_search.py`：
-  - `GET /source-search`
-  - `POST /source-search/search`
-  - `POST /source-search/detail`
-  - `get_provider_search_service` 生产依赖只构造
-    `build_production_search_service()`；测试仅通过 FastAPI
-    `dependency_overrides` 注入 tests-only Service。
-- GET 只调用 `list_providers()`；生产空 catalog 返回 HTTP 200 普通空状态
-  “暂无可用外部来源”，不显示 synthetic Provider，不执行 Provider operation。
-- Search 与 Detail 均由登录用户显式 POST 触发，分别通过 N5A request contract、
-  当前 Provider catalog 和批准 operation 前置复核；每个请求只调用对应 Service
-  operation 一次。
-- Search 不自动 Detail，Detail 不自动 Asset List，返回 GET 不恢复或重复请求。
-- 新增 `app/templates/source_search.html`，复用现有 Jinja/CSS/导航/认证/i18n：
-  - Provider 与结果文本保持自动转义；
-  - canonical URL 不成为链接；
-  - cover/preview/asset 不成为远程图片、播放源或下载入口；
-  - Detail 只展示 kind、display name、MIME、尺寸、时长等非 locator Asset facts；
-  - 不新增 JavaScript、外部 CSS、字体、图片或脚本。
-- 七类可渲染 `ProviderSearchServiceErrorCode` 映射为稳定、脱敏的
-  400/409/502/503 中英文状态；query、external ID、cause、Provider marker、Host、
-  payload 和异常文本不进入错误 HTML 或日志；`asyncio.CancelledError` 原样传播。
-- 路由不依赖数据库，不保存 Search/Detail 响应到 DB、Session、Cookie、文件、
-  cache 或 localStorage，不实现 import、Asset Resolve、播放、下载或后台任务。
-- 更新 `app/main.py`、`app/templates/base.html` 和 `app/i18n.py`，新增中英文
-  “外部来源 / External Sources”导航和完整页面文本。
-- 新增 `tests/test_phase5_n5b.py`，覆盖认证、空状态、dependency override、
-  operation 次数、分页 POST、XSS 转义、远程资源禁用、稳定错误、取消传播、
-  零数据库/文件/Outbound 副作用及生产不变量。
+- 新增 `app/provider_apply/contracts.py`：
+  - frozen/slots `ProviderApplyAction`、`ProviderApplyFieldPolicy`；
+  - immutable Item/ItemSource snapshot、field change、duplicate-title hints；
+  - immutable create/update `ProviderApplyPlan`；
+  - stable redacted `ProviderApplyErrorCode` / `ProviderApplyError`。
+- 新增只读 `build_provider_apply_plan`：
+  - 只接受 exact `VideoDetailEnvelope`；
+  - 重新验证 descriptor/request/detail identity；
+  - canonical URL 必须存在且只使用现有 `normalize_source_url` 的结果；
+  - 不访问或跟随 URL，不保存 raw URL；
+  - 只执行 Provider identity source、normalized URL source、linked Item、exact-title
+    Item IDs 四类 SELECT；
+  - 显式禁用并恢复 Session autoflush；
+  - 不调用 add/add_all/delete/flush/commit/rollback，不执行 SQL mutation。
+- create 只有在 identity 与 URL 同时不存在时生成；相同 title 只产生稳定、升序、
+  最多 32 个提示，不自动关联 Item。
+- update 要求 identity source、URL source、stored URL、normalized URL 与 linked Item
+  精确一致；Item.title 永远 keep-local，summary/release_date 仅 fill-blank，Source
+  只允许计划刷新 last_checked_at 与 metadata_hash。
+- apply projection hash 固定为 `v1:sha256:<64 lowercase hex>`，只覆盖 Provider key、
+  external ID、normalized URL、title、summary、release date、received/source-updated
+  time；不是完整 Provider response hash。
+- canonical plan serialization/parser：
+  - exact bytes-only、UTF-8、canonical Unicode JSON；
+  - nested duplicate-key、unknown/missing field、bool/int 混淆、NaN/Infinity 拒绝；
+  - 深度、节点、单字符串、数组与 32 KiB 总字节上限；
+  - typed parity 和 parse → serialize 收敛。
+- `nspap1` HMAC token：
+  - 固定 HMAC-SHA256 与 domain separation；
+  - secret 必须为 exact bytes、至少 32 bytes；
+  - purpose context 参与绑定但不以明文写入 Token；
+  - 默认 TTL 600 秒、最大 900 秒；
+  - 使用 `hmac.compare_digest`；
+  - wrong secret/context、payload/MAC 篡改、未来签发、过期、非法 schema/资源均拒绝；
+  - Token 可解码，只提供完整性，不提供加密或保密。
+
+## N5C-B 强制合同
+
+N5C-B 写入前必须：
+
+1. 验证 Token，且不重新调用 Provider；
+2. 重读 identity source、URL source、linked Item 与 duplicate-title IDs；
+3. 与 Token 中 snapshot 和读写字段逐项比较；
+4. 任一变化返回 `stale_plan`，零写入；
+5. create 再确认 identity/URL 均不存在；
+6. update 再确认 source/URL/Item 与本地字段精确一致；
+7. 在单一事务中执行有限写入；
+8. 唯一约束冲突或任一写入失败必须完整 rollback；
+9. commit 后只返回 bounded result；
+10. Token 重放必须因数据库状态已变化而失败。
+
+签名有效只证明应用签发与 Token 完整性，不等于当前数据库状态有效。
 
 ## 本地验证
 
 ```text
-Phase 5-N5B focused: 38 passed
-Phase 5-N5A + N5B: 71 passed
-Auth / Security Headers / Pages regression: 37 passed
-Full suite: 1232 passed
+Phase 5-N5C-A focused: 59 passed
+N4D-C / N4D-D-A / N5A / N5B / N5C-A: 226 passed
+Full suite: 1291 passed
 pip check: No broken requirements found.
 git diff --check: passed
 ```
 
+专项测试验证成功和失败路径调用前后数据库 snapshot 完全一致，SQL 仅为 SELECT；
+Provider/Outbound、DNS、文件读写、dynamic import 与 Adapter operation 均为 0。
+
 ## 安全与范围确认
 
-- 未修改 `app/source_search/contracts.py`、`app/source_search/service.py`、
-  `app/source_adapters/*`、`app/services/outbound_http.py`、数据库或模型文件。
-- 未添加真实 Provider、Host、Endpoint、URL、response、fixture、认证、Cookie、
-  Token、Secret Vault、网络入口、远程媒体、播放、下载、导入、缓存或后台任务。
-- 未新增依赖、Schema、Migration、Backup、Docker、Compose 或 CI 变化。
+- 未修改 models、database、sources、source_search、source_adapters、video_metadata、
+  routers、templates、i18n、main 或 config。
+- 未新增 Apply Router、按钮、表单或任何生产数据库写入。
+- 未接入真实 Provider，未添加真实 Host/Endpoint/URL/response/fixture，未访问
+  canonical URL。
+- 未新增依赖、Schema、Migration、Backup format、Docker、Compose 或 CI 变化。
 - 未读取、枚举、进入、修改、暂存或提交既有 `data/`。
 - 未调用 Hermes；未创建 Tag/Release；未部署 N100。
 
@@ -73,8 +99,8 @@ git diff --check: passed
 唯一提交信息：
 
 ```text
-Add provider search and detail UI
+Add signed provider apply plan foundation
 ```
 
-推送后等待 GitHub Actions `test` 与 `Docker production smoke` 均成功；不得
-amend、force push 或创建 corrective commit。
+推送后等待 GitHub Actions `test` 与 `Docker production smoke` 均成功；不得 amend、
+force push 或创建 corrective commit。
