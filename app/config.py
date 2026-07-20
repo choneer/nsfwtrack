@@ -19,6 +19,12 @@ class Settings:
     max_backup_upload_mb: int
     max_import_upload_mb: int
     session_cookie_secure: bool
+    task_max_concurrency: int = 2
+    download_max_bytes: int = 100 * 1024 * 1024
+    download_chunk_bytes: int = 64 * 1024
+    download_timeout_seconds: int = 60
+    download_temp_retention_hours: int = 24
+    task_history_retention_days: int = 30
 
 
 def _read_required_env(name: str) -> str:
@@ -43,6 +49,13 @@ def _read_positive_int_env(name: str, default: int) -> int:
     return value
 
 
+def _read_bounded_int_env(name: str, default: int, minimum: int, maximum: int) -> int:
+    value = _read_positive_int_env(name, default)
+    if not minimum <= value <= maximum:
+        raise RuntimeError(f"{name} must be between {minimum} and {maximum}")
+    return value
+
+
 def _read_bool_env(name: str, default: bool) -> bool:
     raw_value = os.getenv(name, "").strip().casefold()
     if not raw_value:
@@ -64,4 +77,22 @@ def get_settings() -> Settings:
         max_backup_upload_mb=_read_positive_int_env("MAX_BACKUP_UPLOAD_MB", 5),
         max_import_upload_mb=_read_positive_int_env("MAX_IMPORT_UPLOAD_MB", 5),
         session_cookie_secure=_read_bool_env("SESSION_COOKIE_SECURE", False),
+        task_max_concurrency=_read_bounded_int_env(
+            "TASK_MAX_CONCURRENCY", 2, 1, 32
+        ),
+        download_max_bytes=_read_bounded_int_env(
+            "DOWNLOAD_MAX_BYTES", 100 * 1024 * 1024, 1_024, 10 * 1024 * 1024 * 1024
+        ),
+        download_chunk_bytes=_read_bounded_int_env(
+            "DOWNLOAD_CHUNK_BYTES", 64 * 1024, 4_096, 4 * 1024 * 1024
+        ),
+        download_timeout_seconds=_read_bounded_int_env(
+            "DOWNLOAD_TIMEOUT_SECONDS", 60, 1, 3_600
+        ),
+        download_temp_retention_hours=_read_bounded_int_env(
+            "DOWNLOAD_TEMP_RETENTION_HOURS", 24, 1, 720
+        ),
+        task_history_retention_days=_read_bounded_int_env(
+            "TASK_HISTORY_RETENTION_DAYS", 30, 1, 3_650
+        ),
     )

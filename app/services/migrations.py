@@ -10,10 +10,16 @@ from sqlalchemy.engine import Connection, Engine
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.models import (
+    DownloadTaskFact,
+    DiscoveredAssetFact,
+    ItemLocalAsset,
     ItemSource,
     MediaIndexEntry,
     MediaIndexState,
+    OperationTask,
     SchemaMigration,
+    SourceCheckFact,
+    TaskEvent,
 )
 from app.services.schema_version import (
     CURRENT_SCHEMA_VERSION,
@@ -35,6 +41,14 @@ ITEM_SOURCES_SCHEMA_4_COLUMNS = ITEM_SOURCES_SCHEMA_2_COLUMNS | {
     "metadata_hash",
 }
 SOURCE_IDENTITY_INDEX = "uq_item_sources_provider_identity"
+TASK_SCHEMA_TABLES = (
+    OperationTask,
+    TaskEvent,
+    DownloadTaskFact,
+    SourceCheckFact,
+    DiscoveredAssetFact,
+    ItemLocalAsset,
+)
 
 
 @dataclass(frozen=True)
@@ -552,7 +566,11 @@ def _media_index_precheck(connection: Connection) -> MigrationCheck:
         table
         for table in MediaIndexEntry.metadata.sorted_tables
         if table.name
-        not in {MediaIndexEntry.__tablename__, MediaIndexState.__tablename__}
+        not in {
+            MediaIndexEntry.__tablename__,
+            MediaIndexState.__tablename__,
+            *(model.__tablename__ for model in TASK_SCHEMA_TABLES),
+        }
     )
     missing = sorted(table.name for table in source_tables if table.name not in table_names)
     if missing:
@@ -893,6 +911,88 @@ def _source_tracking_postcheck(connection: Connection) -> MigrationCheck:
     return MigrationCheck(True, "Schema 4 source tracking structure is valid")
 
 
+def _persistent_tasks_preview(connection: Connection) -> MigrationPreview:
+    del connection
+    return MigrationPreview(
+        changes=(
+            "create the provider-neutral operation_tasks state and lease table",
+            "create bounded task event and download execution fact tables",
+            "create transactional item_local_assets publication links",
+            "initialize all task/runtime tables empty without network or media access",
+        ),
+        warnings=(
+            "back up the Schema 4 database before applying",
+            "Schema 5 databases are intentionally rejected by stable v1.2.0",
+            "task, runtime, progress, lease, and history facts are excluded from JSON backups",
+        ),
+    )
+
+
+def _persistent_tasks_precheck(connection: Connection) -> MigrationCheck:
+    try:
+        if _read_database_version(connection) != 4:
+            return MigrationCheck(False, "database is not at Schema 4")
+    except MigrationError:
+        return MigrationCheck(False, "Schema 4 version record is unavailable")
+    inspector = inspect(connection)
+    table_names = set(inspector.get_table_names())
+    new_names = {model.__tablename__ for model in TASK_SCHEMA_TABLES}
+    existing = sorted(new_names & table_names)
+    if existing:
+        return MigrationCheck(
+            False,
+            f"Schema 5 task tables already exist: {', '.join(existing)}",
+        )
+    if ItemSource.__tablename__ not in table_names:
+        return MigrationCheck(False, "item_sources table is missing")
+    columns = {
+        column["name"] for column in inspector.get_columns(ItemSource.__tablename__)
+    }
+    if columns != ITEM_SOURCES_SCHEMA_4_COLUMNS:
+        return MigrationCheck(False, "item_sources is not the expected Schema 4 shape")
+    if not _source_identity_index_is_valid(connection):
+        return MigrationCheck(False, "provider identity index is invalid")
+    return MigrationCheck(True, "Schema 4 is ready for empty persistent task tables")
+
+
+def _persistent_tasks_apply(connection: Connection) -> None:
+    for model in TASK_SCHEMA_TABLES:
+        model.__table__.create(bind=connection)
+
+
+def _persistent_tasks_postcheck(connection: Connection) -> MigrationCheck:
+    inspector = inspect(connection)
+    table_names = set(inspector.get_table_names())
+    required = {model.__tablename__ for model in TASK_SCHEMA_TABLES}
+    if not required.issubset(table_names):
+        return MigrationCheck(False, "Schema 5 task tables were not created")
+    for model in TASK_SCHEMA_TABLES:
+        expected_columns = {column.name for column in model.__table__.columns}
+        actual_columns = {
+            column["name"] for column in inspector.get_columns(model.__tablename__)
+        }
+        if actual_columns != expected_columns:
+            return MigrationCheck(False, f"{model.__tablename__} columns are invalid")
+        count = connection.exec_driver_sql(
+            f'SELECT count(*) FROM "{model.__tablename__}"'
+        ).scalar_one()
+        if int(count) != 0:
+            return MigrationCheck(False, f"{model.__tablename__} was not initialized empty")
+    operation_checks = {
+        constraint.get("name")
+        for constraint in inspector.get_check_constraints(OperationTask.__tablename__)
+    }
+    if not {
+        "ck_operation_tasks_type",
+        "ck_operation_tasks_state",
+        "ck_operation_tasks_version",
+    }.issubset(operation_checks):
+        return MigrationCheck(False, "operation task database constraints are incomplete")
+    if _read_database_version(connection) != 5:
+        return MigrationCheck(False, "Schema 5 version record is missing")
+    return MigrationCheck(True, "Schema 5 persistent task structure is valid and empty")
+
+
 MIGRATION_REGISTRY = MigrationRegistry(
     (
         MigrationStep(
@@ -921,6 +1021,15 @@ MIGRATION_REGISTRY = MigrationRegistry(
             apply=_source_tracking_apply,
             precheck=_source_tracking_precheck,
             postcheck=_source_tracking_postcheck,
+        ),
+        MigrationStep(
+            from_version=4,
+            to_version=5,
+            name="create_persistent_operation_tasks",
+            preview=_persistent_tasks_preview,
+            apply=_persistent_tasks_apply,
+            precheck=_persistent_tasks_precheck,
+            postcheck=_persistent_tasks_postcheck,
         ),
     )
 )

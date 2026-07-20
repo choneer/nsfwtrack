@@ -807,7 +807,7 @@ def test_apply_route_requires_auth_and_has_no_get_variant(client: TestClient) ->
 
 def test_phase_invariants_and_empty_production_catalogs_are_unchanged() -> None:
     assert app.version == "1.2.0"
-    assert CURRENT_SCHEMA_VERSION == 4
+    assert CURRENT_SCHEMA_VERSION == 5
     assert BACKUP_SCHEMA_V2 == "nsfwtrack.backup.v2"
     assert PRODUCTION_ENDPOINT_REGISTRY.providers == ()
     assert PRODUCTION_SEARCH_PACKAGES == ()

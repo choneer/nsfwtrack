@@ -15,6 +15,7 @@ from app.models import (
     ItemSource,
     MediaIndexEntry,
     MediaIndexState,
+    OperationTask,
     SchemaMigration,
 )
 from app.services.migrations import (
@@ -130,7 +131,7 @@ def _step(
     )
 
 
-def test_production_registry_contains_continuous_schema_1_to_4_steps() -> None:
+def test_production_registry_contains_continuous_schema_1_to_5_steps() -> None:
     assert [
         (step.from_version, step.to_version, step.name)
         for step in MIGRATION_REGISTRY.steps
@@ -138,18 +139,23 @@ def test_production_registry_contains_continuous_schema_1_to_4_steps() -> None:
         (1, 2, "create_item_sources"),
         (2, 3, "create_media_index"),
         (3, 4, "extend_item_sources_provider_metadata"),
+        (4, 5, "create_persistent_operation_tasks"),
     ]
-    assert CURRENT_SCHEMA_VERSION == 4
+    assert CURRENT_SCHEMA_VERSION == 5
 
 
-def test_production_schema_1_to_4_upgrade_preserves_items(
+def test_production_schema_1_to_5_upgrade_preserves_items(
     isolated_engine: Engine,
 ) -> None:
     legacy_tables = [
         table
         for table in Base.metadata.sorted_tables
         if table.name
-        not in {"item_sources", "media_index_entries", "media_index_state"}
+        not in {
+            "item_sources", "media_index_entries", "media_index_state",
+            "operation_tasks", "task_events", "download_task_facts",
+            "source_check_facts", "discovered_asset_facts", "item_local_assets",
+        }
     ]
     Base.metadata.create_all(bind=isolated_engine, tables=legacy_tables)
     with isolated_engine.begin() as connection:
@@ -161,10 +167,11 @@ def test_production_schema_1_to_4_upgrade_preserves_items(
     dry_run = preview_upgrade(isolated_engine, MIGRATION_REGISTRY)
     assert dry_run.can_upgrade
     assert dry_run.current_version == 1
-    assert dry_run.target_version == 4
+    assert dry_run.target_version == 5
     assert dry_run.steps[0].name == "create_item_sources"
     assert dry_run.steps[1].name == "create_media_index"
     assert dry_run.steps[2].name == "extend_item_sources_provider_metadata"
+    assert dry_run.steps[3].name == "create_persistent_operation_tasks"
     assert "item_sources" not in inspect(isolated_engine).get_table_names()
     assert "media_index_entries" not in inspect(isolated_engine).get_table_names()
 
@@ -175,21 +182,24 @@ def test_production_schema_1_to_4_upgrade_preserves_items(
     )
 
     assert result.from_version == 1
-    assert result.to_version == 4
+    assert result.to_version == 5
     assert result.applied_steps == (
         "create_item_sources",
         "create_media_index",
         "extend_item_sources_provider_metadata",
+        "create_persistent_operation_tasks",
     )
     assert "item_sources" in inspect(isolated_engine).get_table_names()
     assert "media_index_entries" in inspect(isolated_engine).get_table_names()
     assert "media_index_state" in inspect(isolated_engine).get_table_names()
+    assert "operation_tasks" in inspect(isolated_engine).get_table_names()
     with isolated_engine.connect() as connection:
         assert connection.scalar(select(Item.title)) == "Legacy item"
         latest_version = connection.scalar(
             select(SchemaMigration.version).order_by(SchemaMigration.version.desc())
         )
-        assert latest_version == 4
+        assert latest_version == 5
+        assert connection.scalar(select(OperationTask.id)) is None
         assert connection.scalar(select(MediaIndexEntry.id)) is None
         state = connection.execute(
             select(MediaIndexState.valid, MediaIndexState.stale_reason)
@@ -213,14 +223,18 @@ def test_production_schema_1_to_4_upgrade_preserves_items(
         assert source == (None, None, None, None)
 
 
-def test_production_schema_2_to_4_upgrade_preserves_business_data(
+def test_production_schema_2_to_5_upgrade_preserves_business_data(
     isolated_engine: Engine,
 ) -> None:
     schema_1_tables = [
         table
         for table in Base.metadata.sorted_tables
         if table.name
-        not in {"item_sources", "media_index_entries", "media_index_state"}
+        not in {
+            "item_sources", "media_index_entries", "media_index_state",
+            "operation_tasks", "task_events", "download_task_facts",
+            "source_check_facts", "discovered_asset_facts", "item_local_assets",
+        }
     ]
     Base.metadata.create_all(bind=isolated_engine, tables=schema_1_tables)
     with isolated_engine.begin() as connection:
@@ -249,6 +263,7 @@ def test_production_schema_2_to_4_upgrade_preserves_business_data(
     assert [(step.from_version, step.to_version) for step in dry_run.steps] == [
         (2, 3),
         (3, 4),
+        (4, 5),
     ]
     assert "media_index_entries" not in inspect(isolated_engine).get_table_names()
     result = apply_upgrade(
@@ -260,6 +275,7 @@ def test_production_schema_2_to_4_upgrade_preserves_business_data(
     assert result.applied_steps == (
         "create_media_index",
         "extend_item_sources_provider_metadata",
+        "create_persistent_operation_tasks",
     )
     with isolated_engine.connect() as connection:
         assert connection.scalar(select(Item.title)) == "Schema 2 item"
@@ -270,7 +286,7 @@ def test_production_schema_2_to_4_upgrade_preserves_business_data(
             connection.execute(
                 select(SchemaMigration.version).order_by(SchemaMigration.version)
             ).scalars()
-        ) == [1, 2, 3, 4]
+        ) == [1, 2, 3, 4, 5]
 
 
 def test_production_schema_2_to_4_failure_rolls_back_tables_and_version(
@@ -281,7 +297,11 @@ def test_production_schema_2_to_4_failure_rolls_back_tables_and_version(
         table
         for table in Base.metadata.sorted_tables
         if table.name
-        not in {"item_sources", "media_index_entries", "media_index_state"}
+        not in {
+            "item_sources", "media_index_entries", "media_index_state",
+            "operation_tasks", "task_events", "download_task_facts",
+            "source_check_facts", "discovered_asset_facts", "item_local_assets",
+        }
     ]
     Base.metadata.create_all(bind=isolated_engine, tables=schema_1_tables)
     with isolated_engine.begin() as connection:
@@ -584,6 +604,7 @@ def route_registry(monkeypatch: pytest.MonkeyPatch) -> Generator[MigrationRegist
             _step(1, 2, name="route-test-upgrade-2"),
             _step(2, 3, name="route-test-upgrade-3"),
             _step(3, 4, name="route-test-upgrade-4"),
+            _step(4, 5, name="route-test-upgrade-5"),
         )
     )
     monkeypatch.setattr(pages_router, "MIGRATION_REGISTRY", registry)
@@ -708,8 +729,8 @@ def test_standard_apply_requires_confirm_and_backup_then_uses_code_path(
         },
         follow_redirects=True,
     )
-    assert "显式升级到 4" in applied.text
-    assert _global_probe_and_versions() == (4, [0, 1, 2, 3, 4])
+    assert "显式升级到 5" in applied.text
+    assert _global_probe_and_versions() == (5, [0, 1, 2, 3, 4, 5])
     assert "items" in inspect(engine).get_table_names()
 
 
@@ -752,8 +773,8 @@ def test_strict_apply_requires_exact_confirm_text(
         },
         follow_redirects=True,
     )
-    assert "显式升级到 4" in applied.text
-    assert _global_probe_and_versions() == (4, [0, 1, 2, 3, 4])
+    assert "显式升级到 5" in applied.text
+    assert _global_probe_and_versions() == (5, [0, 1, 2, 3, 4, 5])
 
 
 def test_upgrade_page_copy_is_available_in_english(auth_client: TestClient) -> None:

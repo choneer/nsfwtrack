@@ -292,6 +292,224 @@ class ItemSource(Base):
     )
 
 
+class OperationTask(Base):
+    """Persistent, provider-neutral facts for explicitly controlled work."""
+
+    __tablename__ = "operation_tasks"
+    __table_args__ = (
+        CheckConstraint(
+            "task_type IN ('asset_download','source_check','metadata_update')",
+            name="ck_operation_tasks_type",
+        ),
+        CheckConstraint(
+            "state IN ('planned','awaiting_confirmation','queued','running',"
+            "'paused','cancelling','cancelled','succeeded','failed','blocked',"
+            "'outcome_unknown')",
+            name="ck_operation_tasks_state",
+        ),
+        CheckConstraint("version >= 1", name="ck_operation_tasks_version"),
+        CheckConstraint("attempt_count >= 0", name="ck_operation_tasks_attempts"),
+        CheckConstraint("bytes_processed >= 0", name="ck_operation_tasks_bytes"),
+        CheckConstraint(
+            "expected_bytes IS NULL OR expected_bytes >= 0",
+            name="ck_operation_tasks_expected_bytes",
+        ),
+        CheckConstraint(
+            "lease_generation >= 0", name="ck_operation_tasks_lease_generation"
+        ),
+        CheckConstraint(
+            "trim(intent_key) != ''", name="ck_operation_tasks_intent_key"
+        ),
+        CheckConstraint(
+            "error_code IS NULL OR length(error_code) <= 64",
+            name="ck_operation_tasks_error_code",
+        ),
+        CheckConstraint(
+            "provider_key IS NULL OR trim(provider_key) != ''",
+            name="ck_operation_tasks_provider_key",
+        ),
+        CheckConstraint(
+            "sha256 IS NULL OR length(sha256) = 64",
+            name="ck_operation_tasks_sha256",
+        ),
+        UniqueConstraint("intent_key", name="uq_operation_tasks_intent_key"),
+        Index("ix_operation_tasks_state_created", "state", "created_at"),
+        Index("ix_operation_tasks_type_created", "task_type", "created_at"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    task_type: Mapped[str] = mapped_column(String(32), nullable=False)
+    state: Mapped[str] = mapped_column(String(32), nullable=False, default="planned")
+    version: Mapped[int] = mapped_column(nullable=False, default=1, server_default="1")
+    intent_key: Mapped[str] = mapped_column(String(96), nullable=False, unique=True)
+    item_id: Mapped[int | None] = mapped_column(
+        ForeignKey("items.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    source_id: Mapped[int | None] = mapped_column(
+        ForeignKey("item_sources.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    provider_key: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    external_identity_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    asset_identity_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    relative_target: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    snapshot_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    stage: Mapped[str] = mapped_column(String(32), nullable=False, default="planned")
+    bytes_processed: Mapped[int] = mapped_column(nullable=False, default=0, server_default="0")
+    expected_bytes: Mapped[int | None] = mapped_column(nullable=True)
+    mime_type: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    sha256: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    error_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    error_detail: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    attempt_count: Mapped[int] = mapped_column(nullable=False, default=0, server_default="0")
+    cancel_requested: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    lease_owner: Mapped[str | None] = mapped_column(String(96), nullable=True)
+    lease_generation: Mapped[int] = mapped_column(nullable=False, default=0, server_default="0")
+    lease_started_at: Mapped[datetime | None] = mapped_column(UTCDateTime(), nullable=True)
+    lease_heartbeat_at: Mapped[datetime | None] = mapped_column(UTCDateTime(), nullable=True)
+    lease_expires_at: Mapped[datetime | None] = mapped_column(UTCDateTime(), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        UTCDateTime(), nullable=False, default=lambda: datetime.now(timezone.utc)
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        UTCDateTime(),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
+    started_at: Mapped[datetime | None] = mapped_column(UTCDateTime(), nullable=True)
+    finished_at: Mapped[datetime | None] = mapped_column(UTCDateTime(), nullable=True)
+
+
+class TaskEvent(Base):
+    __tablename__ = "task_events"
+    __table_args__ = (
+        CheckConstraint("version >= 1", name="ck_task_events_version"),
+        CheckConstraint("trim(event_type) != ''", name="ck_task_events_type"),
+        UniqueConstraint("task_id", "version", name="uq_task_events_task_version"),
+        Index("ix_task_events_task_created", "task_id", "created_at"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    task_id: Mapped[int] = mapped_column(
+        ForeignKey("operation_tasks.id", ondelete="CASCADE"), nullable=False
+    )
+    version: Mapped[int] = mapped_column(nullable=False)
+    event_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    from_state: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    to_state: Mapped[str] = mapped_column(String(32), nullable=False)
+    error_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        UTCDateTime(), nullable=False, default=lambda: datetime.now(timezone.utc)
+    )
+
+
+class DownloadTaskFact(Base):
+    __tablename__ = "download_task_facts"
+    __table_args__ = (
+        CheckConstraint("trim(asset_id) != ''", name="ck_download_task_facts_asset"),
+        CheckConstraint("max_bytes > 0", name="ck_download_task_facts_max_bytes"),
+        CheckConstraint(
+            "resume_offset >= 0", name="ck_download_task_facts_resume_offset"
+        ),
+        UniqueConstraint("task_id", name="uq_download_task_facts_task"),
+    )
+
+    task_id: Mapped[int] = mapped_column(
+        ForeignKey("operation_tasks.id", ondelete="CASCADE"), primary_key=True
+    )
+    asset_id: Mapped[str] = mapped_column(String(512), nullable=False)
+    asset_kind: Mapped[str] = mapped_column(String(32), nullable=False)
+    suggested_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    expected_sha256: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    max_bytes: Mapped[int] = mapped_column(nullable=False)
+    resume_allowed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    resume_offset: Mapped[int] = mapped_column(nullable=False, default=0, server_default="0")
+    temp_name: Mapped[str | None] = mapped_column(String(96), nullable=True)
+    temp_device: Mapped[int | None] = mapped_column(nullable=True)
+    temp_inode: Mapped[int | None] = mapped_column(nullable=True)
+
+
+class SourceCheckFact(Base):
+    __tablename__ = "source_check_facts"
+    __table_args__ = (
+        CheckConstraint("length(detail_hash) = 64", name="ck_source_check_facts_hash"),
+        UniqueConstraint("task_id", name="uq_source_check_facts_task"),
+    )
+
+    task_id: Mapped[int] = mapped_column(
+        ForeignKey("operation_tasks.id", ondelete="CASCADE"), primary_key=True
+    )
+    item_snapshot_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    source_snapshot_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    detail_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    proposed_summary: Mapped[str | None] = mapped_column(Text, nullable=True)
+    proposed_release_date: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    proposed_source_title: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    proposed_checked_at: Mapped[datetime] = mapped_column(UTCDateTime(), nullable=False)
+    proposed_metadata_hash: Mapped[str] = mapped_column(String(96), nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(UTCDateTime(), nullable=False)
+
+
+class DiscoveredAssetFact(Base):
+    __tablename__ = "discovered_asset_facts"
+    __table_args__ = (
+        UniqueConstraint(
+            "task_id", "asset_id", name="uq_discovered_asset_facts_task_asset"
+        ),
+        CheckConstraint(
+            "expected_bytes IS NULL OR expected_bytes > 0",
+            name="ck_discovered_asset_facts_expected_bytes",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    task_id: Mapped[int] = mapped_column(
+        ForeignKey("operation_tasks.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    asset_id: Mapped[str] = mapped_column(String(512), nullable=False)
+    asset_kind: Mapped[str] = mapped_column(String(32), nullable=False)
+    display_name: Mapped[str] = mapped_column(String(500), nullable=False)
+    suggested_filename: Mapped[str] = mapped_column(String(255), nullable=False)
+    mime_type: Mapped[str] = mapped_column(String(128), nullable=False)
+    expected_bytes: Mapped[int | None] = mapped_column(nullable=True)
+    expected_sha256: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    requires_auth: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    resume_supported: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+
+
+class ItemLocalAsset(Base):
+    __tablename__ = "item_local_assets"
+    __table_args__ = (
+        CheckConstraint("size_bytes >= 0", name="ck_item_local_assets_size"),
+        CheckConstraint("length(sha256) = 64", name="ck_item_local_assets_sha256"),
+        UniqueConstraint("relative_path", name="uq_item_local_assets_path"),
+        UniqueConstraint(
+            "item_id", "provider_key", "asset_identity_hash",
+            name="uq_item_local_assets_provider_asset",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    item_id: Mapped[int] = mapped_column(
+        ForeignKey("items.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    source_id: Mapped[int | None] = mapped_column(
+        ForeignKey("item_sources.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    task_id: Mapped[int] = mapped_column(
+        ForeignKey("operation_tasks.id", ondelete="RESTRICT"), nullable=False, unique=True
+    )
+    provider_key: Mapped[str] = mapped_column(String(64), nullable=False)
+    asset_identity_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    relative_path: Mapped[str] = mapped_column(String(500), nullable=False)
+    mime_type: Mapped[str] = mapped_column(String(128), nullable=False)
+    size_bytes: Mapped[int] = mapped_column(nullable=False)
+    sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        UTCDateTime(), nullable=False, default=lambda: datetime.now(timezone.utc)
+    )
+
+
 class Item(Base):
     __tablename__ = "items"
 

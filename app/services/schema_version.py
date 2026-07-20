@@ -9,7 +9,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from app.database import Base
 
-CURRENT_SCHEMA_VERSION = 4
+CURRENT_SCHEMA_VERSION = 5
 BASELINE_MIGRATION_NAME = "baseline"
 SCHEMA_MIGRATIONS_TABLE = "schema_migrations"
 SCHEMA_STATUS_CURRENT = "current"
@@ -135,6 +135,57 @@ def _structure_problems(bind: Engine) -> tuple[str, ...]:
             predicate = predicate.replace('"', "").replace("`", "")
             if predicate != "provider_keyisnotnullandexternal_idisnotnull":
                 problems.append("invalid provider identity partial predicate")
+    if "operation_tasks" in table_names:
+        task_checks = {
+            constraint.get("name")
+            for constraint in inspector.get_check_constraints("operation_tasks")
+        }
+        if not {
+            "ck_operation_tasks_type",
+            "ck_operation_tasks_state",
+            "ck_operation_tasks_version",
+            "ck_operation_tasks_attempts",
+            "ck_operation_tasks_bytes",
+        }.issubset(task_checks):
+            problems.append("invalid operation task check constraints")
+        task_unique = {
+            tuple(constraint.get("column_names") or ())
+            for constraint in inspector.get_unique_constraints("operation_tasks")
+        }
+        if ("intent_key",) not in task_unique:
+            problems.append("missing operation task intent uniqueness")
+        task_foreign_keys = {
+            (
+                tuple(foreign_key.get("constrained_columns") or ()),
+                foreign_key.get("referred_table"),
+                str((foreign_key.get("options") or {}).get("ondelete", "")).upper(),
+            )
+            for foreign_key in inspector.get_foreign_keys("operation_tasks")
+        }
+        for expected in (
+            (("item_id",), "items", "SET NULL"),
+            (("source_id",), "item_sources", "SET NULL"),
+        ):
+            if expected not in task_foreign_keys:
+                problems.append(f"invalid operation task foreign key {expected[0][0]}")
+    if "task_events" in table_names:
+        event_unique = {
+            tuple(constraint.get("column_names") or ())
+            for constraint in inspector.get_unique_constraints("task_events")
+        }
+        if ("task_id", "version") not in event_unique:
+            problems.append("missing task event version uniqueness")
+    if "item_local_assets" in table_names:
+        asset_unique = {
+            tuple(constraint.get("column_names") or ())
+            for constraint in inspector.get_unique_constraints("item_local_assets")
+        }
+        for expected in (
+            ("relative_path",),
+            ("item_id", "provider_key", "asset_identity_hash"),
+        ):
+            if expected not in asset_unique:
+                problems.append("missing local asset uniqueness")
     return tuple(problems)
 
 
