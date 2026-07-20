@@ -68,10 +68,11 @@ def test_formal_release_documentation_state_is_explicit() -> None:
         assert "Production catalogs = empty" in text
 
 
-def test_changelog_archives_v1_2_0_after_an_empty_unreleased_section() -> None:
+def test_changelog_archives_v1_2_0_after_phase6_unreleased_notes() -> None:
     changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
     assert changelog.startswith(
         "# Changelog / 变更记录\n\n"
         "## Unreleased\n\n"
-        "## [1.2.0] - 2026-07-20\n"
+        "### Added\n"
     )
+    assert "## [1.2.0] - 2026-07-20\n" in changelog

@@ -45,7 +45,7 @@ def test_formal_release_source_search_route_matrix_is_exact() -> None:
 
 def test_readme_records_the_formal_release_without_pending_candidate_copy() -> None:
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
-    assert "Current application version: `1.2.0` (Schema `4`)" in readme
+    assert "Current application version: `1.2.0` (development Schema `5`)" in readme
     assert "Latest stable release: `v1.2.0`" in readme
     assert (
         "https://github.com/choneer/nsfwtrack/releases/tag/v1.2.0"
@@ -62,13 +62,14 @@ def test_readme_records_the_formal_release_without_pending_candidate_copy() -> N
         assert obsolete not in readme
 
 
-def test_changelog_starts_with_empty_unreleased_then_v1_2_0_release() -> None:
+def test_changelog_starts_with_phase6_unreleased_then_v1_2_0_release() -> None:
     changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
     assert changelog.startswith(
         "# Changelog / 变更记录\n\n"
         "## Unreleased\n\n"
-        "## [1.2.0] - 2026-07-20\n"
+        "### Added\n"
     )
+    assert "## [1.2.0] - 2026-07-20\n" in changelog
 
 
 def test_formal_release_document_anchors_are_consistent() -> None:
