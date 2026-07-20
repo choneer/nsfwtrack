@@ -21,8 +21,14 @@
   token 页面 no-store，详情不展示 locator/完整 external ID/敏感相对路径
 - [x] **6.8 Backup/Docker** — Backup v2/v1-v2 restore 不含任务运行事实；临时根位于
   `/app/data` 持久卷且容器继续 non-root/read-only/cap-drop/no-new-privileges
-- [ ] **6.9 完整验证** — focused/full pytest、pip check、diff check、Docker build/
+- [x] **6.9 完整验证** — focused/full pytest、pip check、diff check、Docker build/
   recreate/smoke 与最终 GitHub Actions 全部成功后勾选
+
+本地最终验证：Phase 6 focused/related `148 passed`，完整测试
+`1441 passed in 625.85s`，`pip check` 与 `git diff --check` 通过。隔离 Docker
+build、non-root/read-only/cap-drop/no-new-privileges、Schema 5 fresh start、持久任务
+recreate 后无网络恢复为 paused、SQLite/FK 完整性与空 production catalogs 均通过；
+临时容器、镜像与审计数据已清理，仓库 `data/` 未接触。
 
 ## 当前产品与网络边界检测（一票否决）
 
