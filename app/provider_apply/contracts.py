@@ -20,6 +20,8 @@ PROVIDER_APPLY_PLAN_FORMAT = "nsfwtrack.provider-apply-plan"
 PROVIDER_APPLY_PLAN_VERSION = 1
 PROVIDER_APPLY_TOKEN_FORMAT = "nsfwtrack.provider-apply-token"
 PROVIDER_APPLY_TOKEN_VERSION = 1
+PROVIDER_APPLY_RESULT_FORMAT = "nsfwtrack.provider-apply-result"
+PROVIDER_APPLY_RESULT_VERSION = 1
 
 MAX_PROVIDER_APPLY_PLAN_BYTES = 32 * 1024
 MAX_PROVIDER_APPLY_PLAN_DEPTH = 12
@@ -74,6 +76,11 @@ class ProviderApplyAction(str, Enum):
     UPDATE_ITEM = "update_item"
 
 
+class ProviderApplyCommitStatus(str, Enum):
+    COMMITTED = "committed"
+    COMMITTED_VERIFIED_AFTER_EXCEPTION = "committed_verified_after_exception"
+
+
 class ProviderApplyFieldPolicy(str, Enum):
     CREATE_VALUE = "create_value"
     FILL_BLANK = "fill_blank"
@@ -100,6 +107,9 @@ class ProviderApplyErrorCode(str, Enum):
     TOKEN_EXPIRED = "token_expired"
     NOTHING_TO_APPLY = "nothing_to_apply"
     STALE_PLAN = "stale_plan"
+    WRITE_CONFLICT = "write_conflict"
+    WRITE_FAILED = "write_failed"
+    COMMIT_STATE_UNKNOWN = "commit_state_unknown"
     UNKNOWN = "unknown"
 
 
@@ -127,6 +137,50 @@ class _RedactedValue:
 
     def __repr__(self) -> str:
         return f"{type(self).__name__}()"
+
+
+@dataclass(frozen=True, slots=True, repr=False)
+class ProviderApplyResult(_RedactedValue):
+    format: str
+    version: int
+    action: ProviderApplyAction
+    item_id: int
+    source_id: int
+    written_fields: tuple[str, ...]
+    commit_status: ProviderApplyCommitStatus
+
+    def __post_init__(self) -> None:
+        if self.format != PROVIDER_APPLY_RESULT_FORMAT:
+            raise ValueError("format is invalid")
+        if type(self.version) is not int or self.version != PROVIDER_APPLY_RESULT_VERSION:
+            raise ValueError("version is invalid")
+        if type(self.action) is not ProviderApplyAction:
+            raise TypeError("action must be ProviderApplyAction")
+        if type(self.item_id) is not int or self.item_id < 1:
+            raise ValueError("item_id must be a positive integer")
+        if type(self.source_id) is not int or self.source_id < 1:
+            raise ValueError("source_id must be a positive integer")
+        if type(self.written_fields) is not tuple or not self.written_fields:
+            raise TypeError("written_fields must be a non-empty exact tuple")
+        if not all(type(value) is str for value in self.written_fields):
+            raise TypeError("written_fields must contain strings")
+        field_order = (
+            CREATE_FIELD_NAMES
+            if self.action is ProviderApplyAction.CREATE_ITEM
+            else UPDATE_FIELD_NAMES
+        )
+        allowed = set(field_order)
+        if self.action is ProviderApplyAction.UPDATE_ITEM:
+            allowed.remove("item.title")
+        if (
+            len(self.written_fields) != len(set(self.written_fields))
+            or any(value not in allowed for value in self.written_fields)
+            or self.written_fields
+            != tuple(value for value in field_order if value in self.written_fields)
+        ):
+            raise ValueError("written_fields are invalid or out of order")
+        if type(self.commit_status) is not ProviderApplyCommitStatus:
+            raise TypeError("commit_status must be ProviderApplyCommitStatus")
 
 
 def _optional_text(
@@ -599,15 +653,19 @@ __all__ = [
     "MIN_PROVIDER_APPLY_SECRET_BYTES",
     "PROVIDER_APPLY_PLAN_FORMAT",
     "PROVIDER_APPLY_PLAN_VERSION",
+    "PROVIDER_APPLY_RESULT_FORMAT",
+    "PROVIDER_APPLY_RESULT_VERSION",
     "PROVIDER_APPLY_TOKEN_FORMAT",
     "PROVIDER_APPLY_TOKEN_VERSION",
     "UPDATE_FIELD_NAMES",
     "ProviderApplyAction",
+    "ProviderApplyCommitStatus",
     "ProviderApplyError",
     "ProviderApplyErrorCode",
     "ProviderApplyFieldChange",
     "ProviderApplyFieldPolicy",
     "ProviderApplyItemSnapshot",
     "ProviderApplyPlan",
+    "ProviderApplyResult",
     "ProviderApplySourceSnapshot",
 ]

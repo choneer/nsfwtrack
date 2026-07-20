@@ -2,6 +2,33 @@
 
 ## Unreleased
 
+### Added
+
+- Added Phase 5-N5C-B1 `apply_provider_apply_token`, a pure service-layer entry
+  that verifies the existing purpose-bound Signed Token before any database or
+  external action, rejects pending/existing Session state, and acquires SQLite
+  `BEGIN IMMEDIATE` before every stale-state SELECT or business write.
+- Added exact locked revalidation for Provider identity, normalized URL, linked
+  Item, source tracking, local Item fields, and bounded duplicate-title IDs.
+  Create writes exactly one Item and ItemSource without title linking; update
+  writes only approved `will_write=True` summary, release-date, check-time, and
+  metadata-hash fields while preserving title, media fields, source identity,
+  source URL/title, and relationships.
+- Added transaction post-state verification and mandatory independent-Session
+  durable-state proof even after a normal commit. Exception paths prove exact
+  post-state before pre-state and return only `committed_verified_after_exception`,
+  `write_conflict`, `write_failed`, or `commit_state_unknown` as justified by
+  state facts; exception type and commit return values are never sufficient.
+- Added frozen/slotted redacted Provider apply results with fixed format/version,
+  exact ordered non-empty written fields, positive Item/Source IDs, and bounded
+  commit status. Successful create and update tokens are replay-rejected as
+  `stale_plan` without a second write.
+- Added 47 focused N5C-B1 tests covering token-first behavior, write-lock order,
+  create/update/replay, the stale matrix, field/SQL boundaries, flush/commit/
+  rollback and verification failures, final-state classification, redaction,
+  and zero Provider/Outbound/network/file side effects. The specified N4D/N5A/
+  N5B/N5C regression set passes 287 tests and the full suite passes 1352 tests.
+
 ### Fixed
 
 - Hardened Phase 5-N5C-A source planning after cloud review: Provider identity and
@@ -17,7 +44,7 @@
   stable redacted failures.
 - Added 14 corrective tests. N5C-A focused now passes 73 tests, the specified
   N4D/N5A/N5B/N5C-A regression set passes 240 tests, and the full suite passes
-  1305 tests. N5C-B remains unimplemented.
+  1305 tests. At that corrective checkpoint N5C-B remained unimplemented.
 
 - Fixed the N4D-B merge-plan gap where a valid non-empty `VideoRating` was rejected
   as an unsupported merge snapshot value. The corrective allowlist is explicit and
@@ -25,8 +52,6 @@
 - Added the rating merge state matrix for local/user/provider ownership, same-provider
   updates, priority selection, equal-priority conflicts, equal values, determinism,
   and immutable-input boundaries. All other N4D-B and release boundaries remain unchanged.
-
-### Added
 
 - Added Phase 5-N5C-A immutable Provider Apply Plan contracts and a read-only
   builder for create/update projections. The builder uses only four bounded

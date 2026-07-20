@@ -421,18 +421,62 @@
 - [x] **5.N5C-A-C3. Nested envelope revalidation** — URL/DB 前是否重建 exact
   Provider/Request/Detail 及 nested DTO，验证合法 operation tuple、DETAIL authority、
   Provider key 和 external ID；篡改是否稳定脱敏且不查询数据库
-- [x] **5.N5C-A-C4. Scope and gates** — corrective 只改 7 个授权文件；N5C-B 仍未实现，
+- [x] **5.N5C-A-C4. Scope and gates** — corrective 当时只改 7 个授权文件且未实现 N5C-B，
   无 Router/UI/生产 DB 写入、Provider/Outbound 调用；focused `73 passed`、组合 `240
   passed`、full `1305 passed`、`pip check` 与 `git diff --check` 全部通过
 
-### Phase 5-N5C-B 强制合同（未实现）
+### Phase 5-N5C-B1 Transactional Provider Apply Service（已完成）
 
-- [ ] **5.N5C-B.1. State revalidation** — 验签后是否不调用 Provider，重读四类数据库
-  状态并逐项比较 snapshot；任一变化是否稳定 `stale_plan` 且零写入
-- [ ] **5.N5C-B.2. Transaction boundary** — create/update 前置事实是否在同一事务内重验，
-  唯一约束冲突是否完整 rollback，commit 后结果是否 bounded
-- [ ] **5.N5C-B.3. Replay rejection** — 首次成功后同 Token 是否因数据库状态变化失败；
-  是否明确“签名有效不等于状态有效”
+- [x] **5.N5C-B1.1. Token-first** — malformed/expired/wrong secret/wrong context/no-op
+  是否在 DB/BEGIN/Provider/Outbound/文件动作前拒绝；Session pending state 与 invalid
+  verification factory 是否在写锁前拒绝且不替调用方 rollback/commit
+- [x] **5.N5C-B1.2. Write lock ordering** — 实际 SQLite SQL 是否以
+  `BEGIN IMMEDIATE` 开始，所有 identity/URL/Item/duplicate SELECT 与 INSERT/UPDATE
+  是否都位于其后；是否没有无锁 read-then-write fallback
+- [x] **5.N5C-B1.3. Exact stale revalidation** — source 查询是否稳定
+  `ORDER BY id ASC LIMIT 2`，duplicate IDs 是否 `ORDER BY id ASC LIMIT 32`；create 的
+  identity/URL absence 与 update 的 source/Item/tracking/local fields 是否逐项复核
+- [x] **5.N5C-B1.4. Field whitelist** — create 是否只创建一个 Item/ItemSource；update
+  是否只修改 Plan 中 `will_write=True` 的 summary/release_date/check time/hash，且不改
+  title/cover/extra/URL/source title/identity/关系表，不执行 DELETE/DDL 或标题自动绑定
+- [x] **5.N5C-B1.5. Transaction post-check** — flush 后、commit 前是否重新查询 exact
+  expected post-state；post-check mismatch 是否 rollback 后由独立事实分类而非乐观成功
+- [x] **5.N5C-B1.6. Independent durable proof** — commit 正常返回是否仍使用不同 Session、
+  同一 bind、clean lifecycle 的 bounded SELECT 证明 post-state；factory/session/close/
+  state mismatch 是否 fail closed 为 `commit_state_unknown`
+- [x] **5.N5C-B1.7. Exception classification** — flush/commit/rollback 异常后是否先证明
+  post-state，再证明 pre-state；是否只按事实返回 `committed_verified_after_exception`、
+  `write_conflict`、`write_failed`、`commit_state_unknown`，且不泄漏原异常
+- [x] **5.N5C-B1.8. Result and replay** — Result 是否 frozen/slotted/redacted、固定
+  format/version、正 ID 与 exact ordered non-empty `written_fields`；create/update 同
+  Token 重放是否 `stale_plan` 且无第二次写入
+- [x] **5.N5C-B1.9. Scope** — Provider/Outbound/DNS/file/dynamic import 是否为 0；
+  是否无 Router/UI、真实 Provider、Secret/context 自动派生、依赖、Schema、Backup、
+  Docker/Compose/CI、Hermes、Tag/Release/N100 或既有 `data/` 接触
+- [x] **5.N5C-B1.10. Local gates** — focused `47 passed`、指定组合 `287 passed`、full
+  `1352 passed`；Application `1.1.0`、Schema `4`、Backup v2 与空 production catalogs
+  保持。`pip check`、diff/status 在提交前复核，Actions `test`/Docker smoke 在普通推送后
+  作为外部验收等待，不在提交前伪报成功
+
+#### N5C-B1 final-state matrix
+
+| 阶段 | 已证明事实 | 稳定结果 |
+|---|---|---|
+| Token 未通过 | 无 DB/BEGIN/外部动作 | 原 stable token error |
+| 写锁前门禁失败 | 无 DB transaction | `invalid_request` / `nothing_to_apply` |
+| 写锁后 snapshot stale | 仅 bounded SELECT，零业务 mutation | `stale_plan` |
+| flush/写入失败且 exact pre-state 成立 | durable mutation 未发生 | `write_conflict` / `write_failed` |
+| transaction post-check 失败且 exact pre-state 成立 | mutation 已 rollback 且独立证明 | `write_failed` |
+| commit 正常且独立 post-state 成立 | durable exact post-state 已证明 | `committed` |
+| commit 抛异常且独立 post-state 成立 | durable exact post-state 已证明 | `committed_verified_after_exception` |
+| pre/post 都不能独立证明 | final durable state 不可证明 | `commit_state_unknown` |
+
+### Phase 5-N5C-B2 Preview/Confirm UI（未实现）
+
+- [ ] **5.N5C-B2.1. Explicit confirmation** — Preview/Confirm routes、session-bound
+  secret/context、模板、i18n 与用户可见 result 需新的独立 GOAL；B1 不提供页面入口
+- [ ] **5.N5C-B2.2. Preserved boundaries** — GET 零写入、空 production catalogs、无自动
+  Provider 重调/下载/播放/后台任务，且不把签名有效误当成当前数据库状态有效
 
 - [ ] **5.1. Provider 批准与定位** — 每个真实 Provider 是否由用户明确批准，
   核心用途是否符合 NSFW-first 定位，且固定 Host/Endpoint、认证、搜索、详情、

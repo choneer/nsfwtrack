@@ -30,6 +30,55 @@ Permanent boundaries remain unchanged:
 
 ## 2. Current implementation audit
 
+### 2.0G Phase 5-N5C-B1 Transactional Provider Apply Service
+
+`app/provider_apply/transaction.py` exposes the service-only
+`apply_provider_apply_token` entry. It consumes only an existing N5C-A Signed
+Token plus caller-supplied secret, context, time, write Session, and independent
+verification Session factory. Token verification completes before inspecting the
+Session, acquiring a transaction, querying the database, calling a Provider or
+Outbound service, or accessing a file. It does not derive secret/context from an
+environment variable, Request, Session, file, or Registry and exposes no route,
+button, form, template, or JavaScript.
+
+After token verification, the service rejects pending `new/dirty/deleted` state,
+an existing transaction, a no-write Plan, or an invalid verification factory. It
+then executes SQLite `BEGIN IMMEDIATE` before any business SELECT. Under that
+single write transaction it rereads Provider identity and normalized-URL sources
+with `ORDER BY ItemSource.id ASC LIMIT 2`, the linked Item by exact ID, and title
+hints with `ORDER BY Item.id ASC LIMIT 32`. Any changed snapshot fact returns
+`stale_plan` with zero business writes; multi-row or otherwise damaged states fail
+closed as `database_state_invalid`.
+
+Create reproves identity/URL absence and the exact duplicate-title tuple, then
+creates one Item and one ItemSource from the approved Plan projection. It never
+links by title. Update reproves source ID, Item ID, identity, raw and normalized
+URL, tracking values, Item title/summary/release date, and duplicate-title tuple.
+It may change only `will_write=True` Item summary/release date and ItemSource
+last-checked/hash fields. Item title, cover, extra, Source URL/title/identity, and
+all Tag/Creator/Collection/State/Activity/Media relationships remain outside the
+write projection.
+
+After flush and before commit, the same transaction rereads and proves the exact
+expected post-state. A normal `commit()` return is not success by itself: a
+different clean Session on the same bind must prove the durable post-state with
+bounded SELECTs. Flush/commit/post-check exceptions first undergo the same
+independent post-state proof, then exact pre-state proof. The only justified
+outcomes are `committed`, `committed_verified_after_exception`,
+`write_conflict`, `write_failed`, and `commit_state_unknown`; exception text or
+type never substitutes for state facts, except that an Integrity failure selects
+`write_conflict` only after exact pre-state has independently been proven.
+
+`ProviderApplyResult` is frozen, slotted, and redacted with fixed format
+`nsfwtrack.provider-apply-result`, version `1`, action, positive Item/Source IDs,
+the exact ordered non-empty tuple of Plan fields actually written, and a bounded
+commit status. Successful create and update change at least one snapshotted fact,
+so the same Token replay returns `stale_plan` without a second ItemSource or
+tracking write. N5C-B1 performs no Provider, Outbound, DNS, network, file, dynamic
+import, Schema, migration, Backup, dependency, Docker, Compose, or CI expansion.
+N5C-B2 remains responsible for explicit Preview/Confirm routes, session-bound
+secret/context derivation, templates, i18n, and user-visible result handling.
+
 ### 2.0F Phase 5-N5C-A Signed Provider Apply Plan Foundation
 
 `app/provider_apply/` now defines immutable create/update apply plans without
@@ -70,7 +119,7 @@ secret, Cookie, Header, Endpoint, response, or asset locator.
 The plan may represent a no-change update and exposes `has_writes`, defined only
 as `any(field_change.will_write ...)`. Such a plan remains safe to serialize and
 display, but signing and verification both reject it as `nothing_to_apply`;
-N5C-B MUST never accept that token as executable. Create plans, fill-blank updates,
+N5C-B1 never accepts that token as executable. Create plans, fill-blank updates,
 and tracking-only updates must retain at least one write.
 
 Before URL normalization or any database SELECT, the builder reconstructs and
@@ -983,9 +1032,10 @@ purpose-bound HMAC token layer described above, including the bounded-source,
 no-op-token, and nested-envelope corrective gates. It does not expose a route,
 button, form, database write, Provider call, or apply authority.
 
-### N5C-B: confirmed apply revalidation and transaction gate
+### N5C-B1: transactional Provider apply service
 
-N5C-B remains unimplemented and MUST preserve this contract:
+Completed as the service-only transaction gate described above. Its enforced
+contract is:
 
 1. Verify the token without calling the Provider again.
 2. Reread the Provider-identity source, normalized-URL source, linked Item, and
@@ -1006,6 +1056,14 @@ N5C-B remains unimplemented and MUST preserve this contract:
 A valid signature proves only application issuance and token integrity. It is
 not proof that current database state is valid and cannot replace stale-state
 revalidation.
+
+### N5C-B2: explicit Preview/Confirm UI
+
+Not implemented. A future independently authorized GOAL must define authenticated
+Preview/Confirm routes, session-bound secret/context derivation, templates, i18n,
+and user-visible result handling. B2 must consume B1 without re-calling the
+Provider, preserve GET zero-write behavior and the empty production catalogs, and
+must not add download, playback, background work, or real Provider activation.
 
 ### N6: controlled download
 

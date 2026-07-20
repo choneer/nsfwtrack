@@ -1,4 +1,4 @@
-"""Signed, read-only Provider apply-plan foundation."""
+"""Signed Provider apply plans and transactional application service."""
 
 from app.provider_apply.contracts import (
     CREATE_FIELD_NAMES,
@@ -17,16 +17,20 @@ from app.provider_apply.contracts import (
     MIN_PROVIDER_APPLY_SECRET_BYTES,
     PROVIDER_APPLY_PLAN_FORMAT,
     PROVIDER_APPLY_PLAN_VERSION,
+    PROVIDER_APPLY_RESULT_FORMAT,
+    PROVIDER_APPLY_RESULT_VERSION,
     PROVIDER_APPLY_TOKEN_FORMAT,
     PROVIDER_APPLY_TOKEN_VERSION,
     UPDATE_FIELD_NAMES,
     ProviderApplyAction,
+    ProviderApplyCommitStatus,
     ProviderApplyError,
     ProviderApplyErrorCode,
     ProviderApplyFieldChange,
     ProviderApplyFieldPolicy,
     ProviderApplyItemSnapshot,
     ProviderApplyPlan,
+    ProviderApplyResult,
     ProviderApplySourceSnapshot,
 )
 from app.provider_apply.service import (
@@ -37,6 +41,7 @@ from app.provider_apply.service import (
     sign_provider_apply_plan,
     verify_provider_apply_token,
 )
+from app.provider_apply.transaction import apply_provider_apply_token
 
 __all__ = [
     "CREATE_FIELD_NAMES",
@@ -55,17 +60,22 @@ __all__ = [
     "MIN_PROVIDER_APPLY_SECRET_BYTES",
     "PROVIDER_APPLY_PLAN_FORMAT",
     "PROVIDER_APPLY_PLAN_VERSION",
+    "PROVIDER_APPLY_RESULT_FORMAT",
+    "PROVIDER_APPLY_RESULT_VERSION",
     "PROVIDER_APPLY_TOKEN_FORMAT",
     "PROVIDER_APPLY_TOKEN_VERSION",
     "UPDATE_FIELD_NAMES",
     "ProviderApplyAction",
+    "ProviderApplyCommitStatus",
     "ProviderApplyError",
     "ProviderApplyErrorCode",
     "ProviderApplyFieldChange",
     "ProviderApplyFieldPolicy",
     "ProviderApplyItemSnapshot",
     "ProviderApplyPlan",
+    "ProviderApplyResult",
     "ProviderApplySourceSnapshot",
+    "apply_provider_apply_token",
     "build_provider_apply_plan",
     "compute_provider_apply_projection_hash",
     "parse_provider_apply_plan",

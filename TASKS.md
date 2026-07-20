@@ -2,7 +2,7 @@
 
 按顺序执行，每完成一项打个 [x]。
 
-## 当前状态（Phase 5-N5C-A Signed Provider Apply Plan Foundation 已完成）
+## 当前状态（Phase 5-N5C-B1 Transactional Provider Apply Service 已完成）
 
 当前稳定版与最新 Release：`v1.1.0`。下一目标版本为 `v1.2.0`，方向为
 首个 NSFW 核心 Provider、搜索与手动入库、受控下载、手动来源检查更新和
@@ -27,7 +27,9 @@ N5A 已实现只接受 validated Video Package 的 Provider-neutral Search Servi
 调用对应 operation 一次。production package tuple 和 Registry 均为空，不加载
 synthetic Provider。N5C-A 已实现只读数据库 snapshot、确定性 apply plan、canonical
 serialization 与 purpose-bound HMAC token，全程零数据库写入和零 Provider/Outbound；
-N5C-B 的 stale-plan 重验与事务写入仍为独立后续阶段。N4D-D-B/N4E/N4F/N4G
+N5C-B1 已实现 Token-first、`BEGIN IMMEDIATE`、锁内 stale revalidation、有限字段
+写入、事务 post-check、独立 Session 最终状态证明与 replay rejection；N5C-B2 的
+Preview/Confirm route、session-bound secret/context、模板与 i18n 仍为独立后续阶段。N4D-D-B/N4E/N4F/N4G
 分别等待完整 Provider Approval。
 
 ### Phase 5-P1 / P2 至 R2 路线
@@ -374,16 +376,35 @@ N5C-B 的 stale-plan 重验与事务写入仍为独立后续阶段。N4D-D-B/N4E
   600/900 秒 TTL、恒定时间比较；Token 可解码且不提供加密或保密
 - [x] focused `59 passed`、N4D/N5A/N5B/N5C-A `226 passed`、full `1291 passed`
 
-#### Phase 5-N5C-B - Confirmed apply revalidation and transaction gate
+#### Phase 5-N5C-B1 - Transactional Provider Apply Service
 
-- [ ] 验证 Token 后不重新调用 Provider；重读 identity source、URL source、linked Item
-  与 duplicate-title IDs，并与 snapshot 逐项比较，任一变化 `stale_plan`、零写入
-- [ ] create 再确认 identity/URL 均不存在；update 再确认 source/Item 精确一致；
-  签名有效不得替代数据库状态有效性判断
-- [ ] 单一事务完成有限写入，唯一约束冲突完整 rollback，commit 后返回 bounded
-  result；Token 重放必须因已变化的数据库状态失败
-- [ ] N5C-B 不自动覆盖 title、不静默合并/清空、不创建 Tag/Creator/Collection/State，
-  不触发 Provider、Asset、播放、下载或后台操作，除非后续 GOAL 明确授权
+- [x] 生产入口只消费 Signed Token；Token 验证发生在 Session/DB/BEGIN/Provider/
+  Outbound/文件动作前，no-op、invalid Session 与 invalid factory 在事务前拒绝
+- [x] 使用 SQLite `BEGIN IMMEDIATE`，且 identity source、normalized URL source、
+  linked Item 与 duplicate-title IDs 的所有 stale 查询均在写锁后、写入前完成
+- [x] create 再证明 identity/URL 不存在且 duplicate tuple 未变，不按标题关联；
+  update 再证明 source ID/item ID/identity/URL/tracking/Item/duplicate tuple 精确一致
+- [x] create 只写一个 Item 与 ItemSource；update 只写 `will_write=True` 的 summary、
+  release_date、last_checked_at、metadata_hash，不修改 title/cover/extra/URL/identity/关系
+- [x] flush 后、commit 前证明 exact transaction post-state；commit 正常返回后仍由
+  独立 Session 证明 durable post-state，verification factory/session 失败即 unknown
+- [x] 异常后先独立证明 post-state，再证明 exact pre-state，稳定分类为
+  `committed_verified_after_exception`、`write_conflict`、`write_failed` 或
+  `commit_state_unknown`；异常类型不替代状态事实
+- [x] create/update 成功后同 Token 重放均为 `stale_plan`，不产生第二个 ItemSource
+- [x] frozen/slotted/redacted `ProviderApplyResult` 固定 format/version、action、IDs、
+  exact ordered `written_fields` 与 commit status；无 Token/Secret/context/URL/title/SQL
+- [x] 不调用 Provider/Outbound/DNS/文件/dynamic import，不新增 Router、页面、真实
+  Provider、依赖、Schema、Migration、Backup、Docker、Compose 或 CI
+- [x] focused `47 passed`、指定 N4D/N5A/N5B/N5C 组合 `287 passed`、full
+  `1352 passed`；提交前继续执行 `pip check`、diff/status 与版本/空 catalog 复核
+
+#### Phase 5-N5C-B2 - Preview/Confirm UI and session-bound context
+
+- [ ] 新增显式 Preview/Confirm routes、session-bound secret/context 派生、模板、i18n
+  与用户可见 result；B1 服务不得自行从环境、Request 或 Session 推导这些值
+- [ ] 保持 GET 零写入、生产 Provider/Search catalog 空、无自动 Provider 重调、下载、
+  播放、后台任务或真实 Provider 激活；需要新的独立 GOAL 明确授权
 
 #### Phase 5-N6 - 用户确认的受控下载
 

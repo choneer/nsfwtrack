@@ -201,15 +201,30 @@ bounded TTL, context binding, and constant-time verification. They are decodable
 integrity tokens, not encryption. N5C-A adds no route, UI, DB write, Provider
 call, network, Schema, dependency, or production activation.
 
-### N5C-B - confirmed apply revalidation and transaction gate
+### N5C-B1 - transactional Provider apply service
 
-Not implemented. After token verification it must perform no Provider call,
-reread identity source, URL source, linked Item and duplicate-title IDs, and
-compare every snapshot field. Any change returns `stale_plan` with zero writes.
-Create must reprove identity/URL absence; update must reprove exact source/Item
-state. The bounded write is one transaction, uniqueness conflicts fully roll
-back, and replay after success fails because state changed. Signature validity
-never substitutes for current-state validity.
+Completed as a pure service layer. It verifies the existing purpose-bound Token
+before any database or external action, rejects caller Session state, then uses
+SQLite `BEGIN IMMEDIATE` before bounded identity source, normalized-URL source,
+linked Item, and duplicate-title queries. Create reproves absence and writes one
+Item/ItemSource without title linking. Update reproves exact source/Item state and
+may write only approved summary, release-date, check-time, and metadata-hash
+fields.
+
+Flush is followed by an in-transaction exact post-check. A normal commit still
+requires an independent Session to prove durable post-state. Exceptions are
+classified only after independent post-state then pre-state proof as committed
+after exception, write conflict, write failure, or unknown. Successful Token
+replay is `stale_plan`. B1 adds no route, UI, Provider call, network, file access,
+Schema, dependency, background task, Docker, Compose, or CI change.
+
+### N5C-B2 - explicit Preview/Confirm UI
+
+Not implemented. It requires a separate GOAL for authenticated Preview/Confirm
+routes, session-bound secret/context derivation, template/i18n integration, and
+user-visible results. It must consume B1 without re-calling the Provider and keep
+GET zero-write, production catalogs empty, and download/playback/background work
+outside this phase.
 
 ### N6 - controlled asset save and download tasks
 
@@ -256,7 +271,7 @@ Every real phase must prove:
    success, and invalidate derived state where a later local mutation requires
    it.
 
-## 6. Invariants preserved through N5C-A
+## 6. Invariants preserved through N5C-B1
 
 - Application version: `1.1.0`.
 - Schema: `4`.
