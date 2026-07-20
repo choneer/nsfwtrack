@@ -410,6 +410,21 @@
 - [x] **5.N5C-A.9. Gates** — focused `59 passed`、组合 `226 passed`、full
   `1291 passed`，Application `1.1.0`、Schema `4`、Backup v2、空 production catalog 保持
 
+### Phase 5-N5C-A corrective fix（已完成）
+
+- [x] **5.N5C-A-C1. Bounded source queries** — identity 与 normalized URL 两类
+  ItemSource SELECT 是否均有 `ORDER BY id ASC LIMIT 2`；0/1/2 行语义是否稳定，异常多行
+  是否 `database_state_invalid`，且不先加载无界结果
+- [x] **5.N5C-A-C2. No-op token gate** — Plan 是否保留 `has_writes` 只读属性；无变化
+  update 是否可展示/round-trip 但 sign/verify 均返回 `nothing_to_apply`；create、
+  fill_blank、tracking-only update 是否仍可执行 Token
+- [x] **5.N5C-A-C3. Nested envelope revalidation** — URL/DB 前是否重建 exact
+  Provider/Request/Detail 及 nested DTO，验证合法 operation tuple、DETAIL authority、
+  Provider key 和 external ID；篡改是否稳定脱敏且不查询数据库
+- [x] **5.N5C-A-C4. Scope and gates** — corrective 只改 7 个授权文件；N5C-B 仍未实现，
+  无 Router/UI/生产 DB 写入、Provider/Outbound 调用；focused `73 passed`、组合 `240
+  passed`、full `1305 passed`、`pip check` 与 `git diff --check` 全部通过
+
 ### Phase 5-N5C-B 强制合同（未实现）
 
 - [ ] **5.N5C-B.1. State revalidation** — 验签后是否不调用 Provider，重读四类数据库

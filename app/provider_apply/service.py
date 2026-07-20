@@ -7,6 +7,7 @@ import hashlib
 import hmac
 import json
 import re
+from dataclasses import fields
 from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
@@ -49,7 +50,24 @@ from app.services.sources import (
     normalize_source_url,
     validate_source_tracking_metadata,
 )
-from app.source_search import VideoDetailEnvelope
+from app.source_adapters import ProviderOperation
+from app.source_search import (
+    SEARCH_OPERATIONS,
+    SearchProviderDescriptor,
+    VideoDetailEnvelope,
+    VideoDetailRequest,
+)
+from app.video_metadata.contracts import (
+    VideoAsset,
+    VideoDetail,
+    VideoIdentifier,
+    VideoMetadataProvenance,
+    VideoOrganization,
+    VideoPerson,
+    VideoRating,
+    VideoSeries,
+    VideoTag,
+)
 
 
 _TOKEN_PREFIX = "nspap1"
@@ -67,6 +85,10 @@ class _DecodeError(ValueError):
 
 
 class _ResourceLimitError(ValueError):
+    pass
+
+
+class _ContractInvalid(ValueError):
     pass
 
 
@@ -437,16 +459,98 @@ def compute_provider_apply_projection_hash(
     return "v1:sha256:" + hashlib.sha256(payload).hexdigest()
 
 
+_REVALIDATED_CONTRACT_TYPES = frozenset(
+    {
+        SearchProviderDescriptor,
+        VideoDetailRequest,
+        VideoIdentifier,
+        VideoPerson,
+        VideoOrganization,
+        VideoSeries,
+        VideoTag,
+        VideoRating,
+        VideoAsset,
+        VideoMetadataProvenance,
+        VideoDetail,
+    }
+)
+
+
+def _rebuild_contract_value(value: object) -> object:
+    value_type = type(value)
+    if value_type is tuple:
+        return tuple(_rebuild_contract_value(child) for child in value)
+    if value_type not in _REVALIDATED_CONTRACT_TYPES:
+        return value
+    try:
+        values = {
+            field.name: _rebuild_contract_value(getattr(value, field.name))
+            for field in fields(value_type)
+        }
+        return value_type(**values)
+    except (AttributeError, TypeError, ValueError):
+        raise _ContractInvalid from None
+
+
 def _validate_envelope(envelope: object) -> tuple[VideoDetailEnvelope, str]:
     if type(envelope) is not VideoDetailEnvelope:
         _raise(ProviderApplyErrorCode.INVALID_REQUEST)
-    typed = envelope
+    try:
+        raw_provider = envelope.provider
+        raw_request = envelope.request
+        raw_detail = envelope.detail
+        raw_received_at = envelope.received_at
+    except AttributeError:
+        _raise(ProviderApplyErrorCode.INVALID_REQUEST)
     if (
-        typed.provider.provider_key != typed.request.provider_key
-        or typed.detail.provider_key != typed.request.provider_key
-        or typed.detail.external_id != typed.request.external_id
+        type(raw_provider) is not SearchProviderDescriptor
+        or type(raw_request) is not VideoDetailRequest
+        or type(raw_detail) is not VideoDetail
+    ):
+        _raise(ProviderApplyErrorCode.INVALID_REQUEST)
+    try:
+        provider = _rebuild_contract_value(raw_provider)
+        request = _rebuild_contract_value(raw_request)
+    except _ContractInvalid:
+        _raise(ProviderApplyErrorCode.INVALID_REQUEST)
+    if (
+        type(provider) is not SearchProviderDescriptor
+        or type(request) is not VideoDetailRequest
+    ):
+        _raise(ProviderApplyErrorCode.INVALID_REQUEST)
+    operations = provider.operations
+    if (
+        type(operations) is not tuple
+        or not operations
+        or not all(type(operation) is ProviderOperation for operation in operations)
+        or len(operations) != len(set(operations))
+        or any(operation not in SEARCH_OPERATIONS for operation in operations)
+    ):
+        _raise(ProviderApplyErrorCode.INVALID_REQUEST)
+    if ProviderOperation.DETAIL not in operations:
+        _raise(ProviderApplyErrorCode.DETAIL_MISMATCH)
+    if provider.provider_key != request.provider_key:
+        _raise(ProviderApplyErrorCode.DETAIL_MISMATCH)
+    try:
+        detail = _rebuild_contract_value(raw_detail)
+    except _ContractInvalid:
+        _raise(ProviderApplyErrorCode.INVALID_REQUEST)
+    if type(detail) is not VideoDetail:
+        _raise(ProviderApplyErrorCode.INVALID_REQUEST)
+    if (
+        detail.provider_key != request.provider_key
+        or detail.external_id != request.external_id
     ):
         _raise(ProviderApplyErrorCode.DETAIL_MISMATCH)
+    try:
+        typed = VideoDetailEnvelope(
+            provider=provider,
+            request=request,
+            detail=detail,
+            received_at=raw_received_at,
+        )
+    except (AttributeError, TypeError, ValueError):
+        _raise(ProviderApplyErrorCode.INVALID_REQUEST)
     if len(typed.detail.title) > MAX_ITEM_TITLE_LENGTH:
         _raise(ProviderApplyErrorCode.INVALID_REQUEST)
     if typed.detail.summary is not None and len(typed.detail.summary) > MAX_PROVIDER_APPLY_STRING_LENGTH:
@@ -663,14 +767,14 @@ def build_provider_apply_plan(
                 select(ItemSource).where(
                     ItemSource.provider_key == provider_key,
                     ItemSource.external_id == external_id,
-                )
+                ).order_by(ItemSource.id.asc()).limit(2)
             ).all()
         )
         url_sources = tuple(
             db.scalars(
                 select(ItemSource).where(
                     ItemSource.normalized_url == normalized_url
-                )
+                ).order_by(ItemSource.id.asc()).limit(2)
             ).all()
         )
         identity_source = _single_source(identity_sources)
@@ -832,6 +936,10 @@ def sign_provider_apply_plan(
     context_bytes = _validate_context(context)
     issued_at = _utc(now, code=ProviderApplyErrorCode.INVALID_REQUEST)
     ttl = _validate_ttl(ttl_seconds)
+    if type(plan) is not ProviderApplyPlan:
+        _raise(ProviderApplyErrorCode.PLAN_INVALID)
+    if not plan.has_writes:
+        _raise(ProviderApplyErrorCode.NOTHING_TO_APPLY)
     serialize_provider_apply_plan(plan)
     envelope = {
         "format": PROVIDER_APPLY_TOKEN_FORMAT,
@@ -923,13 +1031,16 @@ def verify_provider_apply_token(
 
     try:
         plan_payload = _canonical_json_bytes(token_raw["plan"])
-        return parse_provider_apply_plan(plan_payload)
+        plan = parse_provider_apply_plan(plan_payload)
     except _DecodeError:
         _raise(ProviderApplyErrorCode.TOKEN_INVALID)
     except ProviderApplyError as error:
         if error.code is ProviderApplyErrorCode.PLAN_TOO_LARGE:
             _raise(ProviderApplyErrorCode.TOKEN_TOO_LARGE)
         _raise(ProviderApplyErrorCode.TOKEN_INVALID)
+    if not plan.has_writes:
+        _raise(ProviderApplyErrorCode.NOTHING_TO_APPLY)
+    return plan
 
 
 __all__ = [

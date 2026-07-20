@@ -48,6 +48,11 @@ only `fill_blank`; only source `last_checked_at` and the deterministic apply
 projection hash may refresh. There is no add/add_all/delete/flush/commit/rollback,
 SQL mutation, Provider call, Outbound call, file access, or dynamic import.
 
+The identity-source and normalized-URL source queries are each ordered by
+`ItemSource.id ASC` and limited in SQL to two rows. Zero rows mean absent, one row
+means unique, and two rows fail closed as `database_state_invalid`; the builder
+never loads an unbounded source result to classify corruption.
+
 Plans serialize as bounded canonical Unicode JSON bytes with exact schema,
 nested duplicate-key rejection, strict bool/int handling, non-finite-number
 rejection, resource auditing, and typed parity. The projection hash covers only
@@ -61,6 +66,19 @@ stored as plaintext, a 600-second default TTL, a 900-second maximum TTL, and
 wrong-context, future, and expired values. A token is decodable and supplies
 integrity only; it is neither encryption nor confidentiality and contains no
 secret, Cookie, Header, Endpoint, response, or asset locator.
+
+The plan may represent a no-change update and exposes `has_writes`, defined only
+as `any(field_change.will_write ...)`. Such a plan remains safe to serialize and
+display, but signing and verification both reject it as `nothing_to_apply`;
+N5C-B MUST never accept that token as executable. Create plans, fill-blank updates,
+and tracking-only updates must retain at least one write.
+
+Before URL normalization or any database SELECT, the builder reconstructs and
+validates the exact Provider descriptor, Detail request, Detail DTO, nested video
+metadata DTOs, legal operation tuple, DETAIL authority, Provider identity, and
+external identity. Replaced objects, missing fields, list-valued operations,
+authority removal, and identity mismatch fail with stable redacted errors and do
+not reach the database or network.
 
 ### 2.0E Phase 5-N5B Search/Detail Empty-State and Approved-Provider UI
 
@@ -961,7 +979,8 @@ add import/download authority.
 ### N5C-A: signed Provider apply-plan foundation
 
 Completed as the read-only plan, canonical serialization, projection hash, and
-purpose-bound HMAC token layer described above. It does not expose a route,
+purpose-bound HMAC token layer described above, including the bounded-source,
+no-op-token, and nested-envelope corrective gates. It does not expose a route,
 button, form, database write, Provider call, or apply authority.
 
 ### N5C-B: confirmed apply revalidation and transaction gate
@@ -975,12 +994,14 @@ N5C-B remains unimplemented and MUST preserve this contract:
    `stale_plan` with zero writes.
 4. For create, reprove identity and URL absence. For update, reprove exact
    source/URL/Item identity and local field values.
-5. Perform the bounded write in one transaction. Any uniqueness conflict or
+5. Reject `nothing_to_apply`; every successful apply must produce at least one
+   database change explicitly approved by a `will_write=True` field change.
+6. Perform the bounded write in one transaction. Any uniqueness conflict or
    write failure rolls the entire transaction back.
-6. Return only a bounded committed result after commit succeeds or is safely
+7. Return only a bounded committed result after commit succeeds or is safely
    classified under an explicitly authorized outcome contract.
-7. Replaying a successfully applied token fails because the database state no
-   longer matches its snapshots.
+8. Replaying a successfully applied token fails because the required successful
+   state change makes the exact snapshots stale.
 
 A valid signature proves only application issuance and token integrity. It is
 not proof that current database state is valid and cannot replace stale-state

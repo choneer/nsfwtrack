@@ -17,6 +17,7 @@ import pytest
 from sqlalchemy import event, select
 from sqlalchemy.orm import Session
 
+import app.provider_apply.service as provider_apply_service
 from app.database import SessionLocal, engine
 from app.models import Item, ItemSource
 from app.provider_apply import (
@@ -214,6 +215,57 @@ def _forbidden(*args: object, **kwargs: object) -> None:
     raise AssertionError("forbidden side effect")
 
 
+class _ScalarValues:
+    def __init__(self, values: tuple[object, ...]) -> None:
+        self._values = values
+
+    def all(self) -> tuple[object, ...]:
+        return self._values
+
+
+def _no_change_update_plan() -> ProviderApplyPlan:
+    envelope = _envelope()
+    projection_hash = compute_provider_apply_projection_hash(
+        envelope,
+        normalize_source_url(CANONICAL_URL),
+    )
+    item_id = _seed_item(
+        title="Local title",
+        summary="Local summary",
+        release_date_value="2025-01-02",
+    )
+    _seed_source(
+        item_id=item_id,
+        last_checked_at=envelope.received_at,
+        metadata_hash=projection_hash,
+    )
+    return _build(envelope)
+
+
+def _forge_executable_token(plan: ProviderApplyPlan) -> str:
+    envelope = {
+        "format": PROVIDER_APPLY_TOKEN_FORMAT,
+        "version": PROVIDER_APPLY_TOKEN_VERSION,
+        "issued_at": provider_apply_service._datetime_text(NOW),
+        "expires_at": provider_apply_service._datetime_text(
+            NOW + timedelta(seconds=600)
+        ),
+        "plan": provider_apply_service._plan_raw(plan),
+    }
+    payload = provider_apply_service._canonical_json_bytes(envelope)
+    payload_segment = provider_apply_service._base64url_encode(payload)
+    binding = provider_apply_service._context_binding(SECRET, CONTEXT.encode())
+    signature_segment = provider_apply_service._base64url_encode(
+        binding
+        + provider_apply_service._token_mac(
+            SECRET,
+            binding,
+            payload_segment,
+        )
+    )
+    return f"nspap1.{payload_segment}.{signature_segment}"
+
+
 def test_public_constants_and_enums_are_fixed_and_deny_unsafe_policies() -> None:
     assert PROVIDER_APPLY_PLAN_FORMAT == "nsfwtrack.provider-apply-plan"
     assert PROVIDER_APPLY_PLAN_VERSION == 1
@@ -228,6 +280,7 @@ def test_public_constants_and_enums_are_fixed_and_deny_unsafe_policies() -> None
     policies = {value.value for value in ProviderApplyFieldPolicy}
     assert policies == {"create_value", "fill_blank", "keep_local", "refresh_tracking"}
     assert not policies & {"overwrite_local", "force", "merge_by_title", "silent_update"}
+    assert ProviderApplyErrorCode.NOTHING_TO_APPLY.value == "nothing_to_apply"
 
 
 def test_dtos_are_frozen_slotted_tuple_only_and_repr_is_redacted() -> None:
@@ -334,6 +387,7 @@ def test_create_plan_normalizes_url_and_maps_only_allowed_create_fields() -> Non
     plan = _build(_envelope(canonical_url=raw_url, summary="Unicode 摘要"))
 
     assert plan.action is ProviderApplyAction.CREATE_ITEM
+    assert plan.has_writes
     assert plan.normalized_source_url == (
         "https://provider.invalid/video/~001?name=~value"
     )
@@ -393,6 +447,106 @@ def test_update_plan_requires_exact_source_and_preserves_local_title() -> None:
     assert not changes["item.release_date"].will_write
     assert changes["item_source.last_checked_at"].policy is ProviderApplyFieldPolicy.REFRESH_TRACKING
     assert changes["item_source.metadata_hash"].proposed_value == plan.apply_projection_hash
+    assert plan.has_writes
+
+
+def test_no_change_update_plan_round_trips_but_cannot_be_signed_or_verified(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    plan = _no_change_update_plan()
+
+    assert plan.action is ProviderApplyAction.UPDATE_ITEM
+    assert not plan.has_writes
+    assert not any(change.will_write for change in plan.field_changes)
+    parsed = parse_provider_apply_plan(serialize_provider_apply_plan(plan))
+    assert parsed == plan
+    assert not parsed.has_writes
+    assert _error_code(
+        lambda: sign_provider_apply_plan(
+            plan,
+            secret=SECRET,
+            context=CONTEXT,
+            now=NOW,
+        )
+    ) is ProviderApplyErrorCode.NOTHING_TO_APPLY
+    forged = _forge_executable_token(plan)
+    assert _error_code(
+        lambda: verify_provider_apply_token(
+            forged,
+            secret=SECRET,
+            context=CONTEXT,
+            now=NOW,
+        )
+    ) is ProviderApplyErrorCode.NOTHING_TO_APPLY
+    rendered = f"{ProviderApplyError(ProviderApplyErrorCode.NOTHING_TO_APPLY)!r}"
+    for marker in (
+        "Local title",
+        CANONICAL_URL,
+        EXTERNAL_ID,
+        forged,
+        SECRET.decode(),
+        "sensitive-nothing-marker",
+    ):
+        assert marker not in rendered
+        assert marker not in caplog.text
+
+
+def test_fill_blank_update_plan_still_signs_and_verifies() -> None:
+    item_id = _seed_item(title="Local title", summary=None, release_date_value=None)
+    _seed_source(item_id=item_id, last_checked_at=NOW, metadata_hash=OLD_HASH)
+    plan = _build()
+
+    assert plan.has_writes
+    assert any(
+        change.policy is ProviderApplyFieldPolicy.FILL_BLANK
+        and change.will_write
+        for change in plan.field_changes
+    )
+    token = sign_provider_apply_plan(
+        plan,
+        secret=SECRET,
+        context=CONTEXT,
+        now=NOW,
+    )
+    assert verify_provider_apply_token(
+        token,
+        secret=SECRET,
+        context=CONTEXT,
+        now=NOW,
+    ) == plan
+
+
+def test_tracking_only_update_plan_still_signs_and_verifies() -> None:
+    item_id = _seed_item(
+        title="Local title",
+        summary="Local summary",
+        release_date_value="2025-01-02",
+    )
+    _seed_source(
+        item_id=item_id,
+        last_checked_at=NOW - timedelta(seconds=1),
+        metadata_hash=OLD_HASH,
+    )
+    plan = _build()
+
+    assert plan.has_writes
+    writes = tuple(change.field_name for change in plan.field_changes if change.will_write)
+    assert writes == (
+        "item_source.last_checked_at",
+        "item_source.metadata_hash",
+    )
+    token = sign_provider_apply_plan(
+        plan,
+        secret=SECRET,
+        context=CONTEXT,
+        now=NOW,
+    )
+    assert verify_provider_apply_token(
+        token,
+        secret=SECRET,
+        context=CONTEXT,
+        now=NOW,
+    ) == plan
 
 
 @pytest.mark.parametrize("local_summary", ["Local summary", " "])
@@ -504,6 +658,61 @@ def test_envelope_identity_is_explicitly_revalidated() -> None:
     assert _error_code(lambda: _build(envelope)) is ProviderApplyErrorCode.DETAIL_MISMATCH
 
 
+@pytest.mark.parametrize(
+    "mutation,expected",
+    [
+        (lambda envelope, marker: object.__setattr__(envelope, "provider", marker), ProviderApplyErrorCode.INVALID_REQUEST),
+        (lambda envelope, marker: object.__setattr__(envelope, "request", marker), ProviderApplyErrorCode.INVALID_REQUEST),
+        (lambda envelope, marker: object.__setattr__(envelope, "detail", marker), ProviderApplyErrorCode.INVALID_REQUEST),
+        (lambda envelope, marker: object.__setattr__(envelope.provider, "operations", [ProviderOperation.DETAIL]), ProviderApplyErrorCode.INVALID_REQUEST),
+        (lambda envelope, marker: object.__setattr__(envelope.provider, "operations", (ProviderOperation.SEARCH,)), ProviderApplyErrorCode.DETAIL_MISMATCH),
+        (lambda envelope, marker: object.__setattr__(envelope.provider, "provider_key", "fixture_other"), ProviderApplyErrorCode.DETAIL_MISMATCH),
+        (lambda envelope, marker: object.__setattr__(envelope.request, "external_id", "video-other"), ProviderApplyErrorCode.DETAIL_MISMATCH),
+    ],
+)
+def test_nested_envelope_type_authority_and_identity_fail_before_url_or_database(
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+    mutation: Any,
+    expected: ProviderApplyErrorCode,
+) -> None:
+    marker_text = "tampered-envelope-marker"
+
+    class Marker:
+        def __repr__(self) -> str:
+            return marker_text
+
+    envelope = _envelope()
+    mutation(envelope, Marker())
+    with SessionLocal() as db:
+        monkeypatch.setattr(db, "scalars", _forbidden)
+        monkeypatch.setattr(db, "execute", _forbidden)
+        monkeypatch.setattr(provider_apply_service, "normalize_source_url", _forbidden)
+        monkeypatch.setattr(OutboundHttpClient, "__init__", _forbidden)
+        monkeypatch.setattr(ProviderSearchService, "search", _forbidden)
+        monkeypatch.setattr(ProviderSearchService, "detail", _forbidden)
+        monkeypatch.setattr(ProviderSearchService, "asset_list", _forbidden)
+
+        code = _error_code(lambda: build_provider_apply_plan(db, envelope))
+
+    assert code is expected
+    assert marker_text not in caplog.text
+    assert marker_text not in repr(ProviderApplyError(code))
+
+
+def test_missing_nested_field_is_stable_before_url_or_database(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    envelope = _envelope()
+    object.__delattr__(envelope.provider, "operations")
+    with SessionLocal() as db:
+        monkeypatch.setattr(db, "scalars", _forbidden)
+        monkeypatch.setattr(provider_apply_service, "normalize_source_url", _forbidden)
+        assert _error_code(
+            lambda: build_provider_apply_plan(db, envelope)
+        ) is ProviderApplyErrorCode.INVALID_REQUEST
+
+
 def test_item_title_and_plan_string_bounds_are_enforced() -> None:
     assert _error_code(lambda: _build(_envelope(title="x" * 256))) is (
         ProviderApplyErrorCode.INVALID_REQUEST
@@ -571,6 +780,83 @@ def test_builder_executes_select_only_and_never_calls_session_mutators(
     assert statements
     assert len(statements) == (3 if create else 4)
     assert all(statement.lstrip().upper().startswith("SELECT") for statement in statements)
+    assert _database_snapshot() == before
+
+
+def test_identity_and_url_selects_use_stable_order_and_sql_limit_two(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    rendered: list[str] = []
+    with SessionLocal() as db:
+        original_scalars = db.scalars
+
+        def recording(statement: object, *args: object, **kwargs: object) -> object:
+            rendered.append(
+                str(
+                    statement.compile(
+                        dialect=engine.dialect,
+                        compile_kwargs={"literal_binds": True},
+                    )
+                )
+            )
+            return original_scalars(statement, *args, **kwargs)
+
+        monkeypatch.setattr(db, "scalars", recording)
+        plan = build_provider_apply_plan(db, _envelope())
+
+    assert plan.action is ProviderApplyAction.CREATE_ITEM
+    assert len(rendered) == 3
+    for statement in rendered[:2]:
+        normalized = " ".join(statement.upper().split())
+        assert "ORDER BY ITEM_SOURCES.ID ASC" in normalized
+        assert "LIMIT 2" in normalized
+    duplicate = " ".join(rendered[2].upper().split())
+    assert "ORDER BY ITEMS.ID ASC" in duplicate
+    assert f"LIMIT {MAX_PROVIDER_APPLY_DUPLICATE_HINTS}" in duplicate
+
+
+@pytest.mark.parametrize("conflict_query", ["identity", "url"])
+def test_bounded_source_query_two_rows_is_database_state_invalid_without_writes(
+    monkeypatch: pytest.MonkeyPatch,
+    conflict_query: str,
+) -> None:
+    before = _database_snapshot()
+    first = ItemSource(
+        id=1,
+        item_id=1,
+        url=CANONICAL_URL,
+        normalized_url=CANONICAL_URL,
+        provider_key=PROVIDER_KEY,
+        external_id=EXTERNAL_ID,
+    )
+    second = ItemSource(
+        id=2,
+        item_id=2,
+        url=CANONICAL_URL,
+        normalized_url=CANONICAL_URL,
+        provider_key=PROVIDER_KEY,
+        external_id=EXTERNAL_ID,
+    )
+    values = (
+        (_ScalarValues((first, second)), _ScalarValues(()))
+        if conflict_query == "identity"
+        else (_ScalarValues(()), _ScalarValues((first, second)))
+    )
+    with SessionLocal() as db:
+        calls = iter(values)
+
+        def substitute(statement: object, *args: object, **kwargs: object) -> object:
+            del statement, args, kwargs
+            return next(calls)
+
+        with monkeypatch.context() as guarded:
+            guarded.setattr(db, "scalars", substitute)
+            for name in ("add", "add_all", "delete", "flush", "commit", "rollback"):
+                guarded.setattr(db, name, _forbidden)
+            assert _error_code(
+                lambda: build_provider_apply_plan(db, _envelope())
+            ) is ProviderApplyErrorCode.DATABASE_STATE_INVALID
+
     assert _database_snapshot() == before
 
 
@@ -681,6 +967,7 @@ def test_plan_parity_rejects_valid_shape_with_inconsistent_projection() -> None:
 
 def test_token_sign_verify_round_trip_and_default_ttl() -> None:
     plan = _build()
+    assert plan.has_writes
     token = sign_provider_apply_plan(
         plan,
         secret=SECRET,

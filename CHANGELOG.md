@@ -4,6 +4,21 @@
 
 ### Fixed
 
+- Hardened Phase 5-N5C-A source planning after cloud review: Provider identity and
+  normalized-URL ItemSource queries now use stable `ORDER BY id ASC LIMIT 2`,
+  preserving absent/unique/conflict semantics without unbounded result loading.
+- Added the `ProviderApplyPlan.has_writes` no-op gate. A no-change update plan
+  remains serializable for display, but signing and verification both return the
+  stable `nothing_to_apply` error; create, fill-blank, and tracking-only plans
+  remain executable-token eligible.
+- Added complete nested `VideoDetailEnvelope` revalidation before URL handling or
+  database queries: exact Provider/Request/Detail and nested DTOs, legal operation
+  tuple, DETAIL authority, Provider identity, and external identity are checked with
+  stable redacted failures.
+- Added 14 corrective tests. N5C-A focused now passes 73 tests, the specified
+  N4D/N5A/N5B/N5C-A regression set passes 240 tests, and the full suite passes
+  1305 tests. N5C-B remains unimplemented.
+
 - Fixed the N4D-B merge-plan gap where a valid non-empty `VideoRating` was rejected
   as an unsupported merge snapshot value. The corrective allowlist is explicit and
   keeps mutable Mapping/list/set/frozenset and arbitrary-object rejection unchanged.

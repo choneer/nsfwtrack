@@ -98,6 +98,7 @@ class ProviderApplyErrorCode(str, Enum):
     TOKEN_CONTEXT_MISMATCH = "token_context_mismatch"
     TOKEN_NOT_YET_VALID = "token_not_yet_valid"
     TOKEN_EXPIRED = "token_expired"
+    NOTHING_TO_APPLY = "nothing_to_apply"
     STALE_PLAN = "stale_plan"
     UNKNOWN = "unknown"
 
@@ -392,6 +393,10 @@ class ProviderApplyPlan(_RedactedValue):
     received_at: datetime
     source_updated_at: datetime | None
     apply_projection_hash: str
+
+    @property
+    def has_writes(self) -> bool:
+        return any(change.will_write for change in self.field_changes)
 
     def __post_init__(self) -> None:
         if self.format != PROVIDER_APPLY_PLAN_FORMAT:
