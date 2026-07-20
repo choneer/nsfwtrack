@@ -2,10 +2,10 @@
 
 按顺序执行，每完成一项打个 [x]。
 
-## 当前状态（Phase 5-R3 Application 1.2.0 Release Candidate Freeze）
+## 当前状态（Phase 5-R4 v1.2.0 Formal Release）
 
-当前稳定版与最新 Release：`v1.1.0`。当前 release candidate 为 Application
-`1.2.0`，方向为
+当前稳定版与最新 Release：`v1.2.0`。Application `1.2.0`、Schema `4` 与
+Backup v2/v1 restore 已冻结，方向为
 首个 NSFW 核心 Provider、搜索与手动入库、受控下载、手动来源检查更新和
 集成发布。N1 已完成共享 client、固定空 production registry、adapter protocol
 和 immutable DTO；N2 已完成 Schema 4 来源追踪、backup v2 与 v1 restore，
@@ -16,7 +16,7 @@ Registry/Outbound 基础和 test-only Fixture Provider；N4B 已实现 immutable
 Approval model、纯本地一致性 Validator 和 opaque Asset ID 强化，全量
 `965 passed`。N4C 已完成影视元数据、订阅/未来播放与漫画 Provider 静态研究、
 三份 placeholder-only Approval 草案和固定后续路线；没有选择或批准真实来源。
-Application 已更新为 `1.2.0` release candidate、Schema 仍为 `4`，production registry 为空，无真实 Provider、
+Application `1.2.0` 已正式发布、Schema 仍为 `4`，production registry 为空，无真实 Provider、
 Provider 认证、播放、下载或新网络入口。N4D-B 已固定影视元数据 DTO、字段
 provenance、纯函数 merge plan 和 tests-only fixture adapter；N4D-C 已完成
 Provider Package/Evidence/Binding 的 all-or-nothing 离线激活门禁，N4D-D-A 已完成
@@ -462,7 +462,11 @@ Apply 闭环已成立。N4D-D-B/N4E/N4F/N4G
 
 #### Phase 5-R4 - v1.2.0 formal release
 
-- [ ] 尚未发布；仅在 R3 通过且用户单独授权后执行 tag、Release 与发布后验证
+- [x] 归档 CHANGELOG `[1.2.0] - 2026-07-20` 并保留空 `Unreleased`
+- [x] 完成唯一 `Release v1.2.0` 提交及对应 main Actions 门禁
+- [x] 创建指向发布提交的 annotated `v1.2.0` tag 并通过 tag Actions 门禁
+- [x] 创建非 draft、非 prerelease 的正式 GitHub Release 并完成一致性验证
+- [x] Phase 5 唯一一次 Hermes 验收已在 R3 冻结后通过；R4 未再次调用
 - [ ] N100 仍需单独授权，不属于 v1.2.0 发布动作
 
 ### Phase 4-R 发布候选准备
@@ -492,7 +496,7 @@ Apply 闭环已成立。N4D-D-B/N4E/N4F/N4G
 
 - Previous stable annotated tag object：`d4d5c31cd5b2fed9a90ad69742d54b4c9dbed0b4`
 - Previous stable peeled commit：`961a3d0cc169e82b261d83207b0ec802007e292b`
-- Current Release：`https://github.com/choneer/nsfwtrack/releases/tag/v1.1.0`
+- Phase 4 Release（历史）：`https://github.com/choneer/nsfwtrack/releases/tag/v1.1.0`
 
 N100 / 目标主机部署尚未开始，**不是当前开发任务**，必须等待用户明确授权。
 历史审计见 `COMPLETION_AUDIT.md`，当前 Phase 3 证据见

@@ -1126,18 +1126,18 @@ the Provider Approval Template. N4A does not satisfy or bypass that approval.
 This contract and its fixture-only reference name or approve no real Provider,
 host, endpoint, authentication secret, or download source.
 
-## Phase 5-R3 release-candidate status
+## Phase 5 v1.2.0 release status
 
 ```text
 N5C = complete/frozen
 N6/N7 = not implemented
 R1 = PASS
 R2 = skipped
-R3 = Application 1.2.0 release candidate
-Hermes = not called
-Hermes acceptance = pending
-R4 = not released
+R3 = frozen
+Hermes = PASS
+R4 = released
 Production catalogs = empty
+N100 = not deployed
 ```
 
 This status update does not change the contract semantics or grant any Provider,

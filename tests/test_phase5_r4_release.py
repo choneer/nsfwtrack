@@ -1,8 +1,7 @@
-"""Phase 5-R1 static integration-freeze invariants."""
+"""Phase 5-R4 formal-release invariants."""
 
 from __future__ import annotations
 
-import ast
 from pathlib import Path
 
 from app.main import app
@@ -19,7 +18,7 @@ from app.source_search import (
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def test_release_candidate_constants_and_production_catalogs_remain_frozen() -> None:
+def test_formal_release_versions_and_production_catalogs_are_frozen() -> None:
     assert app.version == "1.2.0"
     assert CURRENT_SCHEMA_VERSION == 4
     assert BACKUP_SCHEMA_V1 == "nsfwtrack.backup.v1"
@@ -29,7 +28,7 @@ def test_release_candidate_constants_and_production_catalogs_remain_frozen() -> 
     assert build_production_search_service().list_providers() == ()
 
 
-def test_source_search_route_method_matrix_is_explicit() -> None:
+def test_formal_release_source_search_route_matrix_is_exact() -> None:
     expected = {
         "/source-search": {"GET"},
         "/source-search/search": {"POST"},
@@ -38,33 +37,45 @@ def test_source_search_route_method_matrix_is_explicit() -> None:
     }
     actual: dict[str, set[str]] = {}
     for route in source_search_router.routes:
-        path = getattr(route, "path", None)
-        if path in expected:
-            assert path not in actual
-            actual[path] = set(route.methods or ())
+        if route.path in expected:
+            assert route.path not in actual
+            actual[route.path] = set(route.methods or ())
     assert actual == expected
 
 
-def test_production_modules_do_not_import_test_fixtures() -> None:
-    offenders: list[str] = []
-    for path in sorted((ROOT / "app").rglob("*.py")):
-        tree = ast.parse(path.read_bytes(), filename=str(path))
-        for node in ast.walk(tree):
-            if isinstance(node, ast.Import):
-                modules = tuple(alias.name for alias in node.names)
-            elif isinstance(node, ast.ImportFrom):
-                modules = (node.module or "",)
-            else:
-                continue
-            if any(module == "tests" or module.startswith("tests.") for module in modules):
-                offenders.append(str(path.relative_to(ROOT)))
-    assert offenders == []
+def test_readme_records_the_formal_release_without_pending_candidate_copy() -> None:
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    assert "Current application version: `1.2.0` (Schema `4`)" in readme
+    assert "Latest stable release: `v1.2.0`" in readme
+    assert (
+        "https://github.com/choneer/nsfwtrack/releases/tag/v1.2.0"
+        in readme
+    )
+    assert "Phase 5-R4 formally released" in readme
+    assert "Hermes acceptance: PASS" in readme
+    for obsolete in (
+        "Current release candidate:",
+        "candidate is not tagged or released",
+        "Hermes acceptance is pending",
+        "R4 formal release remains pending",
+    ):
+        assert obsolete not in readme
 
 
-def test_release_documentation_preserves_the_r1_freeze_state() -> None:
+def test_changelog_starts_with_empty_unreleased_then_v1_2_0_release() -> None:
+    changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
+    assert changelog.startswith(
+        "# Changelog / 变更记录\n\n"
+        "## Unreleased\n\n"
+        "## [1.2.0] - 2026-07-20\n"
+    )
+
+
+def test_formal_release_document_anchors_are_consistent() -> None:
     for relative_path in (
         "PLAN.md",
         "REVIEW.md",
+        "PROVIDER_CONTRACT.md",
         "docs/provider-research/provider-roadmap.md",
     ):
         text = (ROOT / relative_path).read_text(encoding="utf-8")
@@ -76,12 +87,4 @@ def test_release_documentation_preserves_the_r1_freeze_state() -> None:
         assert "Hermes = PASS" in text
         assert "R4 = released" in text
         assert "Production catalogs = empty" in text
-
-
-def test_source_search_module_describes_the_complete_web_flow() -> None:
-    path = ROOT / "app/routers/source_search.py"
-    module_docstring = ast.get_docstring(ast.parse(path.read_bytes(), filename=str(path)))
-    assert module_docstring is not None
-    assert "read-only" not in module_docstring.lower()
-    for term in ("Search", "Detail", "Preview", "Confirm"):
-        assert term in module_docstring
+        assert "N100 = not deployed" in text

@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## [1.2.0] - 2026-07-20
+
 ### Added
 
 - Froze the Application `1.2.0` release candidate while retaining `v1.1.0` as

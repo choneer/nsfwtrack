@@ -4,20 +4,18 @@ NSFWTrack is an NSFW-first, local-first, privacy-first, single-user,
 self-hosted application for collecting content, aggregating sources, managing
 local media, tracking state, and supporting personalized discovery.
 
-Current application version: `1.2.0` release candidate (Schema `4`).
+Current application version: `1.2.0` (Schema `4`).
 
-Latest stable release: `v1.1.0`.
+Latest stable release: `v1.2.0`.
 
-Current release candidate: `v1.2.0`.
+Latest Release: [NSFWTrack v1.2.0](https://github.com/choneer/nsfwtrack/releases/tag/v1.2.0).
 
-Latest Release: [NSFWTrack v1.1.0](https://github.com/choneer/nsfwtrack/releases/tag/v1.1.0).
+Current status: `Phase 5-R4 formally released v1.2.0. R1 passed, R2 was
+skipped, R3 froze the candidate, and Hermes acceptance passed. N5C is
+complete/frozen; N6/N7 are not implemented. Production Registry, Search
+Packages, and Search Providers remain empty. N100 is not deployed`.
 
-Current status: `Phase 5-R3 has frozen the Application 1.2.0 release candidate.
-R1 passed and R2 was skipped. N5C is complete/frozen; N6/N7 are not implemented.
-Production Registry, Search Packages, and Search Providers remain empty`.
-
-The R3 candidate is not tagged or released. Hermes acceptance is pending for
-the exact candidate SHA, and R4 formal release remains pending.
+Hermes acceptance: PASS. Phase 5-R4: released. N100: not deployed.
 
 The long-term product baseline is recorded in [PRODUCT_VISION.md](PRODUCT_VISION.md).
 Ordinary all-ages content may remain naturally compatible with the generic
@@ -25,13 +23,13 @@ model, but it is secondary and does not drive Provider selection, the data
 model, or the roadmap. NSFWTrack is not being renamed to MediaTrack and is not
 becoming a general film/television catalog.
 
-The current candidate version is `v1.2.0`. The provider-neutral N1-N5C
+The current stable version is `v1.2.0`. The provider-neutral N1-N5C
 foundation and explicit local Apply flow are complete and frozen. No real
 Provider has been approved or activated. N6 controlled download and N7 manual
 update/hardening are not implemented. A corrective R2 is unnecessary because
-R1 found no blocking defect, so R2 was skipped. R3 owns the Application `1.2.0`
-update and RC freeze. The single Hermes acceptance follows cloud review of the
-exact frozen candidate. R4 formal release has not been published.
+R1 found no blocking defect, so R2 was skipped. R3 froze Application `1.2.0`,
+the single Phase 5 Hermes acceptance passed, and R4 formally published the
+release.
 
 Provider authentication, Provider-specific parsing, controlled downloads,
 local recommendations, optional AI, and visible default-off background sync
@@ -47,13 +45,13 @@ v1. The production Provider Registry remains empty. N2 added no real Provider,
 search UI, Provider credential storage, download, synchronization, tag,
 Release, or N100 deployment.
 
-Hermes has not been called for Phase 5. It remains reserved for one independent
-acceptance only after the R3 release candidate is fully frozen.
+The single Phase 5 Hermes acceptance passed against the frozen R3 candidate;
+R4 did not call Hermes again.
 
 Cloud diff review, Actions run `29586484449`, and Hermes independent acceptance
 all passed on candidate commit
 `b565ef1ca96b2b42315e1ef322c19f9e8ac227ea` without a corrective change before
-the formal `v1.1.0` release.
+the formal [v1.1.0 release](https://github.com/choneer/nsfwtrack/releases/tag/v1.1.0).
 
 Phase 4 release evidence remains archived below and is unchanged by this
 development phase.

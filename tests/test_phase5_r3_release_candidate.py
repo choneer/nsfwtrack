@@ -43,12 +43,13 @@ def test_release_candidate_source_search_route_matrix_is_exact() -> None:
     assert actual == expected
 
 
-def test_release_candidate_documentation_state_is_explicit() -> None:
+def test_formal_release_documentation_state_is_explicit() -> None:
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
-    assert "Latest stable release: `v1.1.0`" in readme
-    assert "Current release candidate: `v1.2.0`" in readme
-    assert "R3 candidate is not tagged or released" in readme
-    assert "Hermes acceptance is pending" in readme
+    assert "Latest stable release: `v1.2.0`" in readme
+    assert "releases/tag/v1.2.0" in readme
+    assert "Current release candidate:" not in readme
+    assert "Hermes acceptance: PASS" in readme
+    assert "Phase 5-R4: released" in readme
 
     for relative_path in (
         "PLAN.md",
@@ -61,13 +62,16 @@ def test_release_candidate_documentation_state_is_explicit() -> None:
         assert "R2 = skipped" in text
         assert "N5C = complete/frozen" in text
         assert "N6/N7 = not implemented" in text
-        assert "R3 = Application 1.2.0 release candidate" in text
-        assert "Hermes = not called" in text
-        assert "R4 = not released" in text
+        assert "R3 = frozen" in text
+        assert "Hermes = PASS" in text
+        assert "R4 = released" in text
         assert "Production catalogs = empty" in text
 
 
-def test_changelog_remains_unreleased_and_has_no_v1_2_0_release_section() -> None:
+def test_changelog_archives_v1_2_0_after_an_empty_unreleased_section() -> None:
     changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
-    assert changelog.startswith("# Changelog / 变更记录\n\n## Unreleased\n")
-    assert "## [1.2.0] -" not in changelog
+    assert changelog.startswith(
+        "# Changelog / 变更记录\n\n"
+        "## Unreleased\n\n"
+        "## [1.2.0] - 2026-07-20\n"
+    )

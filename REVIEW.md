@@ -715,6 +715,96 @@ Production catalogs = empty
 Hermes 尚未调用；只允许在云端复核成功后针对精确 candidate SHA 调用一次。
 R4、Tag/Release 和 N100 均保持 pending/未执行。
 
+## Phase 5-R4 v1.2.0 Formal Release
+
+### 发布基线与状态
+
+- Candidate/base：`1f0b6000cdb417685ecde79b7ab808a47fa63708`；开始时
+  `HEAD == origin/main`，工作区仅 `M GOAL.md` 与未跟踪 `data/`。
+- Application `1.2.0`、Schema `4`、Backup `nsfwtrack.backup.v2`，并保留
+  Backup v1/v2 restore。
+- R1 `PASS`、R2 skipped、R3 candidate frozen；Phase 5 唯一一次 Hermes
+  独立验收已在 R3 后 `PASS`，R4 不再次调用。
+- 发布前门禁确认本地/远端 `v1.2.0` tag 与 GitHub Release 均不存在，专用
+  GitHub token 文件 mode 为 `600` 且 API authentication 有效；token 未输出或
+  写入仓库。
+
+### 发布状态 inventory
+
+更新为当前正式发布状态：
+
+- README 的 Application/latest stable/Latest Release、R4、Hermes、catalogs、
+  N5C/N6/N7/N100 状态。
+- PLAN/TASKS/REVIEW 与 Provider contract/roadmap 的当前 Phase 5 状态块。
+- CHANGELOG 顶部空 `Unreleased` 与 `[1.2.0] - 2026-07-20` 正式归档。
+- 当前文档状态断言：`tests/test_phase5_r1_integration.py` 与
+  `tests/test_phase5_r3_release_candidate.py`；两者均为固定允许文件。
+- 新增 `tests/test_phase5_r4_release.py` 正式发布不变量测试。
+
+必须保留为历史状态：
+
+- Phase 5-R1/R3 当时的 candidate、Hermes pending/not-called 和 R4 pending
+  审计证据。
+- Phase 4/v1.1.0 annotated tag object、peeled commit、Release URL、Actions、
+  测试数量与提交 SHA。
+- 旧版本 Schema/Backup 兼容性说明和 CHANGELOG `[1.1.0]` 及更早章节。
+
+修改前第 7 节动态扫描只命中上述两个固定允许测试文件；修改后新增的固定允许
+R4 测试因负向断言旧 candidate/pending 文案不得出现而匹配同一扫描。动态授权
+测试文件列表仍为空，未修改其他 `tests/*.py`。
+
+### CHANGELOG 与修改边界
+
+- 原 `Unreleased` 的 Added/Fixed/Changed/Security/Documentation 内容完整移动到
+  `[1.2.0] - 2026-07-20`，顶部保留新的空 `Unreleased`；没有重写、重复或
+  丢失 Phase 5 内容，也未修改 `[1.1.0]` 及更早发布章节。
+- R4 不修改 `app/**`、依赖、Docker、Compose、CI、Schema/Migration/Backup
+  implementation、router/template/i18n/auth/security/database 或任何生产逻辑。
+- Production Endpoint Registry、Search Packages、Search Providers 仍全部为空。
+
+### 正式发布范围
+
+Included：controlled outbound/adapter foundation、Schema 4 ItemSource identity/
+check/hash、Backup v2 export 与 v1/v2 restore、Approval/Package/Artifact gates、
+provider-neutral metadata、authenticated Search/Detail、deterministic Apply Plan、
+purpose-bound HMAC Token、Session-bound Preview/Confirm，以及带 Token-first、
+`BEGIN IMMEDIATE`、stale/replay/field ownership/rollback/post-check/independent
+final-state proof 的 transactional local Apply。
+
+Excluded：真实 Provider activation、Provider auth/Vault/Cookie、remote image、
+playback、asset resolve、N6 download、N7 update/sync/recommendation、background
+jobs、cloud sync、AI、multi-user、镜像发布和 N100 deployment。
+
+### 当前正式状态
+
+```text
+Application = 1.2.0
+Latest stable = v1.2.0
+R1 = PASS
+R2 = skipped
+R3 = frozen
+Hermes = PASS
+R4 = released
+N5C = complete/frozen
+N6/N7 = not implemented
+Production catalogs = empty
+N100 = not deployed
+```
+
+### 本地发布门禁
+
+- Focused R1/R3/R4/Release Security：`36 passed`；all Phase 5：`518 passed`；
+  full：`1402 passed`；runtime invariants、`pip check` 与 `git diff --check` 通过。
+- 隔离 production Docker 双生命周期通过：Application `1.2.0`、UID/GID 10001、
+  read-only root、CapDrop ALL/`CapEff=0`、no-new-privileges、`/tmp` tmpfs、隔离
+  `/app/data`、`/login` headers、fresh Schema 4 与 recreate 后 SQLite/media-index
+  persistence 均成立；临时容器、镜像与 `/tmp/nsfwtrack-r4-smoke.*` 已清理。
+- 发布提交 main Actions 成功后才能创建 annotated tag；tag Actions 成功后才能
+  创建非 draft、非 prerelease GitHub Release。实际 SHA、tag object、run ID 与
+  Release URL 由发布后最终报告记录，不 amend 已验证发布提交。
+
+**RELEASE READY — pending commit/tag Actions and GitHub Release**
+
 ## 基础检查
 
 - [ ] **1. git status** — 是否只有本轮任务的变更文件
