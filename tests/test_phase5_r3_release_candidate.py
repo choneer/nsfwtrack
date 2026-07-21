@@ -45,8 +45,8 @@ def test_release_candidate_source_search_route_matrix_is_exact() -> None:
 
 def test_formal_release_documentation_state_is_explicit() -> None:
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
-    assert "Latest stable release: `v1.2.0`" in readme
-    assert "releases/tag/v1.2.0" in readme
+    assert "Latest stable release: `v1.3.0`" in readme
+    assert "releases/tag/v1.3.0" in readme
     assert "Current release candidate:" not in readme
     assert "Hermes acceptance: PASS" in readme
     assert "Phase 5-R4: released" in readme
@@ -68,11 +68,12 @@ def test_formal_release_documentation_state_is_explicit() -> None:
         assert "Production catalogs = empty" in text
 
 
-def test_changelog_archives_v1_2_0_after_phase6_unreleased_notes() -> None:
+def test_changelog_archives_v1_3_0_and_preserves_v1_2_0() -> None:
     changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
     assert changelog.startswith(
         "# Changelog / 变更记录\n\n"
         "## Unreleased\n\n"
+        "## [1.3.0] - 2026-07-21\n\n"
         "### Added\n"
     )
     assert "## [1.2.0] - 2026-07-20\n" in changelog

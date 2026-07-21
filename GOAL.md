@@ -1,45 +1,82 @@
-# Phase 6-R3 — Application 1.3.0 Release Candidate Freeze
+# Phase 6-R4 — Formal Release v1.3.0
 
 ## 1. 阶段目标
 
-Phase 6 功能实现、集中修正和最终一致性审计已经完成。本阶段只进行 `v1.3.0` Release Candidate 冻结，不增加新功能、不重构现有实现、不接入真实 Provider。
-
-执行顺序：
+从已经冻结、云端复核通过且完成唯一一次 Hermes 独立验收的精确候选提交：
 
 ```text
-冻结前基线确认
-→ Application 1.2.0 更新为 1.3.0 release candidate
-→ 精确同步当前版本断言与候选文档
-→ 新增/更新 RC 不变量测试
-→ focused + full + pip + diff 验证
-→ 隔离 Docker 双生命周期验证
-→ 普通线性提交并推送
-→ GitHub Actions 全部成功
-→ 报告精确 candidate SHA 并停止
-→ 外部云端审查
-→ 针对精确 candidate SHA 的唯一一次 Hermes 验收
-→ 另行授权 Phase 6-R4 正式发布
+00dbf1f4ead8411796eb417dd93a1dbeab7e5917
 ```
 
-本阶段不是正式发布，不创建 Tag/Release，不发布镜像，不部署 N100，也不调用 Hermes。
+正式发布 NSFWTrack `v1.3.0`。
 
-## 2. 冻结基线
+本阶段只执行发布状态同步、发布验证、annotated tag 和 GitHub Release，不增加功能、不重构实现、不接入真实 Provider、不发布容器镜像、不部署 N100。
+
+严格顺序：
 
 ```text
-repository: /home/nsfwtrack
-branch: main
-base: 6ec824c123651a000252499f39ac8fc03b5faa31
-latest stable: v1.2.0
-Application: 1.2.0
-Schema: 5
-Backup export: nsfwtrack.backup.v2
-Backup restore: v1/v2
-Production Endpoint Registry: empty
-Production Search Packages: empty
-Production Search Providers: empty
-Production Acquisition Registry: empty
-Phase 6 full test evidence: 1453 passed
-Phase 6 final consistency audit: PASS
+冻结候选再确认
+→ 发布文档与 CHANGELOG 同步
+→ 本地完整验证
+→ 普通 release commit
+→ push main
+→ 精确 release commit 的 main Actions 全部成功
+→ 创建并推送 annotated tag v1.3.0
+→ 精确 tag commit 的 tag Actions 全部成功
+→ 创建非 draft、非 prerelease 的 GitHub Release
+→ 验证 Release、Tag object、peeled commit 与发布提交一致
+→ 最终报告并停止
+```
+
+不得跳步。
+
+---
+
+## 2. 已通过的发布前门禁
+
+```text
+Candidate SHA = 00dbf1f4ead8411796eb417dd93a1dbeab7e5917
+Candidate commit = Freeze v1.3.0 release candidate
+Cloud RC diff review = PASS
+Blocking findings = 0
+Hermes acceptance = PASS
+Application = 1.3.0 release candidate
+Latest stable = v1.2.0
+Schema = 5
+Backup export = nsfwtrack.backup.v2
+Backup restore = v1/v2
+Phase 6 = complete/frozen
+Production Endpoint Registry = empty
+Production Search Packages = empty
+Production Search Providers = empty
+Production Acquisition Registry = empty
+N100 = not deployed
+Published image = none
+```
+
+Hermes 因 SSH 会话寿命未独立完成一次完整 1458 项执行，但：
+
+```text
+Hermes RC invariants = 5 passed
+Hermes Phase 6 focused = 45 passed
+Hermes pip check = passed
+Hermes git diff --check = passed
+Hermes isolated Docker/security/state verification = passed
+Candidate local full pytest = 1458 passed
+Candidate GitHub Actions test job = success
+Candidate GitHub Actions Docker production smoke = success
+```
+
+该偏差已由外部审查记录为非阻塞，不再次调用 Hermes。
+
+---
+
+## 3. 冻结基线
+
+仓库：
+
+```text
+/home/nsfwtrack
 ```
 
 开始前执行：
@@ -50,281 +87,490 @@ git fetch origin main --tags
 git rev-parse HEAD
 git rev-parse origin/main
 git status --short
+git log -1 --oneline
 git tag -l v1.3.0
+git ls-remote --tags origin refs/tags/v1.3.0 refs/tags/v1.3.0^{}
 ```
 
 必须满足：
 
 ```text
-HEAD == origin/main == 6ec824c123651a000252499f39ac8fc03b5faa31
+HEAD == origin/main == 00dbf1f4ead8411796eb417dd93a1dbeab7e5917
+latest commit == Freeze v1.3.0 release candidate
+workspace only == ?? data/
 local v1.3.0 tag does not exist
 remote v1.3.0 tag does not exist
 GitHub v1.3.0 Release does not exist
 ```
 
-开始前工作区只允许：
+若任一条件不满足，停止并报告，不继续发布。
+
+既有目录：
 
 ```text
-?? data/
+/home/nsfwtrack/data/
 ```
 
-放入本 GOAL 后允许：
+不得读取、枚举、进入、复制、修改、移动、删除、格式化、暂存或提交。
 
-```text
-M GOAL.md
-?? data/
+禁止执行：
+
+```bash
+ls data
+find data
+du data
+tree data
+stat data/*
+git add data
 ```
 
-既有 `/home/nsfwtrack/data/` 不得读取、枚举、进入、复制、修改、移动、删除、格式化、暂存或提交。
+所有数据库、媒体和 Docker 验证必须使用新建隔离临时目录或独立 volume。
 
-## 3. 唯一允许的产品变化
-
-将运行时 Application 版本从：
-
-```text
-1.2.0
-```
-
-精确更新为：
-
-```text
-1.3.0
-```
-
-当前已知运行时入口为 `app/main.py` 中 FastAPI metadata。必须先审计仓库内全部当前版本定义和可执行断言，确认不存在第二个运行时版本源。
-
-不得使用全仓库盲目替换。必须逐项分类：
-
-1. 当前候选版本引用，应更新为 `1.3.0`；
-2. 最新稳定版本引用，必须继续为 `v1.2.0`；
-3. 历史发布、历史测试、历史迁移、兼容性和 Actions 证据，必须保持原值；
-4. Schema 仍为 `5`；
-5. Backup 仍为 `nsfwtrack.backup.v2`，restore 仍支持 v1/v2；
-6. production endpoint/package/provider/acquisition catalogs 仍为空。
+---
 
 ## 4. 允许修改范围
 
-只允许为 RC 冻结进行必要、最小、可审计的修改：
+本阶段不修改任何产品功能。
+
+只允许必要的正式发布同步：
 
 ```text
-app/main.py                       # 仅运行时版本 literal
-当前版本相关测试断言
-新增或更新的 v1.3.0 RC invariant tests
-README.md
 CHANGELOG.md
+README.md
 PLAN.md
 TASKS.md
 REVIEW.md
 GOAL.md
-PRODUCT_VISION.md                 # 仅当前状态确有需要时
-PROVIDER_CONTRACT.md              # 仅当前状态确有需要时
-其他明确包含“当前候选/当前版本”事实的发布文档
+当前发布状态相关文档
+当前发布状态相关测试断言
+新增或更新的 v1.3.0 R4 formal-release invariant test
 ```
 
-若发现必须修改其他文件，只有在它确实包含当前运行版本、候选状态或冻结不变量时才允许，并须在最终报告逐项解释。
+`app/main.py` 已经是 `1.3.0`，不得再次修改运行时版本或其他生产代码。
 
-不得：
-
-- 修改 Phase 6 业务逻辑；
-- 修改任务、下载、手动更新、媒体索引或事务实现；
-- 修改 Schema、Migration 或 Backup 格式；
-- 修改依赖、Docker、Compose、CI 行为；
-- 激活 Provider、Package、Endpoint 或 Acquisition registry；
-- 接入真实 Host、真实凭据、真实网络或真实内容来源；
-- 放宽测试、安全、文件系统、Session、事务或并发边界；
-- 删除或改写历史发布证据；
-- amend 已推送提交或 force push。
-
-## 5. 候选状态必须统一
-
-冻结完成后，仓库当前状态必须一致表达为：
+不得修改：
 
 ```text
-Application = 1.3.0 release candidate
-Latest stable release = v1.2.0
+app/** 业务实现
+Schema / Migration
+Backup 实现或格式
+任务、下载、手动更新、媒体索引、事务或安全逻辑
+requirements*
+Dockerfile
+docker-compose*
+.github/workflows/**
+模板、路由、i18n 或配置行为
+生产 Provider / Package / Endpoint / Acquisition registry
+```
+
+若发现必须修改上述禁止范围才能发布，停止并报告。
+
+---
+
+## 5. 正式发布状态
+
+发布完成后，仓库必须一致表达：
+
+```text
+Application = 1.3.0
+Latest stable release = v1.3.0
 Schema = 5
 Backup export = nsfwtrack.backup.v2
 Backup restore = v1/v2
 Phase 6 = complete/frozen
-Final consistency audit = PASS
+Phase 6-R3 = frozen
+Cloud RC diff review = PASS
+Hermes acceptance = PASS
+Phase 6-R4 = released
 Production Endpoint Registry = empty
 Production Search Packages = empty
 Production Search Providers = empty
 Production Acquisition Registry = empty
 Real Provider/Auth/Host/Credential/Content = none
-Hermes = not called in RC freeze
-v1.3.0 Tag = not created
-v1.3.0 Release = not created
 Published image = none
 N100 = not deployed
 ```
 
-不得把 `v1.3.0` 描述为最新稳定版或正式 Release。
+必须保留 v1.2.0、v1.1.0 及更早版本的发布、Tag、迁移兼容性、测试和 Actions 历史证据。
 
-## 6. CHANGELOG 规则
+不得使用全仓库盲目替换。
 
-本阶段保持 `Unreleased`，不得创建正式 `[1.3.0] - YYYY-MM-DD` 发布段，不填写正式发布日期。
+---
 
-`Unreleased` 应准确概括 Phase 6 已冻结的新增能力和安全修正，包括：
+## 6. CHANGELOG 发布规则
 
-- Schema 5 持久任务模型；
-- 受控下载 Preview/Confirm/Start/Pause/Resume/Cancel；
-- owner/generation/expiry/cancel fencing；
-- 原子并发 claim；
-- 安全临时写入、校验、无覆盖发布、关系建立和媒体索引协调；
-- 新 Session durable outcome verification；
-- 手动来源 Check/Diff/逐字段 Confirm/Apply；
-- 双语任务中心；
-- production catalogs 继续为空。
+当前顶部为：
 
-不得改写已发布的 `[1.2.0]`、`[1.1.0]` 或更早章节。
+```text
+## Unreleased
+```
 
-## 7. RC 不变量测试
+将当前 `Unreleased` 中属于 Phase 6 / v1.3.0 的完整内容原样归档到：
 
-新增或更新专门的 v1.3.0 RC 测试，至少证明：
+```text
+## [1.3.0] - 2026-07-21
+```
+
+并在文件顶部重新保留一个新的空：
+
+```text
+## Unreleased
+```
+
+要求：
+
+- 不遗漏 Phase 6 原有条目；
+- 不重复条目；
+- 不改写 `[1.2.0]`、`[1.1.0]` 或更早章节；
+- GitHub Release 正文必须从冻结后的 `[1.3.0]` CHANGELOG 章节生成；
+- Release 正文不得包含新的、未在冻结 CHANGELOG 中记录的功能声明。
+
+---
+
+## 7. 发布不变量测试
+
+新增或更新专门的 Phase 6-R4 正式发布测试，至少证明：
 
 1. FastAPI runtime metadata 精确为 `1.3.0`；
 2. Schema 精确为 `5`；
-3. Backup export 为 v2，restore 兼容 v1/v2；
-4. production endpoint/package/provider/acquisition catalogs 均为空；
-5. tests-only synthetic Adapter 不会进入 production；
-6. Phase 6 的 task/download/manual-update routes 与核心不变量仍存在；
-7. 当前文档不把 `v1.3.0` 声称为已发布或最新稳定；
-8. `v1.2.0` 历史 Release、Tag 和兼容性证据保持；
-9. 不存在真实 Provider、真实 Host、真实凭据或新的生产网络入口；
-10. RC 冻结没有削弱 owner/generation fencing、outcome verification、no-overwrite、Session-bound token 或 GET zero-side-effect 边界。
+3. Backup export 为 v2，restore 接受 v1/v2；
+4. production endpoint/search/acquisition catalogs 全为空；
+5. Phase 6 路由矩阵和安全不变量保持；
+6. README 当前 Application 与 latest stable 均为 `v1.3.0`；
+7. README 指向正式 `v1.3.0` Release；
+8. CHANGELOG 顶部有新的空 `Unreleased`；
+9. `[1.3.0] - 2026-07-21` 章节存在；
+10. `[1.2.0]` 及历史发布章节保持；
+11. 文档不再把当前状态描述为“v1.3.0 candidate 尚未发布”；
+12. R3、云端审查、Hermes PASS 和 R4 released 状态一致；
+13. synthetic adapter 不进入生产模块；
+14. 没有真实 Provider、Host、凭据或新的生产网络入口；
+15. N100 仍未部署，镜像仍未发布。
 
-不得通过删除断言、扩大忽略范围、降低精确性或跳过现有测试来使冻结通过。
+允许同步旧 R3/R4 测试中的“当前文档状态”断言，但不得删除或削弱版本、Schema、Backup、空生产目录、路由或安全断言。
 
-## 8. 验证要求
+---
 
-至少执行：
+## 8. 本地验证
+
+至少运行：
 
 ```bash
-.venv/bin/python -m pytest <v1.3.0 RC focused tests>
+cd /home/nsfwtrack
+
+.venv/bin/python -m pytest tests/test_phase6_r3_release_candidate.py
+.venv/bin/python -m pytest <Phase 6-R4 formal release tests>
 .venv/bin/python -m pytest <Phase 6 task/download/update/security focused set>
 .venv/bin/python -m pytest
 .venv/bin/python -m pip check
 git diff --check
 ```
 
-完整测试不得少于当前基线所包含的测试；若测试总数变化，必须解释新增/删除原因。正常情况下只应新增 RC 不变量测试，不应删除 Phase 6 测试。
+完整测试不得少于候选基线的：
+
+```text
+1458 tests
+```
+
+通常会因新增 R4 invariant test 增加测试数量。不得删除测试、跳过测试或扩大忽略范围。
 
 测试不得访问真实 DNS、真实 Provider、真实站点或既有 `data/`。
 
-## 9. Docker RC 验证
+---
 
-使用全新隔离临时目录或 volume，不得挂载 `/home/nsfwtrack/data/`。
+## 9. 隔离 Docker 验证
+
+使用新建隔离临时目录或独立 Docker volume，不得挂载 `/home/nsfwtrack/data/`。
 
 至少验证：
 
 ```text
-production image build succeeds
-Application reports 1.3.0
-fresh Schema 5
+production image builds
+Application = 1.3.0
+fresh Schema = 5
 /login = 200
 security headers present
 UID/GID = 10001:10001
 read-only root filesystem
-CapDrop ALL / CapEff = 0
+CapDrop ALL
+CapEff = 0
 no-new-privileges
 /tmp tmpfs
 isolated writable /app/data
 production catalogs empty
-no external network operation
+SQLite integrity_check = ok
+foreign_key_check = no violations
 ```
 
 执行双生命周期：
 
-1. 第一次启动创建隔离数据库、任务、测试媒体/关系；
+1. 第一次启动并创建隔离数据库、任务和测试媒体关系；
 2. 停止并 recreate；
-3. 验证 SQLite、Schema 5、任务恢复规则、文件、DB link 和媒体索引仍一致；
-4. 遗留 running 恢复为安全状态，不自动联网；
-5. Application 仍为 `1.3.0`；
-6. 完整清理容器、网络、volume/image 和临时审计目录。
+3. 验证 Schema、SQLite、任务恢复、文件、DB link 和媒体索引一致；
+4. 遗留 running 恢复为 paused 或安全状态；
+5. 不自动执行网络操作；
+6. Application 仍为 `1.3.0`；
+7. 清理本次容器、网络、volume、镜像、凭据和临时目录。
 
-## 10. 提交与推送
+---
 
-目标为一个最小、普通、线性的 RC freeze commit，例如：
+## 10. Release commit
+
+完成文档、测试和本地验证后，创建普通线性发布提交，例如：
 
 ```text
-Freeze v1.3.0 release candidate
+Release v1.3.0
 ```
 
-允许在本地验证前修改；一旦推送，不 amend、不 force push。
+要求：
 
-如 GitHub Actions 因普通 RC 同步缺陷失败，可追加一个普通 corrective commit，但不得修改功能或削弱门禁。最终报告必须列出全部候选提交，并明确最终 candidate SHA。
+- 不 amend 候选提交；
+- 不 force push；
+- 不创建 merge commit；
+- 不包含 `data/`；
+- 发布提交前工作区只能包含本阶段允许修改和 `?? data/`；
+- 提交后工作区只能剩 `?? data/`。
 
-推送后必须等待并验证当前 candidate SHA 对应的：
+普通 push 到 `main`。
+
+记录精确：
+
+```text
+release commit SHA
+```
+
+---
+
+## 11. Main Actions 门禁
+
+push 后必须确认 GitHub Actions run 精确绑定 release commit SHA。
+
+必须同时成功：
 
 ```text
 test = success
 Docker production smoke = success
 ```
 
-不得只根据分支最新状态猜测，必须确认 Actions 绑定精确 candidate SHA。
+不得只根据分支最新状态猜测。
 
-## 11. 停止边界
+若 main Actions 失败：
 
-出现以下情况必须停止并报告：
+- 不创建 Tag；
+- 不创建 Release；
+- 分析失败；
+- 仅可在正式发布范围内创建普通 corrective commit；
+- 不 amend、不 force push；
+- 重新执行本地验证并 push；
+- 以最终通过的提交作为 release commit；
+- 最终报告列出全部发布提交。
 
-1. `HEAD` 或 `origin/main` 不等于基线 SHA；
-2. 工作区除 `GOAL.md` 和既有 `?? data/` 外已有未知改动；
-3. 需要读取或修改既有 `data/`；
-4. 已存在本地/远程 `v1.3.0` Tag 或 GitHub Release；
-5. 发现多个冲突运行时版本源，无法安全确定权威入口；
-6. RC 冻结必须修改业务逻辑、Schema、Backup、依赖、Docker/CI 或安全边界；
-7. 需要真实 Provider、Host、凭据或网络；
-8. 需要 force push、重写历史、移动/删除 Tag/Release；
-9. 测试或 Docker 暴露新的功能级阻塞缺陷，无法在纯冻结范围内修复；
-10. 可能泄露秘密或用户数据。
+只有 main Actions 全部成功后才能创建 Tag。
 
-普通版本断言同步、文档状态矛盾、RC 测试补充和隔离验证问题由 Codex 自行修复，不逐项请求授权。
+---
 
-## 12. 完成条件
+## 12. Annotated Tag
 
-只有同时满足以下条件才可报告 RC freeze 完成：
+在已经通过 main Actions 的最终 release commit 上创建 annotated tag：
+
+```text
+v1.3.0
+```
+
+Tag message：
+
+```text
+NSFWTrack v1.3.0
+```
+
+必须是 annotated tag，不得是 lightweight tag。
+
+推送 Tag 后记录：
+
+```text
+annotated tag object SHA
+peeled commit SHA
+```
+
+必须确认：
+
+```text
+peeled commit SHA == final release commit SHA
+```
+
+不得移动、删除或重建已推送 Tag。
+
+---
+
+## 13. Tag Actions 门禁
+
+推送 `v1.3.0` 后，必须等待并确认该 Tag 对应的 GitHub Actions：
+
+```text
+test = success
+Docker production smoke = success
+```
+
+必须确认 Tag run 实际 checkout 的 peeled release commit。
+
+若 Tag Actions 失败：
+
+- 不创建 GitHub Release；
+- 不移动或删除 Tag；
+- 停止并报告；
+- 不擅自创建修复提交后移动 Tag。
+
+只有 Tag Actions 全部成功后才能创建 GitHub Release。
+
+---
+
+## 14. GitHub Release
+
+Tag Actions 全部成功后，创建：
+
+```text
+Tag: v1.3.0
+Title: NSFWTrack v1.3.0
+Draft: false
+Prerelease: false
+```
+
+Release 正文来源：
+
+```text
+CHANGELOG.md 中冻结的 [1.3.0] - 2026-07-21 章节
+```
+
+不得：
+
+- 自动生成未经审查的额外功能声明；
+- 上传二进制或容器镜像；
+- 修改 Tag；
+- 将 Release 标记为 prerelease；
+- 再次调用 Hermes；
+- 部署 N100。
+
+创建后验证：
+
+```text
+Release exists
+Release tag_name = v1.3.0
+Release target resolves to final release commit
+draft = false
+prerelease = false
+Release body matches frozen CHANGELOG section
+```
+
+记录：
+
+```text
+GitHub Release ID
+Release URL
+```
+
+---
+
+## 15. 凭据安全
+
+使用现有、已批准的 GitHub 发布凭据方式。
+
+若使用 token 文件：
+
+- 文件权限必须为 `600`；
+- 只在受控子进程中读取；
+- 不打印、不复制、不写入仓库；
+- 不写入 shell history、日志、报告或临时明文文件；
+- 使用后清理本阶段创建的临时凭据文件。
+
+若安全凭据不可用，停止并报告，不尝试绕过。
+
+---
+
+## 16. 禁止事项
+
+本阶段不得：
+
+```text
+修改产品功能
+修改 Schema/Migration/Backup
+修改依赖、Docker、Compose 或 CI 行为
+启用真实 Provider/Auth/Host/Credential/Content
+访问真实内容来源
+调用 Hermes
+发布容器镜像
+部署 N100
+读取或修改既有 data/
+amend
+force push
+创建 merge commit
+在 main Actions 成功前创建 Tag
+在 tag Actions 成功前创建 Release
+移动或删除已推送 Tag
+```
+
+---
+
+## 17. 完成条件
+
+只有全部满足才可报告正式发布完成：
 
 ```text
 Application = 1.3.0
-Latest stable = v1.2.0
+Latest stable = v1.3.0
 Schema = 5
 Backup = v2 / restore v1-v2
-Phase 6 scope frozen
+Phase 6 = complete/frozen
+Cloud RC review = PASS
+Hermes acceptance = PASS
+R4 = released
+Full pytest passed
+pip check passed
+git diff --check passed
+Docker double-lifecycle passed
+main Actions test passed
+main Actions Docker production smoke passed
+annotated tag v1.3.0 exists
+tag peeled commit == final release commit
+tag Actions test passed
+tag Actions Docker production smoke passed
+GitHub Release exists
+Release is non-draft and non-prerelease
+Release body matches frozen CHANGELOG
 Production catalogs empty
-Focused tests pass
-Full pytest pass
-pip check pass
-git diff --check pass
-Docker double-lifecycle pass
-GitHub Actions test pass
-GitHub Actions Docker production smoke pass
-No v1.3.0 tag
-No v1.3.0 Release
+No real Provider/Auth/Host/Credential/Content
 No published image
 No N100 deployment
-No Hermes call
 Workspace only ?? data/
 data/ not accessed
 ```
 
-## 13. 最终报告
+---
 
-报告必须包含：
+## 18. 最终报告
 
-- 起始 SHA 与最终 candidate SHA；
-- 所有 RC freeze/corrective commit；
-- 实际修改文件及每个文件的理由；
-- 运行时版本入口审计结果；
-- 当前候选引用与保留历史引用清单；
-- Application 1.3.0、latest stable v1.2.0、Schema 5、Backup v2/v1-v2 restore；
+最终报告必须包含：
+
+- 起始 candidate SHA；
+- 最终 release commit SHA；
+- 全部 release/corrective commits；
+- 修改文件及理由；
+- Application、latest stable、Schema、Backup；
+- CHANGELOG 归档结果；
 - Phase 6 冻结范围；
-- production catalogs 为空的证明；
+- production catalogs 空状态；
 - focused/full/pip/diff 结果；
 - Docker 双生命周期结果；
-- candidate SHA 对应的 Actions run/job 状态；
-- 没有 Tag/Release/镜像/N100/Hermes；
-- 最终工作区只剩 `?? data/`；
-- `data/` 未读取、枚举、进入或修改。
+- main Actions run、job IDs 和精确 commit；
+- annotated tag object SHA；
+- peeled commit SHA；
+- tag Actions run、job IDs 和精确 commit；
+- GitHub Release ID、URL、draft/prerelease 状态；
+- Release body 与 CHANGELOG 一致性；
+- 没有再次调用 Hermes；
+- 没有发布镜像；
+- 没有部署 N100；
+- 最终工作区仅 `?? data/`；
+- `data/` 未读取、枚举、进入或修改；
+- 临时容器、网络、volume、镜像、凭据和审计目录已清理。
 
-完成后停止。下一步不是继续编码，而是对精确 candidate SHA 做一次云端 RC diff 复核；通过后再单独编写并执行唯一一次 Hermes 验收提示词。正式 `v1.3.0` 发布必须由用户另行授权。
+完成后停止。不得自动开始 N100 部署或下一功能阶段。

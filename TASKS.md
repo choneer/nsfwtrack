@@ -38,11 +38,19 @@
 - [x] Phase 6 scope complete/frozen，最终一致性审计 PASS；本阶段不调用 Hermes
 - [x] latest stable 仍为 `v1.2.0`；不创建 `v1.3.0` Tag/Release，不发布镜像、不部署 N100
 
-## 当前状态（Phase 6-R3 / v1.3.0 release candidate）
+### Phase 6-R4 — Formal release v1.3.0
 
-当前稳定版与最新 Release：`v1.2.0`。当前 Application 为未发布的 `1.3.0`
-release candidate，Schema 为 `5`，Backup v2/v1 restore 保持兼容；Phase 6
-已经 complete/frozen，最终一致性审计 PASS。方向为
+- [x] 将冻结的 Phase 6 `Unreleased` 原样归档为 `[1.3.0] - 2026-07-21`
+- [x] R3 candidate、Cloud RC diff review 与唯一一次 Hermes acceptance 均 PASS
+- [x] Application/Schema/Backup/路由/安全实现不变，production catalogs 保持空
+- [x] latest stable 与 Latest Release 同步为 `v1.3.0`
+- [x] Phase 6-R4 = released；未发布镜像、未部署 N100、未再次调用 Hermes
+
+## 当前状态（Phase 6-R4 / v1.3.0 formally released）
+
+当前稳定版与最新 Release：`v1.3.0`。Application `1.3.0` 已正式发布，Schema
+为 `5`，Backup v2/v1 restore 保持兼容；Phase 6 已经 complete/frozen，R3、
+Cloud RC diff review 与 Hermes acceptance 均 PASS。方向为
 首个 NSFW 核心 Provider、搜索与手动入库、受控下载、手动来源检查更新和
 集成发布。N1 已完成共享 client、固定空 production registry、adapter protocol
 和 immutable DTO；N2 已完成 Schema 4 来源追踪、backup v2 与 v1 restore，
@@ -53,9 +61,9 @@ Registry/Outbound 基础和 test-only Fixture Provider；N4B 已实现 immutable
 Approval model、纯本地一致性 Validator 和 opaque Asset ID 强化，全量
 `965 passed`。N4C 已完成影视元数据、订阅/未来播放与漫画 Provider 静态研究、
 三份 placeholder-only Approval 草案和固定后续路线；没有选择或批准真实来源。
-Application `1.2.0` 仍是最新正式发布；`1.3.0` candidate 尚无 Tag/Release。
-Phase 6 Schema 为 `5`，production registry 为空，无真实 Provider、Provider
-认证、Host、凭据、内容或真实站点网络入口。
+Application `1.3.0` 是最新正式发布。Phase 6 Schema 为 `5`，production
+registry 为空，无真实 Provider、Provider 认证、Host、凭据、内容或真实站点
+网络入口；Published image = none，N100 = not deployed。
 N4D-B 已固定影视元数据 DTO、字段
 provenance、纯函数 merge plan 和 tests-only fixture adapter；N4D-C 已完成
 Provider Package/Evidence/Binding 的 all-or-nothing 离线激活门禁，N4D-D-A 已完成
@@ -73,6 +81,16 @@ Session-bound Preview/Confirm route、HMAC domain-separated secret/context、模
 PRG 与稳定失败映射。N5C 的 Search → Detail → signed Preview → explicit Confirm → local
 Apply 闭环已成立。N4D-D-B/N4E/N4F/N4G
 分别等待完整 Provider Approval。
+
+```text
+Phase 6-R3 = frozen
+Cloud RC diff review = PASS
+Hermes acceptance = PASS
+Phase 6-R4 = released
+Production catalogs = empty
+Published image = none
+N100 = not deployed
+```
 
 ### Phase 5-P1 / P2 至 R2 路线
 

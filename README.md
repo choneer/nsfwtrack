@@ -4,24 +4,29 @@ NSFWTrack is an NSFW-first, local-first, privacy-first, single-user,
 self-hosted application for collecting content, aggregating sources, managing
 local media, tracking state, and supporting personalized discovery.
 
-Current application version: `1.3.0` (release candidate, Schema `5`).
+Current application version: `1.3.0` (Schema `5`).
 
-Latest stable release: `v1.2.0`.
+Latest stable release: `v1.3.0`.
 
-Latest Release: [NSFWTrack v1.2.0](https://github.com/choneer/nsfwtrack/releases/tag/v1.2.0).
+Latest Release: [NSFWTrack v1.3.0](https://github.com/choneer/nsfwtrack/releases/tag/v1.3.0).
 
-Current status: `Phase 5-R4 formally released v1.2.0. Phase 6-R3 freezes
-Application 1.3.0 as an unreleased candidate after the Phase 6 final consistency
-audit passed. Schema 5 persistent tasks, controlled acquisition, manual source
-Check/Diff/Confirm/Apply, and the bilingual Task Center are complete/frozen
-without activating a production Provider. Production endpoint, search-package,
-search-provider, and acquisition catalogs remain empty. N100 is not deployed`.
+Current status: `Phase 6-R4 formally released v1.3.0 after the exact R3 candidate,
+cloud RC diff review, and the single Hermes acceptance all passed. Schema 5
+persistent tasks, controlled acquisition, manual source Check/Diff/Confirm/Apply,
+and the bilingual Task Center are complete/frozen without activating a production
+Provider. Production endpoint, search-package, search-provider, and acquisition
+catalogs remain empty. N100 is not deployed`.
 
-Phase 6 = complete/frozen. Final consistency audit = PASS. Hermes was not called
-for this RC freeze. v1.3.0 Tag = not created. v1.3.0 Release = not created.
-Published image = none. Real Provider/Auth/Host/Credential/Content = none.
+Phase 6 = complete/frozen. Phase 6-R3 = frozen. Cloud RC diff review = PASS.
+Hermes acceptance = PASS. Phase 6-R4 = released. Production catalogs = empty.
+Published image = none. N100 = not deployed.
+Real Provider/Auth/Host/Credential/Content = none.
 
-Hermes acceptance: PASS. Phase 5-R4: released. N100: not deployed.
+Hermes acceptance: PASS. Phase 6-R4: released. N100: not deployed.
+
+Phase 5-R4 formally released v1.2.0. Phase 5-R4: released. Its Tag, Release,
+Actions, Schema 4, Backup v2, and Provider-neutral foundation remain preserved
+as historical evidence.
 
 The long-term product baseline is recorded in [PRODUCT_VISION.md](PRODUCT_VISION.md).
 Ordinary all-ages content may remain naturally compatible with the generic
@@ -29,17 +34,16 @@ model, but it is secondary and does not drive Provider selection, the data
 model, or the roadmap. NSFWTrack is not being renamed to MediaTrack and is not
 becoming a general film/television catalog.
 
-The current stable version is `v1.2.0`; Application is the unreleased `1.3.0`
-release candidate. The provider-neutral N1-N5C foundation and Phase 6 scope are
-frozen. Phase 6 adds only test-driven synthetic acquisition authority and
-generic runtime contracts; no real Provider, endpoint, hostname, credential,
-or content source has been approved or activated. A corrective R2 was
-unnecessary because
+The current stable version is `v1.3.0`; Application `1.3.0` is formally released.
+The provider-neutral N1-N5C foundation and Phase 6 scope are frozen. Phase 6 adds
+only test-driven synthetic acquisition authority and generic runtime contracts;
+no real Provider, endpoint, hostname, credential, or content source has been
+approved or activated. A corrective Phase 5 R2 was unnecessary because
 R1 found no blocking defect, so R2 was skipped. R3 froze Application `1.2.0`,
 the single Phase 5 Hermes acceptance passed, and R4 formally published the
 release.
 
-## Phase 6 — v1.3.0 frozen release-candidate bundle
+## Phase 6 — v1.3.0 formally released bundle
 
 Schema 5 adds `operation_tasks`, bounded event/download/check/discovery facts,
 and transactional local-asset links. The closed state matrix uses optimistic

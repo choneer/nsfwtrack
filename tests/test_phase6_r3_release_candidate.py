@@ -108,21 +108,20 @@ def test_phase6_security_boundaries_remain_explicit() -> None:
     assert "session_generation" in provider_web
 
 
-def test_candidate_documents_preserve_release_and_unreleased_boundaries() -> None:
+def test_formal_release_documents_preserve_release_and_history_boundaries() -> None:
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
     changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
     plan = (ROOT / "PLAN.md").read_text(encoding="utf-8")
     migrations = (ROOT / "app/services/migrations.py").read_text(encoding="utf-8")
-    assert "Current application version: `1.3.0` (release candidate, Schema `5`)" in readme
-    assert "Latest stable release: `v1.2.0`" in readme
-    assert "releases/tag/v1.2.0" in readme
+    assert "Current application version: `1.3.0` (Schema `5`)" in readme
+    assert "Latest stable release: `v1.3.0`" in readme
+    assert "releases/tag/v1.3.0" in readme
     assert "Phase 6 = complete/frozen" in readme
-    assert "v1.3.0 Tag = not created" in readme
-    assert "v1.3.0 Release = not created" in readme
-    assert "Latest stable release: `v1.3.0`" not in readme
-    assert "releases/tag/v1.3.0" not in readme
+    assert "Phase 6-R4 = released" in readme
+    assert "v1.3.0 Tag = not created" not in readme
+    assert "v1.3.0 Release = not created" not in readme
     assert changelog.startswith("# Changelog / 变更记录\n\n## Unreleased\n")
-    assert "## [1.3.0]" not in changelog
+    assert "## [1.3.0] - 2026-07-21\n" in changelog
     assert "## [1.2.0] - 2026-07-20\n" in changelog
     assert "22781d3e5cd040d6d1def24f140b6725dc25c0db" in plan
     assert "fb7ba82e1da5dd54d270e35099909e698541732c" in plan

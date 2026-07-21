@@ -2,6 +2,32 @@
 
 每次开发提交代码后，逐项检查：
 
+## Phase 6-R4 v1.3.0 Formal Release
+
+- [x] **6.R4.1 发布基线** — 精确候选 `00dbf1f4ead8411796eb417dd93a1dbeab7e5917`，
+  Cloud RC diff review PASS、blocking findings 0、唯一一次 Hermes acceptance PASS
+- [x] **6.R4.2 正式状态** — Application/latest stable = 1.3.0，Schema = 5，
+  Backup export v2/restore v1-v2，Phase 6 complete/frozen、R3 frozen、R4 released
+- [x] **6.R4.3 CHANGELOG** — Phase 6 Unreleased 原样归档为
+  `[1.3.0] - 2026-07-21`，顶部重新保留空 Unreleased，历史章节保持不变
+- [x] **6.R4.4 发布边界** — Production catalogs 全空，无真实 Provider/Auth/Host/
+  Credential/Content；Published image = none、N100 = not deployed、R4 未调用 Hermes
+- [x] **6.R4.5 本地验证** — R3 `5 passed`、R4 `6 passed`、Phase 6 task/download/
+  update/security `67 passed`、full `1464 passed in 500.54s`，pip、diff 与隔离
+  Docker 双生命周期全部通过
+- [ ] **6.R4.6 发布链** — release commit main Actions → annotated tag → tag Actions
+  → non-draft/non-prerelease GitHub Release 必须严格依序完成
+
+```text
+Phase 6-R3 = frozen
+Cloud RC diff review = PASS
+Hermes acceptance = PASS
+Phase 6-R4 = released
+Production catalogs = empty
+Published image = none
+N100 = not deployed
+```
+
 ## Phase 6-R3 v1.3.0 Release Candidate Freeze
 
 - [x] **6.R3.1 唯一版本变化** — `app/main.py` 的 FastAPI metadata 是唯一运行时
@@ -18,8 +44,9 @@
 - [x] **6.R3.6 本地完整验证** — RC focused `36 passed`、Phase 6 focused
   `50 passed`、full `1458 passed in 1211.83s`，pip check、diff check 与隔离
   Docker 双生命周期全部通过
-- [ ] **6.R3.7 云端验证** — 普通 push 后，精确 candidate SHA 对应 Actions 的
-  `test` 与 `Docker production smoke` 均须成功；结果由最终报告记录
+- [x] **6.R3.7 云端验证** — candidate `00dbf1f4ead8411796eb417dd93a1dbeab7e5917`
+  的 Cloud RC diff review PASS、blocking findings 0；Actions run `29806652938`
+  的 `test` 与 `Docker production smoke` 均 success；Hermes acceptance PASS
 
 ## Phase 6 v1.3.0 开发门禁（R3 冻结前历史）
 

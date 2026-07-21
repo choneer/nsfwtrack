@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## [1.3.0] - 2026-07-21
+
 ### Added
 
 - Froze the completed Phase 6 scope as the unreleased Application `1.3.0`
