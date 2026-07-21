@@ -2,7 +2,7 @@
 
 按顺序执行，每完成一项打个 [x]。
 
-## Phase 6 — v1.3.0 开发 Bundle
+## Phase 6 — v1.3.0 complete/frozen Bundle
 
 - [x] Schema 5 fresh 与 1/2/3/4 → 5 连续、原子、可回滚迁移；稳定
   v1.2.0/Schema 4 应用拒绝 Schema 5
@@ -21,7 +21,7 @@
 - [x] Backup 继续为 v2 且接受 v1/v2 restore；任务、进度、错误、lease、
   history、临时事实和 local acquisition 关系不进入备份 payload
 - [x] 增加严格 runtime 配置边界与 `/app/data/.downloads` 受控临时根；
-  Application 保持 1.2.0，latest stable 保持 v1.2.0
+  Phase 6-R3 将 Application 冻结为 1.3.0 release candidate，latest stable 保持 v1.2.0
 - [x] 下载执行在 chunk、progress commit、完整性、publication、DB link、index
   与最终成功前实施 owner/generation/expiry/cancel fencing；heartbeat 与并发 claim
   使用原子条件更新，旧 generation 无法继续写入或覆盖新执行器状态
@@ -30,10 +30,19 @@
 - [x] 手动更新通过新 Session 独立验证选中与未选字段、Provider/source identity、
   task intent/snapshot/events 和 replay 唯一性后才返回 committed_verified
 
-## 当前状态（Phase 6 / v1.3.0 development）
+### Phase 6-R3 — Application 1.3.0 RC freeze
 
-当前稳定版与最新 Release：`v1.2.0`。开发 Application 仍为 `1.2.0`，
-Schema 已推进到 `5`，Backup v2/v1 restore 保持兼容；方向为
+- [x] 唯一运行时版本入口更新为 `1.3.0`，同步全部当前版本可执行断言
+- [x] Schema `5`、Backup v2/v1-v2 restore 与 Phase 6 功能/安全边界保持不变
+- [x] Production Endpoint/Search Package/Search Provider/Acquisition catalogs 保持空
+- [x] Phase 6 scope complete/frozen，最终一致性审计 PASS；本阶段不调用 Hermes
+- [x] latest stable 仍为 `v1.2.0`；不创建 `v1.3.0` Tag/Release，不发布镜像、不部署 N100
+
+## 当前状态（Phase 6-R3 / v1.3.0 release candidate）
+
+当前稳定版与最新 Release：`v1.2.0`。当前 Application 为未发布的 `1.3.0`
+release candidate，Schema 为 `5`，Backup v2/v1 restore 保持兼容；Phase 6
+已经 complete/frozen，最终一致性审计 PASS。方向为
 首个 NSFW 核心 Provider、搜索与手动入库、受控下载、手动来源检查更新和
 集成发布。N1 已完成共享 client、固定空 production registry、adapter protocol
 和 immutable DTO；N2 已完成 Schema 4 来源追踪、backup v2 与 v1 restore，
@@ -44,8 +53,9 @@ Registry/Outbound 基础和 test-only Fixture Provider；N4B 已实现 immutable
 Approval model、纯本地一致性 Validator 和 opaque Asset ID 强化，全量
 `965 passed`。N4C 已完成影视元数据、订阅/未来播放与漫画 Provider 静态研究、
 三份 placeholder-only Approval 草案和固定后续路线；没有选择或批准真实来源。
-Application `1.2.0` 已正式发布；Phase 6 开发 Schema 为 `5`，production
-registry 为空，无真实 Provider、Provider 认证、播放或真实站点网络入口。
+Application `1.2.0` 仍是最新正式发布；`1.3.0` candidate 尚无 Tag/Release。
+Phase 6 Schema 为 `5`，production registry 为空，无真实 Provider、Provider
+认证、Host、凭据、内容或真实站点网络入口。
 N4D-B 已固定影视元数据 DTO、字段
 provenance、纯函数 merge plan 和 tests-only fixture adapter；N4D-C 已完成
 Provider Package/Evidence/Binding 的 all-or-nothing 离线激活门禁，N4D-D-A 已完成

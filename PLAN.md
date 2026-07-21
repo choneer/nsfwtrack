@@ -12,16 +12,27 @@
 当前应用版本与开发阶段：
 
 ```text
-Application 1.2.0 / Phase 5-R4 formally released
+Application 1.3.0 / Phase 6-R3 release candidate frozen
 ```
 
-Phase 6 当前开发基线：Application 仍为 `1.2.0`，Schema 已推进到 `5`，
-目标发布版本仅记录为 `v1.3.0`。已实现统一持久任务模型、受控资产下载、
-手动来源 Check/Diff/Confirm/Apply、双语任务中心及其迁移/事务/安全测试；
-production endpoint/package/provider/acquisition catalog 全部保持空，不创建
-Tag/Release、不发布镜像、不部署 N100。
+Phase 6-R3 当前候选：Application 为 `1.3.0` release candidate，Schema 保持
+`5`。统一持久任务模型、受控资产下载、手动来源 Check/Diff/Confirm/Apply、
+双语任务中心及其迁移/事务/安全测试已经 complete/frozen，最终一致性审计为
+PASS；production endpoint/package/provider/acquisition catalog 全部保持空。
+`v1.3.0` Tag/Release 均未创建，不发布镜像、不部署 N100，本次冻结未调用 Hermes。
 
 当前最新稳定版本为 `v1.2.0`；`v1.1.0` 发布证据作为上一稳定版本历史保留。
+
+当前稳定版本 v1.2.0 发布证据（R3 冻结保持不变）：
+
+```text
+release commit / peeled commit: 22781d3e5cd040d6d1def24f140b6725dc25c0db
+annotated tag object: fb7ba82e1da5dd54d270e35099909e698541732c
+main Actions run: 29746335857
+tag Actions run: 29746618331
+GitHub Release ID: 356757190
+Release: https://github.com/choneer/nsfwtrack/releases/tag/v1.2.0
+```
 
 上一稳定版本 v1.1.0 发布引用（历史保留）：
 
@@ -61,7 +72,7 @@ Release: https://github.com/choneer/nsfwtrack/releases/tag/v1.1.0
 ```text
 核心业务能力：已完成
 代码发布状态：v1.2.0 已按 R4 发布门禁正式发布；v1.1.0 tag/Release 证据保留为历史
-当前开发状态：Phase 5-N5C-B2 已完成登录 Session 绑定的 Preview/Confirm Web 闭环。Detail 只调用 Provider 一次并以只读 Plan 生成 600 秒 hidden Token；Confirm 精确校验用户确认、零 Provider 调用且每请求最多调用 B1 apply 一次。跨 Session、logout 与 generation rotation 会使旧 Token 失效，`commit_state_unknown` 不重试并要求先检查本地条目。N5C 的 Search → Detail → signed Preview → explicit Confirm → local Apply 已完整成立。Application `1.2.0` 已随 Phase 5-R4 正式发布，Schema 为 4、Backup 为 `nsfwtrack.backup.v2`，Production Search Packages、Providers 与 Registry 均为空。
+当前候选状态：Phase 5-N5C-B2 的 Session-bound Search → Detail → signed Preview → explicit Confirm → local Apply 基础保持冻结；Phase 6 的持久任务、受控下载、手动更新和 Task Center 已 complete/frozen。Application `1.3.0` 仅为未发布候选，latest stable 仍为 `v1.2.0`，Schema 为 `5`、Backup 为 `nsfwtrack.backup.v2` 且 restore 接受 v1/v2，Production Endpoint Registry、Search Packages、Search Providers 与 Acquisition Registry 均为空。
 Phase 5-N3：Provider 合同、认证、资产、动态 Locator、受控下载 MVP、状态矩阵和批准模板已完成；仅新增/更新授权文档，未实现 Provider 或下载
 Phase 5-N4A：capability/Protocol/SourceAsset/Auth 状态/typed Registry/Outbound 基础和 test-only Fixture Provider 已完成；初始全量 934 passed，最终安全复核后全量 938 passed，production registry 仍为空
 Phase 5-N4B：immutable Approval/Host/Operation/Auth/Asset/Download model、纯本地一致性 Validator 与 opaque Asset ID 强化已完成；N4B 27、N4A/Adapter/Outbound 120、全量 965 passed，production registry 仍为空

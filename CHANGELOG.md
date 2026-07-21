@@ -4,6 +4,12 @@
 
 ### Added
 
+- Froze the completed Phase 6 scope as the unreleased Application `1.3.0`
+  release candidate while retaining `v1.2.0` as the latest stable release.
+  Schema remains 5, Backup remains v2 with v1/v2 restore, all production
+  endpoint/search/acquisition catalogs remain empty, and no real Provider,
+  authentication, host, credential, content source, tag, Release, image, Hermes
+  invocation, or N100 deployment is included.
 - Added development Schema 5 with a unified persistent task model for controlled
   asset downloads, manual source checks, and metadata updates. Tasks have a
   closed state-transition matrix, optimistic fact versions, bounded progress and

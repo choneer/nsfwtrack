@@ -19,7 +19,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def test_formal_release_versions_and_production_catalogs_are_frozen() -> None:
-    assert app.version == "1.2.0"
+    assert app.version == "1.3.0"
     assert CURRENT_SCHEMA_VERSION == 5
     assert BACKUP_SCHEMA_V1 == "nsfwtrack.backup.v1"
     assert BACKUP_SCHEMA_V2 == "nsfwtrack.backup.v2"
@@ -45,7 +45,7 @@ def test_formal_release_source_search_route_matrix_is_exact() -> None:
 
 def test_readme_records_the_formal_release_without_pending_candidate_copy() -> None:
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
-    assert "Current application version: `1.2.0` (development Schema `5`)" in readme
+    assert "Current application version: `1.3.0` (release candidate, Schema `5`)" in readme
     assert "Latest stable release: `v1.2.0`" in readme
     assert (
         "https://github.com/choneer/nsfwtrack/releases/tag/v1.2.0"

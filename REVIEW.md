@@ -2,7 +2,26 @@
 
 每次开发提交代码后，逐项检查：
 
-## Phase 6 v1.3.0 开发门禁
+## Phase 6-R3 v1.3.0 Release Candidate Freeze
+
+- [x] **6.R3.1 唯一版本变化** — `app/main.py` 的 FastAPI metadata 是唯一运行时
+  版本源，仅由 `1.2.0` 更新为 `1.3.0`；同步的是当前版本断言，不改业务逻辑
+- [x] **6.R3.2 候选边界** — Application = 1.3.0 release candidate，latest stable
+  = v1.2.0，Schema = 5，Backup export = v2、restore = v1/v2
+- [x] **6.R3.3 冻结事实** — Phase 6 = complete/frozen，final consistency audit =
+  PASS；owner/generation fencing、独立 outcome proof、no-overwrite、Session-bound
+  token 与 GET zero-side-effect 门禁均保留
+- [x] **6.R3.4 空生产激活** — Endpoint Registry、Search Packages、Search Providers
+  与 Acquisition Registry 均为空；只有 tests-only synthetic adapters
+- [x] **6.R3.5 非发布边界** — Hermes 未调用，`v1.3.0` Tag/Release 未创建，未发布
+  镜像、未部署 N100，无真实 Provider/Auth/Host/Credential/Content
+- [x] **6.R3.6 本地完整验证** — RC focused `36 passed`、Phase 6 focused
+  `50 passed`、full `1458 passed in 1211.83s`，pip check、diff check 与隔离
+  Docker 双生命周期全部通过
+- [ ] **6.R3.7 云端验证** — 普通 push 后，精确 candidate SHA 对应 Actions 的
+  `test` 与 `Docker production smoke` 均须成功；结果由最终报告记录
+
+## Phase 6 v1.3.0 开发门禁（R3 冻结前历史）
 
 - [x] **6.1 版本边界** — Application 仍为 1.2.0、latest stable 仍为 v1.2.0，
   只将开发数据库推进到 Schema 5，未创建 Tag/Release/镜像/N100 部署

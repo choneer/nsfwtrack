@@ -1,51 +1,48 @@
-# Phase 6 — v1.3.0 Controlled Acquisition and Manual Update Bundle
+# Phase 6-R3 — Application 1.3.0 Release Candidate Freeze
 
 ## 1. 阶段目标
 
-本阶段不再拆分 N6A/N6B/N6C/N7A 等小阶段，而是一次性完成：
+Phase 6 功能实现、集中修正和最终一致性审计已经完成。本阶段只进行 `v1.3.0` Release Candidate 冻结，不增加新功能、不重构现有实现、不接入真实 Provider。
+
+执行顺序：
 
 ```text
-统一任务基础设施
-+ 受控资产保存与下载
-+ 手动来源检查
-+ 元数据差异预览
-+ 用户逐字段确认更新
-+ 完整任务中心与状态 UI
-+ Schema 5
-+ 端到端测试与 Docker 验证
+冻结前基线确认
+→ Application 1.2.0 更新为 1.3.0 release candidate
+→ 精确同步当前版本断言与候选文档
+→ 新增/更新 RC 不变量测试
+→ focused + full + pip + diff 验证
+→ 隔离 Docker 双生命周期验证
+→ 普通线性提交并推送
+→ GitHub Actions 全部成功
+→ 报告精确 candidate SHA 并停止
+→ 外部云端审查
+→ 针对精确 candidate SHA 的唯一一次 Hermes 验收
+→ 另行授权 Phase 6-R4 正式发布
 ```
 
-开发流程：
+本阶段不是正式发布，不创建 Tag/Release，不发布镜像，不部署 N100，也不调用 Hermes。
 
-```text
-Codex 全量实现
-→ 本地全量验证
-→ 普通提交并推送
-→ GitHub Actions
-→ 一次云端整体复核
-→ RC 冻结后再安排一次 Hermes 验收
-```
-
-中途不因普通环境、工具兼容、测试断言同步、文件范围遗漏或临时脚本问题请求授权。
-
-## 2. 基线
+## 2. 冻结基线
 
 ```text
 repository: /home/nsfwtrack
 branch: main
-base: 22781d3e5cd040d6d1def24f140b6725dc25c0db
+base: 6ec824c123651a000252499f39ac8fc03b5faa31
 latest stable: v1.2.0
 Application: 1.2.0
-Schema: 4
+Schema: 5
 Backup export: nsfwtrack.backup.v2
 Backup restore: v1/v2
 Production Endpoint Registry: empty
 Production Search Packages: empty
 Production Search Providers: empty
-full pytest baseline: 1402 passed
+Production Acquisition Registry: empty
+Phase 6 full test evidence: 1453 passed
+Phase 6 final consistency audit: PASS
 ```
 
-开始前：
+开始前执行：
 
 ```bash
 cd /home/nsfwtrack
@@ -53,21 +50,25 @@ git fetch origin main --tags
 git rev-parse HEAD
 git rev-parse origin/main
 git status --short
+git tag -l v1.3.0
 ```
 
 必须满足：
 
 ```text
-HEAD == origin/main == 22781d3e5cd040d6d1def24f140b6725dc25c0db
+HEAD == origin/main == 6ec824c123651a000252499f39ac8fc03b5faa31
+local v1.3.0 tag does not exist
+remote v1.3.0 tag does not exist
+GitHub v1.3.0 Release does not exist
 ```
 
-工作区只允许既有：
+开始前工作区只允许：
 
 ```text
 ?? data/
 ```
 
-将本 GOAL 放入仓库后允许：
+放入本 GOAL 后允许：
 
 ```text
 M GOAL.md
@@ -76,429 +77,254 @@ M GOAL.md
 
 既有 `/home/nsfwtrack/data/` 不得读取、枚举、进入、复制、修改、移动、删除、格式化、暂存或提交。
 
-## 3. 宽执行边界
+## 3. 唯一允许的产品变化
 
-采用“按功能类别授权”，不使用逐文件白名单。
-
-Codex 可自行创建、修改、重构完成本阶段所必需的：
+将运行时 Application 版本从：
 
 ```text
-app/**
-tests/**
-templates / i18n
-models / migrations / schema verification
-routers / services / contracts / DTOs
-config / example configuration
-README / CHANGELOG / PLAN / TASKS / REVIEW / RULE / Provider docs
-Docker smoke assertions
+1.2.0
 ```
 
-允许：
-
-- 自动发现并修改相关测试与文档；
-- 自动处理 `python` / `python3` / `.venv/bin/python` 差异；
-- 自动处理 Shell、CLI、SQLite、SQLAlchemy、Jinja、HTMX 等兼容问题；
-- 自动修复测试、lint、类型、格式、临时脚本和只读审计问题；
-- 为完成同一功能合理扩大文件范围；
-- 自动创建后续修复提交，不因普通失败停下；
-- 使用多个逻辑提交组织大型功能；
-- 在最终推送前反复运行并修复测试；
-- 在不弱化安全性的前提下重构现有 N5C、媒体写入、索引协调和事务辅助代码。
-
-优先不增加第三方依赖。确有必要时可自行增加维护良好且用途明确的依赖，并同步 requirements、Docker 和测试，无需中断，但必须在最终报告说明理由。
-
-## 4. 只有以下情况必须停止
-
-仅在出现真正高风险情况时停止并报告：
-
-1. 需要读取、修改、迁移或删除既有 `data/`；
-2. 迁移设计可能破坏已有用户数据，且无法证明事务回滚；
-3. 需要 force push、重写已发布历史、移动或删除既有 Tag/Release；
-4. 需要启用真实 Provider、真实外部 Host、真实凭据或真实内容来源；
-5. 发现密钥、Cookie、Token、密码或隐私数据可能泄漏；
-6. 需要绕过访问控制、权限、付费、年龄或地区限制；
-7. 需要部署 N100、发布镜像或创建新 Release/Tag；
-8. 产品目标必须发生实质改变，而不是实现细节调整；
-9. 无法在不削弱现有安全、事务、Session 或文件系统边界的情况下完成。
-
-普通代码缺陷、环境差异、命令错误、测试失败、遗漏文件、Schema 实现细节、CLI 不兼容和只读诊断问题不得抛回。
-
-## 5. 版本与发布边界
-
-本阶段是 v1.3.0 功能开发，不是 RC 或正式发布。
-
-保持：
+精确更新为：
 
 ```text
-Application = 1.2.0
-latest stable = v1.2.0
+1.3.0
 ```
 
-可以更新开发文档为：
+当前已知运行时入口为 `app/main.py` 中 FastAPI metadata。必须先审计仓库内全部当前版本定义和可执行断言，确认不存在第二个运行时版本源。
+
+不得使用全仓库盲目替换。必须逐项分类：
+
+1. 当前候选版本引用，应更新为 `1.3.0`；
+2. 最新稳定版本引用，必须继续为 `v1.2.0`；
+3. 历史发布、历史测试、历史迁移、兼容性和 Actions 证据，必须保持原值；
+4. Schema 仍为 `5`；
+5. Backup 仍为 `nsfwtrack.backup.v2`，restore 仍支持 v1/v2；
+6. production endpoint/package/provider/acquisition catalogs 仍为空。
+
+## 4. 允许修改范围
+
+只允许为 RC 冻结进行必要、最小、可审计的修改：
 
 ```text
-next target = v1.3.0
-Phase 6 bundle = in development / completed after implementation
+app/main.py                       # 仅运行时版本 literal
+当前版本相关测试断言
+新增或更新的 v1.3.0 RC invariant tests
+README.md
+CHANGELOG.md
+PLAN.md
+TASKS.md
+REVIEW.md
+GOAL.md
+PRODUCT_VISION.md                 # 仅当前状态确有需要时
+PROVIDER_CONTRACT.md              # 仅当前状态确有需要时
+其他明确包含“当前候选/当前版本”事实的发布文档
 ```
 
-不得提前改为 1.3.0，不创建 v1.3.0 Tag/Release，不再次调用 Hermes，不部署 N100。
+若发现必须修改其他文件，只有在它确实包含当前运行版本、候选状态或冻结不变量时才允许，并须在最终报告逐项解释。
 
-## 6. Schema 5
+不得：
 
-明确授权 Schema 4 → 5，用于持久化统一任务和必要历史。
+- 修改 Phase 6 业务逻辑；
+- 修改任务、下载、手动更新、媒体索引或事务实现；
+- 修改 Schema、Migration 或 Backup 格式；
+- 修改依赖、Docker、Compose、CI 行为；
+- 激活 Provider、Package、Endpoint 或 Acquisition registry；
+- 接入真实 Host、真实凭据、真实网络或真实内容来源；
+- 放宽测试、安全、文件系统、Session、事务或并发边界；
+- 删除或改写历史发布证据；
+- amend 已推送提交或 force push。
 
-必须支持：
+## 5. 候选状态必须统一
 
-```text
-fresh Schema 5
-1 → 2 → 3 → 4 → 5
-2 → 3 → 4 → 5
-3 → 4 → 5
-4 → 5
-repeat migration
-future schema rejection
-structural mismatch rejection
-transaction rollback
-```
-
-稳定 v1.2.0 对 Schema 5 的拒绝行为必须测试。
-
-Backup 保持：
+冻结完成后，仓库当前状态必须一致表达为：
 
 ```text
+Application = 1.3.0 release candidate
+Latest stable release = v1.2.0
+Schema = 5
 Backup export = nsfwtrack.backup.v2
-Restore = v1/v2
+Backup restore = v1/v2
+Phase 6 = complete/frozen
+Final consistency audit = PASS
+Production Endpoint Registry = empty
+Production Search Packages = empty
+Production Search Providers = empty
+Production Acquisition Registry = empty
+Real Provider/Auth/Host/Credential/Content = none
+Hermes = not called in RC freeze
+v1.3.0 Tag = not created
+v1.3.0 Release = not created
+Published image = none
+N100 = not deployed
 ```
 
-任务、临时状态、进度、错误、运行租约和操作历史属于运行数据，不进入普通业务备份。恢复 v1/v2 后新任务表为空、Schema 为 5、原业务数据保持、零网络、不自动恢复任务。
+不得把 `v1.3.0` 描述为最新稳定版或正式 Release。
 
-## 7. 统一任务模型
+## 6. CHANGELOG 规则
 
-至少支持任务类型：
+本阶段保持 `Unreleased`，不得创建正式 `[1.3.0] - YYYY-MM-DD` 发布段，不填写正式发布日期。
 
-```text
-asset_download
-source_check
-metadata_update
-```
+`Unreleased` 应准确概括 Phase 6 已冻结的新增能力和安全修正，包括：
 
-建议状态：
+- Schema 5 持久任务模型；
+- 受控下载 Preview/Confirm/Start/Pause/Resume/Cancel；
+- owner/generation/expiry/cancel fencing；
+- 原子并发 claim；
+- 安全临时写入、校验、无覆盖发布、关系建立和媒体索引协调；
+- 新 Session durable outcome verification；
+- 手动来源 Check/Diff/逐字段 Confirm/Apply；
+- 双语任务中心；
+- production catalogs 继续为空。
 
-```text
-planned
-awaiting_confirmation
-queued
-running
-paused
-cancelling
-cancelled
-succeeded
-failed
-blocked
-outcome_unknown
-```
+不得改写已发布的 `[1.2.0]`、`[1.1.0]` 或更早章节。
 
-状态名称可调整，但必须：
+## 7. RC 不变量测试
 
-- 状态闭集和合法转换矩阵；
-- 非法转换拒绝；
-- 乐观并发或版本事实；
-- 类型/状态数据库约束；
-- UTC 时间；
-- 稳定脱敏错误码；
-- 不保存秘密、完整 locator、Cookie、Token 或原始响应；
-- 可关联 Item、ItemSource、Provider identity、Asset identity；
-- 可记录 bytes、expected size、MIME、hash、目标相对路径等受限事实；
-- 支持取消、重试、恢复、分页、过滤与终态历史清理；
-- 删除历史必须显式确认且不删除正式媒体。
+新增或更新专门的 v1.3.0 RC 测试，至少证明：
 
-任务租约与恢复：
+1. FastAPI runtime metadata 精确为 `1.3.0`；
+2. Schema 精确为 `5`；
+3. Backup export 为 v2，restore 兼容 v1/v2；
+4. production endpoint/package/provider/acquisition catalogs 均为空；
+5. tests-only synthetic Adapter 不会进入 production；
+6. Phase 6 的 task/download/manual-update routes 与核心不变量仍存在；
+7. 当前文档不把 `v1.3.0` 声称为已发布或最新稳定；
+8. `v1.2.0` 历史 Release、Tag 和兼容性证据保持；
+9. 不存在真实 Provider、真实 Host、真实凭据或新的生产网络入口；
+10. RC 冻结没有削弱 owner/generation fencing、outcome verification、no-overwrite、Session-bound token 或 GET zero-side-effect 边界。
 
-- 同一任务同一时刻只能由一个执行者运行；
-- 租约含 owner、generation、started/heartbeat/expiry；
-- 重启后的遗留 running 不能视为成功；
-- 恢复为 paused、blocked 或安全可重试状态；
-- 重启后不自动恢复网络操作；
-- stale lease 可安全回收；
-- 失败分类基于持久化事实，不基于异常类型猜测。
+不得通过删除断言、扩大忽略范围、降低精确性或跳过现有测试来使冻结通过。
 
-## 8. Provider-neutral 下载合同
+## 8. 验证要求
 
-不接真实 Provider。Production Provider/Package/Endpoint Registry 继续为空。
-
-实现 Provider-neutral 下载合同和 tests-only synthetic Adapter：
-
-```text
-asset descriptor
-download authorization
-stream/open operation
-optional range resume
-content metadata
-bounded chunk stream
-cancellation
-stable errors
-```
-
-要求：
-
-- Web/UI 不能提交任意 URL、Host、协议、端口、base URL 或路径；
-- 下载依据只能来自已验证 Package 的 opaque Provider/External/Asset identity；
-- locator 只在 Adapter/Outbound 内部短暂存在；
-- locator 不进入 HTML、日志、普通数据库字段、Token 或错误；
-- capability/operation 显式批准；
-- 无 download capability 时在网络和文件动作前拒绝；
-- tests-only Adapter 使用内存字节、临时文件或 `.invalid` 合成环境；
-- 测试不得访问真实 DNS、真实站点或真实内容源；
-- Production registry 继续为空。
-
-## 9. 下载 Preview 与 Confirm
-
-闭环：
-
-```text
-Asset facts
-→ Download Preview
-→ 用户明确确认
-→ 创建 confirmed task
-→ 显式开始/恢复
-→ 临时隔离写入
-→ 校验
-→ 原子发布
-→ 建立本地关系
-→ 媒体索引协调
-```
-
-Preview：零文件写入、零执行、零网络；展示 Provider、Asset 类型、建议文件名、预计大小、MIME、Hash 可用性、目标 Item、冲突与重复；使用 Session-bound、purpose-bound、短 TTL 签名 Token，绑定 Session、generation、任务意图、Provider/Asset、Item、目标相对路径和快照事实；no-op/无权限/不可下载不生成 Token。
-
-Confirm：精确确认；不重新调用 search/detail；Token-first；验证 Session/context/expiry 和快照；只创建一个任务；重放不得创建第二个；不在 Confirm 中自动下载，除非提供独立明确的“确认并立即执行”POST。
-
-## 10. 安全下载执行器
-
-必须复用或加强现有文件系统安全模式：
-
-- directory FD；
-- `O_NOFOLLOW`；
-- 路径限制在媒体根和任务临时根；
-- 拒绝绝对路径、`..`、NUL、分隔符注入；
-- 文件名规范化和长度上限；
-- 随机临时文件；
-- 临时区与正式媒体区分离；
-- 禁止符号链接、硬链接欺骗和目录替换；
-- publication 前后验证 device/inode/mode/owner；
-- 目标存在默认拒绝，不覆盖正式文件；
-- 原子 rename/publication；
-- fsync 文件和父目录；
-- 发布后独立确认；
-- 失败/取消清理临时文件；
-- outcome_unknown 不盲目重试或覆盖。
-
-资源与内容校验：
-
-- 全局最大大小与 Provider/Asset 更小上限；
-- streamed actual-byte hard limit；
-- Content-Length 仅提示；
-- MIME allowlist；
-- magic/signature；
-- 可选 expected SHA-256；
-- 始终计算实际 SHA-256；
-- 空文件、截断、非法 range 拒绝；
-- timeout、并发、块大小有界；
-- cancellation 每个 chunk 生效；
-- 日志仅 task id、错误码、字节数、耗时，不含 locator/秘密。
-
-Resume：仅合同允许 range 时；临时文件身份、大小和快照必须匹配；范围事实精确匹配；不把 200 当作 resume；不拼接不同对象；失败不覆盖正式文件。
-
-## 11. 下载提交、关系与索引
-
-阶段化：
-
-```text
-temporary_complete
-verified
-published
-database_linked
-index_coordinated
-durable_verified
-```
-
-要求：
-
-- 明确事务内建立任务、Item、ItemSource、Asset identity 与本地文件关系；
-- 不按标题自动绑定；
-- 不修改 status/rating/review/tags/collections；
-- 不覆盖 cover_path 或本地字段，除非 Preview 明确选择；
-- 唯一约束和重复 Hash/路径冲突分类；
-- commit 后独立 Session 验证；
-- 文件发布与 DB commit 异常按实际状态分类；
-- outcome_unknown 不自动重试；
-- replay 不重复写文件或关系。
-
-媒体索引：每个完成/失败/取消请求最多一次协调；已知文件变化则刷新或标记 stale；未知则标记 unusable/stale；不在事务锁内全盘扫描；复用 media operation lock、write coordination 和 index invariants；Docker recreate 后关系与索引一致。
-
-## 12. 手动来源检查
-
-闭环：
-
-```text
-ItemSource
-→ 用户点击 Check
-→ exactly one Provider detail call
-→ 生成规范化 snapshot
-→ 比较 metadata hash 与本地字段
-→ 记录可审查结果
-```
-
-要求：仅认证 POST；GET 零网络；Provider identity 来自数据库和已激活 Package；生产为空时 UI 正常空状态；exactly one detail；不链 search/asset/download；取消传播；稳定脱敏错误；检查成功可更新 last_checked_at，但不得自动覆盖 Item；metadata_hash 仅显式 mark-checked 或确认 Apply 更新；检查结果有 TTL 并绑定当前 ItemSource；不保存原始 payload。
-
-## 13. 元数据 Diff 与手动更新
-
-闭环：
-
-```text
-Check
-→ Field Diff Preview
-→ 用户逐字段选择
-→ Signed Update Plan
-→ Confirm
-→ Transactional Apply
-```
-
-至少支持：
-
-```text
-summary
-release_date
-source title
-last_checked_at
-metadata_hash
-```
-
-规则：
-
-- title 默认本地所有，不能静默覆盖；
-- status/rating/review/collections/media/extra/用户标签不得由 Provider 更新；
-- Provider 空值不能清空本地非空值；
-- 展示 old/new/source/provenance；
-- 用户逐字段选择；
-- no-op 不生成 Token；
-- duplicate/title hints 只提示；
-- Token 绑定 Item、ItemSource、Provider identity、旧值、新值、选择字段、hash、Session、generation、expiry；
-- Confirm 零 Provider 调用；
-- `BEGIN IMMEDIATE` 后重读全部快照；
-- 任一变化返回 stale；
-- 只写白名单字段；
-- flush/post-check/commit 后独立 Session 证明；
-- replay 返回 stale/already_applied；
-- commit exception 不依据异常猜测；
-- outcome_unknown 不自动重试。
-
-## 14. 任务中心与 Web UI
-
-至少提供：
-
-```text
-GET  /tasks
-GET  /tasks/{id}
-POST /tasks/{id}/start
-POST /tasks/{id}/pause
-POST /tasks/{id}/resume
-POST /tasks/{id}/cancel
-POST /tasks/{id}/retry
-POST /tasks/{id}/delete-history
-```
-
-实际路径可调整，但必须：登录保护；unsafe same-origin；GET 不启动任务、不访问 Provider、不写 DB；分页与过滤；详情展示进度/错误码/时间/Item；不显示 locator、秘密、完整 external ID 或敏感路径；PRG；幂等；completed 不可 cancel 回退；retry 只对安全状态；outcome_unknown 无盲重试；删除历史精确确认且不删媒体；Jinja/HTMX 风格；中英翻译；含 Token 页面 no-store；打开页面不自动触发下一步。
-
-## 15. 执行模型
-
-允许轻量、可见、受控的进程内 runner：
-
-- 仅执行用户已确认并显式 start/resume 的任务；
-- 默认不周期扫描；
-- 不隐藏网络活动；
-- 并发数可配置且默认保守；
-- 同一任务单执行者；
-- shutdown 请求取消/安全暂停；
-- 重启后不自动继续网络；
-- 任务持久化；
-- 不依赖 Celery/Redis，除非实现证明必要；
-- 测试使用 fake clock/runner/synthetic stream；
-- Production Provider 为空时无外部请求。
-
-可选同步 request-driven runner、受控线程 runner或其他简单方案，以正确性、可测试性和重启安全优先，不因执行模型细节请求授权。
-
-## 16. 配置
-
-至少新增：
-
-```text
-TASK_MAX_CONCURRENCY
-DOWNLOAD_MAX_BYTES
-DOWNLOAD_CHUNK_BYTES
-DOWNLOAD_TIMEOUT_SECONDS
-DOWNLOAD_TEMP_RETENTION_HOURS
-TASK_HISTORY_RETENTION_DAYS
-```
-
-严格类型、范围和保守默认值；非法配置启动失败；无真实 Provider 地址或秘密；Docker 保持 non-root/read-only；临时任务目录位于 `/app/data` 受控子目录或独立 volume。
-
-## 17. 测试要求
-
-必须覆盖：
-
-### Schema
-fresh 5；1/2/3/4→5；repeat；future；malformed；rollback；stable v1.2.0 reject Schema 5；restore v1/v2 后任务表为空。
-
-### Task matrix
-全部合法/非法转换；并发；lease；stale lease；restart recovery；cancel；retry；replay；unknown；pagination/filter；history delete。
-
-### Download
-preview zero side effects；confirm token/session/TTL/context；no arbitrary URL；no capability；one task；streamed size；MIME/magic；hash；empty/truncated；cancel；pause/resume；range mismatch；no-overwrite；duplicate；symlink/path traversal/race；fsync/rename failure；DB conflict；commit exception；post-state classification；index coordination；restart persistence；无泄漏。
-
-### Manual update
-GET zero network；check exactly once；diff determinism；selected fields only；local ownership；no-op；stale；replay；cross-session；commit failure；unknown；last_checked/hash；Confirm zero Provider。
-
-### Security/UI
-auth；same-origin；XSS；no remote resources；no locator/secret/external ID leakage；PRG；no-store；bilingual；empty production state；production 不导入 tests；页面不自动运行。
-
-### Full
+至少执行：
 
 ```bash
+.venv/bin/python -m pytest <v1.3.0 RC focused tests>
+.venv/bin/python -m pytest <Phase 6 task/download/update/security focused set>
 .venv/bin/python -m pytest
 .venv/bin/python -m pip check
 git diff --check
 ```
 
-测试不得访问真实 DNS、真实 Provider 或既有 `data/`。
+完整测试不得少于当前基线所包含的测试；若测试总数变化，必须解释新增/删除原因。正常情况下只应新增 RC 不变量测试，不应删除 Phase 6 测试。
 
-## 18. Docker 验证
+测试不得访问真实 DNS、真实 Provider、真实站点或既有 `data/`。
 
-使用独立临时目录或 volume：production build；non-root；read-only rootfs；CapDrop ALL/CapEff0；no-new-privileges；`/login` 200 和 headers；fresh Schema 5；创建 synthetic/local task；recreate 后任务/SQLite/媒体/索引保持；遗留 running 恢复为安全状态且不自动联网；临时任务目录权限正确；完整清理。不得挂载 `/home/nsfwtrack/data/`。
+## 9. Docker RC 验证
 
-## 19. 开发提交策略
+使用全新隔离临时目录或 volume，不得挂载 `/home/nsfwtrack/data/`。
 
-允许 3–8 个逻辑提交，例如：
+至少验证：
 
 ```text
-Add Schema 5 task foundation
-Add controlled download execution
-Add manual source update flow
-Add task center UI and integration tests
-Complete v1.3.0 bundle documentation
+production image build succeeds
+Application reports 1.3.0
+fresh Schema 5
+/login = 200
+security headers present
+UID/GID = 10001:10001
+read-only root filesystem
+CapDrop ALL / CapEff = 0
+no-new-privileges
+/tmp tmpfs
+isolated writable /app/data
+production catalogs empty
+no external network operation
 ```
 
-全部普通线性提交；不 amend 已推送提交；不 force push；本地连续修复；完整功能和全量验证通过后普通 push；Actions 普通失败可自行修复并追加普通提交后再次 push，无需请求授权；最终无 merge commit。
+执行双生命周期：
 
-## 20. 云端与验收边界
+1. 第一次启动创建隔离数据库、任务、测试媒体/关系；
+2. 停止并 recreate；
+3. 验证 SQLite、Schema 5、任务恢复规则、文件、DB link 和媒体索引仍一致；
+4. 遗留 running 恢复为安全状态，不自动联网；
+5. Application 仍为 `1.3.0`；
+6. 完整清理容器、网络、volume/image 和临时审计目录。
 
-结束条件：完整功能闭环 + Full pytest + pip check + diff check + Docker smoke + GitHub Actions success + workspace only `?? data/`。
+## 10. 提交与推送
 
-完成后报告并停止，由外部做一次整体云端 diff 复核。
+目标为一个最小、普通、线性的 RC freeze commit，例如：
 
-本阶段不调用 Hermes、不创建 RC、不创建 v1.3.0 Tag/Release、不部署 N100、不接真实 Provider。云端复核发现普通缺陷时，下一轮允许 Codex直接修复并推送，不再拆小阶段。全部冻结后才进入 v1.3.0 RC 与唯一一次 Hermes 验收。
+```text
+Freeze v1.3.0 release candidate
+```
 
-## 21. 最终报告
+允许在本地验证前修改；一旦推送，不 amend、不 force push。
 
-报告：起始/最终 SHA；全部逻辑提交；修改文件分类；Application 仍 1.2.0；Schema 5；Backup v2/v1-v2 restore；任务模型/状态矩阵；下载 Preview/Confirm/Execute/Resume/Cancel；文件系统与事务安全；Check/Diff/Confirm/Apply；任务中心 UI；Production catalogs 为空；无真实 Provider/Host/凭据/真实网络；focused/schema/task/download/update/security/full tests；pip/diff；Docker；Actions；自动修复提交；无 Hermes/Tag/Release/镜像/N100；最终仅 `?? data/`；data/ 未接触。
+如 GitHub Actions 因普通 RC 同步缺陷失败，可追加一个普通 corrective commit，但不得修改功能或削弱门禁。最终报告必须列出全部候选提交，并明确最终 candidate SHA。
 
-普通实现问题、环境问题和工具兼容问题由 Codex自行解决并在最终报告汇总，不得中途逐项请求授权。
+推送后必须等待并验证当前 candidate SHA 对应的：
+
+```text
+test = success
+Docker production smoke = success
+```
+
+不得只根据分支最新状态猜测，必须确认 Actions 绑定精确 candidate SHA。
+
+## 11. 停止边界
+
+出现以下情况必须停止并报告：
+
+1. `HEAD` 或 `origin/main` 不等于基线 SHA；
+2. 工作区除 `GOAL.md` 和既有 `?? data/` 外已有未知改动；
+3. 需要读取或修改既有 `data/`；
+4. 已存在本地/远程 `v1.3.0` Tag 或 GitHub Release；
+5. 发现多个冲突运行时版本源，无法安全确定权威入口；
+6. RC 冻结必须修改业务逻辑、Schema、Backup、依赖、Docker/CI 或安全边界；
+7. 需要真实 Provider、Host、凭据或网络；
+8. 需要 force push、重写历史、移动/删除 Tag/Release；
+9. 测试或 Docker 暴露新的功能级阻塞缺陷，无法在纯冻结范围内修复；
+10. 可能泄露秘密或用户数据。
+
+普通版本断言同步、文档状态矛盾、RC 测试补充和隔离验证问题由 Codex 自行修复，不逐项请求授权。
+
+## 12. 完成条件
+
+只有同时满足以下条件才可报告 RC freeze 完成：
+
+```text
+Application = 1.3.0
+Latest stable = v1.2.0
+Schema = 5
+Backup = v2 / restore v1-v2
+Phase 6 scope frozen
+Production catalogs empty
+Focused tests pass
+Full pytest pass
+pip check pass
+git diff --check pass
+Docker double-lifecycle pass
+GitHub Actions test pass
+GitHub Actions Docker production smoke pass
+No v1.3.0 tag
+No v1.3.0 Release
+No published image
+No N100 deployment
+No Hermes call
+Workspace only ?? data/
+data/ not accessed
+```
+
+## 13. 最终报告
+
+报告必须包含：
+
+- 起始 SHA 与最终 candidate SHA；
+- 所有 RC freeze/corrective commit；
+- 实际修改文件及每个文件的理由；
+- 运行时版本入口审计结果；
+- 当前候选引用与保留历史引用清单；
+- Application 1.3.0、latest stable v1.2.0、Schema 5、Backup v2/v1-v2 restore；
+- Phase 6 冻结范围；
+- production catalogs 为空的证明；
+- focused/full/pip/diff 结果；
+- Docker 双生命周期结果；
+- candidate SHA 对应的 Actions run/job 状态；
+- 没有 Tag/Release/镜像/N100/Hermes；
+- 最终工作区只剩 `?? data/`；
+- `data/` 未读取、枚举、进入或修改。
+
+完成后停止。下一步不是继续编码，而是对精确 candidate SHA 做一次云端 RC diff 复核；通过后再单独编写并执行唯一一次 Hermes 验收提示词。正式 `v1.3.0` 发布必须由用户另行授权。
