@@ -12,7 +12,6 @@ from app.providers.copymanga.adapter import StaticJsonFetcher
 from app.providers.copymanga.package_build import (
     build_copymanga_acquisition_package,
     build_copymanga_production_package,
-    default_copymanga_fixture_root,
 )
 from app.providers.copymanga.parse import (
     parse_chapters_payload,
@@ -29,26 +28,45 @@ from app.source_search import PRODUCTION_SEARCH_PACKAGES
 
 
 ROOT = Path(__file__).resolve().parents[1]
+FIXTURE_ROOT = ROOT / "tests" / "fixtures" / "copymanga"
+
+
+def _fixture_fetcher() -> StaticJsonFetcher:
+    search = json.loads((FIXTURE_ROOT / "search.json").read_text(encoding="utf-8"))
+    detail = json.loads((FIXTURE_ROOT / "detail.json").read_text(encoding="utf-8"))
+    chapters = json.loads((FIXTURE_ROOT / "chapters.json").read_text(encoding="utf-8"))
+    return StaticJsonFetcher(
+        {
+            "/api/v3/search/comic": search,
+            "/api/v3/comic2/demo-comic": detail,
+            "/api/v3/comic/demo-comic/group/default/chapters": chapters,
+        }
+    )
 
 
 def test_copymanga_in_production_catalogs() -> None:
-    keys = {p.provider_key for p in PRODUCTION_SEARCH_PACKAGES}
-    assert "copymanga" in keys
-    endpoint_keys = {p.provider_key for p in PRODUCTION_ENDPOINT_REGISTRY.providers}
-    assert "copymanga" in endpoint_keys
-    assert any(p.provider_key == "copymanga" for p in build_production_endpoints())
-    assert any(p.provider_key == "copymanga" for p in build_production_search_packages())
+    assert PRODUCTION_SEARCH_PACKAGES == ()
+    assert PRODUCTION_ENDPOINT_REGISTRY.providers == ()
+    assert build_production_endpoints() == ()
+    assert build_production_search_packages() == ()
 
 
 def test_package_validates_production() -> None:
-    package = build_copymanga_production_package(validate=True)
+    package = build_copymanga_production_package(
+        fetcher=_fixture_fetcher(), validate=True
+    )
     assert package.scope == ProviderApprovalScope.PRODUCTION
     assert package.provider_key == "copymanga"
     assert package.endpoint is not None
 
 
+def test_package_requires_explicit_fetcher() -> None:
+    with pytest.raises(ValueError, match="controlled CopyManga fetcher"):
+        build_copymanga_production_package()
+
+
 def test_parse_fixtures() -> None:
-    root = default_copymanga_fixture_root()
+    root = FIXTURE_ROOT
     search = json.loads((root / "search.json").read_text(encoding="utf-8"))
     detail = json.loads((root / "detail.json").read_text(encoding="utf-8"))
     chapters = json.loads((root / "chapters.json").read_text(encoding="utf-8"))
@@ -62,17 +80,7 @@ def test_parse_fixtures() -> None:
 
 @pytest.mark.asyncio
 async def test_adapter_search_detail_assets() -> None:
-    root = default_copymanga_fixture_root()
-    search = json.loads((root / "search.json").read_text(encoding="utf-8"))
-    detail = json.loads((root / "detail.json").read_text(encoding="utf-8"))
-    chapters = json.loads((root / "chapters.json").read_text(encoding="utf-8"))
-    fetcher = StaticJsonFetcher(
-        {
-            "/api/v3/search/comic": search,
-            "/api/v3/comic2/demo-comic": detail,
-            "/api/v3/comic/demo-comic/group/default/chapters": chapters,
-        }
-    )
+    fetcher = _fixture_fetcher()
     package = build_copymanga_production_package(fetcher=fetcher, validate=True)
     adapter = package.adapter
     page = await adapter.search("Demo", page=1, page_size=10)

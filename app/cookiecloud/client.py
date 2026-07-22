@@ -15,17 +15,24 @@ import base64
 import hashlib
 import json
 import os
-import ssl
+import re
+import tempfile
 import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.parse import urljoin, urlparse
-from urllib.request import HTTPSHandler, ProxyHandler, Request, build_opener
+from urllib.request import Request
+
+from app.services.urllib_safety import (
+    build_no_redirect_opener,
+    response_matches_request,
+)
 
 MAX_ENVELOPE_BYTES = 2 * 1024 * 1024
 DEFAULT_TIMEOUT = 20.0
+_COOKIE_NAME_PATTERN = re.compile(r"[!#$%&'*+.^_`|~0-9A-Za-z-]{1,256}\Z")
 
 
 class CookieCloudError(RuntimeError):
@@ -133,8 +140,10 @@ def filter_cookies_for_hosts(
     pairs: dict[str, str] = {}
     for raw_domain, raw_cookies in cookie_data.items():
         domain = str(raw_domain).lstrip(".").lower()
+        if "." not in domain:
+            continue
         matched = any(
-            domain == host or domain.endswith("." + host) or host.endswith("." + domain)
+            domain == host or host.endswith("." + domain)
             for host in allowed_hosts
         )
         if not matched or not isinstance(raw_cookies, list):
@@ -145,6 +154,10 @@ def filter_cookies_for_hosts(
             name = raw_cookie.get("name")
             value = raw_cookie.get("value")
             if not isinstance(name, str) or not isinstance(value, str) or not value:
+                continue
+            if _COOKIE_NAME_PATTERN.fullmatch(name) is None or ";" in value:
+                continue
+            if any(ord(character) < 32 or ord(character) == 127 for character in value):
                 continue
             expiry = raw_cookie.get("expirationDate", raw_cookie.get("expires"))
             if isinstance(expiry, (int, float)) and expiry > 0 and expiry <= ts:
@@ -170,11 +183,32 @@ def save_cookie_header(path: str | Path, header: str) -> Path:
         raise CookieCloudError("cookie header contains control characters")
     file_path = Path(path)
     file_path.parent.mkdir(parents=True, exist_ok=True)
-    file_path.write_text(header.strip() + "\n", encoding="utf-8")
+    descriptor, temporary_name = tempfile.mkstemp(
+        prefix=f".{file_path.name}.",
+        suffix=".tmp",
+        dir=file_path.parent,
+    )
+    temporary = Path(temporary_name)
     try:
-        os.chmod(file_path, 0o600)
-    except OSError:
-        pass
+        os.fchmod(descriptor, 0o600)
+        with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+            descriptor = -1
+            handle.write(header.strip() + "\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary, file_path)
+        directory_descriptor = os.open(file_path.parent, os.O_RDONLY)
+        try:
+            os.fsync(directory_descriptor)
+        finally:
+            os.close(directory_descriptor)
+    finally:
+        if descriptor >= 0:
+            os.close(descriptor)
+        try:
+            temporary.unlink()
+        except FileNotFoundError:
+            pass
     return file_path
 
 
@@ -208,14 +242,14 @@ class CookieCloudImporter:
             headers={"Accept": "application/json", "User-Agent": "nsfwtrack-cookiecloud/1.5"},
             method="GET",
         )
-        handlers: list[Any] = []
-        if urlparse(base).scheme == "https":
-            handlers.append(HTTPSHandler(context=ssl.create_default_context()))
-        if self.proxy:
-            handlers.insert(0, ProxyHandler({"http": self.proxy, "https": self.proxy}))
-        opener = self._opener or build_opener(*handlers)
+        try:
+            opener = self._opener or build_no_redirect_opener(proxy=self.proxy)
+        except ValueError as exc:
+            raise CookieCloudError("CookieCloud proxy configuration is invalid") from exc
         try:
             with opener.open(request, timeout=self.timeout) as response:
+                if not response_matches_request(response, url):
+                    raise CookieCloudError("CookieCloud redirect is not allowed")
                 raw = response.read(MAX_ENVELOPE_BYTES + 1)
                 status = getattr(response, "status", 200)
                 if status >= 400:
@@ -224,6 +258,8 @@ class CookieCloudImporter:
                     raise CookieCloudError("CookieCloud response exceeds import limit")
                 envelope = json.loads(raw.decode("utf-8"))
         except HTTPError as exc:
+            if 300 <= exc.code <= 399:
+                raise CookieCloudError("CookieCloud redirect is not allowed") from exc
             raise CookieCloudError(f"CookieCloud returned HTTP {exc.code}") from exc
         except (URLError, TimeoutError, OSError, json.JSONDecodeError, UnicodeError) as exc:
             raise CookieCloudError("CookieCloud request failed") from exc

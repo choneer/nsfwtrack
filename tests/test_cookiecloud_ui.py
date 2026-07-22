@@ -63,7 +63,7 @@ def test_cookiecloud_page_authenticated_shows_readiness_not_secrets(
     text = r.text
     assert "cookiecloud" in text.lower() or "CookieCloud" in text
     assert "javdb_metadata" in text
-    assert "fixture_fallback" in text or "live_capable" in text
+    assert "not_configured" in text
     assert 'name="password"' in text
     assert 'action="/cookiecloud/import"' in text
     # Password field must be empty; no cookie values

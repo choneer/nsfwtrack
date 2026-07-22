@@ -433,7 +433,7 @@ def test_duplicate_provider_package_fails_without_partial_result(builder) -> Non
         ProviderPackageErrorCode.PACKAGE_DUPLICATE_PROVIDER,
         lambda: builder((VIDEO_PACKAGE, VIDEO_PACKAGE)),
     )
-    assert any(p.provider_key == "javdb_metadata" for p in PRODUCTION_ENDPOINT_REGISTRY.providers)
+    assert PRODUCTION_ENDPOINT_REGISTRY.providers == ()
 
 
 @pytest.mark.parametrize(
@@ -450,7 +450,7 @@ def test_invalid_second_package_fails_all_or_nothing(builder) -> None:
         ProviderPackageErrorCode.PACKAGE_FIXTURE_MISMATCH,
         lambda: builder((SOURCE_PACKAGE, invalid)),
     )
-    assert any(p.provider_key == "javdb_metadata" for p in PRODUCTION_ENDPOINT_REGISTRY.providers)
+    assert PRODUCTION_ENDPOINT_REGISTRY.providers == ()
 
 
 def test_binding_authority_does_not_expand_from_extra_methods() -> None:
@@ -539,4 +539,4 @@ def test_production_registry_remains_empty_and_unmodified() -> None:
     assert built is not before
     assert built.providers == (VIDEO_PACKAGE.endpoint,)
     assert PRODUCTION_ENDPOINT_REGISTRY is before
-    assert any(p.provider_key == "javdb_metadata" for p in PRODUCTION_ENDPOINT_REGISTRY.providers)
+    assert PRODUCTION_ENDPOINT_REGISTRY.providers == ()

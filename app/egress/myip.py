@@ -312,11 +312,11 @@ def javdb_compat(snapshot: MyIPSnapshot | None) -> dict[str, Any]:
             "country_code": None,
             "message": "no_proxy_or_unknown",
         }
-    codes = {
+    codes = [
         (s.country_code or "").upper()
         for s in snapshot.sources
         if s.ok and s.ip == snapshot.consensus_ip and s.country_code
-    }
+    ]
     if not codes:
         return {
             "ok": None,
@@ -328,7 +328,15 @@ def javdb_compat(snapshot: MyIPSnapshot | None) -> dict[str, Any]:
     from collections import Counter
 
     counted = Counter(codes)
-    country = counted.most_common(1)[0][0]
+    ranked = counted.most_common()
+    if len(ranked) > 1 and ranked[0][1] == ranked[1][1]:
+        return {
+            "ok": None,
+            "deny_countries": list(deny),
+            "country_code": None,
+            "message": "country_conflict",
+        }
+    country = ranked[0][0]
     blocked = country in deny
     return {
         "ok": not blocked,

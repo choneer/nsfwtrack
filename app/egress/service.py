@@ -3,12 +3,16 @@
 from __future__ import annotations
 
 import os
+import threading
 from pathlib import Path
 from typing import Any
 
 from app.egress.client import proxy_host_for_log
 from app.egress.myip import enrich_ipify_with_ipsb, javdb_compat, probe_myip_multi
 from app.egress.pool import EgressError, ProxyPool
+
+
+_POOL_UPDATE_LOCK = threading.Lock()
 
 
 def _repo_root() -> Path:
@@ -82,12 +86,17 @@ def build_snapshot(*, with_quality: bool = False) -> dict[str, Any]:
     pool_error: str | None = None
     if config_exists:
         try:
-            pool = ProxyPool.load(path)
             if with_quality:
-                pool.probe_all(timeout=20.0, with_quality=True)
-                pool.save(path)
-        except EgressError as exc:
-            pool_error = str(exc)
+                with _POOL_UPDATE_LOCK:
+                    pool = ProxyPool.load(path)
+                    pool.probe_all(timeout=20.0, with_quality=True)
+                    pool.save(path)
+                    # Independent parse after publication proves complete JSON.
+                    pool = ProxyPool.load(path)
+            else:
+                pool = ProxyPool.load(path)
+        except EgressError:
+            pool_error = "pool_config_invalid"
 
     pool_summary = pool.summary() if pool else []
     selected = None

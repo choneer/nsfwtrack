@@ -18,6 +18,7 @@ from app.providers.javdb.package_build import (
     build_javdb_acquisition_package,
     build_javdb_production_package,
 )
+from app.providers.javdb.session import SessionCookieError
 from app.providers.javdb.production import JAVDB_PRODUCTION_APPROVAL
 from app.providers.opt_in_catalog import (
     build_opt_in_search_packages,
@@ -60,17 +61,33 @@ async def test_javdb_live_adapter_search_detail_assets_static() -> None:
 
 
 def test_javdb_production_package_validates_with_static_fetcher() -> None:
-    package = build_javdb_production_package(validate=True)
+    package = build_javdb_production_package(
+        fetcher=StaticHtmlFetcher(
+            {
+                "/search": (FIXTURE_HTML / "search_normal.html").read_text(
+                    encoding="utf-8"
+                ),
+                "/v/RM29z": (FIXTURE_HTML / "detail_RM29z.html").read_text(
+                    encoding="utf-8"
+                ),
+            }
+        ),
+        validate=True,
+    )
     validate_provider_package(package)
     assert package.provider_key == "javdb_metadata"
     assert ProviderOperation.ASSET_LIST in package.binding.operations
     validate_approval_for_activation(
         package.approval, package.capabilities, package.endpoint
     )
-    # v1.4.1: default catalogs populated
-    assert any(p.provider_key == "javdb_metadata" for p in PRODUCTION_ENDPOINT_REGISTRY.providers)
-    assert any(p.provider_key == "javdb_metadata" for p in PRODUCTION_SEARCH_PACKAGES)
-    assert {p.provider_key for p in build_production_search_service().list_providers()} >= {"javdb_metadata", "comic_local_fixture"}
+    assert PRODUCTION_ENDPOINT_REGISTRY.providers == ()
+    assert PRODUCTION_SEARCH_PACKAGES == ()
+    assert build_production_search_service().list_providers() == ()
+
+
+def test_javdb_production_package_requires_explicit_fetcher() -> None:
+    with pytest.raises(SessionCookieError, match="controlled JavDB fetcher"):
+        build_javdb_production_package()
 
 
 @pytest.mark.asyncio
@@ -134,11 +151,11 @@ def test_opt_in_catalog_default_off() -> None:
     assert service.list_providers() == ()
 
 
-def test_opt_in_catalog_builds_packages() -> None:
-    packages = build_opt_in_search_packages()
-    keys = {p.provider_key for p in packages}
-    assert "javdb_metadata" in keys
-    assert "comic_local_fixture" in keys
+def test_legacy_opt_in_catalog_remains_fail_closed() -> None:
+    assert build_opt_in_search_packages() == ()
+    assert build_opt_in_search_service(
+        env={"NSFWTRACK_ENABLE_OPT_IN_PROVIDERS": "1"}
+    ).list_providers() == ()
 
 
 def test_production_approval_includes_asset_list() -> None:

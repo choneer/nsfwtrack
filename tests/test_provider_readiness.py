@@ -13,7 +13,7 @@ from app.providers.readiness import (
 )
 
 
-def test_readiness_without_cookie_is_fixture_for_javdb(
+def test_readiness_without_cookie_is_not_configured(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     monkeypatch.delenv("NSFWTRACK_JAVDB_SESSION_COOKIE", raising=False)
@@ -41,12 +41,12 @@ def test_readiness_without_cookie_is_fixture_for_javdb(
     )
 
     by_key = {p["provider_key"]: p for p in payload["providers"]}
-    assert by_key["javdb_metadata"]["mode"] == "fixture_fallback"
+    assert by_key["javdb_metadata"]["mode"] == "not_configured"
     assert by_key["javdb_metadata"]["cookie_loadable"] is False
-    assert by_key["jiuse_vod"]["mode"] == "fixture_fallback"
+    assert by_key["jiuse_vod"]["mode"] == "not_configured"
     assert by_key["jiuse_vod"]["scope"] == "TEST_FIXTURE"
-    assert by_key["zuidapi_vod"]["mode"] == "fixture_fallback"
-    assert by_key["copymanga"]["mode"] == "fixture_fallback"
+    assert by_key["zuidapi_vod"]["mode"] == "not_configured"
+    assert by_key["copymanga"]["mode"] == "not_configured"
     assert by_key["comic_local_fixture"]["scope"] == "TEST_FIXTURE"
 
     # Never leak cookie-like values
@@ -55,7 +55,7 @@ def test_readiness_without_cookie_is_fixture_for_javdb(
     assert "secret-cookie" not in text
 
 
-def test_readiness_with_cookie_file_is_live_capable(
+def test_readiness_with_cookie_file_remains_not_configured(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     cookie_file = tmp_path / "javdb_metadata.cookie"
@@ -68,7 +68,7 @@ def test_readiness_with_cookie_file_is_live_capable(
     payload = snap.to_dict()
     by_key = {p["provider_key"]: p for p in payload["providers"]}
 
-    assert by_key["javdb_metadata"]["mode"] == "live_capable"
+    assert by_key["javdb_metadata"]["mode"] == "not_configured"
     assert by_key["javdb_metadata"]["cookie_loadable"] is True
     assert payload["proxy_configured"] is True
     assert "NSFWTRACK_HTTP_PROXY" in payload["proxy_env_keys"]
@@ -76,6 +76,30 @@ def test_readiness_with_cookie_file_is_live_capable(
     dumped = json.dumps(payload)
     assert "fake-secret-value-xyz" not in dumped
     assert "session=" not in dumped
+
+
+def test_readiness_rechecks_cookie_without_cached_runtime(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    cookie_path = tmp_path / "javdb_metadata.cookie"
+    monkeypatch.delenv("NSFWTRACK_JAVDB_SESSION_COOKIE", raising=False)
+    monkeypatch.delenv("NSFWTRACK_JAVDB_SESSION_COOKIE_FILE", raising=False)
+    monkeypatch.setattr(
+        "app.providers.readiness.default_cookie_store_path",
+        lambda key="javdb": cookie_path,
+    )
+    monkeypatch.setattr(
+        "app.cookiecloud.client.default_cookie_store_path",
+        lambda key="javdb": cookie_path,
+    )
+
+    before = build_catalog_readiness().providers[0]
+    cookie_path.write_text("session=changed-after-first-read\n", encoding="utf-8")
+    after = build_catalog_readiness().providers[0]
+
+    assert before.cookie_loadable is False
+    assert after.cookie_loadable is True
+    assert before.mode == after.mode == "not_configured"
 
 
 def test_readiness_api_requires_auth(client) -> None:

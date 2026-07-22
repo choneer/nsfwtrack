@@ -254,7 +254,7 @@ def test_synthetic_artifact_is_fixture_only_and_video_only() -> None:
     assert len(artifact.fixture_digests) == 6
     assert all(fixture_id.startswith("video-") for fixture_id, _ in artifact.fixture_digests)
     assert b"://" not in SYNTHETIC_ARTIFACT_BYTES
-    assert any(p.provider_key == "javdb_metadata" for p in PRODUCTION_ENDPOINT_REGISTRY.providers)
+    assert PRODUCTION_ENDPOINT_REGISTRY.providers == ()
 
 
 @pytest.mark.parametrize(
@@ -676,7 +676,7 @@ def test_success_calls_factory_once_and_executes_no_adapter_operation() -> None:
     assert package.evidence == VIDEO_PACKAGE.evidence
     assert package.fixture_digests == VIDEO_PACKAGE.fixture_digests
     assert package.binding.adapter is factory.result
-    assert any(p.provider_key == "javdb_metadata" for p in PRODUCTION_ENDPOINT_REGISTRY.providers)
+    assert PRODUCTION_ENDPOINT_REGISTRY.providers == ()
 
 
 @pytest.mark.parametrize(
@@ -738,7 +738,7 @@ def test_parser_serializer_attestation_and_loader_have_zero_side_effects(
         SYNTHETIC_FACTORY_REGISTRY,
     )
     assert package.provider_key == VIDEO_PACKAGE.provider_key
-    assert any(p.provider_key == "javdb_metadata" for p in PRODUCTION_ENDPOINT_REGISTRY.providers)
+    assert PRODUCTION_ENDPOINT_REGISTRY.providers == ()
 
 
 def test_final_production_registry_identity_is_unchanged() -> None:
@@ -749,4 +749,4 @@ def test_final_production_registry_identity_is_unchanged() -> None:
     )
     assert package.binding.adapter_kind is ProviderAdapterKind.VIDEO_METADATA
     assert PRODUCTION_ENDPOINT_REGISTRY is before
-    assert any(p.provider_key == "javdb_metadata" for p in PRODUCTION_ENDPOINT_REGISTRY.providers)
+    assert PRODUCTION_ENDPOINT_REGISTRY.providers == ()

@@ -400,7 +400,7 @@
     document.getElementById("egress-raw").textContent = JSON.stringify(data, null, 2);
   }
 
-  async function load(path) {
+  async function load(path, method) {
     const st = document.getElementById("egress-status-line");
     const btns = [
       document.getElementById("egress-refresh"),
@@ -411,7 +411,11 @@
     mainCards.classList.add("egress-loading");
     st.textContent = I18N.loading;
     try {
-      const r = await fetch(path, { credentials: "same-origin", headers: { "Accept": "application/json" } });
+      const r = await fetch(path, {
+        method: method || "GET",
+        credentials: "same-origin",
+        headers: { "Accept": "application/json" },
+      });
       const data = await r.json();
       if (!r.ok || data.ok === false) {
         throw new Error(data.error || ("HTTP " + r.status));
@@ -430,7 +434,7 @@
     load("/api/egress/status");
   };
   document.getElementById("egress-probe").onclick = function () {
-    load("/api/egress/probe-quality");
+    load("/api/egress/probe-quality", "POST");
   };
   load("/api/egress/status");
 })();

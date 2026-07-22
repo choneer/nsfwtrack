@@ -6,6 +6,7 @@ import base64
 import hashlib
 import json
 import os
+import stat
 from pathlib import Path
 from typing import Any
 
@@ -94,6 +95,21 @@ def test_decrypt_roundtrip_and_filter() -> None:
     assert "theme=dark" in header
 
 
+def test_cookie_filter_rejects_subdomain_scope_and_header_injection() -> None:
+    with pytest.raises(CookieCloudError, match="no non-expired"):
+        filter_cookies_for_hosts(
+            {
+                "login.javdb.com": [
+                    {"name": "session", "value": "subdomain-only"},
+                ],
+                "javdb.com": [
+                    {"name": "bad", "value": "x; injected=y"},
+                ],
+            },
+            hosts={"javdb.com"},
+        )
+
+
 def test_wrong_password_raises() -> None:
     encrypted = _encrypt_cookiecloud("u", "right", {"cookie_data": {}})
     with pytest.raises(CookieCloudError):
@@ -105,6 +121,7 @@ def test_save_cookie_header_and_session_loader(tmp_path: Path, monkeypatch: pyte
     save_cookie_header(path, "a=1; b=2")
     text = path.read_text(encoding="utf-8").strip()
     assert text == "a=1; b=2"
+    assert stat.S_IMODE(path.stat().st_mode) == 0o600
 
     monkeypatch.delenv("NSFWTRACK_JAVDB_SESSION_COOKIE", raising=False)
     monkeypatch.delenv("NSFWTRACK_JAVDB_SESSION_COOKIE_FILE", raising=False)

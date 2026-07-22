@@ -308,50 +308,13 @@ class ProviderSearchService:
             _raise_service_error(ProviderSearchServiceErrorCode.INVALID_RESULT)
 
 
-class _LazyProductionSearchPackages:
-    """Resolve search packages on first access (avoids import cycles)."""
-
-    __slots__ = ("_cached",)
-
-    def __init__(self) -> None:
-        object.__setattr__(self, "_cached", None)
-
-    def _packages(self) -> tuple[ProviderPackage, ...]:
-        cached = object.__getattribute__(self, "_cached")
-        if cached is None:
-            from app.providers.production_catalog import (
-                build_production_search_packages,
-            )
-
-            cached = build_production_search_packages()
-            object.__setattr__(self, "_cached", cached)
-        return cached
-
-    def __iter__(self):
-        return iter(self._packages())
-
-    def __len__(self) -> int:
-        return len(self._packages())
-
-    def __bool__(self) -> bool:
-        return bool(self._packages())
-
-    def __eq__(self, other: object) -> bool:
-        if isinstance(other, tuple):
-            return self._packages() == other
-        return NotImplemented
-
-    def __getitem__(self, index: int) -> ProviderPackage:
-        return self._packages()[index]
-
-
-PRODUCTION_SEARCH_PACKAGES = _LazyProductionSearchPackages()
+PRODUCTION_SEARCH_PACKAGES: tuple[ProviderPackage, ...] = ()
 
 
 def build_production_search_service(
     clock: Callable[[], datetime] = _utc_now,
 ) -> ProviderSearchService:
-    return ProviderSearchService(tuple(PRODUCTION_SEARCH_PACKAGES), clock)
+    return ProviderSearchService(PRODUCTION_SEARCH_PACKAGES, clock)
 
 
 __all__ = [

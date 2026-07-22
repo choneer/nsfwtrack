@@ -149,6 +149,32 @@ jobs:
             test -s /app/data/nsfwtrack.db
             python -c "import sqlite3; connection = sqlite3.connect(\"/app/data/nsfwtrack.db\"); assert connection.execute(\"SELECT MAX(version) FROM schema_migrations\").fetchone()[0] == 5; assert connection.execute(\"SELECT valid FROM media_index_state WHERE id = 1\").fetchone()[0] == 1; assert connection.execute(\"SELECT COUNT(*) FROM media_index_entries WHERE record_type = char(109,101,100,105,97)\").fetchone()[0] == 1"
           '
+          docker compose -f "${COMPOSE_FILE}" -p "${COMPOSE_PROJECT_NAME}" exec -T nsfwtrack python - <<'PY'
+          import http.cookiejar
+          import json
+          import os
+          import pathlib
+          import urllib.request
+
+          assert not pathlib.Path("/app/tests").exists()
+          jar = http.cookiejar.CookieJar()
+          opener = urllib.request.build_opener(
+              urllib.request.HTTPCookieProcessor(jar)
+          )
+          login = urllib.request.Request(
+              "http://127.0.0.1:8000/api/auth/login",
+              data=json.dumps({"password": os.environ["APP_PASSWORD"]}).encode(),
+              headers={"Content-Type": "application/json"},
+              method="POST",
+          )
+          with opener.open(login, timeout=5) as response:
+              assert response.status == 200
+          with opener.open("http://127.0.0.1:8000/source-search", timeout=5) as response:
+              body = response.read().decode("utf-8")
+              assert response.status == 200
+              assert "Traceback" not in body
+              assert 'action="/source-search/search"' not in body
+          PY
 
       - name: Recreate container and verify SQLite persistence
         run: |

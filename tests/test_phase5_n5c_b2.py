@@ -374,8 +374,8 @@ def test_production_get_lists_catalog_zero_apply_and_does_not_mutate_session(
     response = auth_client.get("/source-search")
 
     assert response.status_code == 200
-    # Application 1.5.0 lists approved packages; GET must not start Apply.
-    assert "javdb_metadata" in response.text or "JavDB" in response.text
+    # Reviewed identities are not activated; GET must not start Apply.
+    assert "javdb_metadata" not in response.text
     assert 'action="/source-search/apply"' not in response.text
     assert auth_client.cookies.get("session") == before_cookie
 
@@ -810,6 +810,6 @@ def test_phase_invariants_and_empty_production_catalogs_are_unchanged() -> None:
     assert app.version == "1.5.0"
     assert CURRENT_SCHEMA_VERSION == 5
     assert BACKUP_SCHEMA_V2 == "nsfwtrack.backup.v2"
-    assert any(p.provider_key == "javdb_metadata" for p in PRODUCTION_ENDPOINT_REGISTRY.providers)
-    assert any(p.provider_key == "javdb_metadata" for p in PRODUCTION_SEARCH_PACKAGES)
-    assert {p.provider_key for p in build_production_search_service().list_providers()} >= {"javdb_metadata", "comic_local_fixture"}
+    assert PRODUCTION_ENDPOINT_REGISTRY.providers == ()
+    assert PRODUCTION_SEARCH_PACKAGES == ()
+    assert build_production_search_service().list_providers() == ()

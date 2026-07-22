@@ -2,12 +2,9 @@
 
 from __future__ import annotations
 
-import hashlib
-import json
 from datetime import UTC, datetime
-from pathlib import Path
 
-from app.providers.zuidapi.adapter import StaticJsonFetcher, ZuidapiLiveVideoMetadataAdapter
+from app.providers.zuidapi.adapter import JsonFetcher, ZuidapiLiveVideoMetadataAdapter
 from app.providers.zuidapi.approval import (
     ZUIDAPI_APPROVAL,
     ZUIDAPI_CAPABILITIES,
@@ -28,38 +25,20 @@ from app.source_adapters.package import (
 )
 
 
-def default_zuidapi_fixture_root() -> Path:
-    return Path(__file__).resolve().parents[3] / "tests" / "fixtures" / "zuidapi"
-
-
-def _sha256_bytes(data: bytes) -> str:
-    return hashlib.sha256(data).hexdigest()
+_SEARCH_FIXTURE_SHA256 = "c79de7b4dd10f9032cbc93214eab2c1649c613401d9aeecaa6b010872555b032"
+_DETAIL_FIXTURE_SHA256 = "5c6ec84c13d1aae5123a715801a3e2c427365e278d86eb972c6b23e6e0a7b93a"
 
 
 def build_zuidapi_production_package(
     *,
-    fetcher: object | None = None,
-    fixture_root: Path | None = None,
+    fetcher: JsonFetcher | None = None,
     validate: bool = True,
 ) -> ProviderPackage:
-    root = fixture_root or default_zuidapi_fixture_root()
-    search_body = (root / "search-normal.json").read_bytes()
-    detail_body = (root / "detail-normal.json").read_bytes()
-    search_sha = _sha256_bytes(search_body)
-    detail_sha = _sha256_bytes(detail_body)
+    search_sha = _SEARCH_FIXTURE_SHA256
+    detail_sha = _DETAIL_FIXTURE_SHA256
     if fetcher is None:
-        fetcher = StaticJsonFetcher(
-            {
-                "/api.php/provide/vod": json.loads(search_body.decode("utf-8")),
-                "/api.php/provide/vod?ac=list&limit=20&pg=1&wd=TEST": json.loads(
-                    search_body.decode("utf-8")
-                ),
-                "/api.php/provide/vod?ac=detail&ids=TEST-001": json.loads(
-                    detail_body.decode("utf-8")
-                ),
-            }
-        )
-    adapter = ZuidapiLiveVideoMetadataAdapter(fetcher)  # type: ignore[arg-type]
+        raise ValueError("controlled ZuidAPI fetcher is not configured")
+    adapter = ZuidapiLiveVideoMetadataAdapter(fetcher)
     digests = (
         ("zuidapi_search_normal", search_sha),
         ("zuidapi_detail_normal", detail_sha),

@@ -1,8 +1,8 @@
 # Production path roadmap (`nsfwtrack_grok`)
 
 **Application 1.5.0** (Schema 5) is the development head on this branch.
-v1.3.0 kept production catalogs empty; 1.4.x populated nsfwpro factory keys;
-**1.5.0** adds CookieCloud, HLS/playback inspect, and `copymanga` real-site comic.
+It adds CookieCloud, HLS/playback inspect, reviewed nsfwpro identity mappings,
+and a `copymanga` package contract. All production runtime catalogs remain empty.
 
 Latest published GitHub Release may still be older (`v1.3.0`); this document
 describes the **code head**, not a cut Release tag.
@@ -11,7 +11,7 @@ describes the **code head**, not a cut Release tag.
 
 1. **Cookie + metadata scrape first** — operator session cookie; SEARCH + DETAIL HTML.
 2. **Video** — `ASSET_LIST` surfaces **non-downloadable link descriptors**; **optional** local `DOWNLOAD` via acquisition after explicit confirm.
-3. **Comics / doujin** — separate package; local `DOWNLOAD` after confirm (`comic_local_fixture` proves path; `copymanga` is PRODUCTION comic).
+3. **Comics / doujin** — separate package; local fixture tests prove the path, while `copymanga` remains unactivated.
 4. **No VIP / login / paywall bypass.**
 5. **JP/KR egress** for JavDB (operator proxy; `/egress`).
 6. **CookieCloud** and **HLS inspect** are control planes (not Providers).
@@ -20,15 +20,15 @@ describes the **code head**, not a cut Release tag.
 
 | Provider key | Scope | Default process mode | Notes |
 |--------------|-------|----------------------|--------|
-| `javdb_metadata` | PRODUCTION | **live_capable** if session cookie loadable; else **fixture_fallback** | Cookie via env / file / CookieCloud drop zone |
-| `jiuse_vod` | TEST_FIXTURE | fixture_fallback | Offline only; live unauthorized |
-| `zuidapi_vod` | PRODUCTION | fixture_fallback | Approval uses static JSON package unless a live fetcher is injected |
-| `copymanga` | PRODUCTION | fixture_fallback | Real-site approval; default package static until live fetcher injected |
-| `comic_local_fixture` | TEST_FIXTURE | fixture_fallback | Local page download proof |
+| `javdb_metadata` | PRODUCTION identity | **not_configured** | A cookie may be loadable, but no controlled runtime is activated |
+| `jiuse_vod` | TEST_FIXTURE | **not_configured** | Offline tests only; live unauthorized |
+| `zuidapi_vod` | PRODUCTION identity | **not_configured** | Package tests require an explicitly injected fetcher |
+| `copymanga` | PRODUCTION identity | **not_configured** | Package tests require an explicitly injected fetcher |
+| `comic_local_fixture` | TEST_FIXTURE | **not_configured** | Local tests only |
 
-**Endpoint registry (PRODUCTION hosts):** `javdb_metadata`, `zuidapi_vod`, `copymanga`.
+**Endpoint registry:** empty.
 
-**Acquisition packages:** `javdb_metadata`, `copymanga`, `comic_local_fixture`.
+**Search and acquisition packages:** empty.
 
 Operator readiness (no secrets): `GET /api/providers/readiness` and the CookieCloud page.
 
@@ -36,18 +36,18 @@ Operator readiness (no secrets): `GET /api/providers/readiness` and the CookieCl
 
 | Phase | Deliverable | Status |
 |-------|-------------|--------|
-| **A** | Activation: PRODUCTION HTML + provider_session; SEARCH+DETAIL+optional ASSET_LIST | **Done** (default catalogs) |
-| **B** | PRODUCTION facts + live async adapter + cookie loader + package builder | **Done** (JavDB live when cookie present) |
-| **C** | Video ASSET_LIST (links) + optional acquisition DOWNLOAD | **Done** (JavDB optional) |
-| **D** | Comic package + local DOWNLOAD acquisition | **Done** (fixture + copymanga PRODUCTION) |
+| **A** | Reviewed PRODUCTION facts; SEARCH+DETAIL+optional ASSET_LIST | **Contracts complete; runtime not activated** |
+| **B** | Async adapter + cookie loader + package builder | **Explicit injection tests only** |
+| **C** | Video ASSET_LIST + optional acquisition DOWNLOAD | **Contract tests only** |
+| **D** | Comic package + local DOWNLOAD acquisition | **Contract/fixture tests only** |
 | **E** | CookieCloud import + HLS/playback-line inspect (no segment fetch) | **Done** (1.5.0) |
 | **F** | Catalog readiness honesty + CookieCloud operator UI | **Done** (1.5.0 engineering close) |
 
 ## Runtime (1.5.0)
 
 ```bash
-export NSFWTRACK_JAVDB_SESSION_COOKIE='name=value; ...'   # lawful session only
-# optional proxy for JavDB / CookieCloud:
+export NSFWTRACK_JAVDB_SESSION_COOKIE='name=value; ...'   # readiness only
+# optional explicit proxy for CookieCloud / egress control planes:
 export NSFWTRACK_HTTP_PROXY=http://127.0.0.1:6123
 # optional CookieCloud import → data/cookies/javdb_metadata.cookie
 ```
@@ -59,7 +59,7 @@ from app.providers.readiness import build_catalog_readiness
 
 service = build_production_search_service()
 registry = build_production_acquisition_registry()
-ready = build_catalog_readiness()  # never contains cookie values
+ready = build_catalog_readiness()  # not_configured; never contains cookie values
 ```
 
 Control planes:
@@ -74,14 +74,15 @@ Control planes:
 - No VIP / login / paywall bypass; CookieCloud is operator-initiated import only
 - HLS inspect does **not** fetch media segments or keys
 - jiuse remains TEST_FIXTURE until an approved live endpoint freeze
-- Default zuidapi/copymanga packages use static fixtures unless a live fetcher is injected
+- Production catalogs never substitute test fixtures or infer activation from a cookie
+- Package builders require an explicit fetcher and do not create a production runtime
 - No merge to main / annotated tag / N100 deploy is implied by this document alone
 
 ## Modules
 
 | Module | Role |
 |--------|------|
-| `app/providers/production_catalog.py` | Default endpoints + search + acquisition packages |
+| `app/providers/production_catalog.py` | Reviewed identity map and empty default builders |
 | `app/providers/readiness.py` | Catalog readiness snapshot (no secrets) |
 | `app/providers/javdb/*` | PRODUCTION HTML + session + live/fixture package |
 | `app/providers/jiuse/*` | TEST_FIXTURE offline |

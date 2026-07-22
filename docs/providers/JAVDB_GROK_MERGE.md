@@ -38,14 +38,15 @@ Live scrape / cookie injection / registry population remain later work.
 Local UI at `/egress` (`app/egress/`) for multi-source exit IP + proxy pool quality.
 See [EGRESS.md](./EGRESS.md). Does **not** enable production JavDB hosts in the registry.
 
-## Runtime B–D (opt-in; default catalogs empty)
+## Runtime B–D (explicit injection only; default catalogs empty)
 
 Code-complete on this branch; **v1.3 default catalogs stay empty**.
 
 - Live adapter + cookie loader + package builder: `package_build` / `live_adapter`
 - Video ASSET_LIST (links) + optional acquisition DOWNLOAD
 - Comic local DOWNLOAD: `app/providers/comic/`
-- Enable via `NSFWTRACK_ENABLE_OPT_IN_PROVIDERS=1` + session cookie env
+- The legacy environment opt-in flag no longer activates a runtime. Package tests
+  inject a static fetcher explicitly; a production fetcher needs separate review.
 
 Still not default-wired:
 
@@ -56,5 +57,5 @@ Still not default-wired:
 
 ```bash
 cd /home/nsfwtrack
-python3.12 -m pytest tests/test_javdb_metadata_provider.py tests/test_javdb_production_activation.py -q
+.venv/bin/python -m pytest tests/test_javdb_metadata_provider.py tests/test_javdb_production_activation.py -q
 ```

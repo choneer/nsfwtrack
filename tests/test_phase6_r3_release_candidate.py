@@ -37,11 +37,11 @@ def test_v1_3_0_candidate_versions_and_empty_production_catalogs() -> None:
     assert CURRENT_SCHEMA_VERSION == 5
     assert BACKUP_SCHEMA_V1 == "nsfwtrack.backup.v1"
     assert BACKUP_SCHEMA_V2 == "nsfwtrack.backup.v2"
-    assert any(p.provider_key == "javdb_metadata" for p in PRODUCTION_ENDPOINT_REGISTRY.providers)
-    assert any(p.provider_key == "javdb_metadata" for p in PRODUCTION_SEARCH_PACKAGES)
-    assert {p.provider_key for p in build_production_search_service().list_providers()} >= {"javdb_metadata", "comic_local_fixture"}
-    assert any(p.provider_key == "comic_local_fixture" for p in PRODUCTION_ACQUISITION_PACKAGES)
-    assert {p.provider_key for p in build_production_acquisition_registry().packages} >= {"javdb_metadata", "comic_local_fixture"}
+    assert PRODUCTION_ENDPOINT_REGISTRY.providers == ()
+    assert PRODUCTION_SEARCH_PACKAGES == ()
+    assert build_production_search_service().list_providers() == ()
+    assert PRODUCTION_ACQUISITION_PACKAGES == ()
+    assert build_production_acquisition_registry().packages == ()
 
 
 def test_synthetic_adapters_cannot_enter_production_modules() -> None:

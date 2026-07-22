@@ -166,7 +166,7 @@ def test_capability_manifest_is_layered_frozen_and_test_only() -> None:
         _client(FixtureMockTransportFactory())
     )
 
-    assert any(p.provider_key == "javdb_metadata" for p in PRODUCTION_ENDPOINT_REGISTRY.providers)
+    assert PRODUCTION_ENDPOINT_REGISTRY.providers == ()
     assert FIXTURE_ENDPOINT_REGISTRY.providers == (FIXTURE_ENDPOINT,)
     assert FIXTURE_CAPABILITIES.operations == (
         ProviderOperation.SEARCH,

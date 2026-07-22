@@ -65,15 +65,15 @@ def egress_status() -> JSONResponse:
     try:
         payload = build_snapshot(with_quality=False)
         return JSONResponse(payload, headers={"Cache-Control": "no-store"})
-    except Exception as exc:  # noqa: BLE001 — surface safe diagnostic errors
+    except Exception:  # noqa: BLE001 - return a stable redacted failure
         return JSONResponse(
-            {"ok": False, "error": str(exc)[:300]},
+            {"ok": False, "error": "egress status failed"},
             status_code=500,
             headers={"Cache-Control": "no-store"},
         )
 
 
-@router.get(
+@router.post(
     "/api/egress/probe-quality",
     dependencies=[Depends(require_api_auth)],
 )
@@ -81,9 +81,9 @@ def egress_probe_quality() -> JSONResponse:
     try:
         payload = build_snapshot(with_quality=True)
         return JSONResponse(payload, headers={"Cache-Control": "no-store"})
-    except Exception as exc:  # noqa: BLE001
+    except Exception:  # noqa: BLE001 - return a stable redacted failure
         return JSONResponse(
-            {"ok": False, "error": str(exc)[:300]},
+            {"ok": False, "error": "egress probe failed"},
             status_code=500,
             headers={"Cache-Control": "no-store"},
         )

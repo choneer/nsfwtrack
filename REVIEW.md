@@ -2,6 +2,23 @@
 
 每次开发提交代码后，逐项检查：
 
+## nsfwtrack_grok corrective review (2026-07-22)
+
+- [x] **运行时目录 fail-closed** — Endpoint、Search、Acquisition 与旧 opt-in
+  目录均为空；已审核 package builder 必须显式注入 fetcher，生产镜像不读取
+  `tests/fixtures`，任意查询不再返回静态 fixture 结果。
+- [x] **HTTP 边界** — CookieCloud、egress 与未激活的 Provider urllib 路径统一
+  禁止 redirect 和环境代理；JavDB Cookie 不会跨 redirect 转发，错误输出脱敏。
+- [x] **CookieCloud / egress** — Cookie 导入不会激活缓存 Provider；Cookie 与
+  proxy-pool 使用原子 mode-600 替换；国家投票确定且平局为 unknown；质量探测
+  改为认证 POST，并串行化 load/probe/save/reload。
+- [x] **回归门禁** — focused 首轮 `656 passed` 且定位两条历史目录断言，修正后
+  相关复测 `39 passed`；full `1540 passed in 583.32s`，`pip check`、compileall、
+  `git diff --check` 均通过。
+- [x] **Docker** — 隔离非 root、read-only rootfs、cap-drop 双生命周期 smoke
+  通过；Schema 5 与媒体文件/DB/索引持久化一致，镜像内无 `tests/`，认证后的
+  `/source-search` 在空目录下返回 200；临时容器、镜像和 `/tmp` 数据已删除。
+
 ## Phase 6-R4 v1.3.0 Formal Release
 
 - [x] **6.R4.1 发布基线** — 精确候选 `00dbf1f4ead8411796eb417dd93a1dbeab7e5917`，
@@ -23,7 +40,7 @@ Phase 6-R3 = frozen
 Cloud RC diff review = PASS
 Hermes acceptance = PASS
 Phase 6-R4 = released
-Production catalogs = populated (1.5.0)
+Production catalogs = empty
 Published image = none
 N100 = not deployed
 ```
@@ -33,7 +50,7 @@ N100 = not deployed
 - [x] **1.5.0 版本** — FastAPI `version=1.5.0`，Schema 仍为 `5`
 - [x] **1.5.0 CookieCloud** — GET/decrypt/filter/save + `/api/cookiecloud/*`；JavDB session 读 drop zone
 - [x] **1.5.0 HLS** — 离线 m3u8/playback-line 解析 + `/api/playback/*`（不拉分片）
-- [x] **1.5.0 目录** — factory + copymanga 已接入；Endpoint 含 javdb + zuidapi + copymanga；comic fixture 保留；无 VIP 绕过
+- [x] **1.5.0 目录** — factory 映射与 copymanga 契约已审核；Endpoint/Search/Acquisition 默认目录全空，测试 fixture 不进入镜像运行时；无 VIP 绕过
 - [x] **1.5.0 文档** — README/PLAN/TASKS/CHANGELOG 记录 1.5.0
 
 ## Phase 6-R3 v1.3.0 Release Candidate Freeze

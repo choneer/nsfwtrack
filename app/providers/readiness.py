@@ -1,8 +1,8 @@
 """Catalog readiness snapshot for operator honesty (no secrets).
 
-Reports whether each default search catalog provider is live-capable,
-fixture-fallback, or not-configured for the *current process*, without
-leaking cookie values or passwords.
+Reports whether each reviewed provider is activated for the current process,
+without leaking cookie values or passwords.  Offline fixtures are never used
+as a production fallback.
 """
 
 from __future__ import annotations
@@ -81,7 +81,10 @@ def _javdb_readiness() -> ProviderReadiness:
         or (os.environ.get("NSFWTRACK_JAVDB_SESSION_COOKIE_FILE") or "").strip()
     )
     path = default_cookie_store_path("javdb_metadata")
-    file_ok = path.is_file() and path.stat().st_size > 0
+    try:
+        file_ok = path.is_file() and path.stat().st_size > 0
+    except OSError:
+        file_ok = False
     reasons: list[str] = []
     if env_set:
         reasons.append("env_cookie_source")
@@ -89,38 +92,30 @@ def _javdb_readiness() -> ProviderReadiness:
         reasons.append("cookie_file_present")
     if loadable:
         reasons.append("session_cookie_loadable")
-        return ProviderReadiness(
-            provider_key="javdb_metadata",
-            mode="live_capable",
-            scope="PRODUCTION",
-            reasons=tuple(reasons),
-            cookie_required=True,
-            cookie_loadable=True,
-            notes="live_html_fetch_when_cookie_present",
-        )
-    reasons.append("no_session_cookie")
-    reasons.append("package_uses_static_html_fallback")
+    else:
+        reasons.append("no_session_cookie")
+    reasons.append("controlled_live_fetcher_not_activated")
     return ProviderReadiness(
         provider_key="javdb_metadata",
-        mode="fixture_fallback",
+        mode="not_configured",
         scope="PRODUCTION",
         reasons=tuple(reasons),
         cookie_required=True,
-        cookie_loadable=False,
-        notes="catalog_listed_but_search_uses_fixtures_until_cookie",
+        cookie_loadable=loadable,
+        notes="reviewed_identity_only_not_in_production_catalog",
     )
 
 
-def _static_default(
+def _inactive_provider(
     key: str,
     *,
     scope: str,
     notes: str,
-    reasons: tuple[str, ...] = ("default_package_static_fetcher",),
+    reasons: tuple[str, ...] = ("controlled_live_fetcher_not_activated",),
 ) -> ProviderReadiness:
     return ProviderReadiness(
         provider_key=key,
-        mode="fixture_fallback",
+        mode="not_configured",
         scope=scope,
         reasons=reasons,
         cookie_required=False,
@@ -138,28 +133,26 @@ def build_catalog_readiness(
     proxy_ok, proxy_keys = _proxy_env()
     providers = (
         _javdb_readiness(),
-        _static_default(
+        _inactive_provider(
             "jiuse_vod",
             scope="TEST_FIXTURE",
-            notes="offline_fixture_only_live_unauthorized",
+            notes="test_fixture_only_not_in_production_catalog",
             reasons=("test_fixture_scope", "live_endpoint_not_approved"),
         ),
-        _static_default(
+        _inactive_provider(
             "zuidapi_vod",
             scope="PRODUCTION",
-            notes="production_approval_default_static_json_package",
-            reasons=("default_package_static_fetcher", "live_fetcher_not_injected"),
+            notes="reviewed_identity_only_not_in_production_catalog",
         ),
-        _static_default(
+        _inactive_provider(
             "copymanga",
             scope="PRODUCTION",
-            notes="production_comic_default_static_json_package",
-            reasons=("default_package_static_fetcher", "live_fetcher_not_injected"),
+            notes="reviewed_identity_only_not_in_production_catalog",
         ),
-        _static_default(
+        _inactive_provider(
             "comic_local_fixture",
             scope="TEST_FIXTURE",
-            notes="local_download_proof_only",
+            notes="test_fixture_only_not_in_production_catalog",
             reasons=("test_fixture_scope", "local_pages_only"),
         ),
     )

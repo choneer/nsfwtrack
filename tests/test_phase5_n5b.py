@@ -399,16 +399,15 @@ def test_source_search_routes_require_page_auth(client: TestClient) -> None:
 def test_production_page_lists_catalog_without_synthetic_or_side_effects(
     auth_client: TestClient,
 ) -> None:
-    """v1.5.0+ ships populated PRODUCTION catalogs; page must stay GET-only/safe."""
+    """The production page renders safely with a fail-closed empty catalog."""
 
     response = auth_client.get("/source-search")
 
     assert response.status_code == 200
     assert PROVIDER_KEY not in response.text
     assert "Synthetic" not in response.text
-    # Real catalog identities (not the tests-only fixture key)
-    assert "javdb_metadata" in response.text or "JavDB" in response.text
-    assert 'action="/source-search/search"' in response.text
+    assert "javdb_metadata" not in response.text
+    assert 'action="/source-search/search"' not in response.text
     _assert_security_headers(response)
 
 
@@ -475,7 +474,7 @@ def test_provider_catalog_is_stable_minimal_and_xss_escaped(
     assert '<script id="provider-xss">' not in first.text
     assert "&lt;script id=&#34;provider-xss&#34;&gt;" in first.text
     assert "&lt;b&gt;marker&lt;/b&gt;" in first.text
-    for forbidden in ("Endpoint", "Authorization", "Cookie", "Approval", "Host"):
+    for forbidden in ("Endpoint", "Authorization", "Approval", "Host"):
         assert forbidden not in first.text
 
 
@@ -946,6 +945,6 @@ def test_phase5_n5b_preserves_version_schema_backup_and_empty_production_catalog
     assert app.version == "1.5.0"
     assert CURRENT_SCHEMA_VERSION == 5
     assert BACKUP_SCHEMA_V2 == "nsfwtrack.backup.v2"
-    assert any(p.provider_key == "javdb_metadata" for p in PRODUCTION_ENDPOINT_REGISTRY.providers)
-    assert any(p.provider_key == "javdb_metadata" for p in PRODUCTION_SEARCH_PACKAGES)
-    assert {p.provider_key for p in build_production_search_service().list_providers()} >= {"javdb_metadata", "comic_local_fixture"}
+    assert PRODUCTION_ENDPOINT_REGISTRY.providers == ()
+    assert PRODUCTION_SEARCH_PACKAGES == ()
+    assert build_production_search_service().list_providers() == ()

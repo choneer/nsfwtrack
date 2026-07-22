@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import stat
 
 import pytest
 
@@ -153,6 +154,63 @@ def test_javdb_compat() -> None:
     )
     assert javdb_compat(bad)["ok"] is False
     assert javdb_compat(None)["ok"] is None
+
+
+def test_javdb_country_vote_is_deterministic_and_ties_fail_closed() -> None:
+    def snapshot(codes: tuple[str, ...]) -> MyIPSnapshot:
+        return MyIPSnapshot(
+            mode="proxy",
+            proxy_url_host="proxy.example:8080",
+            consensus_ip="1.1.1.1",
+            agreement=len(codes),
+            sources=tuple(
+                MyIPSourceResult(
+                    name=f"source-{index}",
+                    ok=True,
+                    latency_ms=1,
+                    ip="1.1.1.1",
+                    geo=code,
+                    country_code=code,
+                    isp=None,
+                    error=None,
+                    url_host="probe.example",
+                )
+                for index, code in enumerate(codes)
+            ),
+            checked_at_ms=0,
+        )
+
+    majority = javdb_compat(snapshot(("US", "JP", "US")))
+    assert majority["ok"] is True
+    assert majority["country_code"] == "US"
+    tied = javdb_compat(snapshot(("US", "JP")))
+    assert tied == {
+        "ok": None,
+        "deny_countries": ["JP", "KR"],
+        "country_code": None,
+        "message": "country_conflict",
+    }
+
+
+def test_pool_save_is_atomic_and_private(tmp_path: Path) -> None:
+    pool = ProxyPool.from_dict(
+        {"proxies": [{"id": "only", "url": "http://127.0.0.1:8080"}]}
+    )
+    path = tmp_path / "pool.json"
+    pool.save(path)
+    assert stat.S_IMODE(path.stat().st_mode) == 0o600
+    assert ProxyPool.load(path).get("only") is not None
+
+
+def test_quality_probe_is_post_only_and_authenticated(client) -> None:
+    assert client.get("/api/egress/probe-quality").status_code == 405
+    assert client.post("/api/egress/probe-quality").status_code == 401
+
+
+def test_authenticated_quality_probe_rejects_get(auth_client) -> None:
+    # Authentication is checked before the probe implementation is reached.
+    response = auth_client.get("/api/egress/probe-quality")
+    assert response.status_code == 405
 
 
 def test_build_snapshot_mocked(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:

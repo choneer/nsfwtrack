@@ -2,16 +2,10 @@
 
 from __future__ import annotations
 
-import hashlib
-import json
 from datetime import UTC, datetime
-from pathlib import Path
 
 from app.acquisition.contracts import AcquisitionPackage, AssetDownloadDescriptor
-from app.providers.copymanga.adapter import (
-    CopymangaVideoMetadataAdapter,
-    StaticJsonFetcher,
-)
+from app.providers.copymanga.adapter import CopymangaVideoMetadataAdapter, JsonFetcher
 from app.providers.copymanga.approval import (
     COPYMANGA_APPROVAL,
     COPYMANGA_CAPABILITIES,
@@ -33,39 +27,23 @@ from app.source_adapters.package import (
 )
 
 
-def default_copymanga_fixture_root() -> Path:
-    return Path(__file__).resolve().parents[3] / "tests" / "fixtures" / "copymanga"
-
-
-def _sha256_bytes(data: bytes) -> str:
-    return hashlib.sha256(data).hexdigest()
+_SEARCH_FIXTURE_SHA256 = "656a4887e7cf528846bd00daf7c2581ad4d4580411443b7af67028de724100f6"
+_DETAIL_FIXTURE_SHA256 = "84472edb834eb84104e53cbed19ec0f2b168a126df2633268072fd17a0371dca"
+_CHAPTERS_FIXTURE_SHA256 = "29a25b03df24942a70c2a1a7f0b52555c0e18aec5cfd7a95897cf06d236166b2"
 
 
 def build_copymanga_production_package(
     *,
-    fetcher: object | None = None,
-    fixture_root: Path | None = None,
+    fetcher: JsonFetcher | None = None,
     validate: bool = True,
 ) -> ProviderPackage:
-    root = fixture_root or default_copymanga_fixture_root()
-    search_body = (root / "search.json").read_bytes()
-    detail_body = (root / "detail.json").read_bytes()
-    chapters_body = (root / "chapters.json").read_bytes()
     if fetcher is None:
-        fetcher = StaticJsonFetcher(
-            {
-                "/api/v3/search/comic": json.loads(search_body),
-                "/api/v3/comic2/demo-comic": json.loads(detail_body),
-                "/api/v3/comic/demo-comic/group/default/chapters": json.loads(
-                    chapters_body
-                ),
-            }
-        )
-    adapter = CopymangaVideoMetadataAdapter(fetcher)  # type: ignore[arg-type]
+        raise ValueError("controlled CopyManga fetcher is not configured")
+    adapter = CopymangaVideoMetadataAdapter(fetcher)
     digests = (
-        ("copymanga_search", _sha256_bytes(search_body)),
-        ("copymanga_detail", _sha256_bytes(detail_body)),
-        ("copymanga_chapters", _sha256_bytes(chapters_body)),
+        ("copymanga_search", _SEARCH_FIXTURE_SHA256),
+        ("copymanga_detail", _DETAIL_FIXTURE_SHA256),
+        ("copymanga_chapters", _CHAPTERS_FIXTURE_SHA256),
     )
     evidence = ProviderEvidenceManifest(
         provider_key=COPYMANGA_PROVIDER_KEY,

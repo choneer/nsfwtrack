@@ -3,17 +3,19 @@
 from __future__ import annotations
 
 import asyncio
-import ssl
 from collections.abc import AsyncIterator
-from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse
-from urllib.request import HTTPSHandler, ProxyHandler, Request, build_opener
+from urllib.request import Request
 
 from app.acquisition.contracts import AssetDownloadDescriptor, DownloadOpenResult
 from app.providers.copymanga.approval import (
     COPYMANGA_IMAGE_HOSTS,
     COPYMANGA_PROVIDER_KEY,
+)
+from app.services.urllib_safety import (
+    build_no_redirect_opener,
+    response_matches_request,
 )
 from app.source_adapters.contracts import SourceAssetKind
 
@@ -112,14 +114,17 @@ class CopymangaAcquisitionAdapter:
         if offset > 0:
             headers["Range"] = f"bytes={offset}-"
         request = Request(url, headers=headers, method="GET")
-        handlers: list[Any] = [HTTPSHandler(context=ssl.create_default_context())]
-        if self._proxy:
-            handlers.insert(
-                0, ProxyHandler({"http": self._proxy, "https": self._proxy})
-            )
-        opener = build_opener(*handlers)
+        try:
+            opener = build_no_redirect_opener(proxy=self._proxy)
+        except ValueError as exc:
+            raise ValueError("proxy configuration invalid") from exc
         try:
             with opener.open(request, timeout=timeout) as response:
-                return response.read(20 * 1024 * 1024)
+                if not response_matches_request(response, url):
+                    raise ValueError("redirect blocked")
+                body = response.read(20 * 1024 * 1024 + 1)
+                if len(body) > 20 * 1024 * 1024:
+                    raise ValueError("page image response too large")
+                return body
         except (HTTPError, URLError, TimeoutError, OSError) as exp:
             raise ValueError("page image fetch failed") from exp

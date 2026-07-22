@@ -1263,6 +1263,6 @@ def test_phase_invariants_and_empty_production_catalogs_are_unchanged() -> None:
     assert app.version == "1.5.0"
     assert CURRENT_SCHEMA_VERSION == 5
     assert BACKUP_SCHEMA_V2 == "nsfwtrack.backup.v2"
-    assert any(p.provider_key == "javdb_metadata" for p in PRODUCTION_ENDPOINT_REGISTRY.providers)
-    assert any(p.provider_key == "javdb_metadata" for p in PRODUCTION_SEARCH_PACKAGES)
-    assert {p.provider_key for p in build_production_search_service().list_providers()} >= {"javdb_metadata", "comic_local_fixture"}
+    assert PRODUCTION_ENDPOINT_REGISTRY.providers == ()
+    assert PRODUCTION_SEARCH_PACKAGES == ()
+    assert build_production_search_service().list_providers() == ()

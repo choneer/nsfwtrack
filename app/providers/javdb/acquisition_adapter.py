@@ -9,11 +9,10 @@ from __future__ import annotations
 
 import asyncio
 import re
-import ssl
 from collections.abc import AsyncIterator
 from urllib.error import HTTPError, URLError
 from urllib.parse import quote
-from urllib.request import HTTPSHandler, ProxyHandler, Request, build_opener
+from urllib.request import Request
 
 from app.acquisition.contracts import (
     AssetDownloadDescriptor,
@@ -22,6 +21,10 @@ from app.acquisition.contracts import (
 from app.providers.javdb.production import (
     JAVDB_PRODUCTION_HOST,
     JAVDB_PRODUCTION_PROVIDER_KEY,
+)
+from app.services.urllib_safety import (
+    build_no_redirect_opener,
+    response_matches_request,
 )
 from app.source_adapters.contracts import SourceAssetKind
 
@@ -138,13 +141,18 @@ class JavDBAcquisitionAdapter:
         if offset > 0:
             headers["Range"] = f"bytes={offset}-"
         request = Request(url, headers=headers, method="GET")
-        handlers: list[object] = [HTTPSHandler(context=ssl.create_default_context())]
-        if self._proxy:
-            handlers.insert(0, ProxyHandler({"http": self._proxy, "https": self._proxy}))
-        opener = build_opener(*handlers)
+        try:
+            opener = build_no_redirect_opener(proxy=self._proxy)
+        except ValueError as exc:
+            raise ValueError("proxy configuration invalid") from exc
         try:
             with opener.open(request, timeout=timeout) as response:
-                return response.read(50 * 1024 * 1024)
+                if not response_matches_request(response, url):
+                    raise ValueError("redirect blocked")
+                body = response.read(50 * 1024 * 1024 + 1)
+                if len(body) > 50 * 1024 * 1024:
+                    raise ValueError("asset response too large")
+                return body
         except (HTTPError, URLError, TimeoutError, OSError) as exc:
             raise ValueError("asset fetch failed") from exc
 

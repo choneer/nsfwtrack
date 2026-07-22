@@ -79,7 +79,7 @@ Phase 6-R3 = frozen
 Cloud RC diff review = PASS
 Hermes acceptance = PASS
 Phase 6-R4 = released
-Production catalogs = populated (1.5.0)
+Production catalogs = empty
 Published image = none
 N100 = not deployed
 ```

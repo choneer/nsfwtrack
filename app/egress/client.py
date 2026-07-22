@@ -7,13 +7,17 @@ allowlists and httpx2 pinning.
 from __future__ import annotations
 
 import json
-import ssl
 import time
 from dataclasses import dataclass
 from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse
-from urllib.request import HTTPSHandler, ProxyHandler, Request, build_opener
+from urllib.request import Request
+
+from app.services.urllib_safety import (
+    build_no_redirect_opener,
+    response_matches_request,
+)
 
 
 DEFAULT_UA = (
@@ -61,23 +65,26 @@ def fetch_text(
     if headers:
         req_headers.update(headers)
     request = Request(url, headers=req_headers, method="GET")
-    handlers: list[Any] = [
-        HTTPSHandler(context=ssl.create_default_context()),
-    ]
-    if proxy and proxy.strip():
-        proxy = proxy.strip()
-        handlers.insert(
-            0,
-            ProxyHandler(
-                {
-                    "http": proxy,
-                    "https": proxy,
-                }
-            ),
+    try:
+        opener = build_no_redirect_opener(proxy=proxy)
+    except ValueError:
+        return FetchResult(
+            ok=False,
+            status_code=None,
+            body="",
+            latency_ms=int((time.perf_counter() - started) * 1000),
+            error="invalid explicit proxy",
         )
-    opener = build_opener(*handlers)
     try:
         with opener.open(request, timeout=timeout) as response:
+            if not response_matches_request(response, url):
+                return FetchResult(
+                    ok=False,
+                    status_code=getattr(response, "status", None),
+                    body="",
+                    latency_ms=int((time.perf_counter() - started) * 1000),
+                    error="redirect blocked",
+                )
             raw = response.read(MAX_BODY_BYTES + 1)
             if len(raw) > MAX_BODY_BYTES:
                 latency = int((time.perf_counter() - started) * 1000)
@@ -118,14 +125,14 @@ def fetch_text(
             latency_ms=latency,
             error=f"HTTP {exc.code}",
         )
-    except (URLError, TimeoutError, OSError, ValueError) as exc:
+    except (URLError, TimeoutError, OSError, ValueError):
         latency = int((time.perf_counter() - started) * 1000)
         return FetchResult(
             ok=False,
             status_code=None,
             body="",
             latency_ms=latency,
-            error=str(exc)[:200],
+            error="transport failed",
         )
 
 

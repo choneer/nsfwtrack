@@ -50,7 +50,7 @@ Phase 6-R3 = frozen
 Cloud RC diff review = PASS
 Hermes acceptance = PASS
 Phase 6-R4 = released
-Production catalogs = populated (1.5.0)
+Production catalogs = empty
 Published image = none
 N100 = not deployed
 ```
@@ -81,7 +81,7 @@ N100 = not deployed
 ```text
 核心业务能力：已完成
 代码发布状态：v1.3.0 已按 Phase 6-R4 发布；Application 开发头为 `1.5.0`（CookieCloud/HLS/copymanga）；v1.2.0/v1.1.0 tag/Release 证据保留为历史
-当前发布状态：Phase 5-N5C-B2 与 Phase 6 任务中心 complete/frozen。Application `1.5.0`（Schema `5`）默认注册 javdb_metadata / jiuse_vod / zuidapi_vod / copymanga（+ comic fixture）；CookieCloud 与 HLS 为控制面；真站 JavDB 需操作员 cookie；无 VIP 绕过。
+当前发布状态：Phase 5-N5C-B2 与 Phase 6 任务中心 complete/frozen。Application `1.5.0`（Schema `5`）保留已审核 Provider identity/package，但 Endpoint、Search 与 Acquisition 默认目录全空；CookieCloud 与 HLS 为控制面，导入 cookie 不会激活 Provider；无 VIP 绕过。
 Phase 5-N3：Provider 合同、认证、资产、动态 Locator、受控下载 MVP、状态矩阵和批准模板已完成；仅新增/更新授权文档，未实现 Provider 或下载
 Phase 5-N4A：capability/Protocol/SourceAsset/Auth 状态/typed Registry/Outbound 基础和 test-only Fixture Provider 已完成；初始全量 934 passed，最终安全复核后全量 938 passed，production registry 仍为空
 Phase 5-N4B：immutable Approval/Host/Operation/Auth/Asset/Download model、纯本地一致性 Validator 与 opaque Asset ID 强化已完成；N4B 27、N4A/Adapter/Outbound 120、全量 965 passed，production registry 仍为空

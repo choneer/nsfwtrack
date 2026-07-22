@@ -7,26 +7,30 @@
 ### Added
 
 - **CookieCloud** control plane (`app/cookiecloud/`): GET `/get/{uuid}` + OpenSSL AES decrypt via `cryptography`, host-filtered Cookie header, optional save to `data/cookies/`, APIs `/api/cookiecloud/import` and `/api/cookiecloud/status`, operator UI `/cookiecloud`. JavDB session loader reads CookieCloud drop zone after env/file.
-- **Catalog readiness** (`app/providers/readiness.py`, `GET /api/providers/readiness`): honest `live_capable` / `fixture_fallback` / `not_configured` per default catalog key; never returns cookie values.
+- **Catalog readiness** (`app/providers/readiness.py`, `GET /api/providers/readiness`): reports reviewed identities as `not_configured` until a controlled runtime is explicitly activated; never returns cookie values.
 - **HLS / playback inspect** (`app/playback/`): offline `#EXTM3U` master/media parse and MacCMS `label$url#…` lines; no segment/key fetch. APIs `/api/playback/hls/inspect` and `/api/playback/lines/parse`.
-- **copymanga** real-site comic PRODUCTION package (`app/providers/copymanga/`): Venera-style JSON on `api.mangacopy.com`, SEARCH/DETAIL/ASSET_LIST + acquisition download package, wired into default catalogs.
+- **copymanga** reviewed real-site comic package (`app/providers/copymanga/`): Venera-style JSON contracts for SEARCH/DETAIL/ASSET_LIST plus acquisition, available only with an explicitly injected fetcher and not wired into default catalogs.
 
 ### Changed
 
 - FastAPI application version `1.4.1` → `1.5.0` (Schema remains `5`)
 - Dependency: `cryptography==46.0.3` for CookieCloud decrypt
+- Endpoint, search, acquisition, and deprecated opt-in catalogs are empty and fail closed; production package builders no longer read `tests/fixtures` or create an implicit live fetcher.
+- Stdlib HTTP utilities disable ambient proxies and redirects; CookieCloud persistence and proxy-pool updates use atomic mode-600 replacement.
+- Egress quality probing is authenticated POST-only, and country voting treats ties as unknown.
 
 ### Security / boundaries
 
 - CookieCloud never returns cookie values in API responses; no VIP/login/paywall bypass
 - HLS inspect does not download media segments or keys
 - copymanga hosts are code-owned allowlists only
+- Cookie import is readiness information only and cannot activate a cached Provider runtime
 
 ## [1.4.1] - 2026-07-22
 
 ### Added
 
-- Application `1.4.1` wires **every nsfwpro factory Provider** into default catalogs:
+- Application `1.4.1` introduced reviewed mappings for **every nsfwpro factory Provider** during branch development:
   - `javdb_metadata` ← nsfwpro `javdb-metadata` (PRODUCTION HTML + session cookie)
   - `jiuse_vod` ← nsfwpro `jiuse-vod` (TEST_FIXTURE offline HTML parse; live caps still unauthorized upstream)
   - `zuidapi_vod` ← nsfwpro `zuidapi-vod` (PRODUCTION MacCMS JSON SEARCH/DETAIL on `api.zuidapi.com`)
@@ -37,7 +41,7 @@
 ### Changed
 
 - FastAPI application version `1.4.0` → `1.4.1` (Schema remains `5`)
-- Default search catalog lists all three nsfwpro factory identities
+- The current 1.5.0 correction keeps these identities out of all default catalogs
 
 ### Security / boundaries
 
@@ -48,8 +52,8 @@
 
 ### Added
 
-- Application `1.4.0` first populated production-shaped catalogs (JavDB + comic fixture)
-  and egress diagnostics; see git history for full notes.
+- Application `1.4.0` introduced production-shaped package experiments and egress
+  diagnostics. The current 1.5.0 head keeps runtime catalogs empty.
 
 ## [1.3.0] - 2026-07-21
 

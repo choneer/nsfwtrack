@@ -1,13 +1,8 @@
-"""Legacy opt-in catalog helpers (superseded by default production_catalog 1.5.0+).
+"""Deprecated opt-in catalog compatibility helpers.
 
-Default catalogs are populated via ``app.providers.production_catalog``.
-This module remains for explicit opt-in builders and docs references.
-
-Environment:
-  NSFWTRACK_ENABLE_OPT_IN_PROVIDERS=1  include builders when constructing services
-  NSFWTRACK_JAVDB_SESSION_COOKIE / _FILE  required for live JavDB fetch/download
-
-Default ``build_production_search_service`` / acquisition registry stay empty.
+Environment flags no longer activate Provider runtimes. A reviewed identity
+is not an outbound-network approval, so every compatibility builder remains
+fail-closed until a separately reviewed runtime injection boundary exists.
 """
 
 from __future__ import annotations
@@ -18,15 +13,6 @@ from datetime import datetime
 
 from app.acquisition.contracts import AcquisitionPackage
 from app.acquisition.registry import AcquisitionRegistry
-from app.providers.comic.package_build import (
-    build_comic_acquisition_package,
-    build_comic_fixture_package,
-)
-from app.providers.javdb.package_build import (
-    build_javdb_acquisition_package,
-    build_javdb_production_package,
-)
-from app.providers.javdb.session import SessionCookieError
 from app.source_adapters.package import ProviderPackage
 from app.source_search.service import ProviderSearchService, _utc_now
 
@@ -47,12 +33,7 @@ def build_opt_in_search_packages(
     include_javdb: bool = True,
     include_comic_fixture: bool = True,
 ) -> tuple[ProviderPackage, ...]:
-    packages: list[ProviderPackage] = []
-    if include_javdb:
-        packages.append(build_javdb_production_package(validate=True))
-    if include_comic_fixture:
-        packages.append(build_comic_fixture_package(validate=True))
-    return tuple(packages)
+    return ()
 
 
 def build_opt_in_acquisition_packages(
@@ -61,16 +42,7 @@ def build_opt_in_acquisition_packages(
     include_javdb: bool = True,
     include_comic: bool = True,
 ) -> tuple[AcquisitionPackage, ...]:
-    packages: list[AcquisitionPackage] = []
-    if include_javdb:
-        try:
-            packages.append(build_javdb_acquisition_package())
-        except SessionCookieError:
-            # Without cookie, still allow static test construction by caller.
-            pass
-    if include_comic:
-        packages.append(build_comic_acquisition_package())
-    return tuple(packages)
+    return ()
 
 
 def build_opt_in_search_service(

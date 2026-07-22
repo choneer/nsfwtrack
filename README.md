@@ -12,22 +12,23 @@ Latest Release: [NSFWTrack v1.3.0](https://github.com/choneer/nsfwtrack/releases
 
 Current status: `Application 1.5.0 adds CookieCloud session import (+ /cookiecloud UI),
 catalog readiness (/api/providers/readiness), HLS/playback-line inspect (no segment fetch),
-and copymanga real-site comic PRODUCTION package, on top of nsfwpro factory Providers
-(javdb/jiuse/zuidapi) and comic_local_fixture. Live-vs-fixture is reported honestly
-per provider. Phase 6 runtime remains complete/frozen on Schema 5. No VIP/login bypass.
+and reviewed Provider package identities. Endpoint, search, and acquisition catalogs
+remain empty and fail closed: fixtures are test-only and no live Provider fetcher is
+activated. Phase 6 runtime remains complete/frozen on Schema 5. No VIP/login bypass.
 N100 is not deployed`.
 
 Phase 6 = complete/frozen. Phase 6-R3 = frozen. Cloud RC diff review = PASS.
-Hermes acceptance = PASS. Phase 6-R4 = released. Production catalogs = populated (1.5.0).
+Hermes acceptance = PASS. Phase 6-R4 = released. Production catalogs = empty.
 Published image = none. N100 = not deployed.
-Real Provider packages = javdb_metadata + jiuse_vod + zuidapi_vod + copymanga (+ comic fixture).
+Reviewed Provider identities = javdb_metadata + jiuse_vod + zuidapi_vod + copymanga.
 
 Hermes acceptance: PASS. Phase 6-R4: released. N100: not deployed.
 
 Phase 5-R4 formally released v1.2.0. Phase 5-R4: released. Its Tag, Release,
 Actions, Schema 4, Backup v2, and Provider-neutral foundation remain preserved
-as historical evidence. v1.3.0 kept production catalogs empty; v1.4.1 populated nsfwpro factory Providers;
-v1.5.0 adds CookieCloud, HLS inspect, and copymanga real-site comic.
+as historical evidence. Production catalogs remain empty at the current development
+head; v1.5.0 adds CookieCloud, HLS inspect, and reviewed Provider packages without
+runtime activation.
 
 The long-term product baseline is recorded in [PRODUCT_VISION.md](PRODUCT_VISION.md).
 Ordinary all-ages content may remain naturally compatible with the generic
@@ -37,8 +38,8 @@ becoming a general film/television catalog.
 
 The current Application version is `1.5.0` (Schema `5`). Latest published GitHub
 Release remains `v1.3.0` until a `v1.5.0` tag is cut. Provider packages are
-code-owned and fail-closed; live JavDB HTML scrape uses an operator-provided
-session cookie only (env/file/CookieCloud import), never VIP bypass.
+code-owned and fail-closed. Importing an operator-provided cookie does not activate
+JavDB; a separately reviewed outbound runtime is still required.
 
 ## Phase 6 — v1.3.0 formally released bundle
 

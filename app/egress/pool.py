@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import json
+import os
 import re
+import tempfile
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import asdict, dataclass, field
@@ -439,10 +441,33 @@ class ProxyPool:
             "proxies": [asdict(p) for p in self.proxies],
             "health": {k: asdict(v) for k, v in self.health.items()},
         }
-        file_path.write_text(
-            json.dumps(payload, ensure_ascii=False, indent=2) + "\n",
-            encoding="utf-8",
+        serialized = json.dumps(payload, ensure_ascii=False, indent=2) + "\n"
+        descriptor, temporary_name = tempfile.mkstemp(
+            prefix=f".{file_path.name}.",
+            suffix=".tmp",
+            dir=file_path.parent,
         )
+        temporary = Path(temporary_name)
+        try:
+            os.fchmod(descriptor, 0o600)
+            with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+                descriptor = -1
+                handle.write(serialized)
+                handle.flush()
+                os.fsync(handle.fileno())
+            os.replace(temporary, file_path)
+            directory_descriptor = os.open(file_path.parent, os.O_RDONLY)
+            try:
+                os.fsync(directory_descriptor)
+            finally:
+                os.close(directory_descriptor)
+        finally:
+            if descriptor >= 0:
+                os.close(descriptor)
+            try:
+                temporary.unlink()
+            except FileNotFoundError:
+                pass
 
     def get(self, proxy_id: str) -> ProxyEndpoint | None:
         for proxy in self.proxies:

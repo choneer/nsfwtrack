@@ -36,29 +36,11 @@ def test_v1_5_0_runtime_cookiecloud_hls_and_catalogs() -> None:
     assert CURRENT_SCHEMA_VERSION == 5
     assert BACKUP_SCHEMA_V1 == "nsfwtrack.backup.v1"
     assert BACKUP_SCHEMA_V2 == "nsfwtrack.backup.v2"
-    endpoint_keys = {p.provider_key for p in PRODUCTION_ENDPOINT_REGISTRY.providers}
-    assert endpoint_keys >= {"javdb_metadata", "zuidapi_vod", "copymanga"}
-    search_keys = {p.provider_key for p in PRODUCTION_SEARCH_PACKAGES}
-    assert search_keys >= {
-        "javdb_metadata",
-        "jiuse_vod",
-        "zuidapi_vod",
-        "copymanga",
-        "comic_local_fixture",
-    }
-    keys = {p.provider_key for p in build_production_search_service().list_providers()}
-    assert keys >= {
-        "javdb_metadata",
-        "jiuse_vod",
-        "zuidapi_vod",
-        "copymanga",
-        "comic_local_fixture",
-    }
-    assert any(
-        p.provider_key == "comic_local_fixture" for p in PRODUCTION_ACQUISITION_PACKAGES
-    )
-    acq = {p.provider_key for p in build_production_acquisition_registry().packages}
-    assert acq >= {"javdb_metadata", "comic_local_fixture", "copymanga"}
+    assert PRODUCTION_ENDPOINT_REGISTRY.providers == ()
+    assert PRODUCTION_SEARCH_PACKAGES == ()
+    assert build_production_search_service().list_providers() == ()
+    assert PRODUCTION_ACQUISITION_PACKAGES == ()
+    assert build_production_acquisition_registry().packages == ()
     # Control planes registered on app (not Providers). FastAPI 0.139 stores
     # include_router entries as _IncludedRouter without top-level .path.
     openapi_paths = set(app.openapi().get("paths", {}))
@@ -124,7 +106,7 @@ def test_synthetic_adapters_remain_tests_only() -> None:
 def test_readme_records_v1_5_0_as_current_application() -> None:
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
     assert "Current application version: `1.5.0` (Schema `5`)" in readme
-    assert "Production catalogs = populated (1.5.0)" in readme
+    assert "Production catalogs = empty" in readme
     assert "Phase 6-R4 = released" in readme
     assert "Published image = none" in readme
     assert "N100 = not deployed" in readme
@@ -138,7 +120,7 @@ def test_formal_release_status_is_consistent_across_current_documents() -> None:
             "Cloud RC diff review = PASS",
             "Hermes acceptance = PASS",
             "Phase 6-R4 = released",
-            "Production catalogs = populated (1.5.0)",
+            "Production catalogs = empty",
             "Published image = none",
             "N100 = not deployed",
         ):

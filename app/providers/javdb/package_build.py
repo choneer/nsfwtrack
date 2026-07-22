@@ -1,19 +1,13 @@
-"""Build activatable JavDB PRODUCTION ProviderPackage (default catalog 1.5.0+).
-
-Live HTML fetch when a session cookie is loadable; otherwise static fixture
-pages so package validation and offline demos still work.
-"""
+"""Build a reviewed JavDB package around an explicitly injected fetcher."""
 
 from __future__ import annotations
 
-import hashlib
 import os
 from datetime import UTC, datetime
-from pathlib import Path
 
 from app.acquisition.contracts import AcquisitionPackage
 from app.providers.javdb.acquisition_adapter import JavDBAcquisitionAdapter
-from app.providers.javdb.fetch import JavdbHtmlFetcher, StaticHtmlFetcher
+from app.providers.javdb.fetch import HtmlFetcher
 from app.providers.javdb.live_adapter import JavDBLiveVideoMetadataAdapter
 from app.providers.javdb.production import (
     JAVDB_PRODUCTION_APPROVAL,
@@ -36,24 +30,19 @@ from app.source_adapters.package import (
 )
 
 
-def _fixture_root() -> Path:
-    return Path(__file__).resolve().parents[3] / "tests" / "fixtures" / "javdb_metadata"
-
-
-def _sha256_file(path: Path) -> str:
-    return hashlib.sha256(path.read_bytes()).hexdigest()
+_SEARCH_FIXTURE_SHA256 = "25457903e74769900073077e21dc314ba4e725c79d59c97fc60d1a23a74708fb"
+_DETAIL_FIXTURE_SHA256 = "9a4f8362aae6e06893ebe203b75694a3c0b2fa490a7777c6e497e6087ae22c77"
 
 
 def _evidence_and_digests() -> tuple[
     ProviderEvidenceManifest,
     tuple[tuple[str, str], ...],
 ]:
-    root = _fixture_root()
     search_id = "search_normal_html"
     detail_id = "detail_normal_html"
     asset_id = "detail_asset_list_html"
-    search_sha = _sha256_file(root / "search_normal.html")
-    detail_sha = _sha256_file(root / "detail_normal.html")
+    search_sha = _SEARCH_FIXTURE_SHA256
+    detail_sha = _DETAIL_FIXTURE_SHA256
     # ASSET_LIST reuses detail HTML evidence
     digests = (
         (search_id, search_sha),
@@ -102,35 +91,20 @@ def _evidence_and_digests() -> tuple[
 
 def build_javdb_production_package(
     *,
-    fetcher: object | None = None,
-    cookie: str | None = None,
-    proxy_url: str | None = None,
+    fetcher: HtmlFetcher | None = None,
     validate: bool = True,
 ) -> ProviderPackage:
-    """Build a PRODUCTION package for the default 1.5.0+ search catalog."""
+    """Build an offline-validated package around an explicit controlled fetcher.
+
+    A production network fetcher is deliberately not created here.  Activation
+    must inject a fetcher implemented by the shared outbound boundary; missing
+    configuration fails closed instead of substituting fixture responses.
+    """
 
     if fetcher is None:
-        try:
-            session = load_javdb_session_cookie(explicit=cookie)
-        except SessionCookieError:
-            # Offline package build for validation: static empty pages
-            root = _fixture_root()
-            fetcher = StaticHtmlFetcher(
-                {
-                    "/search": (root / "search_normal.html").read_text(encoding="utf-8"),
-                    "/v/RM29z": (root / "detail_RM29z.html").read_text(encoding="utf-8"),
-                }
-            )
-        else:
-            env_proxy = (
-                proxy_url
-                or os.environ.get("NSFWTRACK_HTTP_PROXY")
-                or os.environ.get("NSFW_HTTP_PROXY")
-                or None
-            )
-            fetcher = JavdbHtmlFetcher(cookie=session, proxy_url=env_proxy)
+        raise SessionCookieError("controlled JavDB fetcher is not configured")
 
-    adapter = JavDBLiveVideoMetadataAdapter(fetcher)  # type: ignore[arg-type]
+    adapter = JavDBLiveVideoMetadataAdapter(fetcher)
     evidence, digests = _evidence_and_digests()
     binding = ProviderAdapterBinding(
         provider_key=JAVDB_PRODUCTION_PROVIDER_KEY,

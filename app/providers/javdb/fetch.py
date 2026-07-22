@@ -7,19 +7,24 @@ paths under approved templates are requested. Cookie is never logged.
 from __future__ import annotations
 
 import asyncio
-import ssl
+import threading
 from typing import Protocol
 from urllib.error import HTTPError, URLError
 from urllib.parse import quote, urlencode, urlparse
-from urllib.request import HTTPSHandler, ProxyHandler, Request, build_opener
+from urllib.request import Request
 
 from app.providers.javdb.production import JAVDB_PRODUCTION_HOST
+from app.services.urllib_safety import (
+    build_no_redirect_opener,
+    response_matches_request,
+)
 
 MAX_HTML_BYTES = 1024 * 1024
 DEFAULT_UA = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
     "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 )
+_JAVDB_REQUEST_FENCE = threading.BoundedSemaphore(1)
 
 
 class HtmlFetcher(Protocol):
@@ -80,26 +85,33 @@ class JavdbHtmlFetcher:
                 "Accept": "text/html,application/xhtml+xml",
                 "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
                 "Cookie": self._cookie,
+                "X-Javdb-Contract": "production-metadata-v1",
             },
             method="GET",
         )
-        handlers: list[object] = [HTTPSHandler(context=ssl.create_default_context())]
-        if self._proxy:
-            handlers.insert(
-                0,
-                ProxyHandler({"http": self._proxy, "https": self._proxy}),
-            )
-        opener = build_opener(*handlers)
         try:
-            with opener.open(request, timeout=self._timeout) as response:
-                raw = response.read(MAX_HTML_BYTES + 1)
-                if len(raw) > MAX_HTML_BYTES:
-                    raise ValueError("html response too large")
-                status = getattr(response, "status", 200)
-                if status >= 400:
-                    raise ValueError(f"http {status}")
-                return raw.decode("utf-8", errors="replace")
+            opener = build_no_redirect_opener(proxy=self._proxy)
+        except ValueError as exc:
+            raise ValueError("proxy configuration invalid") from exc
+        try:
+            with _JAVDB_REQUEST_FENCE:
+                with opener.open(request, timeout=self._timeout) as response:
+                    if not response_matches_request(response, url):
+                        raise ValueError("redirect blocked")
+                    content_type = str(response.headers.get("Content-Type", ""))
+                    media_type = content_type.split(";", 1)[0].strip().casefold()
+                    if media_type != "text/html":
+                        raise ValueError("unexpected content type")
+                    raw = response.read(MAX_HTML_BYTES + 1)
+                    if len(raw) > MAX_HTML_BYTES:
+                        raise ValueError("html response too large")
+                    status = getattr(response, "status", 200)
+                    if status >= 400:
+                        raise ValueError(f"http {status}")
+                    return raw.decode("utf-8", errors="replace")
         except HTTPError as exc:
+            if 300 <= exc.code <= 399:
+                raise ValueError("redirect blocked") from exc
             raise ValueError(f"http {exc.code}") from exc
         except (URLError, TimeoutError, OSError) as exc:
             raise ValueError("transport failed") from exc

@@ -74,8 +74,8 @@ def test_production_html_session_metadata_passes_activation() -> None:
         JAVDB_PRODUCTION_CAPABILITIES,
         JAVDB_PRODUCTION_ENDPOINT,
     )
-    # Live registry remains empty in this tranche.
-    assert any(p.provider_key == "javdb_metadata" for p in PRODUCTION_ENDPOINT_REGISTRY.providers)
+    # Reviewed facts do not activate a network-capable runtime by default.
+    assert PRODUCTION_ENDPOINT_REGISTRY.providers == ()
 
 
 def test_test_fixture_javdb_cannot_activate() -> None:

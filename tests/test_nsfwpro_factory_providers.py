@@ -20,18 +20,21 @@ from app.providers.production_catalog import (
 from app.providers.zuidapi.adapter import StaticJsonFetcher
 from app.providers.zuidapi.package_build import (
     build_zuidapi_production_package,
-    default_zuidapi_fixture_root,
 )
 from app.providers.zuidapi.parse import parse_maccms_vod_payload
 from app.source_adapters.registry import PRODUCTION_ENDPOINT_REGISTRY
 from app.source_search import PRODUCTION_SEARCH_PACKAGES, build_production_search_service
 
 
+ROOT = Path(__file__).resolve().parents[1]
+ZUIDAPI_FIXTURE_ROOT = ROOT / "tests" / "fixtures" / "zuidapi"
+
+
 def test_app_version_is_1_5_0() -> None:
     assert create_app().version == "1.5.0"
 
 
-def test_nsfwpro_factory_keys_mapped_and_catalog_listed() -> None:
+def test_nsfwpro_factory_keys_mapped_but_catalog_is_fail_closed() -> None:
     assert set(NSFWPRO_FACTORY_KEY_MAP) == {
         "javdb-metadata",
         "jiuse-vod",
@@ -40,18 +43,9 @@ def test_nsfwpro_factory_keys_mapped_and_catalog_listed() -> None:
     expected = nsfwpro_factory_provider_keys()
     assert expected == {"javdb_metadata", "jiuse_vod", "zuidapi_vod"}
 
-    search_keys = {p.provider_key for p in PRODUCTION_SEARCH_PACKAGES}
-    assert expected.issubset(search_keys)
-
-    listed = {
-        d.provider_key for d in build_production_search_service().list_providers()
-    }
-    assert expected.issubset(listed)
-
-    endpoint_keys = {p.provider_key for p in PRODUCTION_ENDPOINT_REGISTRY.providers}
-    # PRODUCTION hosts only (jiuse remains TEST_FIXTURE offline)
-    assert "javdb_metadata" in endpoint_keys
-    assert "zuidapi_vod" in endpoint_keys
+    assert PRODUCTION_SEARCH_PACKAGES == ()
+    assert build_production_search_service().list_providers() == ()
+    assert PRODUCTION_ENDPOINT_REGISTRY.providers == ()
 
 
 @pytest.mark.asyncio
@@ -78,7 +72,7 @@ async def test_jiuse_offline_search_and_detail() -> None:
 
 @pytest.mark.asyncio
 async def test_zuidapi_offline_search_and_detail() -> None:
-    root = default_zuidapi_fixture_root()
+    root = ZUIDAPI_FIXTURE_ROOT
     search = json.loads((root / "search-normal.json").read_text(encoding="utf-8"))
     detail = json.loads((root / "detail-normal.json").read_text(encoding="utf-8"))
     fetcher = StaticJsonFetcher(
@@ -101,5 +95,10 @@ async def test_zuidapi_offline_search_and_detail() -> None:
     assert parsed["items"][0]["vod_id"] == "TEST-001"
 
 
-def test_javdb_package_still_in_catalog() -> None:
-    assert any(p.provider_key == "javdb_metadata" for p in PRODUCTION_SEARCH_PACKAGES)
+def test_javdb_package_is_not_activated_by_default() -> None:
+    assert PRODUCTION_SEARCH_PACKAGES == ()
+
+
+def test_zuidapi_package_requires_explicit_fetcher() -> None:
+    with pytest.raises(ValueError, match="controlled ZuidAPI fetcher"):
+        build_zuidapi_production_package()
