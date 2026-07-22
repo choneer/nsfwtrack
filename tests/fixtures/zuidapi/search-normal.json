@@ -1,0 +1,1 @@
+{"code":1,"msg":"data list","page":"1","pagecount":1,"limit":"20","total":1,"list":[{"vod_id": "TEST-001", "vod_name":"Synthetic title","vod_pic":"https://images.example.invalid/test-001.jpg","vod_year":"2026","vod_actor":"Example A,Example B","vod_director":"Example Director","vod_class":"Example,Drama","vod_time":"100分钟","vod_play_from":"line-a/line-b"}],"class":[]}

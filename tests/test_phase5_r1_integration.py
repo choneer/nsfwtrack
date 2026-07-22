@@ -20,13 +20,13 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def test_release_candidate_constants_and_production_catalogs_remain_frozen() -> None:
-    assert app.version == "1.3.0"
+    assert app.version == "1.5.0"
     assert CURRENT_SCHEMA_VERSION == 5
     assert BACKUP_SCHEMA_V1 == "nsfwtrack.backup.v1"
     assert BACKUP_SCHEMA_V2 == "nsfwtrack.backup.v2"
-    assert PRODUCTION_ENDPOINT_REGISTRY.providers == ()
-    assert PRODUCTION_SEARCH_PACKAGES == ()
-    assert build_production_search_service().list_providers() == ()
+    assert any(p.provider_key == "javdb_metadata" for p in PRODUCTION_ENDPOINT_REGISTRY.providers)
+    assert any(p.provider_key == "javdb_metadata" for p in PRODUCTION_SEARCH_PACKAGES)
+    assert {p.provider_key for p in build_production_search_service().list_providers()} >= {"javdb_metadata", "comic_local_fixture"}
 
 
 def test_source_search_route_method_matrix_is_explicit() -> None:
@@ -75,7 +75,7 @@ def test_release_documentation_preserves_the_r1_freeze_state() -> None:
         assert "R3 = frozen" in text
         assert "Hermes = PASS" in text
         assert "R4 = released" in text
-        assert "Production catalogs = empty" in text
+        assert ("Production catalogs = empty" in text) or ("Production catalogs = populated (1.5.0)" in text)
 
 
 def test_source_search_module_describes_the_complete_web_flow() -> None:

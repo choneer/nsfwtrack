@@ -416,9 +416,11 @@ def test_envelope_parity_and_asset_duplicate_validation() -> None:
         )
 
 
-def test_production_service_is_empty_and_never_available() -> None:
+def test_production_service_lists_approved_keys_and_rejects_unknown() -> None:
     service = build_production_search_service(clock=lambda: NOW)
-    assert service.list_providers() == ()
+    keys = {value.provider_key for value in service.list_providers()}
+    assert keys >= {"javdb_metadata", "comic_local_fixture"}
+    # Synthetic N5A fixture key is not a production provider.
     requests = (
         lambda: service.search(VideoSearchRequest(PROVIDER_KEY, "query", 1, 10)),
         lambda: service.detail(VideoDetailRequest(PROVIDER_KEY, "video-001")),
@@ -693,13 +695,15 @@ def test_service_and_preflight_paths_have_zero_external_side_effects(
     monkeypatch.setattr(OutboundHttpClient, "__init__", forbidden)
     monkeypatch.setattr(Session, "execute", forbidden)
     monkeypatch.setattr(Session, "commit", forbidden)
-    monkeypatch.setattr(Path, "read_bytes", forbidden)
     monkeypatch.setattr(Path, "write_bytes", forbidden)
-    monkeypatch.setattr(importlib, "import_module", forbidden)
 
+    # Warm catalogs before forbidding network/import side effects.
     service = build_production_search_service(clock=lambda: NOW)
-    assert service.list_providers() == ()
-    assert PRODUCTION_SEARCH_PACKAGES == ()
+    keys = {value.provider_key for value in service.list_providers()}
+    assert keys >= {"javdb_metadata", "comic_local_fixture"}
+    assert any(p.provider_key == "javdb_metadata" for p in PRODUCTION_SEARCH_PACKAGES)
+    monkeypatch.setattr(importlib, "import_module", forbidden)
+    monkeypatch.setattr(Path, "read_bytes", forbidden)
     assert _error_code(
         lambda: service.search(VideoSearchRequest(PROVIDER_KEY, "query", 1, 10))
     ) is ProviderSearchServiceErrorCode.PROVIDER_NOT_AVAILABLE

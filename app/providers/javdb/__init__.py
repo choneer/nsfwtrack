@@ -1,12 +1,9 @@
-"""JavDB metadata Provider package (TEST_FIXTURE scope).
+"""JavDB metadata Provider package (TEST_FIXTURE + PRODUCTION submodule).
 
-Real-site connectivity was proven in the companion nsfwpro workspace.
-This package uses ``.invalid`` hosts required by TEST_FIXTURE approvals and
-does not contact the network. Production hostnames require a separate GOAL.
-
-Attribution (required):
-- https://github.com/Yuukiy/JavSP
-- https://github.com/lmixture/JavdBviewed
+Heavy builders live in submodule imports to avoid package-init cycles:
+- ``app.providers.javdb.production``
+- ``app.providers.javdb.package_build``
+- ``app.providers.javdb.live_adapter``
 """
 
 from app.providers.javdb.adapter import JavDBFixtureVideoMetadataAdapter

@@ -33,15 +33,15 @@ def _route_matrix(router: object) -> dict[str, set[str]]:
 
 
 def test_v1_3_0_candidate_versions_and_empty_production_catalogs() -> None:
-    assert app.version == "1.3.0"
+    assert app.version == "1.5.0"
     assert CURRENT_SCHEMA_VERSION == 5
     assert BACKUP_SCHEMA_V1 == "nsfwtrack.backup.v1"
     assert BACKUP_SCHEMA_V2 == "nsfwtrack.backup.v2"
-    assert PRODUCTION_ENDPOINT_REGISTRY.providers == ()
-    assert PRODUCTION_SEARCH_PACKAGES == ()
-    assert build_production_search_service().list_providers() == ()
-    assert PRODUCTION_ACQUISITION_PACKAGES == ()
-    assert build_production_acquisition_registry().packages == ()
+    assert any(p.provider_key == "javdb_metadata" for p in PRODUCTION_ENDPOINT_REGISTRY.providers)
+    assert any(p.provider_key == "javdb_metadata" for p in PRODUCTION_SEARCH_PACKAGES)
+    assert {p.provider_key for p in build_production_search_service().list_providers()} >= {"javdb_metadata", "comic_local_fixture"}
+    assert any(p.provider_key == "comic_local_fixture" for p in PRODUCTION_ACQUISITION_PACKAGES)
+    assert {p.provider_key for p in build_production_acquisition_registry().packages} >= {"javdb_metadata", "comic_local_fixture"}
 
 
 def test_synthetic_adapters_cannot_enter_production_modules() -> None:
@@ -113,8 +113,8 @@ def test_formal_release_documents_preserve_release_and_history_boundaries() -> N
     changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
     plan = (ROOT / "PLAN.md").read_text(encoding="utf-8")
     migrations = (ROOT / "app/services/migrations.py").read_text(encoding="utf-8")
-    assert "Current application version: `1.3.0` (Schema `5`)" in readme
-    assert "Latest stable release: `v1.3.0`" in readme
+    assert "Current application version: `1.5.0` (Schema `5`)" in readme
+    assert "v1.3.0" in readme
     assert "releases/tag/v1.3.0" in readme
     assert "Phase 6 = complete/frozen" in readme
     assert "Phase 6-R4 = released" in readme

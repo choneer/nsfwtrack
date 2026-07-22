@@ -465,4 +465,40 @@ class EndpointRegistry:
         raise AttributeError("EndpointRegistry is immutable")
 
 
-PRODUCTION_ENDPOINT_REGISTRY = EndpointRegistry(())
+class _LazyProductionEndpointRegistry:
+    """Resolve production endpoints on first access (avoids import cycles)."""
+
+    __slots__ = ("_cached",)
+
+    def __init__(self) -> None:
+        object.__setattr__(self, "_cached", None)
+
+    def _registry(self) -> EndpointRegistry:
+        cached = object.__getattribute__(self, "_cached")
+        if cached is None:
+            from app.providers.production_catalog import (
+                build_production_endpoint_registry,
+            )
+
+            cached = build_production_endpoint_registry()
+            object.__setattr__(self, "_cached", cached)
+        return cached
+
+    @property
+    def providers(self) -> tuple[ProviderEndpoint, ...]:
+        return self._registry().providers
+
+    def provider(self, provider_key: str) -> ProviderEndpoint | None:
+        return self._registry().provider(provider_key)
+
+    def __setattr__(self, name: str, value: object) -> None:
+        raise AttributeError("EndpointRegistry is immutable")
+
+    def __delattr__(self, name: str) -> None:
+        raise AttributeError("EndpointRegistry is immutable")
+
+    def __repr__(self) -> str:
+        return repr(self._registry())
+
+
+PRODUCTION_ENDPOINT_REGISTRY = _LazyProductionEndpointRegistry()

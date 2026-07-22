@@ -4,9 +4,21 @@
 
 - **Branch:** `nsfwtrack_grok` (for Codex review + merge)
 - **Package:** `app/providers/javdb/`
-- **Approval scope:** `TEST_FIXTURE` only (hosts end with `.invalid`)
-- **Operations:** `SEARCH`, `DETAIL` only
-- **Production registry:** unchanged / empty
+- **Offline package:** `TEST_FIXTURE` only (hosts end with `.invalid`)
+- **PRODUCTION facts:** `production.py` — code-owned SEARCH+DETAIL HTML +
+  provider-session cookie policy for `javdb.com` (activation-validated only)
+- **Operations (this package):** `SEARCH`, `DETAIL` only
+- **Production registry:** still **empty** (no live Search wiring)
+
+Full ordered roadmap and product rules: [PRODUCTION_ROADMAP.md](./PRODUCTION_ROADMAP.md).
+
+## Product rules (verbatim)
+
+1. Cookie + metadata scrape first.
+2. Video: ASSET_LIST (links) + optional local DOWNLOAD later.
+3. Comics/doujin: separate later package with local DOWNLOAD.
+4. No VIP/login bypass.
+5. JP/KR egress blocked for JavDB (operator proxy / `/egress`).
 
 ## ID strategy
 
@@ -18,19 +30,31 @@
 - https://github.com/Yuukiy/JavSP
 - https://github.com/lmixture/JavdBviewed
 
-Offline HTML fixtures are synthetic. Real-site live access was proven separately
-in the nsfwpro workspace (proxy + session cookie) and is **not** activated here.
+Offline HTML fixtures are synthetic. PRODUCTION facts validate without network.
+Live scrape / cookie injection / registry population remain later work.
 
-## Not in this branch
+## Egress diagnostics (related)
 
-- PRODUCTION hosts (`javdb.com`, mirrors)
-- CookieCloud / `SESSION_COOKIE` production auth
-- `ASSET_LIST` / `DOWNLOAD` / playback
-- Changes to `PRODUCTION_ENDPOINT_REGISTRY`
+Local UI at `/egress` (`app/egress/`) for multi-source exit IP + proxy pool quality.
+See [EGRESS.md](./EGRESS.md). Does **not** enable production JavDB hosts in the registry.
+
+## Runtime B–D (opt-in; default catalogs empty)
+
+Code-complete on this branch; **v1.3 default catalogs stay empty**.
+
+- Live adapter + cookie loader + package builder: `package_build` / `live_adapter`
+- Video ASSET_LIST (links) + optional acquisition DOWNLOAD
+- Comic local DOWNLOAD: `app/providers/comic/`
+- Enable via `NSFWTRACK_ENABLE_OPT_IN_PROVIDERS=1` + session cookie env
+
+Still not default-wired:
+
+- Non-empty `PRODUCTION_ENDPOINT_REGISTRY` / `PRODUCTION_SEARCH_PACKAGES`
+- CookieCloud auto-sync / VIP bypass
 
 ## Tests
 
 ```bash
 cd /home/nsfwtrack
-python3.12 -m pytest tests/test_javdb_metadata_provider.py -q
+python3.12 -m pytest tests/test_javdb_metadata_provider.py tests/test_javdb_production_activation.py -q
 ```

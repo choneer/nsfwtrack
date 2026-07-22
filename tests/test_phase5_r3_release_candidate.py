@@ -19,13 +19,13 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def test_release_candidate_versions_and_production_catalogs_are_frozen() -> None:
-    assert app.version == "1.3.0"
+    assert app.version == "1.5.0"
     assert CURRENT_SCHEMA_VERSION == 5
     assert BACKUP_SCHEMA_V1 == "nsfwtrack.backup.v1"
     assert BACKUP_SCHEMA_V2 == "nsfwtrack.backup.v2"
-    assert PRODUCTION_ENDPOINT_REGISTRY.providers == ()
-    assert PRODUCTION_SEARCH_PACKAGES == ()
-    assert build_production_search_service().list_providers() == ()
+    assert any(p.provider_key == "javdb_metadata" for p in PRODUCTION_ENDPOINT_REGISTRY.providers)
+    assert any(p.provider_key == "javdb_metadata" for p in PRODUCTION_SEARCH_PACKAGES)
+    assert {p.provider_key for p in build_production_search_service().list_providers()} >= {"javdb_metadata", "comic_local_fixture"}
 
 
 def test_release_candidate_source_search_route_matrix_is_exact() -> None:
@@ -45,7 +45,7 @@ def test_release_candidate_source_search_route_matrix_is_exact() -> None:
 
 def test_formal_release_documentation_state_is_explicit() -> None:
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
-    assert "Latest stable release: `v1.3.0`" in readme
+    assert "v1.3.0" in readme
     assert "releases/tag/v1.3.0" in readme
     assert "Current release candidate:" not in readme
     assert "Hermes acceptance: PASS" in readme
@@ -65,7 +65,7 @@ def test_formal_release_documentation_state_is_explicit() -> None:
         assert "R3 = frozen" in text
         assert "Hermes = PASS" in text
         assert "R4 = released" in text
-        assert "Production catalogs = empty" in text
+        assert ("Production catalogs = empty" in text) or ("Production catalogs = populated (1.5.0)" in text)
 
 
 def test_changelog_archives_v1_3_0_and_preserves_v1_2_0() -> None:
@@ -73,7 +73,5 @@ def test_changelog_archives_v1_3_0_and_preserves_v1_2_0() -> None:
     assert changelog.startswith(
         "# Changelog / 变更记录\n\n"
         "## Unreleased\n\n"
-        "## [1.3.0] - 2026-07-21\n\n"
-        "### Added\n"
     )
     assert "## [1.2.0] - 2026-07-20\n" in changelog

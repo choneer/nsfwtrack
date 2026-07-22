@@ -396,15 +396,19 @@ def test_source_search_routes_require_page_auth(client: TestClient) -> None:
         assert response.headers["location"] == "/login"
 
 
-def test_production_page_is_safe_empty_state(auth_client: TestClient) -> None:
+def test_production_page_lists_catalog_without_synthetic_or_side_effects(
+    auth_client: TestClient,
+) -> None:
+    """v1.5.0+ ships populated PRODUCTION catalogs; page must stay GET-only/safe."""
+
     response = auth_client.get("/source-search")
 
     assert response.status_code == 200
-    assert "暂无可用外部来源" in response.text
-    assert "这不是系统错误" in response.text
     assert PROVIDER_KEY not in response.text
     assert "Synthetic" not in response.text
-    assert 'action="/source-search/search"' not in response.text
+    # Real catalog identities (not the tests-only fixture key)
+    assert "javdb_metadata" in response.text or "JavDB" in response.text
+    assert 'action="/source-search/search"' in response.text
     _assert_security_headers(response)
 
 
@@ -939,9 +943,9 @@ def test_back_to_get_does_not_repeat_search_or_detail(
 
 
 def test_phase5_n5b_preserves_version_schema_backup_and_empty_production_catalogs() -> None:
-    assert app.version == "1.3.0"
+    assert app.version == "1.5.0"
     assert CURRENT_SCHEMA_VERSION == 5
     assert BACKUP_SCHEMA_V2 == "nsfwtrack.backup.v2"
-    assert PRODUCTION_ENDPOINT_REGISTRY.providers == ()
-    assert PRODUCTION_SEARCH_PACKAGES == ()
-    assert build_production_search_service().list_providers() == ()
+    assert any(p.provider_key == "javdb_metadata" for p in PRODUCTION_ENDPOINT_REGISTRY.providers)
+    assert any(p.provider_key == "javdb_metadata" for p in PRODUCTION_SEARCH_PACKAGES)
+    assert {p.provider_key for p in build_production_search_service().list_providers()} >= {"javdb_metadata", "comic_local_fixture"}

@@ -1,0 +1,438 @@
+{% extends "base.html" %}
+{% block title %}{{ t("egress.title") }} - NSFWTrack{% endblock %}
+{% block content %}
+<style>
+  .egress-ip {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 1.45rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    line-height: 1.3;
+    margin: 4px 0 8px;
+    word-break: break-all;
+  }
+  .egress-meta { color: var(--muted); font-size: 13px; margin: 0 0 10px; }
+  .egress-banner {
+    align-items: flex-start;
+    border-radius: 8px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 16px;
+    justify-content: space-between;
+    margin-bottom: 16px;
+    padding: 14px 16px;
+  }
+  .egress-banner.ok {
+    background: #ecfdf3;
+    border: 1px solid #abefc6;
+    color: var(--success);
+  }
+  .egress-banner.bad {
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    color: var(--danger);
+  }
+  .egress-banner.warn {
+    background: #fff7ed;
+    border: 1px solid #fed7aa;
+    color: var(--warn);
+  }
+  .egress-banner.info {
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    color: var(--info);
+  }
+  .egress-banner strong { display: block; font-size: 15px; margin-bottom: 4px; }
+  .egress-banner p { color: inherit; margin: 0; opacity: 0.92; }
+  .egress-grade {
+    border-radius: 999px;
+    display: inline-flex;
+    font-size: 12px;
+    font-weight: 700;
+    min-width: 1.8em;
+    justify-content: center;
+    padding: 3px 8px;
+  }
+  .egress-grade-A { background: #dcfce7; color: #166534; }
+  .egress-grade-B { background: #e0f2fe; color: #075985; }
+  .egress-grade-C { background: #fef9c3; color: #854d0e; }
+  .egress-grade-D { background: #ffedd5; color: #9a3412; }
+  .egress-grade-F { background: #fee2e2; color: #991b1b; }
+  .egress-risk {
+    border-radius: 6px;
+    display: inline-block;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 2px 7px;
+  }
+  .egress-risk-low { background: #ecfdf3; color: #166534; }
+  .egress-risk-mid { background: #fff7ed; color: #9a6700; }
+  .egress-risk-high { background: #fef2f2; color: #b42318; }
+  .egress-status-ok { color: var(--success); font-weight: 600; }
+  .egress-status-bad { color: var(--danger); font-weight: 600; }
+  .egress-table-wrap { overflow-x: auto; }
+  .egress-table { font-size: 13px; margin: 0; width: 100%; }
+  .egress-table th {
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 600;
+    text-align: left;
+    white-space: nowrap;
+  }
+  .egress-table td, .egress-table th { padding: 8px 10px; vertical-align: top; }
+  .egress-table code {
+    background: #f1f5f9;
+    border-radius: 4px;
+    font-size: 12px;
+    padding: 1px 5px;
+  }
+  .egress-bar {
+    background: #e9edf3;
+    border-radius: 999px;
+    height: 6px;
+    margin-top: 6px;
+    max-width: 160px;
+    overflow: hidden;
+  }
+  .egress-bar > span {
+    background: var(--accent);
+    display: block;
+    height: 100%;
+    width: var(--w, 0%);
+  }
+  .egress-empty {
+    color: var(--muted);
+    font-size: 14px;
+    margin: 0;
+  }
+  .egress-raw {
+    background: #f8fafc;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    color: var(--muted);
+    font-size: 12px;
+    max-height: 280px;
+    overflow: auto;
+    padding: 12px;
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
+  .egress-loading { opacity: 0.65; pointer-events: none; }
+  details.egress-details summary {
+    cursor: pointer;
+    color: var(--muted);
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+</style>
+
+<div class="toolbar">
+  <div>
+    <p class="muted">{{ t("egress.local_only") }}</p>
+    <h1>{{ t("egress.title") }}</h1>
+    <p class="muted">{{ t("egress.description") }}</p>
+  </div>
+  <div class="actions">
+    <button type="button" id="egress-refresh">{{ t("egress.refresh") }}</button>
+    <button type="button" class="secondary" id="egress-probe">{{ t("egress.probe_quality") }}</button>
+    <a class="button secondary" href="/settings">{{ t("nav.settings") }}</a>
+  </div>
+</div>
+
+<section class="notice">
+  <p>{{ t("egress.notice_probe_only") }}</p>
+  <p class="muted">
+    {{ t("egress.config_label") }}:
+    <code id="egress-config-path">{{ config_path }}</code>
+    {% if not config_exists %}
+      · <span class="egress-status-bad">{{ t("egress.config_missing") }}</span>
+      · {{ t("egress.config_hint") }}
+    {% endif %}
+  </p>
+  <p class="muted" id="egress-status-line">{{ t("egress.status_idle") }}</p>
+</section>
+
+<div id="egress-javdb-banner" class="egress-banner info" hidden>
+  <div>
+    <strong id="egress-javdb-title"></strong>
+    <p id="egress-javdb-body"></p>
+  </div>
+  <span class="pill" id="egress-javdb-pill"></span>
+</div>
+
+<div class="grid" id="egress-ip-grid">
+  <section class="card stack">
+    <div class="stats-section-heading">
+      <h2>{{ t("egress.direct_title") }}</h2>
+      <p class="muted">{{ t("egress.multi_source_hint") }}</p>
+    </div>
+    <div class="egress-ip" id="direct-ip">—</div>
+    <p class="egress-meta" id="direct-meta"></p>
+    <div class="egress-bar" id="direct-agree-bar" aria-hidden="true"><span style="--w:0%"></span></div>
+    <div class="egress-table-wrap">
+      <table class="egress-table" id="direct-sources"></table>
+    </div>
+  </section>
+  <section class="card stack">
+    <div class="stats-section-heading">
+      <h2>{{ t("egress.proxy_title") }}</h2>
+      <p class="muted">{{ t("egress.proxy_hint") }}</p>
+    </div>
+    <div class="egress-ip" id="proxy-ip">—</div>
+    <p class="egress-meta" id="proxy-meta"></p>
+    <div class="egress-bar" id="proxy-agree-bar" aria-hidden="true"><span style="--w:0%"></span></div>
+    <div class="egress-table-wrap">
+      <table class="egress-table" id="proxy-sources"></table>
+    </div>
+  </section>
+</div>
+
+<section class="card stack stats-section" style="margin-top:14px">
+  <div class="toolbar">
+    <div>
+      <h2>{{ t("egress.pool_title") }}</h2>
+      <p class="muted" id="pool-selected">{{ t("egress.pool_loading") }}</p>
+    </div>
+    <span class="pill" id="pool-count-pill"></span>
+  </div>
+  <div class="egress-table-wrap">
+    <table class="egress-table" id="pool-table"></table>
+  </div>
+  <p class="egress-empty" id="pool-empty" hidden>{{ t("egress.pool_empty") }}</p>
+</section>
+
+<section class="card stack stats-section">
+  <div class="stats-section-heading">
+    <h2>{{ t("egress.javdb_hint_title") }}</h2>
+    <p class="muted">{{ t("egress.javdb_hint_body") }}</p>
+  </div>
+  <div class="tag-row">
+    <span class="pill">JP</span>
+    <span class="pill">KR</span>
+  </div>
+  <details class="egress-details">
+    <summary>{{ t("egress.raw_json") }}</summary>
+    <pre class="egress-raw" id="egress-raw">{}</pre>
+  </details>
+</section>
+
+<script>
+(function () {
+  const I18N = {
+    loading: {{ t("egress.status_loading") | tojson }},
+    done: {{ t("egress.status_done") | tojson }},
+    failed: {{ t("egress.status_failed") | tojson }},
+    noProxy: {{ t("egress.no_proxy") | tojson }},
+    noProxyHint: {{ t("egress.no_proxy_hint") | tojson }},
+    unknown: {{ t("egress.unknown") | tojson }},
+    agreement: {{ t("egress.agreement") | tojson }},
+    selected: {{ t("egress.selected") | tojson }},
+    selectFail: {{ t("egress.select_fail") | tojson }},
+    noPool: {{ t("egress.no_pool") | tojson }},
+    colSource: {{ t("egress.col_source") | tojson }},
+    colStatus: {{ t("egress.col_status") | tojson }},
+    colIp: {{ t("egress.col_ip") | tojson }},
+    colGeo: {{ t("egress.col_geo") | tojson }},
+    colMs: {{ t("egress.col_ms") | tojson }},
+    colId: {{ t("egress.col_id") | tojson }},
+    colEnabled: {{ t("egress.col_enabled") | tojson }},
+    colExit: {{ t("egress.col_exit") | tojson }},
+    colCountry: {{ t("egress.col_country") | tojson }},
+    colRisk: {{ t("egress.col_risk") | tojson }},
+    colQuality: {{ t("egress.col_quality") | tojson }},
+    colLatency: {{ t("egress.col_latency") | tojson }},
+    yes: {{ t("common.any") | tojson }},
+    javdbOk: {{ t("egress.javdb_ok") | tojson }},
+    javdbBad: {{ t("egress.javdb_bad") | tojson }},
+    javdbUnknown: {{ t("egress.javdb_unknown") | tojson }},
+    javdbOkBody: {{ t("egress.javdb_ok_body") | tojson }},
+    javdbBadBody: {{ t("egress.javdb_bad_body") | tojson }},
+    javdbUnknownBody: {{ t("egress.javdb_unknown_body") | tojson }},
+  };
+
+  function esc(s) {
+    return String(s ?? "").replace(/[&<>"']/g, function (c) {
+      return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c];
+    });
+  }
+
+  function riskClass(score) {
+    if (score == null || score === "") return "egress-risk-mid";
+    const n = Number(score);
+    if (n <= 30) return "egress-risk-low";
+    if (n <= 70) return "egress-risk-mid";
+    return "egress-risk-high";
+  }
+
+  function setAgreeBar(el, agreement, total) {
+    const span = el.querySelector("span");
+    const pct = total > 0 ? Math.round((agreement / total) * 100) : 0;
+    span.style.setProperty("--w", pct + "%");
+  }
+
+  function sourcesTable(el, sources) {
+    if (!sources || !sources.length) {
+      el.innerHTML = "";
+      return;
+    }
+    el.innerHTML =
+      "<thead><tr><th>" + esc(I18N.colSource) + "</th><th>" + esc(I18N.colStatus) +
+      "</th><th>" + esc(I18N.colIp) + "</th><th>" + esc(I18N.colGeo) +
+      "</th><th>" + esc(I18N.colMs) + "</th></tr></thead><tbody>" +
+      sources.map(function (s) {
+        return "<tr><td>" + esc(s.name) + "</td><td class=\"" +
+          (s.ok ? "egress-status-ok" : "egress-status-bad") + "\">" +
+          (s.ok ? "OK" : "FAIL") + "</td><td><code>" + esc(s.ip || "") +
+          "</code></td><td>" + esc(s.geo || s.country_code || s.error || "") +
+          "</td><td>" + esc(s.latency_ms ?? "") + "</td></tr>";
+      }).join("") + "</tbody>";
+  }
+
+  function renderJavdb(javdb) {
+    const banner = document.getElementById("egress-javdb-banner");
+    const title = document.getElementById("egress-javdb-title");
+    const body = document.getElementById("egress-javdb-body");
+    const pill = document.getElementById("egress-javdb-pill");
+    banner.hidden = false;
+    banner.className = "egress-banner";
+    if (javdb && javdb.ok === true) {
+      banner.classList.add("ok");
+      title.textContent = I18N.javdbOk;
+      body.textContent = I18N.javdbOkBody.replace("{country}", javdb.country_code || "—");
+      pill.textContent = javdb.country_code || "OK";
+    } else if (javdb && javdb.ok === false) {
+      banner.classList.add("bad");
+      title.textContent = I18N.javdbBad;
+      body.textContent = I18N.javdbBadBody.replace("{country}", javdb.country_code || "—");
+      pill.textContent = javdb.country_code || "BLOCK";
+    } else {
+      banner.classList.add("warn");
+      title.textContent = I18N.javdbUnknown;
+      body.textContent = I18N.javdbUnknownBody;
+      pill.textContent = "—";
+    }
+  }
+
+  function render(data) {
+    const d = data.direct || {};
+    const sources = d.sources || [];
+    document.getElementById("direct-ip").textContent = d.consensus_ip || I18N.unknown;
+    document.getElementById("direct-meta").textContent =
+      I18N.agreement.replace("{n}", String(d.agreement || 0)).replace("{total}", String(sources.length));
+    setAgreeBar(document.getElementById("direct-agree-bar"), d.agreement || 0, sources.length || 1);
+    sourcesTable(document.getElementById("direct-sources"), sources);
+
+    const p = data.via_proxy;
+    if (p) {
+      const ps = p.sources || [];
+      document.getElementById("proxy-ip").textContent = p.consensus_ip || I18N.unknown;
+      document.getElementById("proxy-meta").textContent =
+        (data.resolved_proxy || "") + " · " +
+        I18N.agreement.replace("{n}", String(p.agreement || 0)).replace("{total}", String(ps.length));
+      setAgreeBar(document.getElementById("proxy-agree-bar"), p.agreement || 0, ps.length || 1);
+      sourcesTable(document.getElementById("proxy-sources"), ps);
+    } else {
+      document.getElementById("proxy-ip").textContent = I18N.noProxy;
+      document.getElementById("proxy-meta").textContent = I18N.noProxyHint;
+      setAgreeBar(document.getElementById("proxy-agree-bar"), 0, 1);
+      document.getElementById("proxy-sources").innerHTML = "";
+    }
+
+    renderJavdb(data.javdb);
+
+    const sel = data.selected;
+    const pool = data.pool || [];
+    const selectedEl = document.getElementById("pool-selected");
+    if (!data.config_exists) {
+      selectedEl.textContent = I18N.noPool;
+    } else if (sel && sel.error) {
+      selectedEl.textContent = I18N.selectFail.replace("{error}", sel.error);
+    } else if (sel) {
+      selectedEl.textContent = I18N.selected
+        .replace("{id}", sel.id || "")
+        .replace("{host}", sel.url_host || "")
+        .replace("{priority}", String(sel.priority ?? ""));
+    } else {
+      selectedEl.textContent = I18N.noPool;
+    }
+
+    document.getElementById("pool-count-pill").textContent =
+      pool.length ? (pool.length + " proxies") : "";
+
+    const empty = document.getElementById("pool-empty");
+    const pt = document.getElementById("pool-table");
+    if (!pool.length) {
+      pt.innerHTML = "";
+      empty.hidden = false;
+    } else {
+      empty.hidden = true;
+      pt.innerHTML =
+        "<thead><tr><th>" + esc(I18N.colId) + "</th><th>" + esc(I18N.colEnabled) +
+        "</th><th>" + esc(I18N.colExit) + "</th><th>" + esc(I18N.colCountry) +
+        "</th><th>" + esc(I18N.colRisk) + "</th><th>" + esc(I18N.colQuality) +
+        "</th><th>" + esc(I18N.colLatency) + "</th><th>" + esc(I18N.colStatus) +
+        "</th></tr></thead><tbody>" +
+        pool.map(function (row) {
+          const h = row.health || {};
+          const ok = h.ok === true;
+          const grade = h.quality_grade || "";
+          const gradeHtml = grade
+            ? '<span class="egress-grade egress-grade-' + esc(grade) + '">' + esc(grade) + "</span> "
+            : "";
+          const risk = h.risk_score != null
+            ? '<span class="egress-risk ' + riskClass(h.risk_score) + '">' + esc(h.risk_score) + "</span>"
+            : "—";
+          return "<tr><td><strong>" + esc(row.id) + "</strong><div class=\"muted\">" +
+            esc(row.url_host || "") + "</div></td><td>" + (row.enabled ? "✓" : "—") +
+            "</td><td><code>" + esc(h.exit_ip || "") + "</code></td><td>" +
+            esc(h.country_code || "") + (h.country_name ? " <span class=\"muted\">" + esc(h.country_name) + "</span>" : "") +
+            "</td><td>" + risk + "</td><td>" + gradeHtml + esc(h.quality_score ?? "") +
+            "</td><td>" + esc(h.latency_ms ?? "") + "</td><td class=\"" +
+            (ok ? "egress-status-ok" : "egress-status-bad") + "\">" +
+            (ok ? "OK" : esc(h.error || "—")) + "</td></tr>";
+        }).join("") + "</tbody>";
+    }
+
+    if (data.config_path) {
+      document.getElementById("egress-config-path").textContent = data.config_path;
+    }
+    document.getElementById("egress-raw").textContent = JSON.stringify(data, null, 2);
+  }
+
+  async function load(path) {
+    const st = document.getElementById("egress-status-line");
+    const btns = [
+      document.getElementById("egress-refresh"),
+      document.getElementById("egress-probe"),
+    ];
+    const mainCards = document.getElementById("egress-ip-grid");
+    btns.forEach(function (b) { b.disabled = true; });
+    mainCards.classList.add("egress-loading");
+    st.textContent = I18N.loading;
+    try {
+      const r = await fetch(path, { credentials: "same-origin", headers: { "Accept": "application/json" } });
+      const data = await r.json();
+      if (!r.ok || data.ok === false) {
+        throw new Error(data.error || ("HTTP " + r.status));
+      }
+      render(data);
+      st.textContent = I18N.done.replace("{time}", new Date().toLocaleTimeString());
+    } catch (e) {
+      st.textContent = I18N.failed.replace("{error}", String(e.message || e));
+    } finally {
+      btns.forEach(function (b) { b.disabled = false; });
+      mainCards.classList.remove("egress-loading");
+    }
+  }
+
+  document.getElementById("egress-refresh").onclick = function () {
+    load("/api/egress/status");
+  };
+  document.getElementById("egress-probe").onclick = function () {
+    load("/api/egress/probe-quality");
+  };
+  load("/api/egress/status");
+})();
+</script>
+{% endblock %}

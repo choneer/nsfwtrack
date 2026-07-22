@@ -1,0 +1,9 @@
+{
+  "code": 200,
+  "results": {
+    "list": [
+      {"uuid": "ch-001", "name": "Chapter 1"},
+      {"uuid": "ch-002", "name": "Chapter 2"}
+    ]
+  }
+}

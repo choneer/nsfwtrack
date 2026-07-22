@@ -2,6 +2,54 @@
 
 ## Unreleased
 
+## [1.5.0] - 2026-07-22
+
+### Added
+
+- **CookieCloud** control plane (`app/cookiecloud/`): GET `/get/{uuid}` + OpenSSL AES decrypt via `cryptography`, host-filtered Cookie header, optional save to `data/cookies/`, APIs `/api/cookiecloud/import` and `/api/cookiecloud/status`. JavDB session loader reads CookieCloud drop zone after env/file.
+- **HLS / playback inspect** (`app/playback/`): offline `#EXTM3U` master/media parse and MacCMS `label$url#…` lines; no segment/key fetch. APIs `/api/playback/hls/inspect` and `/api/playback/lines/parse`.
+- **copymanga** real-site comic PRODUCTION package (`app/providers/copymanga/`): Venera-style JSON on `api.mangacopy.com`, SEARCH/DETAIL/ASSET_LIST + acquisition download package, wired into default catalogs.
+
+### Changed
+
+- FastAPI application version `1.4.1` → `1.5.0` (Schema remains `5`)
+- Dependency: `cryptography==46.0.3` for CookieCloud decrypt
+
+### Security / boundaries
+
+- CookieCloud never returns cookie values in API responses; no VIP/login/paywall bypass
+- HLS inspect does not download media segments or keys
+- copymanga hosts are code-owned allowlists only
+
+## [1.4.1] - 2026-07-22
+
+### Added
+
+- Application `1.4.1` wires **every nsfwpro factory Provider** into default catalogs:
+  - `javdb_metadata` ← nsfwpro `javdb-metadata` (PRODUCTION HTML + session cookie)
+  - `jiuse_vod` ← nsfwpro `jiuse-vod` (TEST_FIXTURE offline HTML parse; live caps still unauthorized upstream)
+  - `zuidapi_vod` ← nsfwpro `zuidapi-vod` (PRODUCTION MacCMS JSON SEARCH/DETAIL on `api.zuidapi.com`)
+  - `comic_local_fixture` remains for local comic download proof (not a nsfwpro factory key)
+- Offline fixture paths for jiuse/zuidapi; package validation via real `validate_provider_package`
+- Factory key map in `app/providers/production_catalog.NSFWPRO_FACTORY_KEY_MAP`
+
+### Changed
+
+- FastAPI application version `1.4.0` → `1.4.1` (Schema remains `5`)
+- Default search catalog lists all three nsfwpro factory identities
+
+### Security / boundaries
+
+- No VIP/login/paywall bypass; CookieCloud/HLS/playback not registered as Providers
+- Jiuse remains TEST_FIXTURE until nsfwpro endpoint freeze; no invented live comic hosts
+
+## [1.4.0] - 2026-07-22
+
+### Added
+
+- Application `1.4.0` first populated production-shaped catalogs (JavDB + comic fixture)
+  and egress diagnostics; see git history for full notes.
+
 ## [1.3.0] - 2026-07-21
 
 ### Added

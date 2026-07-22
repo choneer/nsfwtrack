@@ -12,16 +12,15 @@
 当前应用版本与开发阶段：
 
 ```text
-Application 1.3.0 / Phase 6-R4 formally released
+Application 1.5.0 / CookieCloud + HLS + copymanga (nsfwtrack_grok)
 ```
 
-Phase 6-R4 已正式发布 Application `1.3.0`，Schema 保持 `5`。统一持久任务模型、
-受控资产下载、手动来源 Check/Diff/Confirm/Apply、双语任务中心及其迁移/事务/
-安全测试已经 complete/frozen；R3 候选、Cloud RC diff review 与唯一一次 Hermes
-acceptance 均 PASS。production endpoint/package/provider/acquisition catalog 全部
-保持空，不发布镜像、不部署 N100，R4 未再次调用 Hermes。
+Application `1.5.0` 在 nsfwpro factory 三键与 `comic_local_fixture` 之上新增：
+CookieCloud 会话导入、HLS/playback 行解析（不拉分片）、`copymanga` 真站漫画
+PRODUCTION 包。Schema 保持 `5`。Phase 6 任务中心仍 complete/frozen。无 VIP 绕过。
+不发布镜像、不部署 N100。
 
-当前最新稳定版本为 `v1.3.0`；`v1.2.0` 与 `v1.1.0` 发布证据作为历史保留。
+最新已发布 GitHub Release 仍为 `v1.3.0`；开发头为 `1.5.0`。
 
 上一稳定版本 v1.2.0 发布证据（R4 保持不变）：
 
@@ -51,7 +50,7 @@ Phase 6-R3 = frozen
 Cloud RC diff review = PASS
 Hermes acceptance = PASS
 Phase 6-R4 = released
-Production catalogs = empty
+Production catalogs = populated (1.5.0)
 Published image = none
 N100 = not deployed
 ```
@@ -81,8 +80,8 @@ N100 = not deployed
 
 ```text
 核心业务能力：已完成
-代码发布状态：v1.3.0 已按 Phase 6-R4 发布门禁正式发布；v1.2.0/v1.1.0 tag/Release 证据保留为历史
-当前发布状态：Phase 5-N5C-B2 的 Session-bound Search → Detail → signed Preview → explicit Confirm → local Apply 基础保持冻结；Phase 6 的持久任务、受控下载、手动更新和 Task Center 已 complete/frozen。Application `1.3.0` 已正式发布且 latest stable 为 `v1.3.0`，Schema 为 `5`、Backup 为 `nsfwtrack.backup.v2` 且 restore 接受 v1/v2，Production Endpoint Registry、Search Packages、Search Providers 与 Acquisition Registry 均为空。
+代码发布状态：v1.3.0 已按 Phase 6-R4 发布；Application 开发头为 `1.5.0`（CookieCloud/HLS/copymanga）；v1.2.0/v1.1.0 tag/Release 证据保留为历史
+当前发布状态：Phase 5-N5C-B2 与 Phase 6 任务中心 complete/frozen。Application `1.5.0`（Schema `5`）默认注册 javdb_metadata / jiuse_vod / zuidapi_vod / copymanga（+ comic fixture）；CookieCloud 与 HLS 为控制面；真站 JavDB 需操作员 cookie；无 VIP 绕过。
 Phase 5-N3：Provider 合同、认证、资产、动态 Locator、受控下载 MVP、状态矩阵和批准模板已完成；仅新增/更新授权文档，未实现 Provider 或下载
 Phase 5-N4A：capability/Protocol/SourceAsset/Auth 状态/typed Registry/Outbound 基础和 test-only Fixture Provider 已完成；初始全量 934 passed，最终安全复核后全量 938 passed，production registry 仍为空
 Phase 5-N4B：immutable Approval/Host/Operation/Auth/Asset/Download model、纯本地一致性 Validator 与 opaque Asset ID 强化已完成；N4B 27、N4A/Adapter/Outbound 120、全量 965 passed，production registry 仍为空

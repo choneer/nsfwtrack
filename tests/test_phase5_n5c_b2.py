@@ -350,7 +350,7 @@ def test_preview_material_replaces_malformed_nonce_only_after_valid_session() ->
     assert bad_session == before
 
 
-def test_production_get_remains_empty_zero_apply_and_does_not_mutate_session(
+def test_production_get_lists_catalog_zero_apply_and_does_not_mutate_session(
     auth_client: TestClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -374,7 +374,8 @@ def test_production_get_remains_empty_zero_apply_and_does_not_mutate_session(
     response = auth_client.get("/source-search")
 
     assert response.status_code == 200
-    assert "暂无可用外部来源" in response.text
+    # Application 1.5.0 lists approved packages; GET must not start Apply.
+    assert "javdb_metadata" in response.text or "JavDB" in response.text
     assert 'action="/source-search/apply"' not in response.text
     assert auth_client.cookies.get("session") == before_cookie
 
@@ -806,9 +807,9 @@ def test_apply_route_requires_auth_and_has_no_get_variant(client: TestClient) ->
 
 
 def test_phase_invariants_and_empty_production_catalogs_are_unchanged() -> None:
-    assert app.version == "1.3.0"
+    assert app.version == "1.5.0"
     assert CURRENT_SCHEMA_VERSION == 5
     assert BACKUP_SCHEMA_V2 == "nsfwtrack.backup.v2"
-    assert PRODUCTION_ENDPOINT_REGISTRY.providers == ()
-    assert PRODUCTION_SEARCH_PACKAGES == ()
-    assert build_production_search_service().list_providers() == ()
+    assert any(p.provider_key == "javdb_metadata" for p in PRODUCTION_ENDPOINT_REGISTRY.providers)
+    assert any(p.provider_key == "javdb_metadata" for p in PRODUCTION_SEARCH_PACKAGES)
+    assert {p.provider_key for p in build_production_search_service().list_providers()} >= {"javdb_metadata", "comic_local_fixture"}

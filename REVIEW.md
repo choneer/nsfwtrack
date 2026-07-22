@@ -23,10 +23,18 @@ Phase 6-R3 = frozen
 Cloud RC diff review = PASS
 Hermes acceptance = PASS
 Phase 6-R4 = released
-Production catalogs = empty
+Production catalogs = populated (1.5.0)
 Published image = none
 N100 = not deployed
 ```
+
+## Application 1.5.0 CookieCloud / HLS / copymanga
+
+- [x] **1.5.0 版本** — FastAPI `version=1.5.0`，Schema 仍为 `5`
+- [x] **1.5.0 CookieCloud** — GET/decrypt/filter/save + `/api/cookiecloud/*`；JavDB session 读 drop zone
+- [x] **1.5.0 HLS** — 离线 m3u8/playback-line 解析 + `/api/playback/*`（不拉分片）
+- [x] **1.5.0 目录** — factory + copymanga 已接入；Endpoint 含 javdb + zuidapi + copymanga；comic fixture 保留；无 VIP 绕过
+- [x] **1.5.0 文档** — README/PLAN/TASKS/CHANGELOG 记录 1.5.0
 
 ## Phase 6-R3 v1.3.0 Release Candidate Freeze
 

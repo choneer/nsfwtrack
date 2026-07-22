@@ -1,0 +1,12 @@
+{
+  "code": 200,
+  "results": {
+    "comic": {
+      "path_word": "demo-comic",
+      "name": "Demo Real Comic",
+      "brief": "A fixture comic for real-site package tests.",
+      "cover": "https://site.mangacopy.com/covers/demo.jpg",
+      "author": [{"name": "Demo Author"}]
+    }
+  }
+}

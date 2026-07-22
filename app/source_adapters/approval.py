@@ -1019,11 +1019,48 @@ def validate_approval_against_endpoint(
     validate_approval_against_capabilities(approval, endpoint.capabilities)
 
 
+_ACTIVATION_METADATA_ONLY = frozenset(
+    {
+        ProviderOperation.SEARCH,
+        ProviderOperation.DETAIL,
+    }
+)
+# HTML + session profile may also list non-downloadable video link descriptors.
+_ACTIVATION_HTML_SESSION_OPS = frozenset(
+    {
+        ProviderOperation.SEARCH,
+        ProviderOperation.DETAIL,
+        ProviderOperation.ASSET_LIST,
+    }
+)
+_ACTIVATION_PUBLIC_JSON_AUTH = (ProviderAuthMode.NONE,)
+_ACTIVATION_HTML_SESSION_AUTH = frozenset(
+    {
+        ProviderAuthMode.NONE,
+        ProviderAuthMode.SESSION_COOKIE,
+    }
+)
+
+
 def validate_approval_for_activation(
     approval: ProviderApproval,
     capabilities: ProviderCapabilities,
     endpoint: ProviderEndpoint,
 ) -> None:
+    """Gate production activation of an approved Provider package.
+
+    Allowed activation profiles (all PRODUCTION-scope, fail-closed otherwise):
+
+    1. **Public JSON** (legacy N4): ``AuthMode.NONE``, no cookies, JSON bodies,
+       SEARCH/DETAIL/ASSET_LIST as declared — download/locator still forbidden.
+    2. **HTML + provider session** (metadata scrape): ``SESSION_COOKIE`` with
+       ``CookiePolicy.PROVIDER_SESSION``, HTML responses, **SEARCH+DETAIL only**,
+       redirect DENY, no asset locator / download enablement.
+
+    TEST_FIXTURE scope never activates. Unapproved download/asset resolution
+    never activates.
+    """
+
     validate_approval_against_capabilities(approval, capabilities)
     validate_approval_against_endpoint(approval, endpoint)
     if (
@@ -1040,16 +1077,6 @@ def validate_approval_for_activation(
         for operation in approval.capabilities
     ):
         raise _validation_error(ApprovalValidationErrorCode.INCOMPLETE)
-    if approval.auth.modes != (ProviderAuthMode.NONE,):
-        raise _validation_error(ApprovalValidationErrorCode.INCOMPLETE)
-    for operation in endpoint.operations:
-        if (
-            operation.auth_requirement is not ProviderAuthMode.NONE
-            or operation.cookie_policy is not CookiePolicy.NONE
-            or operation.response_kind is not ResponseKind.JSON
-            or operation.redirect_policy is not RedirectPolicy.DENY
-        ):
-            raise _validation_error(ApprovalValidationErrorCode.INCOMPLETE)
     if (
         approval.asset_policy.locator_resolution_allowed
         or approval.download_policy.enabled
@@ -1057,3 +1084,71 @@ def validate_approval_for_activation(
         raise _validation_error(ApprovalValidationErrorCode.INCOMPLETE)
     if approval.scope is not ProviderApprovalScope.PRODUCTION:
         raise _validation_error(ApprovalValidationErrorCode.INVALID)
+    for operation in endpoint.operations:
+        if operation.redirect_policy is not RedirectPolicy.DENY:
+            raise _validation_error(ApprovalValidationErrorCode.INCOMPLETE)
+    _validate_activation_transport_profile(approval, endpoint)
+
+
+def _validate_activation_transport_profile(
+    approval: ProviderApproval,
+    endpoint: ProviderEndpoint,
+) -> None:
+    response_kinds = {operation.response_kind for operation in endpoint.operations}
+    if response_kinds == {ResponseKind.JSON}:
+        _validate_public_json_activation_profile(approval, endpoint)
+        return
+    if response_kinds == {ResponseKind.HTML}:
+        _validate_html_session_metadata_activation_profile(approval, endpoint)
+        return
+    raise _validation_error(ApprovalValidationErrorCode.INCOMPLETE)
+
+
+def _validate_public_json_activation_profile(
+    approval: ProviderApproval,
+    endpoint: ProviderEndpoint,
+) -> None:
+    if approval.auth.modes != _ACTIVATION_PUBLIC_JSON_AUTH:
+        raise _validation_error(ApprovalValidationErrorCode.INCOMPLETE)
+    for operation in endpoint.operations:
+        if (
+            operation.auth_requirement is not ProviderAuthMode.NONE
+            or operation.cookie_policy is not CookiePolicy.NONE
+            or operation.response_kind is not ResponseKind.JSON
+        ):
+            raise _validation_error(ApprovalValidationErrorCode.INCOMPLETE)
+
+
+def _validate_html_session_metadata_activation_profile(
+    approval: ProviderApproval,
+    endpoint: ProviderEndpoint,
+) -> None:
+    """PRODUCTION HTML metadata scrape with provider-session cookies.
+
+    SEARCH+DETAIL required for scrape; ASSET_LIST optional for non-downloadable
+    video link descriptors. DOWNLOAD / locator resolution stay blocked by the
+    outer activation gate (download_policy / locator flags).
+    """
+
+    caps = set(approval.capabilities)
+    if not caps or caps - _ACTIVATION_HTML_SESSION_OPS:
+        raise _validation_error(ApprovalValidationErrorCode.INCOMPLETE)
+    # Metadata scrape must always include SEARCH+DETAIL when activating HTML.
+    if not _ACTIVATION_METADATA_ONLY.issubset(caps):
+        raise _validation_error(ApprovalValidationErrorCode.INCOMPLETE)
+    modes = set(approval.auth.modes)
+    if not modes.issubset(_ACTIVATION_HTML_SESSION_AUTH):
+        raise _validation_error(ApprovalValidationErrorCode.INCOMPLETE)
+    if ProviderAuthMode.SESSION_COOKIE not in modes:
+        raise _validation_error(ApprovalValidationErrorCode.INCOMPLETE)
+    for operation in endpoint.operations:
+        if operation.response_kind is not ResponseKind.HTML:
+            raise _validation_error(ApprovalValidationErrorCode.INCOMPLETE)
+        if operation.cookie_policy is not CookiePolicy.PROVIDER_SESSION:
+            raise _validation_error(ApprovalValidationErrorCode.INCOMPLETE)
+        if operation.auth_requirement not in _ACTIVATION_HTML_SESSION_AUTH:
+            raise _validation_error(ApprovalValidationErrorCode.INCOMPLETE)
+        if operation.auth_requirement not in modes:
+            raise _validation_error(ApprovalValidationErrorCode.INCOMPLETE)
+        if operation.operation not in _ACTIVATION_HTML_SESSION_OPS:
+            raise _validation_error(ApprovalValidationErrorCode.INCOMPLETE)

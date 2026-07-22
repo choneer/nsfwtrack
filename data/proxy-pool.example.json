@@ -1,0 +1,24 @@
+{
+  "policy": {
+    "deny_countries": ["JP", "KR"],
+    "prefer_countries": ["US", "TW", "SG", "HK", "DE"],
+    "max_risk_score": 90,
+    "require_exit_ip": true,
+    "cooldown_seconds": 300,
+    "max_fail_count_before_disable": 5,
+    "probe_url": "",
+    "geo_provider": "ip_sb"
+  },
+  "proxies": [
+    {
+      "id": "local-clash",
+      "url": "http://127.0.0.1:6123",
+      "enabled": true,
+      "priority": 10,
+      "tags": ["local", "clash"],
+      "expected_country": null,
+      "notes": "Local Clash/OpenClash HTTP port; must not exit via JP/KR for JavDB"
+    }
+  ],
+  "health": {}
+}

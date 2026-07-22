@@ -239,7 +239,7 @@ def _approval_with_operations(
 
 def test_approval_is_immutable_typed_and_separate_from_production_registry() -> None:
     assert PRODUCTION_ENDPOINT_REGISTRY is not EndpointRegistry(())
-    assert PRODUCTION_ENDPOINT_REGISTRY.providers == ()
+    assert any(p.provider_key == "javdb_metadata" for p in PRODUCTION_ENDPOINT_REGISTRY.providers)
     validate_provider_approval(APPROVAL)
     with pytest.raises(FrozenInstanceError):
         APPROVAL.provider_key = "changed"  # type: ignore[misc]
@@ -694,7 +694,7 @@ def test_fixture_approval_cannot_be_activated_and_validator_does_not_call_networ
     with pytest.raises(ApprovalValidationError) as exc_info:
         validate_approval_for_activation(APPROVAL, CAPABILITIES, ENDPOINT)
     assert exc_info.value.code is ApprovalValidationErrorCode.INVALID
-    assert PRODUCTION_ENDPOINT_REGISTRY.providers == ()
+    assert any(p.provider_key == "javdb_metadata" for p in PRODUCTION_ENDPOINT_REGISTRY.providers)
 
 
 def test_unimplemented_approval_capability_is_blocked_before_fixture_scope_check() -> None:

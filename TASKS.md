@@ -46,24 +46,16 @@
 - [x] latest stable 与 Latest Release 同步为 `v1.3.0`
 - [x] Phase 6-R4 = released；未发布镜像、未部署 N100、未再次调用 Hermes
 
-## 当前状态（Phase 6-R4 / v1.3.0 formally released）
+## 当前状态（Application 1.5.0 / CookieCloud · HLS · copymanga）
 
-当前稳定版与最新 Release：`v1.3.0`。Application `1.3.0` 已正式发布，Schema
-为 `5`，Backup v2/v1 restore 保持兼容；Phase 6 已经 complete/frozen，R3、
-Cloud RC diff review 与 Hermes acceptance 均 PASS。方向为
-首个 NSFW 核心 Provider、搜索与手动入库、受控下载、手动来源检查更新和
-集成发布。N1 已完成共享 client、固定空 production registry、adapter protocol
-和 immutable DTO；N2 已完成 Schema 4 来源追踪、backup v2 与 v1 restore，
-Actions run `29637868492` 的两个 job 均成功。N3 已完成 Provider capability、
-认证、Secret Vault、Asset/Locator、受控下载 MVP、状态矩阵和用户批准模板的
-纯文档规划。N4A 已实现 capability/Protocol/SourceAsset/Auth 状态/typed
-Registry/Outbound 基础和 test-only Fixture Provider；N4B 已实现 immutable
-Approval model、纯本地一致性 Validator 和 opaque Asset ID 强化，全量
-`965 passed`。N4C 已完成影视元数据、订阅/未来播放与漫画 Provider 静态研究、
-三份 placeholder-only Approval 草案和固定后续路线；没有选择或批准真实来源。
-Application `1.3.0` 是最新正式发布。Phase 6 Schema 为 `5`，production
-registry 为空，无真实 Provider、Provider 认证、Host、凭据、内容或真实站点
-网络入口；Published image = none，N100 = not deployed。
+最新已发布 GitHub Release：`v1.3.0`。Application 开发头：`1.5.0`（Schema `5`）。
+Phase 6 任务/下载/Task Center complete/frozen。v1.5.0 默认接入 nsfwpro factory
+三键 + `copymanga`，另保留 `comic_local_fixture`；CookieCloud 导入与 HLS 解析为
+控制面（非 Provider）。真站 JavDB 需 `NSFWTRACK_JAVDB_SESSION_COOKIE` 或
+CookieCloud 落盘；无 VIP 绕过。Published image = none，N100 = not deployed。
+
+历史（v1.3.0 及更早）：N1–N5C 与 Phase 6-R4 已完成；v1.3.0 时 production
+catalogs 为空。
 N4D-B 已固定影视元数据 DTO、字段
 provenance、纯函数 merge plan 和 tests-only fixture adapter；N4D-C 已完成
 Provider Package/Evidence/Binding 的 all-or-nothing 离线激活门禁，N4D-D-A 已完成
@@ -87,7 +79,7 @@ Phase 6-R3 = frozen
 Cloud RC diff review = PASS
 Hermes acceptance = PASS
 Phase 6-R4 = released
-Production catalogs = empty
+Production catalogs = populated (1.5.0)
 Published image = none
 N100 = not deployed
 ```

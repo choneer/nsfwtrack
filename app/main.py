@@ -11,6 +11,9 @@ from app.config import get_settings
 from app.database import SessionLocal, init_db
 from app.errors import install_exception_handlers
 from app.request_context import RequestContextMiddleware, configure_request_logging
+from app.cookiecloud.router import router as cookiecloud_router
+from app.egress.router import router as egress_router
+from app.playback.router import router as playback_router
 from app.routers import (
     auth,
     backup,
@@ -49,7 +52,7 @@ def create_app() -> FastAPI:
     configure_request_logging()
     app = FastAPI(
         title="NSFWTrack",
-        version="1.3.0",
+        version="1.5.0",
         lifespan=lifespan,
         docs_url=None,
         redoc_url=None,
@@ -78,6 +81,9 @@ def create_app() -> FastAPI:
     app.include_router(backup.router)
     app.include_router(source_search.router)
     app.include_router(tasks.router)
+    app.include_router(egress_router)
+    app.include_router(cookiecloud_router)
+    app.include_router(playback_router)
     app.include_router(pages.router)
     return app
 

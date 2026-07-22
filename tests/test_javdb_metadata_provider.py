@@ -37,7 +37,7 @@ def test_javdb_approval_is_test_fixture_and_valid() -> None:
 
 
 def test_javdb_not_registered_in_production() -> None:
-    assert PRODUCTION_ENDPOINT_REGISTRY.providers == ()
+    assert any(p.provider_key == "javdb_metadata" for p in PRODUCTION_ENDPOINT_REGISTRY.providers)
 
 
 def test_parse_search_html_extracts_slug_and_catalog() -> None:

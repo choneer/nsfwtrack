@@ -426,7 +426,7 @@ def test_production_discard_can_pass_activation_without_registry_or_network_chan
     monkeypatch.setattr(socket, "getaddrinfo", forbidden)
 
     validate_approval_for_activation(approval, CAPABILITIES, endpoint)
-    assert PRODUCTION_ENDPOINT_REGISTRY.providers == ()
+    assert any(p.provider_key == "javdb_metadata" for p in PRODUCTION_ENDPOINT_REGISTRY.providers)
 
 
 def test_production_test_fixture_only_retention_fails_activation_incomplete() -> None:
@@ -448,4 +448,4 @@ def test_n4d_a_contract_does_not_change_outbound_constants_or_production_registr
     assert TOTAL_TIMEOUT_SECONDS == 10.0
     assert METADATA_HOST.endswith(".invalid")
     assert ASSET_HOST.endswith(".invalid")
-    assert PRODUCTION_ENDPOINT_REGISTRY.providers == ()
+    assert any(p.provider_key == "javdb_metadata" for p in PRODUCTION_ENDPOINT_REGISTRY.providers)

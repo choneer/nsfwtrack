@@ -1,0 +1,12 @@
+{
+  "code": 200,
+  "results": {
+    "list": [
+      {
+        "path_word": "demo-comic",
+        "name": "Demo Real Comic",
+        "cover": "https://site.mangacopy.com/covers/demo.jpg"
+      }
+    ]
+  }
+}

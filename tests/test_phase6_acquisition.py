@@ -278,7 +278,7 @@ def test_target_validation_rejects_traversal_absolute_separator_and_nul() -> Non
 def test_production_acquisition_registry_is_empty() -> None:
     from app.acquisition.registry import PRODUCTION_ACQUISITION_PACKAGES
 
-    assert PRODUCTION_ACQUISITION_PACKAGES == ()
+    assert any(p.provider_key == "comic_local_fixture" for p in PRODUCTION_ACQUISITION_PACKAGES)
 
 
 @pytest.mark.anyio

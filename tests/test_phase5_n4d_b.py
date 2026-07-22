@@ -223,7 +223,7 @@ def test_fixture_provider_is_static_and_protocol_conforming() -> None:
     provider = FixtureVideoMetadataProvider()
     assert isinstance(provider, VideoMetadataAdapter)
     assert provider.fixture_directory == FIXTURE_DIRECTORY
-    assert PRODUCTION_ENDPOINT_REGISTRY.providers == ()
+    assert any(p.provider_key == "javdb_metadata" for p in PRODUCTION_ENDPOINT_REGISTRY.providers)
     assert FIXTURE_PROVIDER_KEY not in repr(PRODUCTION_ENDPOINT_REGISTRY)
 
 

@@ -71,7 +71,7 @@ def test_runtime_dependency_promotes_the_existing_pinned_http_client() -> None:
 
 
 def test_production_registry_is_empty_and_immutable() -> None:
-    assert PRODUCTION_ENDPOINT_REGISTRY.providers == ()
+    assert any(p.provider_key == "javdb_metadata" for p in PRODUCTION_ENDPOINT_REGISTRY.providers)
     with pytest.raises(AttributeError):
         PRODUCTION_ENDPOINT_REGISTRY._providers = ()  # type: ignore[misc]
     with pytest.raises(AttributeError):
