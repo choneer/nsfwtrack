@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+{% block title %}{{ t("cookiecloud.title") }} - NSFWTrack{% endblock %}
+{% block content %}
+<style>
+  .cc-banner {
+    border-radius: 8px;
+    margin-bottom: 16px;
+    padding: 14px 16px;
+  }
+  .cc-banner.ok { background: #ecfdf3; border: 1px solid #abefc6; color: var(--success); }
+  .cc-banner.bad { background: #fef2f2; border: 1px solid #fecaca; color: var(--danger); }
+  .cc-banner.warn { background: #fff7ed; border: 1px solid #fed7aa; color: var(--warn); }
+  .cc-banner.info { background: #eff6ff; border: 1px solid #bfdbfe; color: var(--info); }
+  .cc-grid { display: grid; gap: 16px; grid-template-columns: 1fr; }
+  @media (min-width: 960px) {
+    .cc-grid { grid-template-columns: 1fr 1fr; }
+  }
+  .cc-card {
+    background: var(--card, #fff);
+    border: 1px solid var(--border, #e2e8f0);
+    border-radius: 10px;
+    padding: 16px;
+  }
+  .cc-card h2 { font-size: 1.05rem; margin: 0 0 10px; }
+  .cc-meta { color: var(--muted); font-size: 13px; margin: 0 0 12px; }
+  .cc-table { font-size: 13px; width: 100%; border-collapse: collapse; }
+  .cc-table th, .cc-table td { padding: 8px 6px; text-align: left; vertical-align: top; border-bottom: 1px solid #eef2f7; }
+  .cc-table th { color: var(--muted); font-size: 12px; }
+  .cc-mode {
+    border-radius: 999px;
+    display: inline-block;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 2px 8px;
+  }
+  .cc-mode-live_capable { background: #dcfce7; color: #166534; }
+  .cc-mode-fixture_fallback { background: #fef9c3; color: #854d0e; }
+  .cc-mode-not_configured { background: #fee2e2; color: #991b1b; }
+  .cc-form label { display: block; font-size: 13px; font-weight: 600; margin: 10px 0 4px; }
+  .cc-form input[type="text"],
+  .cc-form input[type="password"],
+  .cc-form select {
+    width: 100%;
+    max-width: 420px;
+    box-sizing: border-box;
+  }
+  .cc-form .row-check { align-items: center; display: flex; gap: 8px; margin: 12px 0; }
+  .cc-note { color: var(--muted); font-size: 12px; margin-top: 8px; }
+  code.path { word-break: break-all; font-size: 12px; }
+</style>
+
+<section>
+  <h1>{{ t("cookiecloud.title") }}</h1>
+  <p class="cc-meta">{{ t("cookiecloud.intro") }}</p>
+
+  {% for flash in flash_messages %}
+  <div class="cc-banner {{ 'ok' if flash.kind == 'success' else 'bad' }}">
+    {{ flash.message }}
+  </div>
+  {% endfor %}
+
+  <div class="cc-banner {{ 'ok' if status.loadable else 'warn' }}">
+    <strong>{{ t("cookiecloud.status_heading") }}</strong>
+    <p>
+      {{ t("cookiecloud.loadable") }}:
+      <strong>{{ t("cookiecloud.yes") if status.loadable else t("cookiecloud.no") }}</strong>
+      · {{ t("cookiecloud.env") }}: {{ t("cookiecloud.yes") if status.env_configured else t("cookiecloud.no") }}
+      · {{ t("cookiecloud.file") }}: {{ t("cookiecloud.yes") if status.file_configured else t("cookiecloud.no") }}
+    </p>
+    <p class="cc-note">{{ t("cookiecloud.file_path") }}: <code class="path">{{ status.file_path }}</code></p>
+  </div>
+
+  <div class="cc-grid">
+    <div class="cc-card">
+      <h2>{{ t("cookiecloud.readiness_heading") }}</h2>
+      <p class="cc-meta">
+        {{ t("cookiecloud.app_version") }}: {{ readiness.application_version }}
+        · {{ t("cookiecloud.proxy") }}:
+        {{ t("cookiecloud.yes") if readiness.proxy_configured else t("cookiecloud.no") }}
+      </p>
+      <div class="table-wrap">
+        <table class="cc-table">
+          <thead>
+            <tr>
+              <th>{{ t("cookiecloud.col_provider") }}</th>
+              <th>{{ t("cookiecloud.col_mode") }}</th>
+              <th>{{ t("cookiecloud.col_scope") }}</th>
+              <th>{{ t("cookiecloud.col_notes") }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for p in readiness.providers %}
+            <tr>
+              <td><code>{{ p.provider_key }}</code></td>
+              <td><span class="cc-mode cc-mode-{{ p.mode }}">{{ p.mode }}</span></td>
+              <td>{{ p.scope }}</td>
+              <td>{{ p.notes }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <p class="cc-note">{{ t("cookiecloud.readiness_note") }}</p>
+    </div>
+
+    <div class="cc-card">
+      <h2>{{ t("cookiecloud.import_heading") }}</h2>
+      <p class="cc-meta">{{ t("cookiecloud.import_help") }}</p>
+      <form class="cc-form" method="post" action="/cookiecloud/import" autocomplete="off">
+        <label for="cc-host">{{ t("cookiecloud.host") }}</label>
+        <input id="cc-host" name="host" type="text" required maxlength="512"
+               value="{{ form_defaults.host }}" placeholder="http://127.0.0.1:8088">
+
+        <label for="cc-uuid">{{ t("cookiecloud.uuid") }}</label>
+        <input id="cc-uuid" name="uuid" type="text" required maxlength="128"
+               value="{{ form_defaults.uuid }}" autocomplete="off">
+
+        <label for="cc-password">{{ t("cookiecloud.password") }}</label>
+        <input id="cc-password" name="password" type="password" required maxlength="512"
+               value="" autocomplete="new-password">
+
+        <label for="cc-provider">{{ t("cookiecloud.provider") }}</label>
+        <select id="cc-provider" name="provider_key">
+          <option value="javdb_metadata" selected>javdb_metadata</option>
+        </select>
+
+        <div class="row-check">
+          <input id="cc-save" name="save" type="checkbox" value="1" checked>
+          <label for="cc-save" style="margin:0;font-weight:500">{{ t("cookiecloud.save") }}</label>
+        </div>
+
+        <button type="submit">{{ t("cookiecloud.import_submit") }}</button>
+      </form>
+      <p class="cc-note">{{ t("cookiecloud.security_note") }}</p>
+    </div>
+  </div>
+</section>
+{% endblock %}

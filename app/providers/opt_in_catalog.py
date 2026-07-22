@@ -1,4 +1,7 @@
-"""Opt-in production-shaped catalogs (does not mutate v1.3 empty defaults).
+"""Legacy opt-in catalog helpers (superseded by default production_catalog 1.5.0+).
+
+Default catalogs are populated via ``app.providers.production_catalog``.
+This module remains for explicit opt-in builders and docs references.
 
 Environment:
   NSFWTRACK_ENABLE_OPT_IN_PROVIDERS=1  include builders when constructing services

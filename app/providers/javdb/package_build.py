@@ -1,4 +1,8 @@
-"""Build activatable JavDB PRODUCTION ProviderPackage (opt-in, not default catalog)."""
+"""Build activatable JavDB PRODUCTION ProviderPackage (default catalog 1.5.0+).
+
+Live HTML fetch when a session cookie is loadable; otherwise static fixture
+pages so package validation and offline demos still work.
+"""
 
 from __future__ import annotations
 
@@ -103,7 +107,7 @@ def build_javdb_production_package(
     proxy_url: str | None = None,
     validate: bool = True,
 ) -> ProviderPackage:
-    """Build a PRODUCTION package. Default catalogs remain empty (v1.3 freeze)."""
+    """Build a PRODUCTION package for the default 1.5.0+ search catalog."""
 
     if fetcher is None:
         try:

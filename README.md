@@ -10,10 +10,11 @@ Latest stable release: `v1.3.0` (prior). Application development head: `1.5.0`.
 
 Latest Release: [NSFWTrack v1.3.0](https://github.com/choneer/nsfwtrack/releases/tag/v1.3.0).
 
-Current status: `Application 1.5.0 adds CookieCloud session import, HLS/playback-line
-inspect (no segment fetch), and copymanga real-site comic PRODUCTION package, on top of
-nsfwpro factory Providers (javdb/jiuse/zuidapi) and comic_local_fixture.
-Phase 6 runtime remains complete/frozen on Schema 5. No VIP/login bypass.
+Current status: `Application 1.5.0 adds CookieCloud session import (+ /cookiecloud UI),
+catalog readiness (/api/providers/readiness), HLS/playback-line inspect (no segment fetch),
+and copymanga real-site comic PRODUCTION package, on top of nsfwpro factory Providers
+(javdb/jiuse/zuidapi) and comic_local_fixture. Live-vs-fixture is reported honestly
+per provider. Phase 6 runtime remains complete/frozen on Schema 5. No VIP/login bypass.
 N100 is not deployed`.
 
 Phase 6 = complete/frozen. Phase 6-R3 = frozen. Cloud RC diff review = PASS.

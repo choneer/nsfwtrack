@@ -6,7 +6,8 @@
 
 ### Added
 
-- **CookieCloud** control plane (`app/cookiecloud/`): GET `/get/{uuid}` + OpenSSL AES decrypt via `cryptography`, host-filtered Cookie header, optional save to `data/cookies/`, APIs `/api/cookiecloud/import` and `/api/cookiecloud/status`. JavDB session loader reads CookieCloud drop zone after env/file.
+- **CookieCloud** control plane (`app/cookiecloud/`): GET `/get/{uuid}` + OpenSSL AES decrypt via `cryptography`, host-filtered Cookie header, optional save to `data/cookies/`, APIs `/api/cookiecloud/import` and `/api/cookiecloud/status`, operator UI `/cookiecloud`. JavDB session loader reads CookieCloud drop zone after env/file.
+- **Catalog readiness** (`app/providers/readiness.py`, `GET /api/providers/readiness`): honest `live_capable` / `fixture_fallback` / `not_configured` per default catalog key; never returns cookie values.
 - **HLS / playback inspect** (`app/playback/`): offline `#EXTM3U` master/media parse and MacCMS `label$url#…` lines; no segment/key fetch. APIs `/api/playback/hls/inspect` and `/api/playback/lines/parse`.
 - **copymanga** real-site comic PRODUCTION package (`app/providers/copymanga/`): Venera-style JSON on `api.mangacopy.com`, SEARCH/DETAIL/ASSET_LIST + acquisition download package, wired into default catalogs.
 
