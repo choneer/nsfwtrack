@@ -41,7 +41,7 @@ from app.source_adapters.contracts import ProviderOperation as PO
 FIXTURE_HTML = Path(__file__).parent / "fixtures" / "javdb_metadata"
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_javdb_live_adapter_search_detail_assets_static() -> None:
     fetcher = StaticHtmlFetcher(
         {
@@ -90,7 +90,7 @@ def test_javdb_production_package_requires_explicit_fetcher() -> None:
         build_javdb_production_package()
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_javdb_optional_download_acquisition() -> None:
     desc = AssetDownloadDescriptor(
         provider_key="javdb_metadata",
@@ -129,7 +129,7 @@ def test_comic_fixture_package_and_download() -> None:
     assert (root / "demo_book").is_dir()
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_comic_acquisition_downloads_local_pages() -> None:
     package = build_comic_acquisition_package()
     assert package.approved_download is True

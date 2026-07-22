@@ -48,7 +48,7 @@ def test_nsfwpro_factory_keys_mapped_but_catalog_is_fail_closed() -> None:
     assert PRODUCTION_ENDPOINT_REGISTRY.providers == ()
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_jiuse_offline_search_and_detail() -> None:
     package = build_jiuse_fixture_package(validate=True)
     adapter = package.adapter
@@ -70,7 +70,7 @@ async def test_jiuse_offline_search_and_detail() -> None:
     assert "m3u8" in raw["manifest_url"]
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_zuidapi_offline_search_and_detail() -> None:
     root = ZUIDAPI_FIXTURE_ROOT
     search = json.loads((root / "search-normal.json").read_text(encoding="utf-8"))

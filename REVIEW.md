@@ -18,6 +18,9 @@
 - [x] **Docker** — 隔离非 root、read-only rootfs、cap-drop 双生命周期 smoke
   通过；Schema 5 与媒体文件/DB/索引持久化一致，镜像内无 `tests/`，认证后的
   `/source-search` 在空目录下返回 200；临时容器、镜像和 `/tmp` 数据已删除。
+- [x] **CI 环境一致性** — 首次 push 的 Docker job 成功；test job 揭示 6 个
+  Provider 异步测试误用本机额外提供的 `pytest-asyncio` marker，已统一改用仓库
+  固定依赖提供的 `pytest.mark.anyio` 并以禁用自动插件加载的环境复核。
 
 ## Phase 6-R4 v1.3.0 Formal Release
 

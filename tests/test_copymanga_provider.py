@@ -78,7 +78,7 @@ def test_parse_fixtures() -> None:
     assert ch
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_adapter_search_detail_assets() -> None:
     fetcher = _fixture_fetcher()
     package = build_copymanga_production_package(fetcher=fetcher, validate=True)
