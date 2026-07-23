@@ -2,22 +2,30 @@
 
 ## Unreleased
 
-## [1.5.0] - 2026-07-22
+## [1.5.0] - 2026-07-23
 
 ### Added
 
 - **CookieCloud** control plane (`app/cookiecloud/`): GET `/get/{uuid}` + OpenSSL AES decrypt via `cryptography`, host-filtered Cookie header, optional save to `data/cookies/`, APIs `/api/cookiecloud/import` and `/api/cookiecloud/status`, operator UI `/cookiecloud`. JavDB session loader reads CookieCloud drop zone after env/file.
+- **Egress diagnostics** (`app/egress/`, `/egress`): direct/proxy exit identity, bounded proxy-pool health and quality probes, deterministic JavDB country compatibility, redacted operator status, and authenticated POST-only quality updates.
 - **Catalog readiness** (`app/providers/readiness.py`, `GET /api/providers/readiness`): reports reviewed identities as `not_configured` until a controlled runtime is explicitly activated; never returns cookie values.
 - **HLS / playback inspect** (`app/playback/`): offline `#EXTM3U` master/media parse and MacCMS `label$url#…` lines; no segment/key fetch. APIs `/api/playback/hls/inspect` and `/api/playback/lines/parse`.
-- **copymanga** reviewed real-site comic package (`app/providers/copymanga/`): Venera-style JSON contracts for SEARCH/DETAIL/ASSET_LIST plus acquisition, available only with an explicitly injected fetcher and not wired into default catalogs.
+- Reviewed Provider identities and package contracts developed between v1.3.0 and v1.5.0:
+  - `javdb_metadata` ← nsfwpro `javdb-metadata` (PRODUCTION HTML/session facts; explicit fetcher required)
+  - `jiuse_vod` ← nsfwpro `jiuse-vod` (TEST_FIXTURE offline HTML parser; no live activation)
+  - `zuidapi_vod` ← nsfwpro `zuidapi-vod` (PRODUCTION MacCMS JSON contract; explicit fetcher required)
+  - `copymanga` Venera-style SEARCH/DETAIL/ASSET_LIST and acquisition contracts (explicit fetcher required)
+  - `comic_local_fixture` local comic acquisition proof, retained only for tests
+- Factory identity map in `app/providers/production_catalog.NSFWPRO_FACTORY_KEY_MAP`.
 
 ### Changed
 
-- FastAPI application version `1.4.1` → `1.5.0` (Schema remains `5`)
+- FastAPI application development head advanced from `1.3.0` to `1.5.0`; Schema remains `5`.
 - Dependency: `cryptography==46.0.3` for CookieCloud decrypt
 - Endpoint, search, acquisition, and deprecated opt-in catalogs are empty and fail closed; production package builders no longer read `tests/fixtures` or create an implicit live fetcher.
 - Stdlib HTTP utilities disable ambient proxies and redirects; CookieCloud persistence and proxy-pool updates use atomic mode-600 replacement.
 - Egress quality probing is authenticated POST-only, and country voting treats ties as unknown.
+- Proxy-pool example moved from `data/proxy-pool.example.json` to `examples/proxy-pool.example.json`, outside the runtime data root.
 
 ### Security / boundaries
 
@@ -25,35 +33,15 @@
 - HLS inspect does not download media segments or keys
 - copymanga hosts are code-owned allowlists only
 - Cookie import is readiness information only and cannot activate a cached Provider runtime
+- No default Provider, live host, image publication, N100 deployment, VIP bypass, or automatic synchronization is introduced.
 
-## [1.4.1] - 2026-07-22
+### Validation
 
-### Added
-
-- Application `1.4.1` introduced reviewed mappings for **every nsfwpro factory Provider** during branch development:
-  - `javdb_metadata` ← nsfwpro `javdb-metadata` (PRODUCTION HTML + session cookie)
-  - `jiuse_vod` ← nsfwpro `jiuse-vod` (TEST_FIXTURE offline HTML parse; live caps still unauthorized upstream)
-  - `zuidapi_vod` ← nsfwpro `zuidapi-vod` (PRODUCTION MacCMS JSON SEARCH/DETAIL on `api.zuidapi.com`)
-  - `comic_local_fixture` remains for local comic download proof (not a nsfwpro factory key)
-- Offline fixture paths for jiuse/zuidapi; package validation via real `validate_provider_package`
-- Factory key map in `app/providers/production_catalog.NSFWPRO_FACTORY_KEY_MAP`
-
-### Changed
-
-- FastAPI application version `1.4.0` → `1.4.1` (Schema remains `5`)
-- The current 1.5.0 correction keeps these identities out of all default catalogs
-
-### Security / boundaries
-
-- No VIP/login/paywall bypass; CookieCloud/HLS/playback not registered as Providers
-- Jiuse remains TEST_FIXTURE until nsfwpro endpoint freeze; no invented live comic hosts
-
-## [1.4.0] - 2026-07-22
-
-### Added
-
-- Application `1.4.0` introduced production-shaped package experiments and egress
-  diagnostics. The current 1.5.0 head keeps runtime catalogs empty.
+- Full pytest, dependency consistency, compileall, diff checks, and isolated
+  production Docker dual-lifecycle smoke are release gates.
+- The production image is verified not to contain `tests/`; authenticated
+  `/source-search`, `/cookiecloud`, and `/egress` pages must return successfully,
+  Schema must remain `5`, and isolated state must survive container recreation.
 
 ## [1.3.0] - 2026-07-21
 

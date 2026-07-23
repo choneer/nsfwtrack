@@ -12,15 +12,21 @@
 当前应用版本与开发阶段：
 
 ```text
-Application 1.5.0 / CookieCloud + HLS + copymanga (nsfwtrack_grok)
+Application = 1.5.0
+Schema = 5
+Feature development = complete
+Latest stable release = v1.5.0
+Latest GitHub Release = v1.5.0
+Published image = none
+N100 = not deployed
 ```
 
-Application `1.5.0` 在 nsfwpro factory 三键与 `comic_local_fixture` 之上新增：
-CookieCloud 会话导入、HLS/playback 行解析（不拉分片）、`copymanga` 真站漫画
-PRODUCTION 包。Schema 保持 `5`。Phase 6 任务中心仍 complete/frozen。无 VIP 绕过。
-不发布镜像、不部署 N100。
+Application `1.5.0` 的功能开发已经完成：新增 CookieCloud 会话导入、egress
+诊断、HLS/playback 行解析（不拉分片），以及经过审核但默认不激活的
+JavDB/Jiuse/ZuidAPI/CopyManga Provider identity/package。Schema 保持 `5`，
+Phase 6 任务中心仍 complete/frozen。无 VIP 绕过，不发布镜像、不部署 N100。
 
-最新已发布 GitHub Release 仍为 `v1.3.0`；开发头为 `1.5.0`。
+最新稳定版本与 GitHub Release 均为 `v1.5.0`。
 
 上一稳定版本 v1.2.0 发布证据（R4 保持不变）：
 
@@ -41,9 +47,9 @@ peeled commit: c1ff2760f8ee8ca988493aa04e8b4affbc4b4b9d
 Release: https://github.com/choneer/nsfwtrack/releases/tag/v1.1.0
 ```
 
-当前正式 Release：`https://github.com/choneer/nsfwtrack/releases/tag/v1.3.0`。
-发布提交、annotated tag object、peeled commit 与 Actions run 的实际值由 R4
-发布后交接报告记录，不 amend 已验证发布提交。
+当前正式 Release：`https://github.com/choneer/nsfwtrack/releases/tag/v1.5.0`。
+发布提交、annotated tag object、peeled commit 与 Actions run 的实际值由本次
+发布交接报告记录，不 amend 已验证发布提交。
 
 ```text
 Phase 6-R3 = frozen
@@ -80,8 +86,8 @@ N100 = not deployed
 
 ```text
 核心业务能力：已完成
-代码发布状态：v1.3.0 已按 Phase 6-R4 发布；Application 开发头为 `1.5.0`（CookieCloud/HLS/copymanga）；v1.2.0/v1.1.0 tag/Release 证据保留为历史
-当前发布状态：Phase 5-N5C-B2 与 Phase 6 任务中心 complete/frozen。Application `1.5.0`（Schema `5`）保留已审核 Provider identity/package，但 Endpoint、Search 与 Acquisition 默认目录全空；CookieCloud 与 HLS 为控制面，导入 cookie 不会激活 Provider；无 VIP 绕过。
+代码发布状态：Application `1.5.0` 已正式发布；v1.3.0/v1.2.0/v1.1.0 tag/Release 证据保留为历史
+当前发布状态：Phase 5-N5C-B2 与 Phase 6 任务中心 complete/frozen。Application `1.5.0`（Schema `5`）功能开发完成并保留已审核 Provider identity/package，但 Endpoint、Search 与 Acquisition 默认目录全空；CookieCloud、egress 与 HLS 为控制面，导入 cookie 不会激活 Provider；Published image = none；N100 = not deployed。
 Phase 5-N3：Provider 合同、认证、资产、动态 Locator、受控下载 MVP、状态矩阵和批准模板已完成；仅新增/更新授权文档，未实现 Provider 或下载
 Phase 5-N4A：capability/Protocol/SourceAsset/Auth 状态/typed Registry/Outbound 基础和 test-only Fixture Provider 已完成；初始全量 934 passed，最终安全复核后全量 938 passed，production registry 仍为空
 Phase 5-N4B：immutable Approval/Host/Operation/Auth/Asset/Download model、纯本地一致性 Validator 与 opaque Asset ID 强化已完成；N4B 27、N4A/Adapter/Outbound 120、全量 965 passed，production registry 仍为空

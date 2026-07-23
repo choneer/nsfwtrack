@@ -16,7 +16,7 @@
 ## Config
 
 ```bash
-cp data/proxy-pool.example.json data/proxy-pool.json
+cp examples/proxy-pool.example.json data/proxy-pool.json
 # edit proxy URL(s); file is gitignored
 export NSFW_HTTP_PROXY=http://127.0.0.1:6123   # optional override
 ```

@@ -6,16 +6,23 @@ local media, tracking state, and supporting personalized discovery.
 
 Current application version: `1.5.0` (Schema `5`).
 
-Latest stable release: `v1.3.0` (prior). Application development head: `1.5.0`.
+```text
+Application = 1.5.0
+Schema = 5
+Latest stable release = v1.5.0
+Latest GitHub Release = v1.5.0
+Published image = none
+N100 = not deployed
+```
 
-Latest Release: [NSFWTrack v1.3.0](https://github.com/choneer/nsfwtrack/releases/tag/v1.3.0).
+Latest Release: [NSFWTrack v1.5.0](https://github.com/choneer/nsfwtrack/releases/tag/v1.5.0).
 
 Current status: `Application 1.5.0 adds CookieCloud session import (+ /cookiecloud UI),
 catalog readiness (/api/providers/readiness), HLS/playback-line inspect (no segment fetch),
 and reviewed Provider package identities. Endpoint, search, and acquisition catalogs
 remain empty and fail closed: fixtures are test-only and no live Provider fetcher is
-activated. Phase 6 runtime remains complete/frozen on Schema 5. No VIP/login bypass.
-N100 is not deployed`.
+activated. Phase 6 runtime remains complete/frozen on Schema 5. Feature development
+for v1.5.0 is complete. No VIP/login bypass. N100 is not deployed`.
 
 Phase 6 = complete/frozen. Phase 6-R3 = frozen. Cloud RC diff review = PASS.
 Hermes acceptance = PASS. Phase 6-R4 = released. Production catalogs = empty.
@@ -26,9 +33,9 @@ Hermes acceptance: PASS. Phase 6-R4: released. N100: not deployed.
 
 Phase 5-R4 formally released v1.2.0. Phase 5-R4: released. Its Tag, Release,
 Actions, Schema 4, Backup v2, and Provider-neutral foundation remain preserved
-as historical evidence. Production catalogs remain empty at the current development
-head; v1.5.0 adds CookieCloud, HLS inspect, and reviewed Provider packages without
-runtime activation.
+as historical evidence. Production catalogs remain empty in v1.5.0, which adds
+CookieCloud, egress diagnostics, HLS inspect, and reviewed Provider packages
+without runtime activation.
 
 The long-term product baseline is recorded in [PRODUCT_VISION.md](PRODUCT_VISION.md).
 Ordinary all-ages content may remain naturally compatible with the generic
@@ -36,12 +43,14 @@ model, but it is secondary and does not drive Provider selection, the data
 model, or the roadmap. NSFWTrack is not being renamed to MediaTrack and is not
 becoming a general film/television catalog.
 
-The current Application version is `1.5.0` (Schema `5`). Latest published GitHub
-Release remains `v1.3.0` until a `v1.5.0` tag is cut. Provider packages are
-code-owned and fail-closed. Importing an operator-provided cookie does not activate
-JavDB; a separately reviewed outbound runtime is still required.
+The current Application and latest stable GitHub Release are `v1.5.0` (Schema
+`5`). Provider packages are code-owned and fail-closed. Importing an
+operator-provided cookie does not activate JavDB; a separately reviewed
+outbound runtime is still required. No production image is published.
 
 ## Phase 6 — v1.3.0 formally released bundle
+
+Historical release: [NSFWTrack v1.3.0](https://github.com/choneer/nsfwtrack/releases/tag/v1.3.0).
 
 Schema 5 adds `operation_tasks`, bounded event/download/check/discovery facts,
 and transactional local-asset links. The closed state matrix uses optimistic
@@ -2633,10 +2642,30 @@ enabled, so existing local HTTP, forms, and inline scripts remain intact.
 - The app is intended for local network / LAN deployment.
 - Direct public internet exposure is not recommended.
 - Backup restore is append / merge based, not an overwrite restore.
-- The controlled adapter foundation is present, but the production registry is
-  empty and no external content source, search UI, or network route exists.
-  Provider authentication, downloads, synchronization, recommendations, and
-  optional AI remain unimplemented and require separate explicit phases.
+- The source-search UI and CookieCloud, egress, readiness, and playback control
+  planes are present, but all production endpoint/search/acquisition catalogs
+  remain empty and fail closed. Reviewed Provider packages require explicit
+  injection and are not activated by cookies or test fixtures.
+- Automatic synchronization, recommendations, and optional AI remain
+  unimplemented and require separate explicit phases.
 - Arbitrary URL fetching, unrestricted crawling, access-control bypass,
   credential theft/leakage, hidden network activity, and unconfirmed bulk
   writes or downloads remain permanently prohibited.
+
+## Acknowledgements
+
+NSFWTrack thanks the following open-source projects for interface structures,
+Provider design, parsing contracts, local-state models, versioned manifest
+concepts, or general engineering ideas referenced during this release:
+
+- [easychen/CookieCloud](https://github.com/easychen/CookieCloud)
+- [Yuukiy/JavSP](https://github.com/Yuukiy/JavSP)
+- [lmixture/JavdBviewed](https://github.com/lmixture/JavdBviewed)
+- [EWEDLCM/FnDepot](https://github.com/EWEDLCM/FnDepot)
+- [venera-app/venera](https://github.com/venera-app/venera)
+- [venera-app/venera-configs](https://github.com/venera-app/venera-configs)
+- [rapier15sapper/ew](https://github.com/rapier15sapper/ew)
+
+All original copyrights, license terms, and attribution requirements remain
+with their respective projects. These acknowledgements do not claim that any
+listed project or maintainer officially endorses NSFWTrack.

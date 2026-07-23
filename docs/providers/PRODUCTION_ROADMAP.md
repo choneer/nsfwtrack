@@ -1,11 +1,12 @@
 # Production path roadmap (`nsfwtrack_grok`)
 
-**Application 1.5.0** (Schema 5) is the development head on this branch.
-It adds CookieCloud, HLS/playback inspect, reviewed nsfwpro identity mappings,
-and a `copymanga` package contract. All production runtime catalogs remain empty.
+**Application 1.5.0** (Schema 5) is the formally released application.
+It includes CookieCloud, egress diagnostics, HLS/playback inspect, reviewed
+nsfwpro identity mappings, and a `copymanga` package contract. All production
+runtime catalogs remain empty.
 
-Latest published GitHub Release may still be older (`v1.3.0`); this document
-describes the **code head**, not a cut Release tag.
+The latest stable version and GitHub Release are both `v1.5.0`. No production
+image has been published, and N100 has not been deployed.
 
 ## Product scope (confirmed)
 
@@ -76,7 +77,7 @@ Control planes:
 - jiuse remains TEST_FIXTURE until an approved live endpoint freeze
 - Production catalogs never substitute test fixtures or infer activation from a cookie
 - Package builders require an explicit fetcher and do not create a production runtime
-- No merge to main / annotated tag / N100 deploy is implied by this document alone
+- The v1.5.0 source release does not publish a production image or deploy N100
 
 ## Modules
 

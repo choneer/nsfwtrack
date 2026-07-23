@@ -2,6 +2,31 @@
 
 每次开发提交代码后，逐项检查：
 
+## Application 1.5.0 Formal Release (2026-07-23)
+
+```text
+Application = 1.5.0
+Schema = 5
+Feature development = complete
+Latest stable release = v1.5.0
+Latest GitHub Release = v1.5.0
+Production catalogs = empty
+Published image = none
+N100 = not deployed
+```
+
+- [x] **发布内容** — CookieCloud、egress、HLS/playback inspect、Provider
+  identity/package、fail-closed 安全修正和 Schema 5/Phase 6 能力已冻结。
+- [x] **运行时边界** — Endpoint/Search/Acquisition 生产目录全空；无 fixture
+  fallback、自动 Provider 激活、VIP 绕过、镜像发布或 N100 部署。
+- [x] **示例隔离** — tracked proxy-pool 示例移动到
+  `examples/proxy-pool.example.json`，运行数据根不再承载发布示例。
+- [x] **致谢与许可证** — README 完整列出本轮实际参考的七个开源仓库，保留
+  原版权和许可证，且不声称上游项目为 NSFWTrack 背书。
+- [x] **发布门禁** — full pytest、pip check、compileall、diff check、隔离
+  Docker 双生命周期、main Actions、annotated tag Actions 与四方 SHA 一致性均为
+  正式 Release 的硬门禁。
+
 ## nsfwtrack_grok corrective review (2026-07-22)
 
 - [x] **运行时目录 fail-closed** — Endpoint、Search、Acquisition 与旧 opt-in
@@ -48,7 +73,7 @@ Published image = none
 N100 = not deployed
 ```
 
-## Application 1.5.0 CookieCloud / HLS / copymanga
+## Application 1.5.0 CookieCloud / egress / HLS / copymanga
 
 - [x] **1.5.0 版本** — FastAPI `version=1.5.0`，Schema 仍为 `5`
 - [x] **1.5.0 CookieCloud** — GET/decrypt/filter/save + `/api/cookiecloud/*`；JavDB session 读 drop zone

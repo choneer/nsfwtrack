@@ -46,13 +46,22 @@
 - [x] latest stable 与 Latest Release 同步为 `v1.3.0`
 - [x] Phase 6-R4 = released；未发布镜像、未部署 N100、未再次调用 Hermes
 
-## 当前状态（Application 1.5.0 / CookieCloud · HLS · copymanga）
+## 当前状态（Application 1.5.0 正式发布）
 
-最新已发布 GitHub Release：`v1.3.0`。Application 开发头：`1.5.0`（Schema `5`）。
-Phase 6 任务/下载/Task Center complete/frozen。v1.5.0 默认接入 nsfwpro factory
-三键 + `copymanga`，另保留 `comic_local_fixture`；CookieCloud 导入与 HLS 解析为
-控制面（非 Provider）。真站 JavDB 需 `NSFWTRACK_JAVDB_SESSION_COOKIE` 或
-CookieCloud 落盘；无 VIP 绕过。Published image = none，N100 = not deployed。
+```text
+Application = 1.5.0
+Schema = 5
+Feature development = complete
+Latest stable release = v1.5.0
+Latest GitHub Release = v1.5.0
+Published image = none
+N100 = not deployed
+```
+
+Phase 6 任务/下载/Task Center complete/frozen。v1.5.0 完成 CookieCloud、egress、
+HLS 与 nsfwpro/CopyManga Provider identity/package 的审核实现；Endpoint、Search
+与 Acquisition 默认目录仍为空，不因 Cookie 或测试 fixture 自动激活 Provider。
+无 VIP 绕过。Published image = none，N100 = not deployed。
 
 历史（v1.3.0 及更早）：N1–N5C 与 Phase 6-R4 已完成；v1.3.0 时 production
 catalogs 为空。
