@@ -2,9 +2,9 @@
 
 The registry persists operator choices and diagnostic facts only.  It never
 stores a Cookie header, password, token, URL, raw response, or Provider
-identity beyond the reviewed code-owned provider key.  Runtime health is a
-local configuration/session readiness check; it does not make a hidden
-Provider request.
+identity beyond the reviewed code-owned provider key.  An explicit POST health
+check prepares and records state here; its controlled outbound probe lives in
+``app.provider_runtime.catalog`` so GETs and startup remain network-free.
 """
 
 from __future__ import annotations
@@ -67,8 +67,35 @@ class ProviderRuntimeView:
     optimistic_version: int
 
     @property
+    def local_runtime_ready(self) -> bool:
+        return (
+            self.manageable
+            and self.scope == "PRODUCTION"
+            and self.enabled
+            and self.configuration_status == "valid"
+            and (not self.cookie_required or self.session_status == "available")
+        )
+
+    @property
+    def in_production_catalog(self) -> bool:
+        return self.local_runtime_ready and self.runtime_status == "ready"
+
+    @property
     def can_search(self) -> bool:
-        return self.manageable and self.enabled and self.runtime_status == "ready"
+        return self.in_production_catalog
+
+    @property
+    def can_detail(self) -> bool:
+        return self.in_production_catalog
+
+
+@dataclass(frozen=True, slots=True)
+class ProviderRuntimeHealthPlan:
+    """A non-secret snapshot that authorizes exactly one explicit probe."""
+
+    provider: ProviderRuntimeView
+    expected_version: int
+    blocker_code: str | None
 
 
 _DEFINITIONS: tuple[ProviderRuntimeDefinition, ...] = (
@@ -343,38 +370,98 @@ class ProviderRuntimeRegistry:
         )
         return _view(definition, updated)
 
-    def check_health(self, provider_key: str, *, expected_version: int) -> ProviderRuntimeView:
+    def prepare_health_check(
+        self,
+        provider_key: str,
+        *,
+        expected_version: int,
+    ) -> ProviderRuntimeHealthPlan:
+        """Validate local prerequisites without mutating state or using network."""
+
         definition, state = self._state_for_write(provider_key)
+        if type(expected_version) is not int or expected_version < 1:
+            raise ProviderRuntimeError(ProviderRuntimeErrorCode.INVALID_REQUEST)
+        if state.optimistic_version != expected_version:
+            raise ProviderRuntimeError(ProviderRuntimeErrorCode.CONCURRENT_UPDATE)
+        session_status = _effective_session_status(definition, state)
+        blocker: str | None = None
+        if not definition.manageable:
+            blocker = "fixture_provider"
+        elif not state.enabled:
+            blocker = "provider_disabled"
+        elif state.configuration_status != "valid":
+            blocker = "configuration_required"
+        elif definition.cookie_required and session_status != "available":
+            blocker = "session_expired" if session_status == "expired" else "session_missing"
+        return ProviderRuntimeHealthPlan(
+            provider=_view(definition, state),
+            expected_version=expected_version,
+            blocker_code=blocker,
+        )
+
+    def complete_health_check(
+        self,
+        provider_key: str,
+        *,
+        expected_version: int,
+        success: bool,
+        error_code: str | None = None,
+    ) -> ProviderRuntimeView:
+        """Persist a probe result with the original optimistic-version fence."""
+
+        definition, state = self._state_for_write(provider_key)
+        if type(success) is not bool or (
+            error_code is not None
+            and (
+                not isinstance(error_code, str)
+                or not error_code
+                or len(error_code) > 64
+            )
+        ):
+            raise ProviderRuntimeError(ProviderRuntimeErrorCode.INVALID_REQUEST)
         now = _now()
         session_status = _effective_session_status(definition, state)
-        error: str | None = None
-        runtime_status = "disabled"
-        success_at = state.last_success_at
+        local_blocker: str | None = None
         if not definition.manageable:
-            error = "fixture_provider"
-            runtime_status = "blocked"
+            local_blocker = "fixture_provider"
         elif not state.enabled:
-            runtime_status = "disabled"
+            local_blocker = "provider_disabled"
         elif state.configuration_status != "valid":
-            error = "configuration_required"
-            runtime_status = "blocked"
+            local_blocker = "configuration_required"
         elif definition.cookie_required and session_status != "available":
-            error = "session_expired" if session_status == "expired" else "session_missing"
+            local_blocker = (
+                "session_expired" if session_status == "expired" else "session_missing"
+            )
+
+        final_success = success and local_blocker is None
+        final_error = None if final_success else (local_blocker or error_code or "runtime_probe_failed")
+        if final_success:
+            runtime_status = "ready"
+        elif final_error == "provider_disabled":
+            runtime_status = "disabled"
+        elif final_error in {
+            "configuration_required",
+            "session_missing",
+            "session_expired",
+            "fixture_provider",
+            "egress_profile_unavailable",
+        }:
             runtime_status = "blocked"
         else:
-            runtime_status = "ready"
-            success_at = now
+            runtime_status = "error"
         updated = self._mutate(
             state,
             expected_version=expected_version,
             values={
                 "runtime_status": runtime_status,
                 "session_status": session_status,
-                "session_updated_at": now if session_status == "available" else state.session_updated_at,
+                "session_updated_at": (
+                    now if session_status == "available" else state.session_updated_at
+                ),
                 "last_health_check_at": now,
-                "last_success_at": success_at,
-                "last_error_code": error,
-                "last_error_at": now if error else None,
+                "last_success_at": now if final_success else state.last_success_at,
+                "last_error_code": final_error,
+                "last_error_at": now if final_error else None,
             },
         )
         return _view(definition, updated)

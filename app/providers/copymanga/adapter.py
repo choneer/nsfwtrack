@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from typing import Any, Protocol
-from urllib.parse import urlencode
+from urllib.parse import quote, urlencode
 
 from app.providers.copymanga.approval import COPYMANGA_HOST, COPYMANGA_PROVIDER_KEY
 from app.providers.copymanga.parse import (
@@ -144,10 +144,14 @@ class CopymangaVideoMetadataAdapter:
                 ),
             )
         return VideoDetail(
-            identifier=VideoIdentifier(
-                provider_key=COPYMANGA_PROVIDER_KEY,
-                external_id=str(raw["external_id"]),
+        identifier=VideoIdentifier(
+            provider_key=COPYMANGA_PROVIDER_KEY,
+            external_id=str(raw["external_id"]),
+            canonical_url=(
+                f"https://{COPYMANGA_HOST}/api/v3/comic2/"
+                + quote(str(raw["external_id"]), safe="")
             ),
+        ),
             title=str(raw["title"]),
             summary=raw.get("summary"),
             performers=performers,

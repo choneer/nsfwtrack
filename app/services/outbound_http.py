@@ -132,6 +132,7 @@ class OutboundRequest:
     external_id: str | None = None
     page: int | None = None
     page_size: int | None = None
+    offset: int | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -162,6 +163,14 @@ class FrozenJsonObject(Mapping[str, object]):
 class OutboundJsonResponse:
     status_code: int
     data: FrozenJsonObject | tuple[object, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class OutboundTextResponse:
+    """Bounded text response for an explicitly approved HTML operation."""
+
+    status_code: int
+    text: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -626,6 +635,111 @@ class OutboundHttpClient:
                 request_id,
             )
 
+    async def fetch_html(
+        self,
+        request: OutboundRequest,
+        *,
+        session_cookie: str,
+    ) -> OutboundTextResponse:
+        """Fetch a code-approved HTML endpoint with one Provider session cookie.
+
+        The cookie is accepted only for an operation explicitly marked
+        ``PROVIDER_SESSION``.  It is never added to the request model or logs.
+        """
+
+        request_id = _request_id()
+        provider_key = _safe_identifier(request.provider_key)
+        operation_name = _safe_identifier(request.operation)
+        started_at = self._clock.monotonic()
+        deadline = started_at + TOTAL_TIMEOUT_SECONDS
+        outcome = OutboundErrorCode.INVALID_REQUEST.value
+        status_code: int | None = None
+        try:
+            if (
+                not isinstance(session_cookie, str)
+                or not session_cookie.strip()
+                or len(session_cookie) > 8192
+                or any(ord(character) < 32 or ord(character) == 127 for character in session_cookie)
+            ):
+                raise self._error(
+                    OutboundErrorCode.INVALID_REQUEST,
+                    provider_key,
+                    operation_name,
+                    request_id,
+                )
+            provider = self._registry.provider(request.provider_key)
+            if provider is None:
+                raise self._error(
+                    OutboundErrorCode.PROVIDER_NOT_ALLOWED,
+                    provider_key,
+                    operation_name,
+                    request_id,
+                )
+            operation = provider.operation(request.operation)
+            if operation is None:
+                raise self._error(
+                    OutboundErrorCode.OPERATION_NOT_ALLOWED,
+                    provider.provider_key,
+                    operation_name,
+                    request_id,
+                )
+            self._validate_html_operation_policy(provider, operation, request_id)
+            prepared = self._prepare_request(provider, operation, request, request_id)
+            provider_semaphore = self._provider_semaphores[provider.provider_key]
+            async with asyncio.timeout(TOTAL_TIMEOUT_SECONDS):
+                async with self._global_semaphore, provider_semaphore:
+                    approved_ips = await self._resolve_addresses(
+                        provider, operation, request_id
+                    )
+                    if self._clock.monotonic() >= deadline:
+                        raise TimeoutError()
+                    plan = ConnectionPlan(
+                        hostname=provider.hostname,
+                        port=provider.port,
+                        approved_ips=approved_ips,
+                        selected_ip=approved_ips[0],
+                    )
+                    response = await self._send_html(
+                        provider,
+                        operation,
+                        prepared,
+                        plan,
+                        request_id,
+                        session_cookie=session_cookie.strip(),
+                    )
+                    if self._clock.monotonic() >= deadline:
+                        raise TimeoutError()
+            status_code = response.status_code
+            outcome = "success"
+            return response
+        except asyncio.CancelledError:
+            outcome = OutboundErrorCode.CANCELLED.value
+            raise
+        except TimeoutError:
+            outcome = OutboundErrorCode.REQUEST_TIMEOUT.value
+            raise self._error(
+                OutboundErrorCode.REQUEST_TIMEOUT,
+                provider_key,
+                operation_name,
+                request_id,
+            ) from None
+        except OutboundHttpError as exc:
+            outcome = exc.error.code.value
+            status_code = exc.error.status_code
+            raise
+        finally:
+            elapsed_ms = max(0.0, (self._clock.monotonic() - started_at) * 1000)
+            logger.info(
+                "outbound_request provider=%s operation=%s outcome=%s "
+                "status_class=%s latency=%s request_id=%s",
+                provider_key,
+                operation_name,
+                outcome,
+                _status_class(status_code),
+                _latency_bucket(elapsed_ms),
+                request_id,
+            )
+
     def _validate_operation_policy(
         self,
         provider: ProviderEndpoint,
@@ -651,6 +765,40 @@ class OutboundHttpClient:
             )
         if (
             operation.response_kind is not ResponseKind.JSON
+            or operation.redirect_policy is not RedirectPolicy.DENY
+        ):
+            raise self._error(
+                OutboundErrorCode.OPERATION_POLICY_NOT_SUPPORTED,
+                provider.provider_key,
+                operation.name,
+                request_id,
+            )
+
+    def _validate_html_operation_policy(
+        self,
+        provider: ProviderEndpoint,
+        operation: EndpointOperation,
+        request_id: str,
+    ) -> None:
+        if operation.operation not in _IMPLEMENTED_OPERATIONS:
+            raise self._error(
+                OutboundErrorCode.OPERATION_POLICY_NOT_SUPPORTED,
+                provider.provider_key,
+                operation.name,
+                request_id,
+            )
+        if (
+            operation.auth_requirement is not ProviderAuthMode.NONE
+            or operation.cookie_policy is not CookiePolicy.PROVIDER_SESSION
+        ):
+            raise self._error(
+                OutboundErrorCode.AUTH_NOT_CONFIGURED,
+                provider.provider_key,
+                operation.name,
+                request_id,
+            )
+        if (
+            operation.response_kind is not ResponseKind.HTML
             or operation.redirect_policy is not RedirectPolicy.DENY
         ):
             raise self._error(
@@ -708,6 +856,7 @@ class OutboundHttpClient:
             BusinessParameter.EXTERNAL_ID: request.external_id,
             BusinessParameter.PAGE: request.page,
             BusinessParameter.PAGE_SIZE: request.page_size,
+            BusinessParameter.OFFSET: request.offset,
         }
         available = {
             key
@@ -792,6 +941,17 @@ class OutboundHttpClient:
                     operation.name,
                     request_id,
                 )
+        if request.offset is not None and (
+            not isinstance(request.offset, int)
+            or isinstance(request.offset, bool)
+            or request.offset < 0
+        ):
+            raise self._error(
+                OutboundErrorCode.INVALID_REQUEST,
+                provider.provider_key,
+                operation.name,
+                request_id,
+            )
 
         try:
             path = operation.render_path(external_id)
@@ -803,9 +963,12 @@ class OutboundHttpClient:
                 request_id,
             ) from None
         query_items = [
-            (query_name, str(values[business_parameter]))
-            for business_parameter, query_name in operation.query_parameters
-            if values[business_parameter] is not None
+            *operation.fixed_query_parameters,
+            *[
+                (query_name, str(values[business_parameter]))
+                for business_parameter, query_name in operation.query_parameters
+                if values[business_parameter] is not None
+            ],
         ]
         query_string = urlencode(query_items, doseq=False, safe="")
         suffix = f"?{query_string}" if query_string else ""
@@ -992,6 +1155,186 @@ class OutboundHttpClient:
                             status_code=status_code,
                         )
                     return OutboundJsonResponse(status_code=status_code, data=frozen)
+        except asyncio.CancelledError:
+            raise
+        except OutboundHttpError:
+            raise
+        except _PeerAddressMismatch:
+            raise self._error(
+                OutboundErrorCode.PEER_ADDRESS_MISMATCH,
+                provider.provider_key,
+                operation.name,
+                request_id,
+            ) from None
+        except _TlsHandshakeFailed:
+            raise self._error(
+                OutboundErrorCode.TLS_FAILED,
+                provider.provider_key,
+                operation.name,
+                request_id,
+            ) from None
+        except _UnexpectedConnectionTarget:
+            raise self._error(
+                OutboundErrorCode.CONNECTION_FAILED,
+                provider.provider_key,
+                operation.name,
+                request_id,
+            ) from None
+        except (httpcore2.ConnectTimeout, httpx2.ConnectTimeout):
+            raise self._error(
+                OutboundErrorCode.CONNECT_TIMEOUT,
+                provider.provider_key,
+                operation.name,
+                request_id,
+            ) from None
+        except (
+            httpcore2.ReadTimeout,
+            httpcore2.WriteTimeout,
+            httpcore2.PoolTimeout,
+            httpx2.ReadTimeout,
+            httpx2.WriteTimeout,
+            httpx2.PoolTimeout,
+            httpcore2.TimeoutException,
+            httpx2.TimeoutException,
+        ):
+            raise self._error(
+                OutboundErrorCode.REQUEST_TIMEOUT,
+                provider.provider_key,
+                operation.name,
+                request_id,
+            ) from None
+        except (httpcore2.ConnectError, httpx2.ConnectError, OSError):
+            raise self._error(
+                OutboundErrorCode.CONNECTION_FAILED,
+                provider.provider_key,
+                operation.name,
+                request_id,
+            ) from None
+        except (httpcore2.ProtocolError, httpx2.ProtocolError):
+            raise self._error(
+                OutboundErrorCode.CONNECTION_FAILED,
+                provider.provider_key,
+                operation.name,
+                request_id,
+            ) from None
+        except Exception:
+            raise self._error(
+                OutboundErrorCode.CONNECTION_FAILED,
+                provider.provider_key,
+                operation.name,
+                request_id,
+            ) from None
+
+    async def _send_html(
+        self,
+        provider: ProviderEndpoint,
+        operation: EndpointOperation,
+        prepared: _PreparedOutboundRequest,
+        plan: ConnectionPlan,
+        request_id: str,
+        *,
+        session_cookie: str,
+    ) -> OutboundTextResponse:
+        """Send one bounded HTML request through the pinned shared transport."""
+
+        transport = self._transport_factory(plan)
+        timeout = httpx2.Timeout(
+            TOTAL_TIMEOUT_SECONDS,
+            connect=CONNECT_TIMEOUT_SECONDS,
+        )
+        try:
+            async with httpx2.AsyncClient(
+                transport=transport,
+                trust_env=False,
+                follow_redirects=False,
+                http1=True,
+                http2=False,
+                proxy=None,
+                auth=None,
+                cookies=None,
+                timeout=timeout,
+                headers={
+                    "Accept": "text/html,application/xhtml+xml",
+                    "Accept-Encoding": "identity",
+                    "Connection": "close",
+                    "Host": provider.hostname,
+                    "Cookie": session_cookie,
+                    **dict(prepared.headers),
+                },
+            ) as client:
+                async with client.stream(
+                    operation.method.value,
+                    prepared.url,
+                    content=prepared.body,
+                ) as response:
+                    status_code = response.status_code
+                    status_error = _status_error_code(status_code)
+                    if status_error is not None:
+                        retry_after = (
+                            _parse_retry_after(response.headers.get("Retry-After"))
+                            if status_error is OutboundErrorCode.RATE_LIMITED
+                            else None
+                        )
+                        raise self._error(
+                            status_error,
+                            provider.provider_key,
+                            operation.name,
+                            request_id,
+                            status_code=status_code,
+                            retry_after_seconds=retry_after,
+                        )
+                    content_encoding = response.headers.get("Content-Encoding")
+                    if content_encoding is not None and (
+                        content_encoding.strip().casefold() not in {"", "identity"}
+                    ):
+                        raise self._error(
+                            OutboundErrorCode.UNEXPECTED_CONTENT_ENCODING,
+                            provider.provider_key,
+                            operation.name,
+                            request_id,
+                            status_code=status_code,
+                        )
+                    content_type = response.headers.get("Content-Type", "")
+                    media_type = content_type.split(";", 1)[0].strip().casefold()
+                    if media_type != "text/html" or not operation.accepts_content_type(
+                        media_type
+                    ):
+                        raise self._error(
+                            OutboundErrorCode.UNEXPECTED_CONTENT_TYPE,
+                            provider.provider_key,
+                            operation.name,
+                            request_id,
+                            status_code=status_code,
+                        )
+                    content_length = response.headers.get("Content-Length")
+                    if (
+                        content_length is not None
+                        and content_length.isascii()
+                        and content_length.isdecimal()
+                        and int(content_length) > operation.response_limit_bytes
+                    ):
+                        raise self._error(
+                            OutboundErrorCode.RESPONSE_TOO_LARGE,
+                            provider.provider_key,
+                            operation.name,
+                            request_id,
+                            status_code=status_code,
+                        )
+                    body = bytearray()
+                    async for chunk in response.aiter_raw():
+                        if len(body) + len(chunk) > operation.response_limit_bytes:
+                            raise self._error(
+                                OutboundErrorCode.RESPONSE_TOO_LARGE,
+                                provider.provider_key,
+                                operation.name,
+                                request_id,
+                                status_code=status_code,
+                            )
+                        body.extend(chunk)
+                    return OutboundTextResponse(
+                        status_code=status_code,
+                        text=bytes(body).decode("utf-8", errors="replace"),
+                    )
         except asyncio.CancelledError:
             raise
         except OutboundHttpError:

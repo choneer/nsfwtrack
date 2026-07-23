@@ -49,6 +49,7 @@ class BusinessParameter(str, Enum):
     EXTERNAL_ID = "external_id"
     PAGE = "page"
     PAGE_SIZE = "page_size"
+    OFFSET = "offset"
 
 
 class JsonTopLevel(str, Enum):
@@ -224,6 +225,34 @@ def _validate_fixed_headers(values: tuple[tuple[str, str], ...]) -> None:
         names.add(normalized)
 
 
+def _validate_fixed_query_parameters(
+    values: tuple[tuple[str, str], ...],
+    *,
+    reserved_names: set[str],
+) -> None:
+    """Validate code-owned query facts that callers can never override."""
+
+    if not isinstance(values, tuple):
+        raise TypeError("fixed_query_parameters must be a tuple")
+    names: set[str] = set()
+    for item in values:
+        if not isinstance(item, tuple) or len(item) != 2:
+            raise TypeError("fixed_query_parameters entries must be pairs")
+        name, value = item
+        if not isinstance(name, str) or _QUERY_NAME_PATTERN.fullmatch(name) is None:
+            raise ValueError("fixed query parameter name is invalid")
+        if name in names or name in reserved_names:
+            raise ValueError("fixed query parameter name is duplicated")
+        if (
+            not isinstance(value, str)
+            or not value
+            or len(value) > 512
+            or any(not 32 <= ord(character) <= 126 for character in value)
+        ):
+            raise ValueError("fixed query parameter value is invalid")
+        names.add(name)
+
+
 def _validate_host_tuple(values: tuple[str, ...], *, field: str) -> None:
     if not isinstance(values, tuple):
         raise TypeError(f"{field} must be a tuple")
@@ -240,6 +269,7 @@ class EndpointOperation:
     expected_top_level: JsonTopLevel | None
     path_parameter: BusinessParameter | None = None
     query_parameters: tuple[tuple[BusinessParameter, str], ...] = ()
+    fixed_query_parameters: tuple[tuple[str, str], ...] = ()
     body_parameters: tuple[tuple[BusinessParameter, str], ...] = ()
     required_parameters: tuple[BusinessParameter, ...] = ()
     response_limit_bytes: int = MAX_RESPONSE_BYTES
@@ -270,6 +300,10 @@ class EndpointOperation:
         )
         if query_business & body_business or query_names & body_names:
             raise ValueError("query and body parameter mappings overlap")
+        _validate_fixed_query_parameters(
+            self.fixed_query_parameters,
+            reserved_names=query_names | body_names,
+        )
         if self.path_parameter is not None:
             if not isinstance(self.path_parameter, BusinessParameter):
                 raise TypeError("path_parameter must be BusinessParameter")

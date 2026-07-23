@@ -18,6 +18,7 @@ from app.provider_runtime.service import (
     ProviderRuntimeRegistry,
     ProviderRuntimeView,
 )
+from app.provider_runtime.catalog import run_runtime_health_check
 
 
 router = APIRouter(tags=["provider-runtime"])
@@ -174,14 +175,15 @@ def disable_provider(
     response_class=RedirectResponse,
     dependencies=[Depends(require_page_auth)],
 )
-def provider_health_check(
+async def provider_health_check(
     request: Request,
     provider_key: str,
     optimistic_version: str = Form(default=""),
     db: Session = Depends(get_db),
 ) -> RedirectResponse:
     try:
-        _registry(db).check_health(
+        await run_runtime_health_check(
+            db,
             provider_key, expected_version=_parse_version(optimistic_version)
         )
         db.commit()

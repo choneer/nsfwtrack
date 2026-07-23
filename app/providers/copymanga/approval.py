@@ -154,7 +154,11 @@ COPYMANGA_APPROVAL = ProviderApproval(
             ProviderOperation.SEARCH,
             host_id=COPYMANGA_HOST_ID,
             path_template="/api/v3/search/comic",
-            query_parameters=((BusinessParameter.QUERY, "q"),),
+            query_parameters=(
+                (BusinessParameter.QUERY, "q"),
+                (BusinessParameter.OFFSET, "offset"),
+                (BusinessParameter.PAGE_SIZE, "limit"),
+            ),
             required_parameters=(BusinessParameter.QUERY,),
         ),
         _json_op(
@@ -193,7 +197,11 @@ COPYMANGA_ENDPOINT = ProviderEndpoint(
             ProviderOperation.SEARCH,
             "/api/v3/search/comic",
             JsonTopLevel.OBJECT,
-            query_parameters=((BusinessParameter.QUERY, "q"),),
+            query_parameters=(
+                (BusinessParameter.QUERY, "q"),
+                (BusinessParameter.OFFSET, "offset"),
+                (BusinessParameter.PAGE_SIZE, "limit"),
+            ),
             required_parameters=(BusinessParameter.QUERY,),
             method=HttpMethod.GET,
             request_encoding=RequestEncoding.NONE,

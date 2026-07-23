@@ -313,8 +313,20 @@ PRODUCTION_SEARCH_PACKAGES: tuple[ProviderPackage, ...] = ()
 
 def build_production_search_service(
     clock: Callable[[], datetime] = _utc_now,
+    *,
+    db: object | None = None,
 ) -> ProviderSearchService:
-    return ProviderSearchService(PRODUCTION_SEARCH_PACKAGES, clock)
+    """Compatibility builder; Runtime-aware callers must provide a DB Session."""
+
+    if db is None:
+        return ProviderSearchService(PRODUCTION_SEARCH_PACKAGES, clock)
+    from sqlalchemy.orm import Session
+
+    if not isinstance(db, Session):
+        _raise_service_error(ProviderSearchServiceErrorCode.INVALID_REQUEST)
+    from app.provider_runtime.catalog import build_runtime_catalog
+
+    return ProviderSearchService(build_runtime_catalog(db).packages, clock)
 
 
 __all__ = [

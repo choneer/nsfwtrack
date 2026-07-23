@@ -1,4 +1,5 @@
-"""Offline / future Provider package implementations.
+"""Approved Provider package implementations and code-owned production facts.
 
-Production registries remain empty until a separate activation GOAL.
+The active production catalog is built per request from Provider Runtime state;
+it never falls back to fixtures or a process-global default list.
 """

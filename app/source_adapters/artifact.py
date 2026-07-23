@@ -13,7 +13,7 @@ import math
 import re
 import types
 from collections.abc import Callable
-from dataclasses import dataclass, field, fields, is_dataclass
+from dataclasses import MISSING, dataclass, field, fields, is_dataclass
 from datetime import UTC, datetime
 from enum import Enum
 from functools import lru_cache
@@ -77,6 +77,7 @@ _SUPPORTED_OPERATIONS = frozenset(
         ProviderOperation.ASSET_LIST,
     }
 )
+_COMPATIBLE_OPTIONAL_ARTIFACT_FIELDS = frozenset({"fixed_query_parameters"})
 
 
 class ProviderArtifactErrorCode(str, Enum):
@@ -432,11 +433,23 @@ def _validate_schema_shape(value: object, annotation: object) -> None:
         actual = set(value)
         if actual - expected:
             _raise(ProviderArtifactErrorCode.ARTIFACT_UNKNOWN_FIELD)
-        if expected - actual:
+        missing = expected - actual
+        if any(
+            model_field.name in missing
+            and (
+                model_field.name not in _COMPATIBLE_OPTIONAL_ARTIFACT_FIELDS
+                or model_field.default is MISSING
+            )
+            for model_field in model_fields
+        ):
             _raise(ProviderArtifactErrorCode.ARTIFACT_MISSING_FIELD)
         hints = _type_hints(annotation)
         for model_field in model_fields:
-            _validate_schema_shape(value[model_field.name], hints[model_field.name])
+            if model_field.name in value:
+                _validate_schema_shape(
+                    value[model_field.name],
+                    hints[model_field.name],
+                )
 
 
 def _datetime_text(value: datetime) -> str:
@@ -508,13 +521,20 @@ def _decode_value(value: object, annotation: object) -> object:
         if type(value) is not dict:
             raise _DecodeError
         hints = _type_hints(annotation)
-        keyword_values = {
-            model_field.name: _decode_value(
-                value[model_field.name],
-                hints[model_field.name],
-            )
-            for model_field in fields(annotation)
-        }
+        keyword_values: dict[str, object] = {}
+        for model_field in fields(annotation):
+            if model_field.name in value:
+                keyword_values[model_field.name] = _decode_value(
+                    value[model_field.name],
+                    hints[model_field.name],
+                )
+            elif (
+                model_field.name in _COMPATIBLE_OPTIONAL_ARTIFACT_FIELDS
+                and model_field.default is not MISSING
+            ):
+                keyword_values[model_field.name] = model_field.default
+            else:
+                raise _DecodeError
         try:
             return annotation(**keyword_values)
         except (TypeError, ValueError):
@@ -530,10 +550,16 @@ def _raw_value(value: object) -> object:
     if isinstance(value, datetime):
         return _datetime_text(value)
     if is_dataclass(value) and not isinstance(value, type):
-        return {
-            model_field.name: _raw_value(getattr(value, model_field.name))
-            for model_field in fields(value)
-        }
+        raw: dict[str, object] = {}
+        for model_field in fields(value):
+            raw_value = _raw_value(getattr(value, model_field.name))
+            if (
+                model_field.name in _COMPATIBLE_OPTIONAL_ARTIFACT_FIELDS
+                and raw_value == []
+            ):
+                continue
+            raw[model_field.name] = raw_value
+        return raw
     if isinstance(value, tuple):
         return [_raw_value(child) for child in value]
     if value is None or type(value) in {str, bool, int}:

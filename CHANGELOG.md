@@ -4,12 +4,25 @@
 
 ### Added
 
+- **Phase 7 corrective runtime activation**: production Search/Detail packages
+  are rebuilt from persisted Provider Runtime state. Only code-owned,
+  enabled, configuration-valid, session-ready (when required), health-checked
+  PRODUCTION Providers enter the catalog; TEST_FIXTURE Providers never enter.
+- Shared pinned outbound support for approved HTML session operations plus
+  code-owned fixed query parameters. JavDB, ZuidAPI, and CopyManga package
+  construction remains fixed-host, fixed-path, timeout/size/content-type
+  bounded, redirect-denying, and free of ambient proxy/Cookie sharing.
+- Explicit Provider health-check POST now performs one lightweight controlled
+  runtime operation and stores only stable redacted outcomes. Disable removes
+  a Provider from the runtime catalog immediately; initialization failures are
+  isolated per Provider.
 - **Phase 7 runtime workflow**: Schema 6 `provider_runtime_states` migration
   with atomic Schema 5 → 6 rollback behavior, non-secret configuration/session
   facts, optimistic versioning, and code-owned runtime definitions.
 - Authenticated bilingual `/providers` and `/providers/{key}` management pages
-  for configuration, egress profile, enable/disable, local readiness health
-  check, and stable-error clearing. GET paths do not call Providers.
+  now show enablement, catalog membership, Search/Detail availability, recent
+  success, configuration/session state, controlled runtime health, and stable
+  error clearing. GET paths do not call Providers.
 - Per-Provider CookieCloud session availability/update state and safe local
   Cookie deletion; imports refresh runtime state but never auto-enable a
   Provider or return Cookie values/pathnames.
@@ -22,6 +35,10 @@
 
 ### Changed
 
+- `/source-search` now constructs its production service from the current
+  Provider Runtime state and returns explicit redacted disabled/configuration/
+  session/health prerequisite errors. The existing signed Preview/Confirm and
+  independent verification path is unchanged.
 - Application development head is `1.6.0`; Schema is `6`. The latest stable
   GitHub Release remains `v1.5.0`; no `v1.6.0` tag, Release, or production image
   is created.
@@ -30,9 +47,13 @@
 
 ### Validation
 
+- Added synthetic MockTransport runtime-activation coverage for catalog
+  inclusion/exclusion, disabled removal, fixture exclusion, initialization
+  isolation, runtime Search/Detail, signed Preview/Confirm provenance,
+  health success/timeout/redaction, and restart persistence.
 - Added Schema 5 → 6 atomic rollback, Provider runtime optimistic-concurrency,
   Cookie file boundary, diagnostics redaction, and HLS audio/subtitle coverage.
-- Local gates passed: `1547` pytest tests, dependency consistency, compileall,
+- Local gates passed: `1552` pytest tests, dependency consistency, compileall,
   diff check, and an isolated two-lifecycle production Docker smoke. The image
   contains no `tests/`; login plus `/source-search`, `/providers`,
   `/diagnostics`, `/cookiecloud`, and `/egress` succeeded, Schema 6/runtime

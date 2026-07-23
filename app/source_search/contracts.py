@@ -143,6 +143,10 @@ class VideoAssetListRequest:
 class ProviderSearchServiceErrorCode(str, Enum):
     INVALID_REQUEST = "invalid_request"
     PROVIDER_NOT_AVAILABLE = "provider_not_available"
+    PROVIDER_DISABLED = "provider_disabled"
+    PROVIDER_CONFIGURATION_REQUIRED = "provider_configuration_required"
+    PROVIDER_SESSION_REQUIRED = "provider_session_required"
+    PROVIDER_HEALTH_REQUIRED = "provider_health_required"
     OPERATION_NOT_APPROVED = "operation_not_approved"
     ADAPTER_MISMATCH = "adapter_mismatch"
     INVALID_RESULT = "invalid_result"

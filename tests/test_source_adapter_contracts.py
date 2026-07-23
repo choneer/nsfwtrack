@@ -289,4 +289,5 @@ def test_outbound_public_request_has_no_url_host_port_or_path_fields() -> None:
         "external_id",
         "page",
         "page_size",
+        "offset",
     )

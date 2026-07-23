@@ -65,6 +65,7 @@ def _json_op(
     *,
     path_template: str,
     query_parameters: tuple[tuple[BusinessParameter, str], ...] = (),
+    fixed_query_parameters: tuple[tuple[str, str], ...] = (),
     required_parameters: tuple[BusinessParameter, ...] = (),
 ) -> ApprovedOperation:
     return ApprovedOperation(
@@ -88,6 +89,7 @@ def _json_op(
         ),
         timeout_policy=ApprovedTimeoutPolicy(),
         query_parameters=query_parameters,
+        fixed_query_parameters=fixed_query_parameters,
         required_parameters=required_parameters,
     )
 
@@ -139,6 +141,7 @@ ZUIDAPI_APPROVAL = ProviderApproval(
         _json_op(
             ProviderOperation.SEARCH,
             path_template="/api.php/provide/vod",
+            fixed_query_parameters=(("ac", "list"),),
             query_parameters=(
                 (BusinessParameter.QUERY, "wd"),
                 (BusinessParameter.PAGE, "pg"),
@@ -149,6 +152,7 @@ ZUIDAPI_APPROVAL = ProviderApproval(
         _json_op(
             ProviderOperation.DETAIL,
             path_template="/api.php/provide/vod",
+            fixed_query_parameters=(("ac", "detail"),),
             query_parameters=((BusinessParameter.EXTERNAL_ID, "ids"),),
             required_parameters=(BusinessParameter.EXTERNAL_ID,),
         ),
@@ -168,6 +172,7 @@ ZUIDAPI_ENDPOINT = ProviderEndpoint(
             ProviderOperation.SEARCH,
             "/api.php/provide/vod",
             JsonTopLevel.OBJECT,
+            fixed_query_parameters=(("ac", "list"),),
             query_parameters=(
                 (BusinessParameter.QUERY, "wd"),
                 (BusinessParameter.PAGE, "pg"),
@@ -190,6 +195,7 @@ ZUIDAPI_ENDPOINT = ProviderEndpoint(
             ProviderOperation.DETAIL,
             "/api.php/provide/vod",
             JsonTopLevel.OBJECT,
+            fixed_query_parameters=(("ac", "detail"),),
             query_parameters=((BusinessParameter.EXTERNAL_ID, "ids"),),
             required_parameters=(BusinessParameter.EXTERNAL_ID,),
             method=HttpMethod.GET,

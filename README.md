@@ -10,6 +10,8 @@ Application development head: `1.6.0` (Schema `6`).
 Application development head = 1.6.0
 Schema = 6
 Phase 7 = complete
+Phase 7 corrective = complete
+Provider Runtime activation = closed
 Manual acceptance = not started
 Latest stable release = v1.5.0
 Latest GitHub Release = v1.5.0
@@ -19,21 +21,27 @@ N100 = not deployed
 
 Latest Release: [NSFWTrack v1.5.0](https://github.com/choneer/nsfwtrack/releases/tag/v1.5.0).
 
-Current status: `Phase 7 completes the Application 1.6.0 / Schema 6 local runtime
-workflow: persisted Provider Runtime Registry and bilingual management pages,
-CookieCloud per-Provider session state, a redacted unified diagnostics export, offline
-HLS variant/audio/subtitle inspection, and the existing signed local intake and manual
-source-update closures. Endpoint, search, and acquisition production catalogs remain
-empty and fail closed: fixtures are test-only and no live Provider fetcher is activated.
-Manual acceptance has not started. No VIP/login bypass, published image, or N100
-deployment is included.`
+Current status: `Phase 7 corrective is complete. The Application 1.6.0 / Schema 6
+Provider Runtime now builds the current production Search/Detail catalog from
+code-owned, enabled, valid, health-checked Provider state. TEST_FIXTURE Providers are
+always excluded; GET/startup/background paths make no Provider request; and Search →
+Detail → signed Preview/Confirm → Item/ItemSource/provenance remains explicit and
+transactionally verified. Manual acceptance has not started. No VIP/login bypass,
+published image, or N100 deployment is included.`
 
-Phase 6 = complete/frozen. Phase 6-R3 = frozen. Cloud RC diff review = PASS.
-Hermes acceptance = PASS. Phase 6-R4 = released. Production catalogs = empty.
-Published image = none. N100 = not deployed.
-Reviewed Provider identities = javdb_metadata + jiuse_vod + zuidapi_vod + copymanga.
+Historical Phase 6 evidence: Phase 6 = complete/frozen; Phase 6-R3 = frozen;
+Cloud RC diff review and Hermes acceptance = PASS; and Phase 6-R4 = released.
+Its production catalogs were empty. This is historical release evidence, not the
+current Schema 6 Provider Runtime catalog. Published image = none. N100 = not
+deployed. Reviewed Provider identities = javdb_metadata + jiuse_vod +
+zuidapi_vod + copymanga.
 
-Hermes acceptance: PASS. Phase 6-R4: released. N100: not deployed.
+Historical Phase 6/v1.5 fail-closed snapshot (not the current Runtime state):
+
+```text
+Hermes acceptance: PASS
+Production catalogs = empty
+```
 
 Phase 5-R4 formally released v1.2.0. Phase 5-R4: released. Its Tag, Release,
 Actions, Schema 4, Backup v2, and Provider-neutral foundation remain preserved
@@ -53,12 +61,22 @@ fail-closed. Importing an operator-provided cookie does not enable a Provider
 or authorize an unreviewed outbound request. No production image is published,
 N100 is not deployed, and manual acceptance has not started.
 
-## Phase 7 — v1.6.0 complete runtime workflow
+## Phase 7 corrective — v1.6.0 Provider Runtime activation complete
 
-Schema 6 persists only non-secret Provider runtime facts: enablement, local
+Schema 6 persists only non-secret Provider runtime facts: enablement,
 configuration/session readiness, approved egress profile, health timestamps,
 stable error code, and optimistic versions. `/providers` and provider detail
-pages use authenticated POST/PRG controls; GET routes make no Provider request.
+pages use authenticated POST/PRG controls. An explicit health-check POST builds
+one Provider package and runs one bounded, code-owned lightweight operation
+through the shared pinned outbound client; GET, startup, and background paths
+make no Provider request.
+
+The runtime catalog is reconstructed from the current persisted state for each
+Search/Detail request. Only code-owned PRODUCTION Providers that are enabled,
+valid, session-ready where required, and health-checked `ready` are included.
+Disabling a Provider removes it immediately; fixture Providers and a failed
+Provider initialization never become a fallback or prevent another ready
+Provider from operating. Search/Detail failures use stable redacted categories.
 CookieCloud records per-Provider session availability and update time without
 displaying Cookie values or local file paths, and importing a session never
 enables a Provider.
@@ -2666,10 +2684,10 @@ enabled, so existing local HTTP, forms, and inline scripts remain intact.
 - The app is intended for local network / LAN deployment.
 - Direct public internet exposure is not recommended.
 - Backup restore is append / merge based, not an overwrite restore.
-- The source-search UI and CookieCloud, egress, readiness, and playback control
-  planes are present, but all production endpoint/search/acquisition catalogs
-  remain empty and fail closed. Reviewed Provider packages require explicit
-  injection and are not activated by cookies or test fixtures.
+- The source-search UI uses the current runtime-backed production Search/Detail
+  catalog. A Provider still requires explicit configuration, enablement, and a
+  successful health check; Cookie import never enables it, fixtures never enter
+  production, and acquisition/download activation remains separately confirmed.
 - Automatic synchronization, recommendations, and optional AI remain
   unimplemented and require separate explicit phases.
 - Arbitrary URL fetching, unrestricted crawling, access-control bypass,

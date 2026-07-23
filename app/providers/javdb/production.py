@@ -1,7 +1,7 @@
 """PRODUCTION approval facts for JavDB metadata + link ASSET_LIST (phases B–C).
 
-Code-owned immutable facts. Does **not** populate default production catalogs
-(v1.3 freeze: empty). Opt-in package builders live in ``package_build``.
+Code-owned immutable facts. Runtime activation builds this package only from
+the persisted Provider Runtime snapshot; no process-global default is used.
 
 Scope:
 - SEARCH + DETAIL HTML scrape with operator session cookie

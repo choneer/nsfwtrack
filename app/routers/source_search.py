@@ -31,6 +31,8 @@ from app.provider_apply.web import (
     ensure_provider_apply_web_material,
     get_provider_apply_web_material,
 )
+from app.provider_runtime.catalog import build_runtime_search_service
+from app.provider_runtime.service import ProviderRuntimeRegistry
 from app.source_adapters import ProviderOperation
 from app.source_search import (
     ProviderSearchService,
@@ -41,7 +43,6 @@ from app.source_search import (
     VideoDetailRequest,
     VideoSearchEnvelope,
     VideoSearchRequest,
-    build_production_search_service,
 )
 from app.video_metadata.contracts import VideoAsset
 
@@ -52,6 +53,10 @@ templates = Jinja2Templates(directory="app/templates")
 _ERROR_STATUS = {
     ProviderSearchServiceErrorCode.INVALID_REQUEST: 400,
     ProviderSearchServiceErrorCode.PROVIDER_NOT_AVAILABLE: 409,
+    ProviderSearchServiceErrorCode.PROVIDER_DISABLED: 409,
+    ProviderSearchServiceErrorCode.PROVIDER_CONFIGURATION_REQUIRED: 409,
+    ProviderSearchServiceErrorCode.PROVIDER_SESSION_REQUIRED: 409,
+    ProviderSearchServiceErrorCode.PROVIDER_HEALTH_REQUIRED: 409,
     ProviderSearchServiceErrorCode.OPERATION_NOT_APPROVED: 409,
     ProviderSearchServiceErrorCode.ADAPTER_MISMATCH: 502,
     ProviderSearchServiceErrorCode.INVALID_RESULT: 502,
@@ -77,10 +82,12 @@ _APPLY_ERROR_FLASH = {
 }
 
 
-def get_provider_search_service() -> ProviderSearchService:
-    """Return the side-effect-free production search service."""
+def get_provider_search_service(
+    db: Session = Depends(get_db),
+) -> ProviderSearchService:
+    """Build the current runtime-backed catalog without performing network I/O."""
 
-    return build_production_search_service()
+    return build_runtime_search_service(db)
 
 
 def _invalid_result() -> ProviderSearchServiceError:
@@ -107,6 +114,8 @@ def _approved_provider(
     providers: tuple[SearchProviderDescriptor, ...],
     provider_key: str,
     operation: ProviderOperation,
+    *,
+    unavailable_error: ProviderSearchServiceError | None = None,
 ) -> SearchProviderDescriptor:
     provider = next(
         (
@@ -117,7 +126,7 @@ def _approved_provider(
         None,
     )
     if provider is None:
-        raise ProviderSearchServiceError(
+        raise unavailable_error or ProviderSearchServiceError(
             ProviderSearchServiceErrorCode.PROVIDER_NOT_AVAILABLE
         )
     if operation not in provider.operations:
@@ -125,6 +134,39 @@ def _approved_provider(
             ProviderSearchServiceErrorCode.OPERATION_NOT_APPROVED
         )
     return provider
+
+
+def _runtime_unavailable_error(
+    db: Session,
+    provider_key: str,
+) -> ProviderSearchServiceError:
+    """Classify a missing catalog entry without exposing Provider internals."""
+
+    try:
+        provider = ProviderRuntimeRegistry(db).get(provider_key)
+    except Exception:
+        return ProviderSearchServiceError(
+            ProviderSearchServiceErrorCode.PROVIDER_NOT_AVAILABLE
+        )
+    if not provider.manageable or provider.scope != "PRODUCTION":
+        return ProviderSearchServiceError(
+            ProviderSearchServiceErrorCode.PROVIDER_NOT_AVAILABLE
+        )
+    if not provider.enabled:
+        return ProviderSearchServiceError(
+            ProviderSearchServiceErrorCode.PROVIDER_DISABLED
+        )
+    if provider.configuration_status != "valid":
+        return ProviderSearchServiceError(
+            ProviderSearchServiceErrorCode.PROVIDER_CONFIGURATION_REQUIRED
+        )
+    if provider.cookie_required and provider.session_status != "available":
+        return ProviderSearchServiceError(
+            ProviderSearchServiceErrorCode.PROVIDER_SESSION_REQUIRED
+        )
+    return ProviderSearchServiceError(
+        ProviderSearchServiceErrorCode.PROVIDER_HEALTH_REQUIRED
+    )
 
 
 def _detail_assets(envelope: VideoDetailEnvelope) -> tuple[VideoAsset, ...]:
@@ -240,6 +282,7 @@ async def source_search_results_page(
     page: str = Form(default=""),
     page_size: str = Form(default=""),
     service: ProviderSearchService = Depends(get_provider_search_service),
+    db: Session = Depends(get_db),
 ) -> HTMLResponse:
     providers: tuple[SearchProviderDescriptor, ...] = ()
     try:
@@ -254,6 +297,10 @@ async def source_search_results_page(
             providers,
             search_request.provider_key,
             ProviderOperation.SEARCH,
+            unavailable_error=_runtime_unavailable_error(
+                db,
+                search_request.provider_key,
+            ),
         )
         envelope = await service.search(search_request)
         if type(envelope) is not VideoSearchEnvelope:
@@ -298,6 +345,10 @@ async def source_search_detail_page(
             providers,
             detail_request.provider_key,
             ProviderOperation.DETAIL,
+            unavailable_error=_runtime_unavailable_error(
+                db,
+                detail_request.provider_key,
+            ),
         )
         envelope = await service.detail(detail_request)
         if type(envelope) is not VideoDetailEnvelope:

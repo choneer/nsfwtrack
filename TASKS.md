@@ -46,12 +46,14 @@
 - [x] latest stable 与 Latest Release 同步为 `v1.3.0`
 - [x] Phase 6-R4 = released；未发布镜像、未部署 N100、未再次调用 Hermes
 
-## Phase 7 — v1.6.0 Complete Runtime Workflow（已完成）
+## Phase 7 corrective — v1.6.0 Provider Runtime Activation（已完成）
 
 ```text
 Application development head = 1.6.0
 Schema = 6
 Phase 7 = complete
+Phase 7 corrective = complete
+Provider Runtime activation = closed
 Manual acceptance = not started
 Latest stable release = v1.5.0
 Latest GitHub Release = v1.5.0
@@ -61,21 +63,28 @@ N100 = not deployed
 
 - [x] Schema 6：Provider Runtime 状态表、fresh Schema 6、Schema 5 → 6
   preview/apply/postcheck 与事务 rollback；Backup v2 / v1-v2 restore 兼容。
-- [x] Provider Runtime Registry：列出、配置、启用/禁用、配置检查、健康检查、
-  最近脱敏错误清除、出口策略与 Cookie/Session readiness，使用 optimistic version。
+- [x] Provider Runtime Registry：列出、配置、启用/禁用、配置检查、显式受控
+  runtime 健康检查、最近脱敏错误清除、出口策略与 Cookie/Session readiness，使用
+  optimistic version；展示生产 catalog、Search/Detail 和最近成功状态。
 - [x] 双语管理 UI：登录保护的 `/providers`、`/providers/{provider_key}`，所有写入
   为 POST/PRG，GET 零网络/零写入且移动端可用。
 - [x] CookieCloud：按 Provider 的安全 Session 状态、更新时间/过期状态、删除与
   运行时刷新；导入不自动启用 Provider。
 - [x] `/diagnostics`：统一 Provider/CookieCloud/Egress/DB/Task/Media/Version
   状态和脱敏 JSON 导出；单个 Provider 错误不扩散。
-- [x] 复核既有 Search → Detail → signed Preview/Confirm → Item/ItemSource/
-  provenance 与 ItemSource Check → Diff → selective Preview/Confirm 路径；保持
-  用户拥有字段不被覆盖，Runtime UI 不会隐式扩大 fail-closed catalog 的网络权限。
+- [x] Runtime activation：当前 production Search/Detail catalog 只从代码内置、
+  已启用、配置有效、会话就绪（如需要）且 health-check `ready` 的 Provider 构建；
+  TEST_FIXTURE 永不进入，禁用立即移除，单个初始化失败不影响邻居 Provider。
+- [x] `/source-search` 使用 runtime-backed Search/Detail service，并将未启用、
+  配置不完整、会话缺失/过期和未健康检查的情况映射为稳定脱敏错误；既有 signed
+  Preview/Confirm、Item/ItemSource/provenance 和独立验证闭环保持不变。
+- [x] 健康检查仅由明确 POST 触发，使用共享 pinned outbound 的受控轻量操作；
+  timeout、大小、Content-Type、redirect 与错误脱敏门禁均有 synthetic
+  MockTransport 覆盖，GET/启动/后台任务绝不访问 Provider。
 - [x] HLS/playback 解析诊断、variant/audio/subtitle 与本地关联的测试/UI 完整。
-- [x] 本地自动化：Schema、runtime、UI、CookieCloud、Egress、diagnostics、入库、
-  来源更新、HLS、错误恢复和 zh/en；`1547` pytest、依赖/编译/diff 与隔离 Docker
-  双生命周期均通过。
+- [x] 本地自动化：Schema、runtime activation、UI、CookieCloud、Egress、
+  diagnostics、入库、来源更新、HLS、错误恢复和 zh/en；全量 pytest、依赖/编译/
+  diff 与隔离 Docker 双生命周期为完成门禁。
 - 推送后交付门禁：精确 main commit 的 `test` 与 `Docker production smoke`
   均成功后才完成云端交接；不创建 v1.6.0 Tag/Release。
 

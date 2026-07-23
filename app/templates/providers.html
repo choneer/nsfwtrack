@@ -17,6 +17,9 @@
       </div>
       <p>{{ t("providers.configuration") }}: {{ t("providers.configuration_status_" + provider.configuration_status) }}</p>
       <p>{{ t("providers.session") }}: {{ t("providers.session_status_" + provider.session_status) }}</p>
+      <p>{{ t("providers.enabled") }}: {{ t("providers.yes") if provider.enabled else t("providers.no") }}</p>
+      <p>{{ t("providers.catalog") }}: {{ t("providers.yes") if provider.in_production_catalog else t("providers.no") }}</p>
+      <p>{{ t("providers.search") }}: {{ t("providers.yes") if provider.can_search else t("providers.no") }} · {{ t("providers.detail") }}: {{ t("providers.yes") if provider.can_detail else t("providers.no") }}</p>
       {% if provider.last_error_code %}<p class="validation-severity-error">{{ t("providers.error") }}: {{ t("providers.error_" + provider.last_error_code) }}</p>{% endif %}
       <a class="button secondary" href="/providers/{{ provider.provider_key }}">{{ t("providers.manage") }}</a>
     </article>

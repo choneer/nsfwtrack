@@ -3,6 +3,7 @@
 from app.provider_runtime.service import (
     ProviderRuntimeDefinition,
     ProviderRuntimeError,
+    ProviderRuntimeHealthPlan,
     ProviderRuntimeRegistry,
     ProviderRuntimeView,
     provider_definitions,
@@ -11,6 +12,7 @@ from app.provider_runtime.service import (
 __all__ = [
     "ProviderRuntimeDefinition",
     "ProviderRuntimeError",
+    "ProviderRuntimeHealthPlan",
     "ProviderRuntimeRegistry",
     "ProviderRuntimeView",
     "provider_definitions",

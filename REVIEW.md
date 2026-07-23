@@ -2,12 +2,14 @@
 
 每次开发提交代码后，逐项检查：
 
-## Phase 7 — v1.6.0 Complete Runtime Workflow
+## Phase 7 corrective — v1.6.0 Provider Runtime Activation
 
 ```text
 Application development head = 1.6.0
 Schema = 6
 Phase 7 = complete
+Phase 7 corrective = complete
+Provider Runtime activation = closed
 Manual acceptance = not started
 Latest stable release = v1.5.0
 Latest GitHub Release = v1.5.0
@@ -19,30 +21,41 @@ N100 = not deployed
   runtime facts. Fresh Schema 6 and Schema 5 → 6 use code-owned migration
   preview/precheck/apply/postcheck; forced postcheck failure rolls back the
   table and version record atomically.
-- [x] **Provider runtime** — authenticated `/providers` pages provide local
+- [x] **Provider runtime** — authenticated `/providers` pages provide
   configuration, egress profile, enablement, optimistic version fencing,
-  local health readiness, last stable error, and clear-error controls. Fixture
-  providers cannot be enabled; GET paths perform no Provider request or write.
+  catalog/Search/Detail availability, latest success, stable error, and
+  clear-error controls. Fixture providers cannot be enabled; GET paths perform
+  no Provider request or write.
+- [x] **Runtime catalog activation** — production endpoint/Search packages are
+  reconstructed from current persisted Runtime state. Only code-owned,
+  enabled, configuration-valid, session-ready (when required), health-checked
+  PRODUCTION Providers enter; TEST_FIXTURE never enters; disable removes a
+  Provider immediately; and one package initialization failure is isolated.
+- [x] **Runtime health** — only an explicit POST performs one lightweight
+  Provider operation through the shared pinned outbound client. It enforces
+  fixed host/path/query facts, DNS/IP/TLS, timeout, size, content-type and
+  redirect gates; timeout/error state is stable and redacted. Startup, GET and
+  background paths never probe a Provider.
 - [x] **CookieCloud / diagnostics** — Cookie values, passwords, complete
   external identities, and local file paths are excluded from pages/reports.
   Import updates session state but never enables a Provider; deletion only
   targets a code-owned regular local Cookie file. `/diagnostics` exports a
   no-store redacted report without an external probe.
-- [x] **Existing local closures** — signed Search/Detail Preview/Confirm and
-  ItemSource Check/selective-update retain their independent-session outcome
-  proof, provenance, replay guard, and local-user-field protections; task
-  details now render actual old/proposed values.
+- [x] **Runtime-backed local closure** — `/source-search` uses the active
+  runtime catalog for Search/Detail and retains signed Preview/Confirm,
+  independent-session outcome proof, provenance, replay guard, and local-user
+  field protections. Disabled/config/session/health prerequisites return stable
+  redacted errors without Provider or locator disclosure.
 - [x] **HLS** — inspection stays offline, validates approved hosts, reports
   variant/audio/subtitle rendition diagnostics and optional DB association
   without reading a media file or downloading any segment/key.
 - [x] **Safety status** — no Hermes run, no v1.6.0 Tag/Release, no production
   image, no N100 deployment, and manual acceptance has not started.
-- [x] **Local validation** — `1547 passed` full pytest, `pip check`, compileall,
-  and diff check passed. An isolated two-lifecycle production Docker smoke
-  verified non-root/read-only/cap-drop runtime, image exclusion of `tests/`,
-  login and all required Phase 7 pages, Schema 6/runtime-state persistence,
-  and cleanup of the temporary image/container/volume. Exact main CI remains
-  the post-push delivery gate.
+- [x] **Automated validation** — synthetic MockTransport coverage proves runtime
+  inclusion/exclusion, failure isolation, Search/Detail, Preview/Confirm,
+  health success/timeout/redaction, disable, and restart persistence. Full
+  pytest, `pip check`, compileall, diff check, isolated two-lifecycle production
+  Docker smoke, and exact-main CI are the completion gates.
 
 ## Application 1.5.0 Formal Release (2026-07-23)
 

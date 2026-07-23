@@ -15,6 +15,8 @@
 Application development head = 1.6.0
 Schema = 6
 Phase 7 = complete
+Phase 7 corrective = complete
+Provider Runtime activation = closed
 Manual acceptance = not started
 Latest stable release = v1.5.0
 Latest GitHub Release = v1.5.0
@@ -22,27 +24,35 @@ Published image = none
 N100 = not deployed
 ```
 
-Application `1.5.0` 已发布；当前进入 Application `1.6.0` / Schema `6` 的
-Phase 7 开发。该阶段以既有 signed Preview/Confirm、本地写入独立验证、
+Application `1.5.0` 已发布；Application `1.6.0` / Schema `6` 的 Phase 7
+corrective 已完成。该阶段以既有 signed Preview/Confirm、本地写入独立验证、
 CookieCloud、egress、HLS 与任务系统为基础，增加持久 Provider Runtime
-Registry、运行时管理页、统一诊断和完整的运行时状态/错误恢复视图。既有
-生产 Provider endpoint/search/acquisition catalog 仍默认 fail-closed，Cookie
+Registry、运行时管理页、统一诊断和完整的运行时状态/错误恢复视图。当前
+production Search/Detail catalog 由代码内置、已启用、配置有效、会话就绪且
+健康检查成功的 Runtime 状态动态构建；fixture 永不进入，禁用立即移除，Cookie
 导入不会自动启用 Provider。无 VIP 绕过，不发布镜像、不部署 N100。
 
 最新稳定版本与 GitHub Release 仍为 `v1.5.0`；`1.6.0` 仅为开发头，不创建
 Tag 或 Release。
 
-### Phase 7 — v1.6.0 Complete Runtime Workflow（已完成）
+### Phase 7 corrective — v1.6.0 Provider Runtime Activation（已完成）
 
 - Provider Runtime Registry：Schema 6 持久配置、启用状态、出口策略、健康/
-  错误与 optimistic version；页面为 `/providers` 和 `/providers/{provider_key}`。
+  错误与 optimistic version；页面为 `/providers` 和 `/providers/{provider_key}`，
+  展示 catalog、Search/Detail 可用性和最近成功时间。
+- Runtime activation：只将代码内置、配置有效、启用且健康检查 `ready` 的
+  PRODUCTION Provider 组成当前 endpoint/Search catalog；单个包初始化失败
+  不影响其他 Provider，fixture 绝不进入。`/source-search` 以该 catalog 执行
+  Search/Detail，再复用既有 signed Preview/Confirm 写入闭环。
+- 健康检查只由显式 POST 触发；通过共享 pinned outbound 执行一次轻量 Provider
+  operation，具有固定 host/path、DNS/IP/TLS、timeout、response-size、Content-Type
+  和 redirect 门禁，错误只记录稳定脱敏分类。GET、启动与后台任务零 Provider 网络。
 - CookieCloud、egress、Provider Runtime、数据库、任务、媒体索引与版本信息
   汇总至 `/diagnostics`，并提供不含凭据、Cookie、外部完整身份或本机私有路径的
   JSON 报告。
 - 复核并保留现有 source search → detail → signed Preview → explicit Confirm →
   Item/ItemSource/provenance 写入闭环，以及已有来源的 Check → Diff → 逐字段
-  Preview/Confirm 更新闭环；Provider 操作仍只由代码拥有的 fail-closed catalog
-  许可，运行时页只显示本地 readiness，绝不隐式扩大网络权限。
+  Preview/Confirm 更新闭环；运行时页绝不隐式扩大网络权限或执行下载。
 - HLS/playback-line 继续只做解析、variant/audio/subtitle 与本地关联诊断，
   不拉取媒体分片。
 - 已执行 Schema 6 fresh/5→6/rollback、双语 UI、错误恢复、全量 pytest 和
@@ -72,12 +82,15 @@ Release: https://github.com/choneer/nsfwtrack/releases/tag/v1.1.0
 发布提交、annotated tag object、peeled commit 与 Actions run 的实际值由本次
 发布交接报告记录，不 amend 已验证发布提交。
 
+Historical Phase 6-R4 release evidence (not the current Schema 6 Runtime
+catalog):
+
 ```text
 Phase 6-R3 = frozen
 Cloud RC diff review = PASS
 Hermes acceptance = PASS
 Phase 6-R4 = released
-Production catalogs = empty
+Production catalogs = empty (at Phase 6-R4)
 Published image = none
 N100 = not deployed
 ```

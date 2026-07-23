@@ -95,7 +95,15 @@ def test_runtime_configuration_enable_health_and_optimistic_fencing(
         enabled = registry.set_enabled(
             "zuidapi_vod", enabled=True, expected_version=configured.optimistic_version
         )
-        ready = registry.check_health("zuidapi_vod", expected_version=enabled.optimistic_version)
+        plan = registry.prepare_health_check(
+            "zuidapi_vod", expected_version=enabled.optimistic_version
+        )
+        assert plan.blocker_code is None
+        ready = registry.complete_health_check(
+            "zuidapi_vod",
+            expected_version=enabled.optimistic_version,
+            success=True,
+        )
         db.commit()
 
         assert ready.runtime_status == "ready"

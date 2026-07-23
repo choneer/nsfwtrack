@@ -9,10 +9,13 @@ from __future__ import annotations
 
 import os
 from dataclasses import asdict, dataclass
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 from app.cookiecloud.client import default_cookie_store_path
 from app.providers.javdb.session import SessionCookieError, load_javdb_session_cookie
+
+if TYPE_CHECKING:
+    from app.provider_runtime.service import ProviderRuntimeView
 
 ReadinessMode = Literal["live_capable", "fixture_fallback", "not_configured"]
 
@@ -127,10 +130,48 @@ def _inactive_provider(
 def build_catalog_readiness(
     *,
     application_version: str = "1.6.0",
+    runtime_providers: tuple["ProviderRuntimeView", ...] | None = None,
 ) -> CatalogReadinessSnapshot:
     """Pure readiness for default catalog keys (no network, no secrets)."""
 
     proxy_ok, proxy_keys = _proxy_env()
+    if runtime_providers is not None:
+        by_key = {provider.provider_key: provider for provider in runtime_providers}
+        providers = tuple(
+            ProviderReadiness(
+                provider_key=key,
+                mode=(
+                    "live_capable"
+                    if provider.in_production_catalog
+                    else "not_configured"
+                ),
+                scope=provider.scope,
+                reasons=(
+                    ("runtime_catalog_active",)
+                    if provider.in_production_catalog
+                    else ("runtime_not_ready",)
+                ),
+                cookie_required=provider.cookie_required,
+                cookie_loadable=(
+                    provider.session_status == "available"
+                    if provider.cookie_required
+                    else None
+                ),
+                notes=(
+                    "runtime_catalog_active"
+                    if provider.in_production_catalog
+                    else "runtime_not_ready"
+                ),
+            )
+            for key in DEFAULT_CATALOG_KEYS
+            if (provider := by_key.get(key)) is not None
+        )
+        return CatalogReadinessSnapshot(
+            application_version=application_version,
+            proxy_configured=proxy_ok,
+            proxy_env_keys=proxy_keys,
+            providers=providers,
+        )
     providers = (
         _javdb_readiness(),
         _inactive_provider(

@@ -75,7 +75,11 @@ class CookieCloudImportBody(BaseModel):
 def cookiecloud_page(request: Request, db: Session = Depends(get_db)) -> HTMLResponse:
     """Operator UI: status, readiness, and import form (never shows secrets)."""
 
-    readiness = build_catalog_readiness(application_version="1.6.0")
+    runtime_providers = ProviderRuntimeRegistry(db).list()
+    readiness = build_catalog_readiness(
+        application_version="1.6.0",
+        runtime_providers=runtime_providers,
+    )
     path = default_cookie_store_path("javdb_metadata")
     env_set = bool(
         os.environ.get("NSFWTRACK_JAVDB_SESSION_COOKIE")
@@ -108,7 +112,7 @@ def cookiecloud_page(request: Request, db: Session = Depends(get_db)) -> HTMLRes
                 "provider_key": "javdb_metadata",
                 "save": True,
             },
-            runtime_providers=ProviderRuntimeRegistry(db).list(),
+            runtime_providers=runtime_providers,
         ),
     )
 
@@ -289,10 +293,13 @@ def cookiecloud_delete(
             headers={"Cache-Control": "no-store"},
         )
 @router.get("/api/providers/readiness", dependencies=[Depends(require_api_auth)])
-def providers_readiness() -> JSONResponse:
+def providers_readiness(db: Session = Depends(get_db)) -> JSONResponse:
     """Catalog readiness for default providers (no secrets)."""
 
-    snap = build_catalog_readiness(application_version="1.6.0")
+    snap = build_catalog_readiness(
+        application_version="1.6.0",
+        runtime_providers=ProviderRuntimeRegistry(db).list(),
+    )
     return JSONResponse(snap.to_dict(), headers={"Cache-Control": "no-store"})
 
 

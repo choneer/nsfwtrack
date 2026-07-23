@@ -1,9 +1,9 @@
-"""Reviewed Provider identities and fail-closed production catalogs.
+"""Compatibility accessors for the runtime-backed production catalog.
 
-The package builders in :mod:`app.providers` remain available for offline
-validation with explicitly injected test doubles.  They are not production
-activation: no default package is registered until its network transport is
-implemented through the shared controlled outbound boundary.
+The active catalog is constructed from one database Runtime snapshot in
+``app.provider_runtime.catalog``.  A caller without that snapshot receives an
+empty fail-closed compatibility result; application routes always pass through
+the Runtime builder instead of using a process-global provider list.
 
 CookieCloud and HLS are control/playback helpers, not Providers.
 """
@@ -16,6 +16,7 @@ if TYPE_CHECKING:
     from app.acquisition.contracts import AcquisitionPackage
     from app.source_adapters.package import ProviderPackage
     from app.source_adapters.registry import EndpointRegistry, ProviderEndpoint
+    from sqlalchemy.orm import Session
 
 
 NSFWPRO_FACTORY_KEY_MAP: dict[str, str] = {
@@ -25,16 +26,28 @@ NSFWPRO_FACTORY_KEY_MAP: dict[str, str] = {
 }
 
 
-def build_production_endpoints() -> tuple["ProviderEndpoint", ...]:
-    """Return activated endpoints; none are activated in Application 1.5.0."""
+def build_production_endpoints(
+    db: "Session | None" = None,
+) -> tuple["ProviderEndpoint", ...]:
+    """Return endpoints active in the supplied Runtime state snapshot."""
 
-    return ()
+    if db is None:
+        return ()
+    from app.provider_runtime.catalog import build_runtime_catalog
+
+    return tuple(package.endpoint for package in build_runtime_catalog(db).packages)
 
 
-def build_production_search_packages() -> tuple["ProviderPackage", ...]:
-    """Return activated search packages; TEST_FIXTURE is never a fallback."""
+def build_production_search_packages(
+    db: "Session | None" = None,
+) -> tuple["ProviderPackage", ...]:
+    """Return active Search/Detail packages; TEST_FIXTURE is never a fallback."""
 
-    return ()
+    if db is None:
+        return ()
+    from app.provider_runtime.catalog import build_runtime_catalog
+
+    return build_runtime_catalog(db).packages
 
 
 def build_production_acquisition_packages() -> tuple["AcquisitionPackage", ...]:
@@ -43,10 +56,12 @@ def build_production_acquisition_packages() -> tuple["AcquisitionPackage", ...]:
     return ()
 
 
-def build_production_endpoint_registry() -> "EndpointRegistry":
+def build_production_endpoint_registry(
+    db: "Session | None" = None,
+) -> "EndpointRegistry":
     from app.source_adapters.registry import EndpointRegistry
 
-    return EndpointRegistry(build_production_endpoints())
+    return EndpointRegistry(build_production_endpoints(db))
 
 
 def nsfwpro_factory_provider_keys() -> frozenset[str]:

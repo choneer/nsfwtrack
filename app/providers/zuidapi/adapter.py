@@ -120,6 +120,10 @@ def _search_item(item: dict[str, Any]) -> VideoSearchResult:
         identifier=VideoIdentifier(
             provider_key=ZUIDAPI_PROVIDER_KEY,
             external_id=vod_id,
+            canonical_url=(
+                f"https://{ZUIDAPI_HOST}/api.php/provide/vod?"
+                + urlencode((("ac", "detail"), ("ids", vod_id)))
+            ),
         ),
         title=str(item.get("vod_name") or vod_id),
         provenance=(
@@ -171,6 +175,10 @@ def _detail_item(item: dict[str, Any]) -> VideoDetail:
         identifier=VideoIdentifier(
             provider_key=ZUIDAPI_PROVIDER_KEY,
             external_id=vod_id,
+            canonical_url=(
+                f"https://{ZUIDAPI_HOST}/api.php/provide/vod?"
+                + urlencode((("ac", "detail"), ("ids", vod_id)))
+            ),
         ),
         title=str(item.get("vod_name") or vod_id),
         performers=performers,

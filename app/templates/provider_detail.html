@@ -11,6 +11,9 @@
     <div class="detail-field"><span class="muted">{{ t("providers.configuration") }}</span><strong>{{ t("providers.configuration_status_" + provider.configuration_status) }}</strong></div>
     <div class="detail-field"><span class="muted">{{ t("providers.session") }}</span><strong>{{ t("providers.session_status_" + provider.session_status) }}</strong></div>
     <div class="detail-field"><span class="muted">{{ t("providers.egress_policy") }}</span><strong>{{ provider.egress_policy }}</strong></div>
+    <div class="detail-field"><span class="muted">{{ t("providers.catalog") }}</span><strong>{{ t("providers.yes") if provider.in_production_catalog else t("providers.no") }}</strong></div>
+    <div class="detail-field"><span class="muted">{{ t("providers.search") }} / {{ t("providers.detail") }}</span><strong>{{ t("providers.yes") if provider.can_search else t("providers.no") }} / {{ t("providers.yes") if provider.can_detail else t("providers.no") }}</strong></div>
+    <div class="detail-field"><span class="muted">{{ t("providers.last_success") }}</span><strong>{{ provider.last_success_at or "—" }}</strong></div>
   </div>
   {% if provider.last_error_code %}<p class="validation-severity-error">{{ t("providers.error") }}: {{ t("providers.error_" + provider.last_error_code) }}</p>{% endif %}
   <p class="muted">{{ t("providers.health_hint") }}</p>

@@ -28,6 +28,7 @@ from app.source_adapters.registry import (
     _validate_content_types,
     _validate_hostname,
     _validate_identifier,
+    _validate_fixed_query_parameters,
     _validate_parameter_mapping,
     _validate_path_template,
 )
@@ -443,6 +444,7 @@ class ApprovedOperation:
     )
     path_parameter: BusinessParameter | None = None
     query_parameters: tuple[tuple[BusinessParameter, str], ...] = ()
+    fixed_query_parameters: tuple[tuple[str, str], ...] = ()
     body_parameters: tuple[tuple[BusinessParameter, str], ...] = ()
     required_parameters: tuple[BusinessParameter, ...] = ()
     redirect_host_ids: tuple[str, ...] = ()
@@ -468,6 +470,10 @@ class ApprovedOperation:
         )
         if query_business & body_business or query_names & body_names:
             raise ValueError("query and body parameter mappings overlap")
+        _validate_fixed_query_parameters(
+            self.fixed_query_parameters,
+            reserved_names=query_names | body_names,
+        )
         if self.path_parameter is not None:
             if not isinstance(self.path_parameter, BusinessParameter):
                 raise TypeError("path_parameter must be BusinessParameter")
@@ -944,6 +950,7 @@ def validate_approval_against_endpoint(
             runtime.path_template != approved.path_template
             or runtime.path_parameter is not approved.path_parameter
             or runtime.query_parameters != approved.query_parameters
+            or runtime.fixed_query_parameters != approved.fixed_query_parameters
             or runtime.body_parameters != approved.body_parameters
             or runtime.required_parameters != approved.required_parameters
             or runtime.method is not approved.method
