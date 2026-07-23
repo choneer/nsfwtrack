@@ -16,6 +16,7 @@ import hashlib
 import json
 import os
 import re
+import stat
 import tempfile
 import time
 from dataclasses import dataclass
@@ -210,6 +211,30 @@ def save_cookie_header(path: str | Path, header: str) -> Path:
         except FileNotFoundError:
             pass
     return file_path
+
+
+def remove_cookie_header(path: str | Path) -> bool:
+    """Remove one code-owned local Cookie file without following symlinks."""
+
+    file_path = Path(path)
+    try:
+        metadata = os.lstat(file_path)
+    except FileNotFoundError:
+        return False
+    except OSError as exc:
+        raise CookieCloudError("Cookie file cannot be inspected") from exc
+    if not stat.S_ISREG(metadata.st_mode) or stat.S_ISLNK(metadata.st_mode):
+        raise CookieCloudError("Cookie file is not a regular local file")
+    try:
+        os.unlink(file_path)
+        directory_descriptor = os.open(file_path.parent, os.O_RDONLY)
+        try:
+            os.fsync(directory_descriptor)
+        finally:
+            os.close(directory_descriptor)
+    except OSError as exc:
+        raise CookieCloudError("Cookie file cannot be removed") from exc
+    return True
 
 
 def default_cookie_store_path(provider_key: str = "javdb") -> Path:

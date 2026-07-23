@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}{{ t("playback.title") }} - NSFWTrack{% endblock %}
+{% block content %}
+<section class="stack">
+  <div><h1>{{ t("playback.title") }}</h1><p class="muted">{{ t("playback.subtitle") }}</p></div>
+  <section class="card stack">
+    <form class="stack" method="post" action="/playback/hls/inspect">
+      <label for="hls-manifest">{{ t("playback.manifest") }}</label>
+      <textarea id="hls-manifest" name="manifest_text" required maxlength="2000000" rows="12">{{ form.manifest_text or "" }}</textarea>
+      <label for="hls-base">{{ t("playback.base_url") }}</label>
+      <input id="hls-base" name="base_url" type="url" required maxlength="2048" value="{{ form.base_url or "" }}">
+      <label for="hls-hosts">{{ t("playback.approved_hosts") }}</label>
+      <input id="hls-hosts" name="approved_hosts" type="text" required maxlength="2048" value="{{ form.approved_hosts or "" }}">
+      <label for="hls-asset">{{ t("playback.local_asset") }}</label>
+      <input id="hls-asset" name="local_asset_id" type="number" min="1" value="{{ form.local_asset_id or "" }}">
+      <button type="submit">{{ t("playback.inspect") }}</button>
+    </form>
+    <p class="muted">{{ t("playback.no_fetch") }}</p>
+  </section>
+  {% if error %}<section class="card validation-severity-error">{{ t(error) }}</section>{% endif %}
+  {% if result %}
+  <section class="card stack">
+    <h2>{{ t("playback.result") }}</h2>
+    <p>{{ t("playback.variants") }}: {{ result.manifest.variant_count }} · {{ t("playback.audio") }}: {{ result.manifest.audio_rendition_count }} · {{ t("playback.subtitles") }}: {{ result.manifest.subtitle_rendition_count }} · {{ t("playback.segments") }}: {{ result.manifest.segment_count }}</p>
+    <p>{{ t("playback.encrypted") }}: {{ t("cookiecloud.yes") if result.manifest.encrypted else t("cookiecloud.no") }}</p>
+    {% if result.local_media_association.requested %}<p>{{ t("playback.local_association") }}: {{ t("playback.association_found") if result.local_media_association.found else t("playback.association_missing") }}</p>{% endif %}
+  </section>
+  {% endif %}
+</section>
+{% endblock %}

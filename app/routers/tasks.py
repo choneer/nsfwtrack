@@ -33,6 +33,8 @@ from app.i18n import get_language, translator
 from app.models import (
     DiscoveredAssetFact,
     DownloadTaskFact,
+    Item,
+    ItemSource,
     OperationTask,
     SourceCheckFact,
     TaskEvent,
@@ -133,6 +135,8 @@ def task_detail(request: Request, task_id: int, db: Session = Depends(get_db)) -
         ).all()
     )
     check_fact = db.get(SourceCheckFact, task_id)
+    item = db.get(Item, task.item_id) if task.item_id is not None else None
+    source = db.get(ItemSource, task.source_id) if task.source_id is not None else None
     download_fact = db.get(DownloadTaskFact, task_id)
     assets = tuple(
         db.scalars(
@@ -144,7 +148,15 @@ def task_detail(request: Request, task_id: int, db: Session = Depends(get_db)) -
     return _render(
         request,
         "task_detail.html",
-        {"task": task, "events": events, "check_fact": check_fact, "download_fact": download_fact, "assets": assets},
+        {
+            "task": task,
+            "events": events,
+            "check_fact": check_fact,
+            "download_fact": download_fact,
+            "assets": assets,
+            "item": item,
+            "source": source,
+        },
     )
 
 

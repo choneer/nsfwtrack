@@ -161,6 +161,85 @@ class AppSetting(Base):
     )
 
 
+class ProviderRuntimeState(Base):
+    """Non-secret, optimistic runtime configuration for a reviewed Provider."""
+
+    __tablename__ = "provider_runtime_states"
+    __table_args__ = (
+        CheckConstraint("trim(provider_key) != ''", name="ck_provider_runtime_key"),
+        CheckConstraint(
+            "runtime_status IN ('disabled','ready','blocked','error')",
+            name="ck_provider_runtime_status",
+        ),
+        CheckConstraint(
+            "configuration_status IN ('not_configured','valid','invalid')",
+            name="ck_provider_runtime_configuration_status",
+        ),
+        CheckConstraint(
+            "session_status IN ('not_required','missing','available','expired','unknown')",
+            name="ck_provider_runtime_session_status",
+        ),
+        CheckConstraint(
+            "configuration_version >= 1",
+            name="ck_provider_runtime_configuration_version",
+        ),
+        CheckConstraint(
+            "optimistic_version >= 1",
+            name="ck_provider_runtime_optimistic_version",
+        ),
+    )
+
+    provider_key: Mapped[str] = mapped_column(String(64), primary_key=True)
+    enabled: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="0"
+    )
+    runtime_status: Mapped[str] = mapped_column(
+        String(32), nullable=False, default="disabled", server_default="disabled"
+    )
+    configuration_status: Mapped[str] = mapped_column(
+        String(32),
+        nullable=False,
+        default="not_configured",
+        server_default="not_configured",
+    )
+    egress_profile: Mapped[str] = mapped_column(
+        String(64), nullable=False, default="default", server_default="default"
+    )
+    session_status: Mapped[str] = mapped_column(
+        String(32),
+        nullable=False,
+        default="not_required",
+        server_default="not_required",
+    )
+    session_updated_at: Mapped[datetime | None] = mapped_column(
+        UTCDateTime(), nullable=True
+    )
+    session_expires_at: Mapped[datetime | None] = mapped_column(
+        UTCDateTime(), nullable=True
+    )
+    last_health_check_at: Mapped[datetime | None] = mapped_column(
+        UTCDateTime(), nullable=True
+    )
+    last_success_at: Mapped[datetime | None] = mapped_column(UTCDateTime(), nullable=True)
+    last_error_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    last_error_at: Mapped[datetime | None] = mapped_column(UTCDateTime(), nullable=True)
+    configuration_version: Mapped[int] = mapped_column(
+        nullable=False, default=1, server_default="1"
+    )
+    optimistic_version: Mapped[int] = mapped_column(
+        nullable=False, default=1, server_default="1"
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        UTCDateTime(), nullable=False, default=lambda: datetime.now(timezone.utc)
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        UTCDateTime(),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
+
+
 class SchemaMigration(Base):
     __tablename__ = "schema_migrations"
 

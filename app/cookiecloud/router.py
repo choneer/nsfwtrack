@@ -13,16 +13,21 @@ from pydantic import BaseModel, Field
 
 from app.auth import is_authenticated, require_api_auth, require_page_auth
 from app.config import get_settings
+from app.database import get_db
+from app.flash import add_flash, pop_flash_messages
 from app.cookiecloud.client import (
     CookieCloudConfig,
     CookieCloudError,
     CookieCloudImporter,
     default_cookie_store_path,
+    remove_cookie_header,
 )
 from app.i18n import get_language, translator
+from app.provider_runtime.service import ProviderRuntimeRegistry
 from app.providers.javdb.production import JAVDB_PRODUCTION_HOST
 from app.providers.javdb.session import SessionCookieError, load_javdb_session_cookie
 from app.providers.readiness import build_catalog_readiness
+from sqlalchemy.orm import Session
 
 
 router = APIRouter(tags=["cookiecloud"])
@@ -50,11 +55,7 @@ def _page_context(request: Request, **values: Any) -> dict[str, Any]:
 
 
 def _flash_list(request: Request) -> list[dict[str, str]]:
-    # Session flash optional; page also shows inline result.
-    raw = request.session.pop("cookiecloud_flash", None)
-    if isinstance(raw, dict) and raw.get("kind") and raw.get("message"):
-        return [{"kind": str(raw["kind"]), "message": str(raw["message"])}]
-    return []
+    return pop_flash_messages(request, get_language(request))
 
 
 class CookieCloudImportBody(BaseModel):
@@ -71,10 +72,10 @@ class CookieCloudImportBody(BaseModel):
     response_class=HTMLResponse,
     dependencies=[Depends(require_page_auth)],
 )
-def cookiecloud_page(request: Request) -> HTMLResponse:
+def cookiecloud_page(request: Request, db: Session = Depends(get_db)) -> HTMLResponse:
     """Operator UI: status, readiness, and import form (never shows secrets)."""
 
-    readiness = build_catalog_readiness(application_version="1.5.0")
+    readiness = build_catalog_readiness(application_version="1.6.0")
     path = default_cookie_store_path("javdb_metadata")
     env_set = bool(
         os.environ.get("NSFWTRACK_JAVDB_SESSION_COOKIE")
@@ -107,6 +108,7 @@ def cookiecloud_page(request: Request) -> HTMLResponse:
                 "provider_key": "javdb_metadata",
                 "save": True,
             },
+            runtime_providers=ProviderRuntimeRegistry(db).list(),
         ),
     )
 
@@ -123,6 +125,7 @@ def cookiecloud_page_import(
     password: str = Form(...),
     provider_key: str = Form("javdb_metadata"),
     save: str = Form("1"),
+    db: Session = Depends(get_db),
 ) -> HTMLResponse:
     """HTML form import; never renders password or cookie values."""
 
@@ -137,25 +140,33 @@ def cookiecloud_page_import(
             cookie_names=None,
             save=save_flag,
         )
-        kind = "success" if result.get("ok") else "error"
-        msg = (
-            f"imported {result.get('matched_count', 0)} cookies"
-            if result.get("ok")
-            else str(result.get("error") or "import failed")
+        registry = ProviderRuntimeRegistry(db)
+        registry.record_session_import(
+            provider_key,
+            available=bool(save_flag),
         )
-        request.session["cookiecloud_flash"] = {"kind": kind, "message": msg}
-    except CookieCloudError as exc:
-        result = {"ok": False, "error": str(exc)}
-        request.session["cookiecloud_flash"] = {
-            "kind": "error",
-            "message": str(exc),
-        }
+        db.commit()
+        if result.get("ok"):
+            add_flash(
+                request,
+                "success",
+                "flash.cookiecloud_imported",
+                count=int(result.get("matched_count", 0)),
+            )
+        else:
+            add_flash(request, "error", "flash.cookiecloud_import_failed")
+    except (CookieCloudError, ValueError):
+        db.rollback()
+        add_flash(request, "error", "flash.cookiecloud_import_failed")
     # PRG so refresh does not re-post password
     return RedirectResponse(url="/cookiecloud", status_code=303)
 
 
 @router.post("/api/cookiecloud/import", dependencies=[Depends(require_api_auth)])
-def cookiecloud_import(body: CookieCloudImportBody) -> JSONResponse:
+def cookiecloud_import(
+    body: CookieCloudImportBody,
+    db: Session = Depends(get_db),
+) -> JSONResponse:
     """Import cookies for an approved provider host; optionally persist header."""
 
     try:
@@ -167,13 +178,19 @@ def cookiecloud_import(body: CookieCloudImportBody) -> JSONResponse:
             cookie_names=body.cookie_names,
             save=body.save,
         )
+        ProviderRuntimeRegistry(db).record_session_import(
+            body.provider_key,
+            available=bool(body.save),
+        )
+        db.commit()
         status = 200 if payload.get("ok") else 400
         return JSONResponse(
             payload,
             status_code=status,
             headers={"Cache-Control": "no-store"},
         )
-    except CookieCloudError as exc:
+    except (CookieCloudError, ValueError):
+        db.rollback()
         return JSONResponse(
             {"ok": False, "error": str(exc)},
             status_code=400,
@@ -182,39 +199,100 @@ def cookiecloud_import(body: CookieCloudImportBody) -> JSONResponse:
 
 
 @router.get("/api/cookiecloud/status", dependencies=[Depends(require_api_auth)])
-def cookiecloud_status(provider_key: str = "javdb_metadata") -> JSONResponse:
+def cookiecloud_status(
+    provider_key: str = "javdb_metadata",
+    db: Session = Depends(get_db),
+) -> JSONResponse:
     """Whether a local cookie file / env is configured (never returns values)."""
 
+    try:
+        runtime = ProviderRuntimeRegistry(db).get(provider_key)
+    except ValueError:
+        return JSONResponse(
+            {"ok": False, "error": "unsupported provider"},
+            status_code=400,
+            headers={"Cache-Control": "no-store"},
+        )
     path = default_cookie_store_path(provider_key)
     env_set = bool(
         os.environ.get("NSFWTRACK_JAVDB_SESSION_COOKIE")
         or os.environ.get("NSFWTRACK_JAVDB_SESSION_COOKIE_FILE")
     )
     file_ok = path.is_file() and path.stat().st_size > 0
-    loadable = False
-    try:
-        load_javdb_session_cookie()
-        loadable = True
-    except SessionCookieError:
-        loadable = False
+    if runtime.cookie_required:
+        try:
+            load_javdb_session_cookie()
+            loadable = True
+        except SessionCookieError:
+            loadable = False
+    else:
+        loadable = runtime.session_status == "available"
     return JSONResponse(
         {
             "ok": True,
             "provider_key": provider_key,
             "env_configured": env_set,
             "file_configured": file_ok,
-            "file_path": str(path),
             "loadable": loadable,
+            "session_status": runtime.session_status,
+            "session_updated_at": (
+                runtime.session_updated_at.isoformat()
+                if runtime.session_updated_at is not None
+                else None
+            ),
+            "session_expires_at": (
+                runtime.session_expires_at.isoformat()
+                if runtime.session_expires_at is not None
+                else None
+            ),
         },
         headers={"Cache-Control": "no-store"},
     )
 
 
+@router.post(
+    "/cookiecloud/{provider_key}/delete",
+    response_class=RedirectResponse,
+    dependencies=[Depends(require_page_auth)],
+)
+def cookiecloud_page_delete(
+    request: Request,
+    provider_key: str,
+    db: Session = Depends(get_db),
+) -> RedirectResponse:
+    try:
+        remove_cookie_header(default_cookie_store_path(provider_key))
+        ProviderRuntimeRegistry(db).record_session_import(provider_key, available=False)
+        db.commit()
+        add_flash(request, "success", "flash.cookiecloud_session_removed")
+    except (CookieCloudError, ValueError):
+        db.rollback()
+        add_flash(request, "error", "flash.cookiecloud_session_remove_failed")
+    return RedirectResponse(url="/cookiecloud", status_code=303)
+
+
+@router.post("/api/cookiecloud/delete", dependencies=[Depends(require_api_auth)])
+def cookiecloud_delete(
+    provider_key: str = "javdb_metadata",
+    db: Session = Depends(get_db),
+) -> JSONResponse:
+    try:
+        removed = remove_cookie_header(default_cookie_store_path(provider_key))
+        ProviderRuntimeRegistry(db).record_session_import(provider_key, available=False)
+        db.commit()
+        return JSONResponse({"ok": True, "removed": removed}, headers={"Cache-Control": "no-store"})
+    except (CookieCloudError, ValueError):
+        db.rollback()
+        return JSONResponse(
+            {"ok": False, "error": "cookie session removal failed"},
+            status_code=400,
+            headers={"Cache-Control": "no-store"},
+        )
 @router.get("/api/providers/readiness", dependencies=[Depends(require_api_auth)])
 def providers_readiness() -> JSONResponse:
     """Catalog readiness for default providers (no secrets)."""
 
-    snap = build_catalog_readiness(application_version="1.5.0")
+    snap = build_catalog_readiness(application_version="1.6.0")
     return JSONResponse(snap.to_dict(), headers={"Cache-Control": "no-store"})
 
 
@@ -251,7 +329,6 @@ def _do_import(
         "matched_cookie_names": list(matched),
         "matched_count": len(matched),
         "saved": bool(save_path),
-        "save_path": str(save_path) if save_path else None,
         "header_length": len(header),
     }
 
@@ -264,6 +341,4 @@ def _hosts_for_provider(provider_key: str) -> set[str]:
         return {"api.zuidapi.com"}
     if key in {"copymanga"}:
         return {"api.mangacopy.com", "site.mangacopy.com"}
-    if key in {"jiuse_vod", "jiuse"}:
-        return {"jiuse.io", "cdn2.jiuse2.cloud"}
     raise CookieCloudError(f"unsupported provider_key for CookieCloud: {provider_key}")

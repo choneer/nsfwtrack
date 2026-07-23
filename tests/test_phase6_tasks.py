@@ -14,6 +14,7 @@ from app.database import Base, SessionLocal
 from app.models import (
     Item,
     OperationTask,
+    ProviderRuntimeState,
     SchemaMigration,
     TaskEvent,
 )
@@ -32,10 +33,11 @@ TASK_TABLES = {
     "discovered_asset_facts",
     "item_local_assets",
 }
+RUNTIME_TABLES = {ProviderRuntimeState.__tablename__}
 
 
 def test_schema_five_fresh_tables_are_empty_and_backup_v2_excludes_runtime() -> None:
-    assert CURRENT_SCHEMA_VERSION == 5
+    assert CURRENT_SCHEMA_VERSION == 6
     with SessionLocal() as db:
         names = set(inspect(db.get_bind()).get_table_names())
         assert TASK_TABLES.issubset(names)
@@ -46,10 +48,12 @@ def test_schema_five_fresh_tables_are_empty_and_backup_v2_excludes_runtime() -> 
     assert TASK_TABLES.isdisjoint(payload["tables"])
 
 
-def test_schema_four_to_five_is_empty_atomic_and_repeat_safe() -> None:
+def test_schema_four_to_six_is_empty_atomic_and_repeat_safe() -> None:
     bind = create_engine("sqlite:///:memory:", future=True)
     old_tables = [
-        table for table in Base.metadata.sorted_tables if table.name not in TASK_TABLES
+        table
+        for table in Base.metadata.sorted_tables
+        if table.name not in TASK_TABLES | RUNTIME_TABLES
     ]
     try:
         Base.metadata.create_all(bind=bind, tables=old_tables)
@@ -60,9 +64,9 @@ def test_schema_four_to_five_is_empty_atomic_and_repeat_safe() -> None:
             connection.execute(Item.__table__.insert().values(title="Preserved"))
         preview = preview_upgrade(bind, MIGRATION_REGISTRY)
         assert preview.can_upgrade
-        assert [(step.from_version, step.to_version) for step in preview.steps] == [(4, 5)]
+        assert [(step.from_version, step.to_version) for step in preview.steps] == [(4, 5), (5, 6)]
         result = apply_upgrade(bind, MIGRATION_REGISTRY, backup_confirmed=True)
-        assert result.to_version == 5
+        assert result.to_version == 6
         assert TASK_TABLES.issubset(inspect(bind).get_table_names())
         with Session(bind) as db:
             assert db.scalar(select(Item.title)) == "Preserved"
@@ -74,7 +78,7 @@ def test_schema_four_to_five_is_empty_atomic_and_repeat_safe() -> None:
         bind.dispose()
 
 
-def test_stable_schema_four_application_rejects_schema_five(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_stable_schema_four_application_rejects_schema_six(monkeypatch: pytest.MonkeyPatch) -> None:
     bind = create_engine("sqlite:///:memory:", future=True)
     try:
         initialize_database(bind)
@@ -83,7 +87,7 @@ def test_stable_schema_four_application_rejects_schema_five(monkeypatch: pytest.
             schema_version.initialize_database(bind)
         assert exc_info.value.code == "application_outdated"
         assert exc_info.value.status is not None
-        assert exc_info.value.status.database_version == 5
+        assert exc_info.value.status.database_version == 6
     finally:
         bind.dispose()
 

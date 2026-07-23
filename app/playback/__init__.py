@@ -2,6 +2,7 @@
 
 from app.playback.hls import (
     HlsManifest,
+    HlsRendition,
     HlsSegment,
     HlsVariant,
     PlaybackLine,
@@ -11,6 +12,7 @@ from app.playback.hls import (
 
 __all__ = [
     "HlsManifest",
+    "HlsRendition",
     "HlsSegment",
     "HlsVariant",
     "PlaybackLine",

@@ -72,6 +72,25 @@ def test_hls_encrypted_key_uri() -> None:
     assert manifest.key_uri == "https://cdn.example.invalid/key.bin"
 
 
+def test_hls_master_reports_audio_and_subtitle_renditions_without_fetching() -> None:
+    text = (
+        "#EXTM3U\n"
+        '#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="audio",NAME="Main",LANGUAGE="en",DEFAULT=YES,AUTOSELECT=YES,URI="audio/en.m3u8"\n'
+        '#EXT-X-MEDIA:TYPE=SUBTITLES,GROUP-ID="subs",NAME="English",LANGUAGE="en",DEFAULT=NO,AUTOSELECT=YES,URI="subs/en.m3u8"\n'
+        "#EXT-X-STREAM-INF:BANDWIDTH=800000,AUDIO=\"audio\",SUBTITLES=\"subs\"\n"
+        "video/low.m3u8\n"
+    )
+    manifest = parse_hls_manifest(
+        text,
+        base_url="https://cdn.example.invalid/master.m3u8",
+        approved_hosts={"cdn.example.invalid"},
+    )
+    assert manifest.audio_renditions[0].name == "Main"
+    assert manifest.audio_renditions[0].default is True
+    assert manifest.subtitle_renditions[0].url.endswith("/subs/en.m3u8")
+    assert manifest.to_dict()["subtitle_rendition_count"] == 1
+
+
 def test_parse_playback_lines_maccms_style() -> None:
     raw = (
         "HD$https://play.example.invalid/a.m3u8#"

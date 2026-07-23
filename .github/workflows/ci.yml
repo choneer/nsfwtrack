@@ -147,7 +147,7 @@ jobs:
               fi
             done
             test -s /app/data/nsfwtrack.db
-            python -c "import sqlite3; connection = sqlite3.connect(\"/app/data/nsfwtrack.db\"); assert connection.execute(\"SELECT MAX(version) FROM schema_migrations\").fetchone()[0] == 5; assert connection.execute(\"SELECT valid FROM media_index_state WHERE id = 1\").fetchone()[0] == 1; assert connection.execute(\"SELECT COUNT(*) FROM media_index_entries WHERE record_type = char(109,101,100,105,97)\").fetchone()[0] == 1"
+            python -c "import sqlite3; connection = sqlite3.connect(\"/app/data/nsfwtrack.db\"); assert connection.execute(\"SELECT MAX(version) FROM schema_migrations\").fetchone()[0] == 6; assert connection.execute(\"SELECT valid FROM media_index_state WHERE id = 1\").fetchone()[0] == 1; assert connection.execute(\"SELECT COUNT(*) FROM media_index_entries WHERE record_type = char(109,101,100,105,97)\").fetchone()[0] == 1"
           '
           docker compose -f "${COMPOSE_FILE}" -p "${COMPOSE_PROJECT_NAME}" exec -T nsfwtrack python - <<'PY'
           import http.cookiejar
@@ -174,6 +174,11 @@ jobs:
               assert response.status == 200
               assert "Traceback" not in body
               assert 'action="/source-search/search"' not in body
+          for path in ("/providers", "/diagnostics", "/cookiecloud", "/egress"):
+              with opener.open("http://127.0.0.1:8000" + path, timeout=5) as response:
+                  body = response.read().decode("utf-8")
+                  assert response.status == 200
+                  assert "Traceback" not in body
           PY
 
       - name: Recreate container and verify SQLite persistence
@@ -214,7 +219,7 @@ jobs:
             test -s /app/data/nsfwtrack.db
             python -c "import os, stat; from app.services.media_operation_lock import media_operation_lock, media_operation_lock_path; context = media_operation_lock(); handle = context.__enter__(); handle.verify(); context.__exit__(None, None, None); info = os.stat(media_operation_lock_path(), follow_symlinks=False); assert stat.S_ISREG(info.st_mode); assert stat.S_IMODE(info.st_mode) == 0o600; assert info.st_uid == os.geteuid() == 10001"
             python -c "from pathlib import Path; from app.database import SessionLocal; from app.services.media_index import get_media_index_status; from app.services.media_write_coordination import MediaFilesystemOutcome, MediaIndexCoordinationStatus, coordinate_media_mutation; db = SessionLocal(); coordinated = coordinate_media_mutation(db, source=\"post_upload\", operation=lambda: Path(\"/app/data/media/recreated.gif\").write_bytes(b\"GIF89a\\x01\\x00\\x01\\x00x;\"), classify_result=lambda _result: MediaFilesystemOutcome.FILESYSTEM_CHANGED_KNOWN, classify_error=lambda _error: MediaFilesystemOutcome.FILESYSTEM_OUTCOME_UNKNOWN); status = get_media_index_status(db); assert coordinated.index.status == MediaIndexCoordinationStatus.SYNCHRONIZED; assert status.usable; assert status.entry_count == 2; assert status.last_refresh_source == \"post_upload\"; db.close()"
-            python -c "import sqlite3; connection = sqlite3.connect(\"/app/data/nsfwtrack.db\"); assert connection.execute(\"SELECT MAX(version) FROM schema_migrations\").fetchone()[0] == 5; assert connection.execute(\"SELECT valid FROM media_index_state WHERE id = 1\").fetchone()[0] == 1; assert connection.execute(\"SELECT COUNT(*) FROM media_index_entries WHERE record_type = char(109,101,100,105,97)\").fetchone()[0] == 2"
+            python -c "import sqlite3; connection = sqlite3.connect(\"/app/data/nsfwtrack.db\"); assert connection.execute(\"SELECT MAX(version) FROM schema_migrations\").fetchone()[0] == 6; assert connection.execute(\"SELECT valid FROM media_index_state WHERE id = 1\").fetchone()[0] == 1; assert connection.execute(\"SELECT COUNT(*) FROM media_index_entries WHERE record_type = char(109,101,100,105,97)\").fetchone()[0] == 2"
           '
 
       - name: Wait for /login and verify security headers

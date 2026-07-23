@@ -1271,8 +1271,8 @@ def test_phase_invariants_and_production_catalogs_remain_unchanged() -> None:
     from app.services.exporter import BACKUP_SCHEMA_V2
     from app.services.schema_version import CURRENT_SCHEMA_VERSION
 
-    assert app.version == "1.5.0"
-    assert CURRENT_SCHEMA_VERSION == 5
+    assert app.version == "1.6.0"
+    assert CURRENT_SCHEMA_VERSION == 6
     assert BACKUP_SCHEMA_V2 == "nsfwtrack.backup.v2"
     assert PRODUCTION_ENDPOINT_REGISTRY.providers == ()
     assert PRODUCTION_SEARCH_PACKAGES == ()

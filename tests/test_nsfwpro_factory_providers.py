@@ -31,7 +31,7 @@ ZUIDAPI_FIXTURE_ROOT = ROOT / "tests" / "fixtures" / "zuidapi"
 
 
 def test_app_version_is_1_5_0() -> None:
-    assert create_app().version == "1.5.0"
+    assert create_app().version == "1.6.0"
 
 
 def test_nsfwpro_factory_keys_mapped_but_catalog_is_fail_closed() -> None:

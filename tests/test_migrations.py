@@ -131,7 +131,7 @@ def _step(
     )
 
 
-def test_production_registry_contains_continuous_schema_1_to_5_steps() -> None:
+def test_production_registry_contains_continuous_schema_1_to_6_steps() -> None:
     assert [
         (step.from_version, step.to_version, step.name)
         for step in MIGRATION_REGISTRY.steps
@@ -140,11 +140,12 @@ def test_production_registry_contains_continuous_schema_1_to_5_steps() -> None:
         (2, 3, "create_media_index"),
         (3, 4, "extend_item_sources_provider_metadata"),
         (4, 5, "create_persistent_operation_tasks"),
+        (5, 6, "create_provider_runtime_state"),
     ]
-    assert CURRENT_SCHEMA_VERSION == 5
+    assert CURRENT_SCHEMA_VERSION == 6
 
 
-def test_production_schema_1_to_5_upgrade_preserves_items(
+def test_production_schema_1_to_6_upgrade_preserves_items(
     isolated_engine: Engine,
 ) -> None:
     legacy_tables = [
@@ -154,7 +155,8 @@ def test_production_schema_1_to_5_upgrade_preserves_items(
         not in {
             "item_sources", "media_index_entries", "media_index_state",
             "operation_tasks", "task_events", "download_task_facts",
-            "source_check_facts", "discovered_asset_facts", "item_local_assets",
+                "source_check_facts", "discovered_asset_facts", "item_local_assets",
+                "provider_runtime_states",
         }
     ]
     Base.metadata.create_all(bind=isolated_engine, tables=legacy_tables)
@@ -167,11 +169,12 @@ def test_production_schema_1_to_5_upgrade_preserves_items(
     dry_run = preview_upgrade(isolated_engine, MIGRATION_REGISTRY)
     assert dry_run.can_upgrade
     assert dry_run.current_version == 1
-    assert dry_run.target_version == 5
+    assert dry_run.target_version == 6
     assert dry_run.steps[0].name == "create_item_sources"
     assert dry_run.steps[1].name == "create_media_index"
     assert dry_run.steps[2].name == "extend_item_sources_provider_metadata"
     assert dry_run.steps[3].name == "create_persistent_operation_tasks"
+    assert dry_run.steps[4].name == "create_provider_runtime_state"
     assert "item_sources" not in inspect(isolated_engine).get_table_names()
     assert "media_index_entries" not in inspect(isolated_engine).get_table_names()
 
@@ -182,23 +185,25 @@ def test_production_schema_1_to_5_upgrade_preserves_items(
     )
 
     assert result.from_version == 1
-    assert result.to_version == 5
+    assert result.to_version == 6
     assert result.applied_steps == (
         "create_item_sources",
         "create_media_index",
         "extend_item_sources_provider_metadata",
         "create_persistent_operation_tasks",
+        "create_provider_runtime_state",
     )
     assert "item_sources" in inspect(isolated_engine).get_table_names()
     assert "media_index_entries" in inspect(isolated_engine).get_table_names()
     assert "media_index_state" in inspect(isolated_engine).get_table_names()
     assert "operation_tasks" in inspect(isolated_engine).get_table_names()
+    assert "provider_runtime_states" in inspect(isolated_engine).get_table_names()
     with isolated_engine.connect() as connection:
         assert connection.scalar(select(Item.title)) == "Legacy item"
         latest_version = connection.scalar(
             select(SchemaMigration.version).order_by(SchemaMigration.version.desc())
         )
-        assert latest_version == 5
+        assert latest_version == 6
         assert connection.scalar(select(OperationTask.id)) is None
         assert connection.scalar(select(MediaIndexEntry.id)) is None
         state = connection.execute(
@@ -223,7 +228,7 @@ def test_production_schema_1_to_5_upgrade_preserves_items(
         assert source == (None, None, None, None)
 
 
-def test_production_schema_2_to_5_upgrade_preserves_business_data(
+def test_production_schema_2_to_6_upgrade_preserves_business_data(
     isolated_engine: Engine,
 ) -> None:
     schema_1_tables = [
@@ -233,7 +238,8 @@ def test_production_schema_2_to_5_upgrade_preserves_business_data(
         not in {
             "item_sources", "media_index_entries", "media_index_state",
             "operation_tasks", "task_events", "download_task_facts",
-            "source_check_facts", "discovered_asset_facts", "item_local_assets",
+                "source_check_facts", "discovered_asset_facts", "item_local_assets",
+                "provider_runtime_states",
         }
     ]
     Base.metadata.create_all(bind=isolated_engine, tables=schema_1_tables)
@@ -264,6 +270,7 @@ def test_production_schema_2_to_5_upgrade_preserves_business_data(
         (2, 3),
         (3, 4),
         (4, 5),
+        (5, 6),
     ]
     assert "media_index_entries" not in inspect(isolated_engine).get_table_names()
     result = apply_upgrade(
@@ -276,6 +283,7 @@ def test_production_schema_2_to_5_upgrade_preserves_business_data(
         "create_media_index",
         "extend_item_sources_provider_metadata",
         "create_persistent_operation_tasks",
+        "create_provider_runtime_state",
     )
     with isolated_engine.connect() as connection:
         assert connection.scalar(select(Item.title)) == "Schema 2 item"
@@ -286,7 +294,7 @@ def test_production_schema_2_to_5_upgrade_preserves_business_data(
             connection.execute(
                 select(SchemaMigration.version).order_by(SchemaMigration.version)
             ).scalars()
-        ) == [1, 2, 3, 4, 5]
+        ) == [1, 2, 3, 4, 5, 6]
 
 
 def test_production_schema_2_to_4_failure_rolls_back_tables_and_version(
@@ -605,6 +613,7 @@ def route_registry(monkeypatch: pytest.MonkeyPatch) -> Generator[MigrationRegist
             _step(2, 3, name="route-test-upgrade-3"),
             _step(3, 4, name="route-test-upgrade-4"),
             _step(4, 5, name="route-test-upgrade-5"),
+            _step(5, 6, name="route-test-upgrade-6"),
         )
     )
     monkeypatch.setattr(pages_router, "MIGRATION_REGISTRY", registry)
@@ -729,8 +738,8 @@ def test_standard_apply_requires_confirm_and_backup_then_uses_code_path(
         },
         follow_redirects=True,
     )
-    assert "显式升级到 5" in applied.text
-    assert _global_probe_and_versions() == (5, [0, 1, 2, 3, 4, 5])
+    assert "显式升级到 6" in applied.text
+    assert _global_probe_and_versions() == (6, [0, 1, 2, 3, 4, 5, 6])
     assert "items" in inspect(engine).get_table_names()
 
 
@@ -773,8 +782,8 @@ def test_strict_apply_requires_exact_confirm_text(
         },
         follow_redirects=True,
     )
-    assert "显式升级到 5" in applied.text
-    assert _global_probe_and_versions() == (5, [0, 1, 2, 3, 4, 5])
+    assert "显式升级到 6" in applied.text
+    assert _global_probe_and_versions() == (6, [0, 1, 2, 3, 4, 5, 6])
 
 
 def test_upgrade_page_copy_is_available_in_english(auth_client: TestClient) -> None:

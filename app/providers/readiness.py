@@ -16,7 +16,7 @@ from app.providers.javdb.session import SessionCookieError, load_javdb_session_c
 
 ReadinessMode = Literal["live_capable", "fixture_fallback", "not_configured"]
 
-# Default catalog keys (Application 1.5.0+); keep aligned with production_catalog.
+# Default catalog keys (Application 1.6.0+); keep aligned with production_catalog.
 DEFAULT_CATALOG_KEYS: tuple[str, ...] = (
     "javdb_metadata",
     "jiuse_vod",
@@ -126,7 +126,7 @@ def _inactive_provider(
 
 def build_catalog_readiness(
     *,
-    application_version: str = "1.5.0",
+    application_version: str = "1.6.0",
 ) -> CatalogReadinessSnapshot:
     """Pure readiness for default catalog keys (no network, no secrets)."""
 

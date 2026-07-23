@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}{{ t("diagnostics.title") }} - NSFWTrack{% endblock %}
+{% block content %}
+<div class="toolbar">
+  <div><h1>{{ t("diagnostics.title") }}</h1><p class="muted">{{ t("diagnostics.subtitle") }}</p></div>
+  <a class="button secondary" href="/api/diagnostics/report">{{ t("diagnostics.export") }}</a>
+</div>
+<section class="grid">
+  <article class="card"><h2>{{ t("diagnostics.application") }}</h2><p>NSFWTrack {{ snapshot.application_version }}</p><p>{{ t("diagnostics.schema") }}: {{ snapshot.schema.database_version }} / {{ snapshot.schema.application_version }} · {{ snapshot.schema.state }}</p><p>{{ t("diagnostics.backup") }}: {{ snapshot.backup_format }}</p></article>
+  <article class="card"><h2>{{ t("diagnostics.cookiecloud") }}</h2><p>{{ t("diagnostics.available") }}: {{ snapshot.cookiecloud.available }}</p><p>{{ t("diagnostics.missing") }}: {{ snapshot.cookiecloud.missing }}</p><p>{{ t("diagnostics.expired") }}: {{ snapshot.cookiecloud.expired }}</p></article>
+  <article class="card"><h2>{{ t("diagnostics.media") }}</h2><p>{{ t("diagnostics.valid") }}: {{ snapshot.media_index.valid }}</p><p>{{ t("diagnostics.entries") }}: {{ snapshot.media_index.entry_count }}</p><p>{{ t("diagnostics.reason") }}: {{ snapshot.media_index.stale_reason }}</p></article>
+</section>
+<section class="card stack"><h2>{{ t("diagnostics.providers") }}</h2>{% for provider in snapshot.providers %}<div class="detail-meta-grid"><strong>{{ provider.provider_key }}</strong><span>{{ t("providers.status_" + provider.runtime_status) }}</span><span>{{ t("providers.configuration_status_" + provider.configuration_status) }}</span><span>{{ t("providers.session_status_" + provider.session_status) }}</span>{% if provider.last_error_code %}<span class="validation-severity-error">{{ t("providers.error_" + provider.last_error_code) }}</span>{% endif %}</div>{% endfor %}<a class="button secondary" href="/providers">{{ t("providers.title") }}</a></section>
+<section class="card stack"><h2>{{ t("diagnostics.tasks") }}</h2>{% for state, count in snapshot.tasks.items() %}<p>{{ state }}: {{ count }}</p>{% else %}<p class="muted">{{ t("diagnostics.none") }}</p>{% endfor %}</section>
+<p class="muted">{{ t("diagnostics.redacted") }}</p>
+{% endblock %}

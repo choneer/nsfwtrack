@@ -17,6 +17,7 @@ from app.models import (
     MediaIndexEntry,
     MediaIndexState,
     OperationTask,
+    ProviderRuntimeState,
     SchemaMigration,
     SourceCheckFact,
     TaskEvent,
@@ -49,8 +50,6 @@ TASK_SCHEMA_TABLES = (
     DiscoveredAssetFact,
     ItemLocalAsset,
 )
-
-
 @dataclass(frozen=True)
 class MigrationCheck:
     passed: bool
@@ -570,6 +569,7 @@ def _media_index_precheck(connection: Connection) -> MigrationCheck:
             MediaIndexEntry.__tablename__,
             MediaIndexState.__tablename__,
             *(model.__tablename__ for model in TASK_SCHEMA_TABLES),
+            ProviderRuntimeState.__tablename__,
         }
     )
     missing = sorted(table.name for table in source_tables if table.name not in table_names)
@@ -993,6 +993,76 @@ def _persistent_tasks_postcheck(connection: Connection) -> MigrationCheck:
     return MigrationCheck(True, "Schema 5 persistent task structure is valid and empty")
 
 
+def _provider_runtime_preview(connection: Connection) -> MigrationPreview:
+    del connection
+    return MigrationPreview(
+        changes=(
+            "create non-secret provider runtime configuration and health state",
+            "initialize the runtime registry empty; reviewed Provider rows are seeded only by application startup",
+            "leave existing items, sources, task facts, media index, and backups unchanged",
+        ),
+        warnings=(
+            "back up the Schema 5 database before applying",
+            "Schema 6 runtime state stores no Cookie, token, password, key, or Provider response",
+            "the migration performs no Provider, CookieCloud, egress, or media request",
+        ),
+    )
+
+
+def _provider_runtime_precheck(connection: Connection) -> MigrationCheck:
+    try:
+        if _read_database_version(connection) != 5:
+            return MigrationCheck(False, "database is not at Schema 5")
+    except MigrationError:
+        return MigrationCheck(False, "Schema 5 version record is unavailable")
+    inspector = inspect(connection)
+    table_names = set(inspector.get_table_names())
+    if ProviderRuntimeState.__tablename__ in table_names:
+        return MigrationCheck(False, "provider runtime state table already exists")
+    required_tasks = {model.__tablename__ for model in TASK_SCHEMA_TABLES}
+    if not required_tasks.issubset(table_names):
+        return MigrationCheck(False, "Schema 5 persistent task tables are incomplete")
+    return MigrationCheck(True, "Schema 5 is ready for provider runtime state")
+
+
+def _provider_runtime_apply(connection: Connection) -> None:
+    ProviderRuntimeState.__table__.create(bind=connection)
+
+
+def _provider_runtime_postcheck(connection: Connection) -> MigrationCheck:
+    inspector = inspect(connection)
+    if ProviderRuntimeState.__tablename__ not in inspector.get_table_names():
+        return MigrationCheck(False, "provider runtime state table was not created")
+    expected_columns = {column.name for column in ProviderRuntimeState.__table__.columns}
+    actual_columns = {
+        column["name"]
+        for column in inspector.get_columns(ProviderRuntimeState.__tablename__)
+    }
+    if actual_columns != expected_columns:
+        return MigrationCheck(False, "provider runtime state columns are invalid")
+    checks = {
+        constraint.get("name")
+        for constraint in inspector.get_check_constraints(ProviderRuntimeState.__tablename__)
+    }
+    if not {
+        "ck_provider_runtime_key",
+        "ck_provider_runtime_status",
+        "ck_provider_runtime_configuration_status",
+        "ck_provider_runtime_session_status",
+        "ck_provider_runtime_configuration_version",
+        "ck_provider_runtime_optimistic_version",
+    }.issubset(checks):
+        return MigrationCheck(False, "provider runtime state constraints are incomplete")
+    count = connection.exec_driver_sql(
+        'SELECT count(*) FROM "provider_runtime_states"'
+    ).scalar_one()
+    if int(count) != 0:
+        return MigrationCheck(False, "provider runtime state was not initialized empty")
+    if _read_database_version(connection) != 6:
+        return MigrationCheck(False, "Schema 6 version record is missing")
+    return MigrationCheck(True, "Schema 6 provider runtime structure is valid and empty")
+
+
 MIGRATION_REGISTRY = MigrationRegistry(
     (
         MigrationStep(
@@ -1030,6 +1100,15 @@ MIGRATION_REGISTRY = MigrationRegistry(
             apply=_persistent_tasks_apply,
             precheck=_persistent_tasks_precheck,
             postcheck=_persistent_tasks_postcheck,
+        ),
+        MigrationStep(
+            from_version=5,
+            to_version=6,
+            name="create_provider_runtime_state",
+            preview=_provider_runtime_preview,
+            apply=_provider_runtime_apply,
+            precheck=_provider_runtime_precheck,
+            postcheck=_provider_runtime_postcheck,
         ),
     )
 )

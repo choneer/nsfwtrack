@@ -2,6 +2,43 @@
 
 ## Unreleased
 
+### Added
+
+- **Phase 7 runtime workflow**: Schema 6 `provider_runtime_states` migration
+  with atomic Schema 5 → 6 rollback behavior, non-secret configuration/session
+  facts, optimistic versioning, and code-owned runtime definitions.
+- Authenticated bilingual `/providers` and `/providers/{key}` management pages
+  for configuration, egress profile, enable/disable, local readiness health
+  check, and stable-error clearing. GET paths do not call Providers.
+- Per-Provider CookieCloud session availability/update state and safe local
+  Cookie deletion; imports refresh runtime state but never auto-enable a
+  Provider or return Cookie values/pathnames.
+- `/diagnostics` and its no-store redacted JSON export covering Provider,
+  CookieCloud, egress policy, Schema, task, media-index, backup, and version
+  facts.
+- Offline HLS management UI plus audio/subtitle rendition parsing and optional
+  redacted local ItemLocalAsset association. No manifest, key, or media segment
+  is downloaded.
+
+### Changed
+
+- Application development head is `1.6.0`; Schema is `6`. The latest stable
+  GitHub Release remains `v1.5.0`; no `v1.6.0` tag, Release, or production image
+  is created.
+- Source Check task detail now renders actual local old values beside proposed
+  values before selective signed update confirmation.
+
+### Validation
+
+- Added Schema 5 → 6 atomic rollback, Provider runtime optimistic-concurrency,
+  Cookie file boundary, diagnostics redaction, and HLS audio/subtitle coverage.
+- Local gates passed: `1547` pytest tests, dependency consistency, compileall,
+  diff check, and an isolated two-lifecycle production Docker smoke. The image
+  contains no `tests/`; login plus `/source-search`, `/providers`,
+  `/diagnostics`, `/cookiecloud`, and `/egress` succeeded, Schema 6/runtime
+  rows persisted across recreation, and temporary Docker resources were
+  removed. Manual acceptance is not started and N100 remains undeployed.
+
 ## [1.5.0] - 2026-07-23
 
 ### Added

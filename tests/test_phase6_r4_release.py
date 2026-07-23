@@ -32,8 +32,8 @@ def _route_matrix(router: object) -> dict[str, set[str]]:
 
 
 def test_v1_5_0_runtime_cookiecloud_hls_and_catalogs() -> None:
-    assert app.version == "1.5.0"
-    assert CURRENT_SCHEMA_VERSION == 5
+    assert app.version == "1.6.0"
+    assert CURRENT_SCHEMA_VERSION == 6
     assert BACKUP_SCHEMA_V1 == "nsfwtrack.backup.v1"
     assert BACKUP_SCHEMA_V2 == "nsfwtrack.backup.v2"
     assert PRODUCTION_ENDPOINT_REGISTRY.providers == ()
@@ -103,11 +103,13 @@ def test_synthetic_adapters_remain_tests_only() -> None:
     assert offenders == []
 
 
-def test_readme_records_v1_5_0_as_current_application() -> None:
+def test_readme_records_v1_6_0_development_head_and_v1_5_0_stable_release() -> None:
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
-    assert "Current application version: `1.5.0` (Schema `5`)" in readme
-    assert "Application = 1.5.0" in readme
-    assert "Schema = 5" in readme
+    assert "Application development head: `1.6.0` (Schema `6`)" in readme
+    assert "Application development head = 1.6.0" in readme
+    assert "Schema = 6" in readme
+    assert "Phase 7 = complete" in readme
+    assert "Manual acceptance = not started" in readme
     assert "Latest stable release = v1.5.0" in readme
     assert "Latest GitHub Release = v1.5.0" in readme
     assert "Production catalogs = empty" in readme
@@ -127,19 +129,16 @@ def test_readme_records_v1_5_0_as_current_application() -> None:
         assert f"https://github.com/{repository}" in readme
 
 
-def test_formal_release_status_is_consistent_across_current_documents() -> None:
+def test_phase7_status_is_consistent_across_current_documents() -> None:
     for relative_path in ("README.md", "PLAN.md", "TASKS.md", "REVIEW.md"):
         text = (ROOT / relative_path).read_text(encoding="utf-8")
         for marker in (
-            "Application = 1.5.0",
-            "Schema = 5",
+            "Application development head = 1.6.0",
+            "Schema = 6",
+            "Phase 7 = complete",
+            "Manual acceptance = not started",
             "Latest stable release = v1.5.0",
             "Latest GitHub Release = v1.5.0",
-            "Phase 6-R3 = frozen",
-            "Cloud RC diff review = PASS",
-            "Hermes acceptance = PASS",
-            "Phase 6-R4 = released",
-            "Production catalogs = empty",
             "Published image = none",
             "N100 = not deployed",
         ):
@@ -148,11 +147,7 @@ def test_formal_release_status_is_consistent_across_current_documents() -> None:
 
 def test_changelog_archives_v1_5_0_and_preserves_history() -> None:
     changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
-    assert changelog.startswith(
-        "# Changelog / 变更记录\n\n"
-        "## Unreleased\n\n"
-        "## [1.5.0] - 2026-07-23\n\n"
-    )
+    assert changelog.startswith("# Changelog / 变更记录\n\n## Unreleased\n")
     assert "## [1.4.1]" not in changelog
     assert "## [1.4.0]" not in changelog
     assert "## [1.3.0] - 2026-07-21\n" in changelog

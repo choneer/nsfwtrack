@@ -2,6 +2,48 @@
 
 每次开发提交代码后，逐项检查：
 
+## Phase 7 — v1.6.0 Complete Runtime Workflow
+
+```text
+Application development head = 1.6.0
+Schema = 6
+Phase 7 = complete
+Manual acceptance = not started
+Latest stable release = v1.5.0
+Latest GitHub Release = v1.5.0
+Published image = none
+N100 = not deployed
+```
+
+- [x] **Schema 6** — `provider_runtime_states` only persists non-secret local
+  runtime facts. Fresh Schema 6 and Schema 5 → 6 use code-owned migration
+  preview/precheck/apply/postcheck; forced postcheck failure rolls back the
+  table and version record atomically.
+- [x] **Provider runtime** — authenticated `/providers` pages provide local
+  configuration, egress profile, enablement, optimistic version fencing,
+  local health readiness, last stable error, and clear-error controls. Fixture
+  providers cannot be enabled; GET paths perform no Provider request or write.
+- [x] **CookieCloud / diagnostics** — Cookie values, passwords, complete
+  external identities, and local file paths are excluded from pages/reports.
+  Import updates session state but never enables a Provider; deletion only
+  targets a code-owned regular local Cookie file. `/diagnostics` exports a
+  no-store redacted report without an external probe.
+- [x] **Existing local closures** — signed Search/Detail Preview/Confirm and
+  ItemSource Check/selective-update retain their independent-session outcome
+  proof, provenance, replay guard, and local-user-field protections; task
+  details now render actual old/proposed values.
+- [x] **HLS** — inspection stays offline, validates approved hosts, reports
+  variant/audio/subtitle rendition diagnostics and optional DB association
+  without reading a media file or downloading any segment/key.
+- [x] **Safety status** — no Hermes run, no v1.6.0 Tag/Release, no production
+  image, no N100 deployment, and manual acceptance has not started.
+- [x] **Local validation** — `1547 passed` full pytest, `pip check`, compileall,
+  and diff check passed. An isolated two-lifecycle production Docker smoke
+  verified non-root/read-only/cap-drop runtime, image exclusion of `tests/`,
+  login and all required Phase 7 pages, Schema 6/runtime-state persistence,
+  and cleanup of the temporary image/container/volume. Exact main CI remains
+  the post-push delivery gate.
+
 ## Application 1.5.0 Formal Release (2026-07-23)
 
 ```text

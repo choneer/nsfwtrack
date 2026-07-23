@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}{{ t("providers.title") }} - NSFWTrack{% endblock %}
+{% block content %}
+<div class="toolbar">
+  <div>
+    <h1>{{ t("providers.title") }}</h1>
+    <p class="muted">{{ t("providers.subtitle") }}</p>
+  </div>
+  <a class="button secondary" href="/diagnostics">{{ t("providers.open_diagnostics") }}</a>
+</div>
+<section class="grid">
+  {% for provider in providers %}
+    <article class="card stack">
+      <div class="toolbar">
+        <div><h2>{{ provider.display_name }}</h2><p class="muted">{{ provider.provider_key }} · {{ provider.scope }}</p></div>
+        <span class="pill">{{ t("providers.status_" + provider.runtime_status) }}</span>
+      </div>
+      <p>{{ t("providers.configuration") }}: {{ t("providers.configuration_status_" + provider.configuration_status) }}</p>
+      <p>{{ t("providers.session") }}: {{ t("providers.session_status_" + provider.session_status) }}</p>
+      {% if provider.last_error_code %}<p class="validation-severity-error">{{ t("providers.error") }}: {{ t("providers.error_" + provider.last_error_code) }}</p>{% endif %}
+      <a class="button secondary" href="/providers/{{ provider.provider_key }}">{{ t("providers.manage") }}</a>
+    </article>
+  {% endfor %}
+</section>
+{% endblock %}

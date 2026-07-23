@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}{{ provider.display_name }} - NSFWTrack{% endblock %}
+{% block content %}
+<div class="toolbar">
+  <div><h1>{{ provider.display_name }}</h1><p class="muted">{{ provider.provider_key }} · {{ provider.scope }}</p></div>
+  <a class="button secondary" href="/providers">{{ t("providers.back") }}</a>
+</div>
+<section class="card stack">
+  <div class="detail-meta-grid">
+    <div class="detail-field"><span class="muted">{{ t("providers.runtime") }}</span><strong>{{ t("providers.status_" + provider.runtime_status) }}</strong></div>
+    <div class="detail-field"><span class="muted">{{ t("providers.configuration") }}</span><strong>{{ t("providers.configuration_status_" + provider.configuration_status) }}</strong></div>
+    <div class="detail-field"><span class="muted">{{ t("providers.session") }}</span><strong>{{ t("providers.session_status_" + provider.session_status) }}</strong></div>
+    <div class="detail-field"><span class="muted">{{ t("providers.egress_policy") }}</span><strong>{{ provider.egress_policy }}</strong></div>
+  </div>
+  {% if provider.last_error_code %}<p class="validation-severity-error">{{ t("providers.error") }}: {{ t("providers.error_" + provider.last_error_code) }}</p>{% endif %}
+  <p class="muted">{{ t("providers.health_hint") }}</p>
+</section>
+{% if provider.manageable %}
+<section class="card stack">
+  <h2>{{ t("providers.configuration") }}</h2>
+  <form class="stack" method="post" action="/providers/{{ provider.provider_key }}/configuration">
+    <input type="hidden" name="optimistic_version" value="{{ provider.optimistic_version }}">
+    <label>{{ t("providers.egress_profile") }}
+      <select name="egress_profile">{% for profile in egress_profiles %}<option value="{{ profile }}" {% if profile == provider.egress_profile %}selected{% endif %}>{{ profile }}</option>{% endfor %}</select>
+    </label>
+    <button type="submit">{{ t("providers.save") }}</button>
+  </form>
+  <div class="actions">
+    <form method="post" action="/providers/{{ provider.provider_key }}/{{ 'disable' if provider.enabled else 'enable' }}"><input type="hidden" name="optimistic_version" value="{{ provider.optimistic_version }}"><button class="{{ 'danger' if provider.enabled else '' }}" type="submit">{{ t("providers.disable" if provider.enabled else "providers.enable") }}</button></form>
+    <form method="post" action="/providers/{{ provider.provider_key }}/health-check"><input type="hidden" name="optimistic_version" value="{{ provider.optimistic_version }}"><button class="secondary" type="submit">{{ t("providers.health_check") }}</button></form>
+    {% if provider.last_error_code %}<form method="post" action="/providers/{{ provider.provider_key }}/clear-error"><input type="hidden" name="optimistic_version" value="{{ provider.optimistic_version }}"><button class="secondary" type="submit">{{ t("providers.clear_error") }}</button></form>{% endif %}
+  </div>
+  {% if provider.cookie_required %}<p><a class="button secondary" href="/cookiecloud">{{ t("providers.manage_cookie") }}</a></p>{% endif %}
+{% else %}
+  <p class="muted">{{ t("providers.fixture_only") }}</p>
+{% endif %}
+</section>
+{% endblock %}

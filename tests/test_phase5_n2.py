@@ -32,12 +32,12 @@ from app.services.schema_version import (
 
 
 SCHEMA_MATRIX = {
-    "empty": "fresh Schema 5",
-    "schema_1": "1->2->3->4->5",
-    "schema_2": "2->3->4->5",
-    "schema_3": "3->4->5",
-    "schema_4": "4->5",
-    "schema_6_plus": "application_outdated",
+    "empty": "fresh Schema 6",
+    "schema_1": "1->2->3->4->5->6",
+    "schema_2": "2->3->4->5->6",
+    "schema_3": "3->4->5->6",
+    "schema_4": "4->5->6",
+    "schema_7_plus": "application_outdated",
     "failure": "full-chain rollback",
 }
 
@@ -103,6 +103,7 @@ def _prepare_schema(bind: Engine, version: int) -> None:
             "item_sources", "media_index_entries", "media_index_state",
             "operation_tasks", "task_events", "download_task_facts",
             "source_check_facts", "discovered_asset_facts", "item_local_assets",
+            "provider_runtime_states",
         }
     ]
     Base.metadata.create_all(bind=bind, tables=schema_1_tables)
@@ -139,18 +140,18 @@ def _provider_index_sql(bind: Engine) -> str:
 
 
 @pytest.mark.parametrize("start_version", [1, 2, 3])
-def test_schema_matrix_upgrades_continuously_to_five(start_version: int) -> None:
+def test_schema_matrix_upgrades_continuously_to_six(start_version: int) -> None:
     bind = create_engine("sqlite:///:memory:", future=True)
     try:
         _prepare_schema(bind, start_version)
         dry_run = preview_upgrade(bind, MIGRATION_REGISTRY)
         assert dry_run.can_upgrade
         assert dry_run.current_version == start_version
-        assert dry_run.target_version == 5
+        assert dry_run.target_version == 6
 
         result = apply_upgrade(bind, MIGRATION_REGISTRY, backup_confirmed=True)
 
-        assert result.to_version == 5
+        assert result.to_version == 6
         columns = {
             column["name"] for column in inspect(bind).get_columns("item_sources")
         }
@@ -168,7 +169,7 @@ def test_schema_matrix_upgrades_continuously_to_five(start_version: int) -> None
                 select(SchemaMigration.version)
                 .order_by(SchemaMigration.version.desc())
                 .limit(1)
-            ) == 5
+            ) == 6
             if start_version > 1:
                 row = connection.exec_driver_sql(
                     "SELECT provider_key, external_id, last_checked_at, metadata_hash "
@@ -183,7 +184,7 @@ def test_fresh_schema_five_has_partial_unique_identity_index() -> None:
     bind = create_engine("sqlite:///:memory:", future=True)
     try:
         status = initialize_database(bind)
-        assert status.database_version == CURRENT_SCHEMA_VERSION == 5
+        assert status.database_version == CURRENT_SCHEMA_VERSION == 6
         assert "WHERE provider_key IS NOT NULL AND external_id IS NOT NULL" in (
             _provider_index_sql(bind)
         )
@@ -341,7 +342,7 @@ def test_future_schema_is_rejected_as_application_outdated() -> None:
         with bind.begin() as connection:
             connection.execute(
                 SchemaMigration.__table__.insert().values(
-                    version=6,
+                    version=7,
                     name="future_schema",
                 )
             )
@@ -351,7 +352,7 @@ def test_future_schema_is_rejected_as_application_outdated() -> None:
 
         assert exc_info.value.code == "application_outdated"
         assert exc_info.value.status is not None
-        assert exc_info.value.status.database_version == 6
+        assert exc_info.value.status.database_version == 7
     finally:
         bind.dispose()
 
@@ -793,7 +794,7 @@ def test_migration_backup_preview_and_restore_do_not_call_outbound_client(
             bind,
             MIGRATION_REGISTRY,
             backup_confirmed=True,
-        ).to_version == 5
+        ).to_version == 6
     finally:
         bind.dispose()
     payload = _minimal_payload(sources=[_provider_source()])

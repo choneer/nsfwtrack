@@ -4,11 +4,13 @@ NSFWTrack is an NSFW-first, local-first, privacy-first, single-user,
 self-hosted application for collecting content, aggregating sources, managing
 local media, tracking state, and supporting personalized discovery.
 
-Current application version: `1.5.0` (Schema `5`).
+Application development head: `1.6.0` (Schema `6`).
 
 ```text
-Application = 1.5.0
-Schema = 5
+Application development head = 1.6.0
+Schema = 6
+Phase 7 = complete
+Manual acceptance = not started
 Latest stable release = v1.5.0
 Latest GitHub Release = v1.5.0
 Published image = none
@@ -17,12 +19,14 @@ N100 = not deployed
 
 Latest Release: [NSFWTrack v1.5.0](https://github.com/choneer/nsfwtrack/releases/tag/v1.5.0).
 
-Current status: `Application 1.5.0 adds CookieCloud session import (+ /cookiecloud UI),
-catalog readiness (/api/providers/readiness), HLS/playback-line inspect (no segment fetch),
-and reviewed Provider package identities. Endpoint, search, and acquisition catalogs
-remain empty and fail closed: fixtures are test-only and no live Provider fetcher is
-activated. Phase 6 runtime remains complete/frozen on Schema 5. Feature development
-for v1.5.0 is complete. No VIP/login bypass. N100 is not deployed`.
+Current status: `Phase 7 completes the Application 1.6.0 / Schema 6 local runtime
+workflow: persisted Provider Runtime Registry and bilingual management pages,
+CookieCloud per-Provider session state, a redacted unified diagnostics export, offline
+HLS variant/audio/subtitle inspection, and the existing signed local intake and manual
+source-update closures. Endpoint, search, and acquisition production catalogs remain
+empty and fail closed: fixtures are test-only and no live Provider fetcher is activated.
+Manual acceptance has not started. No VIP/login bypass, published image, or N100
+deployment is included.`
 
 Phase 6 = complete/frozen. Phase 6-R3 = frozen. Cloud RC diff review = PASS.
 Hermes acceptance = PASS. Phase 6-R4 = released. Production catalogs = empty.
@@ -43,10 +47,30 @@ model, but it is secondary and does not drive Provider selection, the data
 model, or the roadmap. NSFWTrack is not being renamed to MediaTrack and is not
 becoming a general film/television catalog.
 
-The current Application and latest stable GitHub Release are `v1.5.0` (Schema
-`5`). Provider packages are code-owned and fail-closed. Importing an
-operator-provided cookie does not activate JavDB; a separately reviewed
-outbound runtime is still required. No production image is published.
+The Application development head is `v1.6.0` (Schema `6`); the latest stable
+GitHub Release remains `v1.5.0`. Provider packages are code-owned and
+fail-closed. Importing an operator-provided cookie does not enable a Provider
+or authorize an unreviewed outbound request. No production image is published,
+N100 is not deployed, and manual acceptance has not started.
+
+## Phase 7 — v1.6.0 complete runtime workflow
+
+Schema 6 persists only non-secret Provider runtime facts: enablement, local
+configuration/session readiness, approved egress profile, health timestamps,
+stable error code, and optimistic versions. `/providers` and provider detail
+pages use authenticated POST/PRG controls; GET routes make no Provider request.
+CookieCloud records per-Provider session availability and update time without
+displaying Cookie values or local file paths, and importing a session never
+enables a Provider.
+
+`/diagnostics` combines redacted Provider, CookieCloud, egress policy, database
+Schema, task, media-index, backup-format, application-version facts and exports
+a no-store JSON report. HLS inspection remains offline and parses manifests,
+variants, audio/subtitle renditions, and optional ItemLocalAsset association
+without downloading a manifest, key, or segment. The existing Source Search →
+Detail → signed Preview/Confirm → local Item/ItemSource provenance path and
+ItemSource Check → field diff → signed selective Confirm path retain their
+independent-session post-state proof and local-user-field protections.
 
 ## Phase 6 — v1.3.0 formally released bundle
 

@@ -9,7 +9,10 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from app.auth import require_api_auth
+from app.database import get_db
+from app.models import ItemLocalAsset
 from app.playback.hls import PlaybackError, parse_hls_manifest, parse_playback_lines
+from sqlalchemy.orm import Session
 
 
 router = APIRouter(prefix="/api/playback", tags=["playback"])
@@ -20,6 +23,7 @@ class HlsInspectBody(BaseModel):
     base_url: str = Field(..., min_length=8, max_length=2048)
     approved_hosts: list[str] = Field(..., min_length=1, max_length=32)
     max_segments: int = Field(default=10000, ge=1, le=20000)
+    local_asset_id: int | None = Field(default=None, ge=1)
 
 
 class PlaybackLinesBody(BaseModel):
@@ -30,7 +34,7 @@ class PlaybackLinesBody(BaseModel):
 
 
 @router.post("/hls/inspect", dependencies=[Depends(require_api_auth)])
-def hls_inspect(body: HlsInspectBody) -> JSONResponse:
+def hls_inspect(body: HlsInspectBody, db: Session = Depends(get_db)) -> JSONResponse:
     try:
         manifest = parse_hls_manifest(
             body.text,
@@ -39,7 +43,11 @@ def hls_inspect(body: HlsInspectBody) -> JSONResponse:
             max_segments=body.max_segments,
         )
         return JSONResponse(
-            {"ok": True, "manifest": manifest.to_dict()},
+            {
+                "ok": True,
+                "manifest": manifest.to_dict(),
+                "local_media_association": _local_media_association(db, body.local_asset_id),
+            },
             headers={"Cache-Control": "no-store"},
         )
     except PlaybackError as exc:
@@ -50,6 +58,26 @@ def hls_inspect(body: HlsInspectBody) -> JSONResponse:
         )
 
 
+def _local_media_association(
+    db: Session, asset_id: int | None
+) -> dict[str, int | str | bool | None]:
+    """Report a DB association without reading a local file or exposing its path."""
+
+    if asset_id is None:
+        return {"requested": False, "found": False, "asset_id": None}
+    asset = db.get(ItemLocalAsset, asset_id)
+    if asset is None:
+        return {"requested": True, "found": False, "asset_id": asset_id}
+    return {
+        "requested": True,
+        "found": True,
+        "asset_id": asset.id,
+        "item_id": asset.item_id,
+        "source_id": asset.source_id,
+        "mime_type": asset.mime_type,
+        "size_bytes": asset.size_bytes,
+        "sha256": asset.sha256,
+    }
 @router.post("/lines/parse", dependencies=[Depends(require_api_auth)])
 def playback_lines_parse(body: PlaybackLinesBody) -> JSONResponse:
     try:

@@ -12,8 +12,12 @@ from app.database import SessionLocal, init_db
 from app.errors import install_exception_handlers
 from app.request_context import RequestContextMiddleware, configure_request_logging
 from app.cookiecloud.router import router as cookiecloud_router
+from app.diagnostics.router import router as diagnostics_router
 from app.egress.router import router as egress_router
 from app.playback.router import router as playback_router
+from app.playback.ui import router as playback_ui_router
+from app.provider_runtime.router import router as provider_runtime_router
+from app.provider_runtime.service import ProviderRuntimeRegistry
 from app.routers import (
     auth,
     backup,
@@ -39,6 +43,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.recovered_task_count = 0
     if app.state.schema_status.state == SCHEMA_STATUS_CURRENT:
         with SessionLocal() as db:
+            ProviderRuntimeRegistry(db).sync_known_states()
             app.state.recovered_task_count = PersistentTaskService(
                 db,
                 max_concurrency=get_settings().task_max_concurrency,
@@ -52,7 +57,7 @@ def create_app() -> FastAPI:
     configure_request_logging()
     app = FastAPI(
         title="NSFWTrack",
-        version="1.5.0",
+        version="1.6.0",
         lifespan=lifespan,
         docs_url=None,
         redoc_url=None,
@@ -84,6 +89,9 @@ def create_app() -> FastAPI:
     app.include_router(egress_router)
     app.include_router(cookiecloud_router)
     app.include_router(playback_router)
+    app.include_router(playback_ui_router)
+    app.include_router(provider_runtime_router)
+    app.include_router(diagnostics_router)
     app.include_router(pages.router)
     return app
 

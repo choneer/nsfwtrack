@@ -28,13 +28,13 @@
   <h2>{{ t("tasks.diff") }}</h2>
   <form method="post" action="/tasks/{{ task.id }}/update-preview" class="stack">
     {% for field, old, new in [
-      ("item.summary", "", check_fact.proposed_summary),
-      ("item.release_date", "", check_fact.proposed_release_date),
-      ("item_source.title", "", check_fact.proposed_source_title),
-      ("item_source.last_checked_at", "", check_fact.proposed_checked_at),
-      ("item_source.metadata_hash", "", check_fact.proposed_metadata_hash)
+      ("item.summary", item.summary if item else none, check_fact.proposed_summary),
+      ("item.release_date", item.release_date if item else none, check_fact.proposed_release_date),
+      ("item_source.title", source.title if source else none, check_fact.proposed_source_title),
+      ("item_source.last_checked_at", source.last_checked_at if source else none, check_fact.proposed_checked_at),
+      ("item_source.metadata_hash", source.metadata_hash if source else none, check_fact.proposed_metadata_hash)
     ] %}
-      <label class="card"><input type="checkbox" name="selected_fields" value="{{ field }}" checked> <strong>{{ t("update_field." + field) }}</strong><br><span class="muted">{{ t("tasks.proposed") }}:</span> {{ new if new is not none else t("common.none") }}</label>
+      <label class="card"><input type="checkbox" name="selected_fields" value="{{ field }}" checked> <strong>{{ t("update_field." + field) }}</strong><br><span class="muted">{{ t("tasks.old") }}:</span> {{ old if old is not none else t("common.none") }}<br><span class="muted">{{ t("tasks.proposed") }}:</span> {{ new if new is not none else t("common.none") }}</label>
     {% endfor %}
     <button type="submit">{{ t("tasks.preview_update") }}</button>
   </form>

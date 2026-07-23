@@ -46,22 +46,43 @@
 - [x] latest stable 与 Latest Release 同步为 `v1.3.0`
 - [x] Phase 6-R4 = released；未发布镜像、未部署 N100、未再次调用 Hermes
 
-## 当前状态（Application 1.5.0 正式发布）
+## Phase 7 — v1.6.0 Complete Runtime Workflow（已完成）
 
 ```text
-Application = 1.5.0
-Schema = 5
-Feature development = complete
+Application development head = 1.6.0
+Schema = 6
+Phase 7 = complete
+Manual acceptance = not started
 Latest stable release = v1.5.0
 Latest GitHub Release = v1.5.0
 Published image = none
 N100 = not deployed
 ```
 
-Phase 6 任务/下载/Task Center complete/frozen。v1.5.0 完成 CookieCloud、egress、
-HLS 与 nsfwpro/CopyManga Provider identity/package 的审核实现；Endpoint、Search
-与 Acquisition 默认目录仍为空，不因 Cookie 或测试 fixture 自动激活 Provider。
-无 VIP 绕过。Published image = none，N100 = not deployed。
+- [x] Schema 6：Provider Runtime 状态表、fresh Schema 6、Schema 5 → 6
+  preview/apply/postcheck 与事务 rollback；Backup v2 / v1-v2 restore 兼容。
+- [x] Provider Runtime Registry：列出、配置、启用/禁用、配置检查、健康检查、
+  最近脱敏错误清除、出口策略与 Cookie/Session readiness，使用 optimistic version。
+- [x] 双语管理 UI：登录保护的 `/providers`、`/providers/{provider_key}`，所有写入
+  为 POST/PRG，GET 零网络/零写入且移动端可用。
+- [x] CookieCloud：按 Provider 的安全 Session 状态、更新时间/过期状态、删除与
+  运行时刷新；导入不自动启用 Provider。
+- [x] `/diagnostics`：统一 Provider/CookieCloud/Egress/DB/Task/Media/Version
+  状态和脱敏 JSON 导出；单个 Provider 错误不扩散。
+- [x] 复核既有 Search → Detail → signed Preview/Confirm → Item/ItemSource/
+  provenance 与 ItemSource Check → Diff → selective Preview/Confirm 路径；保持
+  用户拥有字段不被覆盖，Runtime UI 不会隐式扩大 fail-closed catalog 的网络权限。
+- [x] HLS/playback 解析诊断、variant/audio/subtitle 与本地关联的测试/UI 完整。
+- [x] 本地自动化：Schema、runtime、UI、CookieCloud、Egress、diagnostics、入库、
+  来源更新、HLS、错误恢复和 zh/en；`1547` pytest、依赖/编译/diff 与隔离 Docker
+  双生命周期均通过。
+- 推送后交付门禁：精确 main commit 的 `test` 与 `Docker production smoke`
+  均成功后才完成云端交接；不创建 v1.6.0 Tag/Release。
+
+Phase 6 任务/下载/Task Center 保持 complete/frozen。v1.5.0 的 CookieCloud、egress、
+HLS 与 nsfwpro/CopyManga Provider identity/package 是 Phase 7 的受控基础；不因
+Cookie 或测试 fixture 自动激活 Provider。无 VIP 绕过，不发布镜像、不部署 N100，
+不创建 v1.6.0 Tag/Release，人工验收未开始。
 
 历史（v1.3.0 及更早）：N1–N5C 与 Phase 6-R4 已完成；v1.3.0 时 production
 catalogs 为空。

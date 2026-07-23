@@ -34,12 +34,25 @@ class HlsVariant:
 
 
 @dataclass(frozen=True, slots=True)
+class HlsRendition:
+    kind: str
+    group_id: str | None
+    name: str | None
+    language: str | None
+    default: bool
+    autoselect: bool
+    url: str | None
+
+
+@dataclass(frozen=True, slots=True)
 class HlsManifest:
     is_master: bool
     encrypted: bool
     key_uri: str | None
     segments: tuple[HlsSegment, ...]
     variants: tuple[HlsVariant, ...]
+    audio_renditions: tuple[HlsRendition, ...]
+    subtitle_renditions: tuple[HlsRendition, ...]
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -48,8 +61,12 @@ class HlsManifest:
             "key_uri": self.key_uri,
             "segments": [asdict(s) for s in self.segments],
             "variants": [asdict(v) for v in self.variants],
+            "audio_renditions": [asdict(item) for item in self.audio_renditions],
+            "subtitle_renditions": [asdict(item) for item in self.subtitle_renditions],
             "segment_count": len(self.segments),
             "variant_count": len(self.variants),
+            "audio_rendition_count": len(self.audio_renditions),
+            "subtitle_rendition_count": len(self.subtitle_renditions),
         }
 
 
@@ -128,6 +145,8 @@ def parse_hls_manifest(
     lines = [line.strip() for line in text.splitlines()]
     segments: list[HlsSegment] = []
     variants: list[HlsVariant] = []
+    audio_renditions: list[HlsRendition] = []
+    subtitle_renditions: list[HlsRendition] = []
     encrypted = False
     key_uri: str | None = None
     duration: float | None = None
@@ -163,6 +182,25 @@ def parse_hls_manifest(
             variant_bandwidth = _int_attribute(line, "BANDWIDTH")
             variant_resolution = _attribute(line, "RESOLUTION")
             continue
+        if line.startswith("#EXT-X-MEDIA:"):
+            kind = (_attribute(line, "TYPE") or "").upper()
+            if kind not in {"AUDIO", "SUBTITLES"}:
+                continue
+            uri = _attribute(line, "URI")
+            rendition = HlsRendition(
+                kind=kind.lower(),
+                group_id=_attribute(line, "GROUP-ID"),
+                name=_attribute(line, "NAME"),
+                language=_attribute(line, "LANGUAGE"),
+                default=_bool_attribute(line, "DEFAULT"),
+                autoselect=_bool_attribute(line, "AUTOSELECT"),
+                url=_approved_url(uri, base_url, allowed) if uri else None,
+            )
+            if kind == "AUDIO":
+                audio_renditions.append(rendition)
+            else:
+                subtitle_renditions.append(rendition)
+            continue
         if line.startswith("#"):
             continue
 
@@ -179,8 +217,17 @@ def parse_hls_manifest(
             sequence += 1
             duration = None
 
+    if expect_variant:
+        raise PlaybackError("HLS variant URI is missing")
+
     return HlsManifest(
-        bool(variants), encrypted, key_uri, tuple(segments), tuple(variants)
+        bool(variants),
+        encrypted,
+        key_uri,
+        tuple(segments),
+        tuple(variants),
+        tuple(audio_renditions),
+        tuple(subtitle_renditions),
     )
 
 
@@ -236,3 +283,14 @@ def _int_attribute(line: str, name: str) -> int | None:
         return int(value)
     except ValueError as exc:
         raise PlaybackError(f"HLS {name} is invalid") from exc
+
+
+def _bool_attribute(line: str, name: str) -> bool:
+    value = _attribute(line, name)
+    if value is None:
+        return False
+    if value.upper() == "YES":
+        return True
+    if value.upper() == "NO":
+        return False
+    raise PlaybackError(f"HLS {name} is invalid")
