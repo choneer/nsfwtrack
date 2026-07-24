@@ -154,7 +154,7 @@ def test_provider_and_diagnostics_pages_are_authenticated_and_redacted(
     assert report.status_code == 200
     assert report.headers["cache-control"] == "no-store"
     payload = report.json()["report"]
-    assert payload["application_version"] == "1.6.0"
+    assert payload["application_version"] == "1.7.0"
     assert payload["schema"]["application_version"] == 6
     assert all("path" not in entry for entry in payload["providers"])
     assert "cookie=" not in report.text.lower()

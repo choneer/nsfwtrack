@@ -27,7 +27,7 @@ from app.config import get_settings
 from app.database import get_db
 from app.flash import add_flash, pop_flash_messages
 from app.i18n import get_language, set_language, status_translator, translate, translator
-from app.models import Creator, Item, Tag
+from app.models import Creator, Item, ItemLocalAsset, OperationTask, Tag
 from app.schemas import CreatorCreate, ItemCreate, ItemUpdate, StateCreate, TagCreate
 from app.services.catalog import (
     create_item,
@@ -4801,6 +4801,21 @@ def item_detail_page(
     db: Session = Depends(get_db),
 ) -> HTMLResponse:
     item = get_item_or_404(db, item_id)
+    local_assets = tuple(
+        db.scalars(
+            select(ItemLocalAsset)
+            .where(ItemLocalAsset.item_id == item.id)
+            .order_by(ItemLocalAsset.created_at.desc(), ItemLocalAsset.id.desc())
+        ).all()
+    )
+    item_tasks = tuple(
+        db.scalars(
+            select(OperationTask)
+            .where(OperationTask.item_id == item.id)
+            .order_by(OperationTask.created_at.desc(), OperationTask.id.desc())
+            .limit(20)
+        ).all()
+    )
     return_list_url = _safe_next_url(request.query_params.get("next"))
     return templates.TemplateResponse(
         request,
@@ -4810,6 +4825,8 @@ def item_detail_page(
             db=db,
             item=item,
             item_sources=list_item_sources(db, item.id),
+            local_assets=local_assets,
+            item_tasks=item_tasks,
             sources_available=source_feature_available(db),
             item_activity=get_item_activity(db, item.id),
             extra=parse_extra(item.extra),

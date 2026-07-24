@@ -31,6 +31,7 @@ from app.routers import (
     tags,
     tasks,
 )
+from app.local_workflow import router as local_workflow_router
 from app.security import require_same_origin
 from app.security_headers import SecurityHeadersMiddleware
 from app.services.schema_version import SCHEMA_STATUS_CURRENT
@@ -57,7 +58,7 @@ def create_app() -> FastAPI:
     configure_request_logging()
     app = FastAPI(
         title="NSFWTrack",
-        version="1.6.0",
+        version="1.7.0",
         lifespan=lifespan,
         docs_url=None,
         redoc_url=None,
@@ -86,6 +87,7 @@ def create_app() -> FastAPI:
     app.include_router(backup.router)
     app.include_router(source_search.router)
     app.include_router(tasks.router)
+    app.include_router(local_workflow_router.router)
     app.include_router(egress_router)
     app.include_router(cookiecloud_router)
     app.include_router(playback_router)

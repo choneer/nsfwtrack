@@ -141,7 +141,29 @@ _DEFINITIONS: tuple[ProviderRuntimeDefinition, ...] = (
     ),
 )
 _BY_KEY = {definition.provider_key: definition for definition in _DEFINITIONS}
-_EGRESS_PROFILES = frozenset({"default", "direct", "proxy_pool"})
+_EGRESS_PROFILES = ("default", "direct", "proxy_pool")
+_SUPPORTED_EGRESS_PROFILES = frozenset({"default", "direct"})
+
+
+def egress_profile_statuses() -> tuple[dict[str, object], ...]:
+    """Code-owned transport capability facts; does not read config or use network."""
+
+    return tuple(
+        {
+            "name": profile,
+            "supported": profile in _SUPPORTED_EGRESS_PROFILES,
+            "error_code": (
+                None
+                if profile in _SUPPORTED_EGRESS_PROFILES
+                else "egress_profile_unavailable"
+            ),
+        }
+        for profile in _EGRESS_PROFILES
+    )
+
+
+def egress_profile_supported(profile: str) -> bool:
+    return profile in _SUPPORTED_EGRESS_PROFILES
 
 
 def provider_definitions() -> tuple[ProviderRuntimeDefinition, ...]:
@@ -225,7 +247,11 @@ def _view(definition: ProviderRuntimeDefinition, state: ProviderRuntimeState | N
         egress_policy=definition.egress_policy,
         enabled=state.enabled,
         runtime_status=state.runtime_status,
-        configuration_status=state.configuration_status,
+        configuration_status=(
+            state.configuration_status
+            if egress_profile_supported(state.egress_profile)
+            else "invalid"
+        ),
         egress_profile=state.egress_profile,
         session_status=effective_session,
         session_updated_at=state.session_updated_at,
@@ -334,7 +360,7 @@ class ProviderRuntimeRegistry:
         definition, state = self._state_for_write(provider_key)
         if not definition.manageable:
             raise ProviderRuntimeError(ProviderRuntimeErrorCode.FIXTURE_PROVIDER)
-        if egress_profile not in _EGRESS_PROFILES:
+        if not egress_profile_supported(egress_profile):
             raise ProviderRuntimeError(ProviderRuntimeErrorCode.INVALID_EGRESS_PROFILE)
         updated = self._mutate(
             state,
@@ -391,6 +417,8 @@ class ProviderRuntimeRegistry:
             blocker = "provider_disabled"
         elif state.configuration_status != "valid":
             blocker = "configuration_required"
+        elif not egress_profile_supported(state.egress_profile):
+            blocker = "egress_profile_unavailable"
         elif definition.cookie_required and session_status != "available":
             blocker = "session_expired" if session_status == "expired" else "session_missing"
         return ProviderRuntimeHealthPlan(
@@ -428,6 +456,8 @@ class ProviderRuntimeRegistry:
             local_blocker = "provider_disabled"
         elif state.configuration_status != "valid":
             local_blocker = "configuration_required"
+        elif not egress_profile_supported(state.egress_profile):
+            local_blocker = "egress_profile_unavailable"
         elif definition.cookie_required and session_status != "available":
             local_blocker = (
                 "session_expired" if session_status == "expired" else "session_missing"

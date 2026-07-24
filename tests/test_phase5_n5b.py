@@ -942,7 +942,7 @@ def test_back_to_get_does_not_repeat_search_or_detail(
 
 
 def test_phase5_n5b_preserves_version_schema_backup_and_empty_production_catalogs() -> None:
-    assert app.version == "1.6.0"
+    assert app.version == "1.7.0"
     assert CURRENT_SCHEMA_VERSION == 6
     assert BACKUP_SCHEMA_V2 == "nsfwtrack.backup.v2"
     assert PRODUCTION_ENDPOINT_REGISTRY.providers == ()

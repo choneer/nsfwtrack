@@ -121,7 +121,7 @@ def test_readiness_api_authenticated_hides_secrets(
     assert r.status_code == 200
     body = r.json()
     assert body["ok"] is True
-    assert body["application_version"] == "1.6.0"
+    assert body["application_version"] == "1.7.0"
     assert any(p["provider_key"] == "javdb_metadata" for p in body["providers"])
     assert "fake-secret" not in r.text
     assert "session=" not in r.text

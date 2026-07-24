@@ -143,3 +143,40 @@ def test_playback_api_lines_parse(auth_client) -> None:
     body = r.json()
     assert body["count"] == 1
     assert body["lines"][0]["label"] == "A"
+
+
+def test_hls_playlist_statistics_and_line_numbered_format_errors() -> None:
+    manifest = parse_hls_manifest(
+        "#EXTM3U\n#EXT-X-VERSION:3\n#EXT-X-TARGETDURATION:6\n"
+        "#EXTINF:4.0,\na.ts\n#EXTINF:6.0,\nb.ts\n#EXT-X-ENDLIST\n",
+        base_url="https://cdn.example.invalid/media/list.m3u8",
+        approved_hosts={"cdn.example.invalid"},
+    )
+    report = manifest.to_dict()
+    assert report["version"] == 3
+    assert report["target_duration_seconds"] == 6.0
+    assert report["total_duration_seconds"] == 10.0
+    assert report["average_segment_duration_seconds"] == 5.0
+    assert report["end_list"] is True
+    with pytest.raises(PlaybackError, match=r"line 2"):
+        parse_hls_manifest(
+            "#EXTM3U\n#EXTINF:not-a-number,\na.ts\n",
+            base_url="https://cdn.example.invalid/list.m3u8",
+            approved_hosts={"cdn.example.invalid"},
+        )
+
+
+def test_hls_rejects_dangling_duration_and_mixed_master_media() -> None:
+    with pytest.raises(PlaybackError, match="segment URI is missing"):
+        parse_hls_manifest(
+            "#EXTM3U\n#EXTINF:2.0,\n",
+            base_url="https://cdn.example.invalid/list.m3u8",
+            approved_hosts={"cdn.example.invalid"},
+        )
+    with pytest.raises(PlaybackError, match="cannot be mixed"):
+        parse_hls_manifest(
+            "#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=10\nv.m3u8\n"
+            "#EXTINF:2.0,\ns.ts\n",
+            base_url="https://cdn.example.invalid/list.m3u8",
+            approved_hosts={"cdn.example.invalid"},
+        )

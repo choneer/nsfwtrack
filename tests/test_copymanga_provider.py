@@ -102,4 +102,4 @@ def test_acquisition_package_builds() -> None:
 
 
 def test_app_version_1_5_0() -> None:
-    assert create_app().version == "1.6.0"
+    assert create_app().version == "1.7.0"

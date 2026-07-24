@@ -24,8 +24,9 @@
   <form class="stack" method="post" action="/providers/{{ provider.provider_key }}/configuration">
     <input type="hidden" name="optimistic_version" value="{{ provider.optimistic_version }}">
     <label>{{ t("providers.egress_profile") }}
-      <select name="egress_profile">{% for profile in egress_profiles %}<option value="{{ profile }}" {% if profile == provider.egress_profile %}selected{% endif %}>{{ profile }}</option>{% endfor %}</select>
+      <select name="egress_profile">{% for profile in egress_profiles %}<option value="{{ profile.name }}" {% if profile.name == provider.egress_profile %}selected{% endif %} {% if not profile.supported %}disabled{% endif %}>{{ profile.name }} · {{ t("providers.egress_supported" if profile.supported else "providers.egress_unavailable") }}</option>{% endfor %}</select>
     </label>
+    <p class="muted">{{ t("providers.proxy_pool_transport_note") }}</p>
     <button type="submit">{{ t("providers.save") }}</button>
   </form>
   <div class="actions">

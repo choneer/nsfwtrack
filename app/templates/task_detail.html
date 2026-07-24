@@ -7,7 +7,7 @@
 </div>
 <section class="card stack">
   <div class="detail-meta-grid">
-    <div class="detail-field"><span class="muted">{{ t("tasks.state") }}</span><strong>{{ t("task_state." + task.state) }}</strong></div>
+    <div class="detail-field"><span class="muted">{{ t("tasks.state") }}</span><strong>{{ t("task_state." + effective_state) }}</strong></div>
     <div class="detail-field"><span class="muted">{{ t("tasks.stage") }}</span><strong>{{ task.stage }}</strong></div>
     <div class="detail-field"><span class="muted">{{ t("tasks.version") }}</span><strong>{{ task.version }}</strong></div>
     <div class="detail-field"><span class="muted">{{ t("tasks.provider") }}</span><strong>{{ task.provider_key or t("common.none") }}</strong></div>
@@ -15,14 +15,21 @@
   <p>{{ t("tasks.progress") }}: {{ task.bytes_processed }}{% if task.expected_bytes is not none %} / {{ task.expected_bytes }}{% endif %}</p>
   {% if task.error_code %}<p class="validation-severity-error">{{ t("tasks.error_code") }}: {{ task.error_code }}</p>{% endif %}
   <div class="actions">
-    {% if task.task_type == "asset_download" and task.state == "queued" %}<form method="post" action="/tasks/{{ task.id }}/start"><button type="submit">{{ t("tasks.start") }}</button></form>{% endif %}
+    {% if task.state == "queued" and (task.task_type == "asset_download" or task.provider_key in ["local_integrity","local_index","local_recovery"]) %}<form method="post" action="/tasks/{{ task.id }}/start"><button type="submit">{{ t("tasks.start") }}</button></form>{% endif %}
     {% if task.state == "running" %}<form method="post" action="/tasks/{{ task.id }}/pause"><button class="secondary" type="submit">{{ t("tasks.pause") }}</button></form>{% endif %}
-    {% if task.task_type == "asset_download" and task.state == "paused" %}<form method="post" action="/tasks/{{ task.id }}/resume"><button type="submit">{{ t("tasks.resume") }}</button></form>{% endif %}
+    {% if task.state == "paused" and (task.task_type == "asset_download" or task.provider_key in ["local_integrity","local_index","local_recovery"]) %}<form method="post" action="/tasks/{{ task.id }}/resume"><button type="submit">{{ t("tasks.resume") }}</button></form>{% endif %}
     {% if task.state in ["planned","awaiting_confirmation","queued","running","paused","cancelling","blocked","failed"] %}<form method="post" action="/tasks/{{ task.id }}/cancel"><button class="danger" type="submit">{{ t("tasks.cancel") }}</button></form>{% endif %}
     {% if task.state in ["failed","blocked"] %}<form method="post" action="/tasks/{{ task.id }}/retry"><button class="secondary" type="submit">{{ t("tasks.retry") }}</button></form>{% endif %}
     {% if task.state in ["cancelled","succeeded","failed"] %}<form method="post" action="/tasks/{{ task.id }}/delete-history"><button class="secondary" type="submit">{{ t("tasks.delete_history") }}</button></form>{% endif %}
   </div>
 </section>
+{% if local_asset %}
+<section class="card">
+  <h2>{{ t("local.heading") }}</h2>
+  <p>{{ local_asset.relative_path }} · {{ local_asset.mime_type }} · {{ local_asset.size_bytes }} bytes</p>
+  <p class="muted">SHA-256: <code>{{ local_asset.sha256 }}</code></p>
+</section>
+{% endif %}
 {% if check_fact %}
 <section class="card stack">
   <h2>{{ t("tasks.diff") }}</h2>

@@ -4,61 +4,51 @@
 
 ### Added
 
-- **Phase 7 corrective runtime activation**: production Search/Detail packages
-  are rebuilt from persisted Provider Runtime state. Only code-owned,
-  enabled, configuration-valid, session-ready (when required), health-checked
-  PRODUCTION Providers enter the catalog; TEST_FIXTURE Providers never enter.
-- Shared pinned outbound support for approved HTML session operations plus
-  code-owned fixed query parameters. JavDB, ZuidAPI, and CopyManga package
-  construction remains fixed-host, fixed-path, timeout/size/content-type
-  bounded, redirect-denying, and free of ambient proxy/Cookie sharing.
-- Explicit Provider health-check POST now performs one lightweight controlled
-  runtime operation and stores only stable redacted outcomes. Disable removes
-  a Provider from the runtime catalog immediately; initialization failures are
-  isolated per Provider.
-- **Phase 7 runtime workflow**: Schema 6 `provider_runtime_states` migration
-  with atomic Schema 5 → 6 rollback behavior, non-secret configuration/session
-  facts, optimistic versioning, and code-owned runtime definitions.
-- Authenticated bilingual `/providers` and `/providers/{key}` management pages
-  now show enablement, catalog membership, Search/Detail availability, recent
-  success, configuration/session state, controlled runtime health, and stable
-  error clearing. GET paths do not call Providers.
-- Per-Provider CookieCloud session availability/update state and safe local
-  Cookie deletion; imports refresh runtime state but never auto-enable a
-  Provider or return Cookie values/pathnames.
-- `/diagnostics` and its no-store redacted JSON export covering Provider,
-  CookieCloud, egress policy, Schema, task, media-index, backup, and version
-  facts.
-- Offline HLS management UI plus audio/subtitle rendition parsing and optional
-  redacted local ItemLocalAsset association. No manifest, key, or media segment
-  is downloaded.
+- **Phase 8 local resource workflow**: authenticated single-file and directory
+  Preview performs no writes, records stable file identity/MIME/size/SHA-256
+  facts, detects duplicates, and emits a short-lived Session-bound signed plan.
+  Confirm reopens and revalidates every fact before idempotently creating
+  queued tasks with optional ItemSource provenance.
+- Executable local import, integrity, media-index refresh, and recovery tasks
+  reuse persistent leases, events, cancellation/retry/restart rules, the
+  media-operation lock, and media-index coordination. A fresh independent
+  Session must prove the task, exact ItemLocalAsset, file and index facts before
+  the final `succeeded / durable_verified` state.
+- Item and Task Center pages now show local assets, related work, stable stages,
+  progress, and effective interrupted/retryable states, with explicit POST/PRG
+  controls and complete Chinese/English labels.
+- Offline HLS inspection now reports playlist version, target/total/average
+  duration and end-list status, validates malformed and mixed playlists with
+  line-oriented errors, and retains variants, audio, subtitles, encryption,
+  relative URIs, and redacted local association without any fetch.
 
 ### Changed
 
-- `/source-search` now constructs its production service from the current
-  Provider Runtime state and returns explicit redacted disabled/configuration/
-  session/health prerequisite errors. The existing signed Preview/Confirm and
-  independent verification path is unchanged.
-- Application development head is `1.6.0`; Schema is `6`. The latest stable
-  GitHub Release remains `v1.5.0`; no `v1.6.0` tag, Release, or production image
-  is created.
-- Source Check task detail now renders actual local old values beside proposed
-  values before selective signed update confirmation.
+- Provider/egress configuration now reports actual transport capability:
+  `default` and `direct` are supported; `proxy_pool` is visible in diagnostics
+  but cannot be selected or reported ready until it can preserve pinned
+  outbound guarantees. Existing persisted unsupported profiles project invalid
+  and require reconfiguration/health check.
+- Diagnostics adds Provider/egress consistency, effective interrupted and
+  retryable task counts, linked local-asset count, pending recovery count, and
+  current media-index usability without performing network activity on GET.
+- Application development head is `1.7.0`; Schema remains `6`. The latest stable
+  GitHub Release remains `v1.5.0`; no `v1.7.0` tag, Release, production image,
+  Hermes run, manual acceptance, or N100 deployment is included.
 
 ### Validation
 
-- Added synthetic MockTransport runtime-activation coverage for catalog
-  inclusion/exclusion, disabled removal, fixture exclusion, initialization
-  isolation, runtime Search/Detail, signed Preview/Confirm provenance,
-  health success/timeout/redaction, and restart persistence.
-- Added Schema 5 → 6 atomic rollback, Provider runtime optimistic-concurrency,
-  Cookie file boundary, diagnostics redaction, and HLS audio/subtitle coverage.
-- Local gates passed: `1552` pytest tests, dependency consistency, compileall,
-  diff check, and an isolated two-lifecycle production Docker smoke. The image
-  contains no `tests/`; login plus `/source-search`, `/providers`,
-  `/diagnostics`, `/cookiecloud`, and `/egress` succeeded, Schema 6/runtime
-  rows persisted across recreation, and temporary Docker resources were
-  removed. Manual acceptance is not started and N100 remains undeployed.
+- Added synthetic local-file/directory Preview/Confirm, traversal/symlink,
+  duplicate/fingerprint, independent verification failure, retry, restart,
+  index/recovery, UI/diagnostic redaction, proxy capability, HLS statistics and
+  malformed-input coverage. Existing atomic write, ENOSPC, coordination,
+  acquisition fencing, and restart suites remain green.
+- Local gates passed: `1565` pytest tests, dependency consistency, compileall,
+  and diff check. An isolated named-volume production Docker two-lifecycle
+  smoke proved Application 1.7.0 / Schema 6, image exclusion of `tests/`,
+  authenticated required pages, local import, task/link/index persistence,
+  restart interruption and explicit recovery; all smoke resources were removed.
+  Exact-commit Actions evidence is recorded in `REVIEW.md` after push.
 
 ## [1.5.0] - 2026-07-23
 

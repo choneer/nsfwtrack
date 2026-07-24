@@ -4,11 +4,12 @@ NSFWTrack is an NSFW-first, local-first, privacy-first, single-user,
 self-hosted application for collecting content, aggregating sources, managing
 local media, tracking state, and supporting personalized discovery.
 
-Application development head: `1.6.0` (Schema `6`).
+Application development head: `1.7.0` (Schema `6`).
 
 ```text
-Application development head = 1.6.0
+Application development head = 1.7.0
 Schema = 6
+Phase 8 = complete
 Phase 7 = complete
 Phase 7 corrective = complete
 Provider Runtime activation = closed
@@ -21,13 +22,12 @@ N100 = not deployed
 
 Latest Release: [NSFWTrack v1.5.0](https://github.com/choneer/nsfwtrack/releases/tag/v1.5.0).
 
-Current status: `Phase 7 corrective is complete. The Application 1.6.0 / Schema 6
-Provider Runtime now builds the current production Search/Detail catalog from
-code-owned, enabled, valid, health-checked Provider state. TEST_FIXTURE Providers are
-always excluded; GET/startup/background paths make no Provider request; and Search →
-Detail → signed Preview/Confirm → Item/ItemSource/provenance remains explicit and
-transactionally verified. Manual acceptance has not started. No VIP/login bypass,
-published image, or N100 deployment is included.`
+Current status: `Phase 8 is complete. Application 1.7.0 / Schema 6 adds signed,
+zero-write local-file and directory Preview → Confirm, executable import/integrity/
+index/recovery tasks, independent-session durable verification, richer offline HLS
+diagnostics, and consistent Provider/egress readiness. Phase 7 remains complete;
+manual acceptance has not started. No VIP/login bypass, published image, or N100
+deployment is included.`
 
 Historical Phase 6 evidence: Phase 6 = complete/frozen; Phase 6-R3 = frozen;
 Cloud RC diff review and Hermes acceptance = PASS; and Phase 6-R4 = released.
@@ -55,11 +55,42 @@ model, but it is secondary and does not drive Provider selection, the data
 model, or the roadmap. NSFWTrack is not being renamed to MediaTrack and is not
 becoming a general film/television catalog.
 
-The Application development head is `v1.6.0` (Schema `6`); the latest stable
+The Application development head is `v1.7.0` (Schema `6`); the latest stable
 GitHub Release remains `v1.5.0`. Provider packages are code-owned and
 fail-closed. Importing an operator-provided cookie does not enable a Provider
 or authorize an unreviewed outbound request. No production image is published,
 N100 is not deployed, and manual acceptance has not started.
+
+## Phase 8 — v1.7.0 local media and task workflow complete
+
+Items now show their sources, linked local assets, and recent tasks. A single
+logical `/media/...` file or directory can be previewed without database writes;
+the Session-bound signed confirmation revalidates file identity, size, MIME,
+container signature, and SHA-256 before creating idempotent queued tasks.
+Execution is always explicit. Local import, integrity check, index refresh, and
+recovery tasks reuse the existing task transitions, leases, event history,
+media-operation lock, and media-index coordinator.
+
+An import is not marked `succeeded / durable_verified` until a fresh independent
+database Session proves the exact task, single `ItemLocalAsset`, provenance,
+file identity/hash/size, and usable matching index entry. Post-write states that
+cannot be proved become `outcome_unknown`; pre-write validation failures remain
+safely retryable. Restarted work is presented as interrupted without inventing
+new Schema values, and duplicate active/global maintenance work is guarded.
+
+Provider configuration now distinguishes the three named profiles from actual
+transport support: `default` and `direct` are supported, while `proxy_pool`
+remains visible but unavailable because the controlled pinned transport cannot
+yet preserve its safety guarantees through that profile. Configuration changes
+still invalidate health readiness, and failures remain isolated by Provider.
+Offline HLS inspection adds version, target/total/average duration, end-list
+status, relative-URI handling, encryption/rendition facts, and line-oriented
+format errors without fetching any remote resource.
+
+`/diagnostics` adds effective interrupted/retryable task counts, linked local
+asset and pending-recovery facts, media-index usability, and Provider/egress
+consistency. Its GET and JSON export remain local-only, bounded, no-store, and
+redacted. Schema remains `6`; the latest stable Release remains `v1.5.0`.
 
 ## Phase 7 corrective — v1.6.0 Provider Runtime activation complete
 

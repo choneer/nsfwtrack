@@ -12,8 +12,9 @@
 当前应用版本与开发阶段：
 
 ```text
-Application development head = 1.6.0
+Application development head = 1.7.0
 Schema = 6
+Phase 8 = complete
 Phase 7 = complete
 Phase 7 corrective = complete
 Provider Runtime activation = closed
@@ -24,16 +25,31 @@ Published image = none
 N100 = not deployed
 ```
 
-Application `1.5.0` 已发布；Application `1.6.0` / Schema `6` 的 Phase 7
-corrective 已完成。该阶段以既有 signed Preview/Confirm、本地写入独立验证、
-CookieCloud、egress、HLS 与任务系统为基础，增加持久 Provider Runtime
-Registry、运行时管理页、统一诊断和完整的运行时状态/错误恢复视图。当前
-production Search/Detail catalog 由代码内置、已启用、配置有效、会话就绪且
-健康检查成功的 Runtime 状态动态构建；fixture 永不进入，禁用立即移除，Cookie
-导入不会自动启用 Provider。无 VIP 绕过，不发布镜像、不部署 N100。
+Application `1.5.0` 已发布；Application `1.7.0` / Schema `6` 的 Phase 8
+已完成。现有 Provider Runtime 与 signed Preview/Confirm 基础上新增本地单文件/
+目录资源关联、导入/完整性/索引/恢复任务、独立 Session 最终状态证明、HLS 统计
+与统一诊断。所有文件访问保持媒体根内的 descriptor/no-follow 边界；Preview
+零写入，Confirm 与执行均显式且幂等。Phase 7 仍为 complete。无 VIP 绕过，
+不发布镜像、不部署 N100。
 
-最新稳定版本与 GitHub Release 仍为 `v1.5.0`；`1.6.0` 仅为开发头，不创建
+最新稳定版本与 GitHub Release 仍为 `v1.5.0`；`1.7.0` 仅为开发头，不创建
 Tag 或 Release。
+
+### Phase 8 — v1.7.0 Local Media and Task Workflow（已完成）
+
+- Item/ItemSource → 本地资源 Preview → signed Confirm → queued Task →
+  ItemLocalAsset → 完整性/索引 → 独立 Session durable verification 闭环。
+- 单文件和目录导入、重复检测、文件指纹/MIME/容器基础校验、来源 provenance、
+  traversal/symlink 防护，复用 media lock、index 和 write coordination。
+- 本地导入、完整性、索引刷新、恢复均为可执行持久任务；取消、重试、重启中断、
+  幂等、事件与稳定错误保持真实，不留占位任务。
+- `proxy_pool` 配置诊断与实际受控传输能力一致：可见但当前不可用，不误报 ready；
+  default/direct 保持支持，Provider 失败隔离和配置失效门禁不变。
+- HLS 增加统计、相对 URI、错误行定位和本地资产关联；全程离线。
+- `/diagnostics` 增加 interrupted/retryable、本地资产、待恢复与 egress 一致性；
+  GET 不探测网络，JSON 脱敏。
+- Application `1.7.0`，Schema 保持 `6`；人工验收未开始，不调用 Hermes，
+  不创建 Tag/Release，不发布镜像，不部署 N100。
 
 ### Phase 7 corrective — v1.6.0 Provider Runtime Activation（已完成）
 

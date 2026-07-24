@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}{{ t("local.preview_title") }} · NSFWTrack{% endblock %}
+{% block content %}
+<section class="card">
+  <h1>{{ t("local.preview_title") }}</h1>
+  <p class="muted">{{ t("local.preview_zero_write") }}</p>
+  <dl class="diagnostic-grid">
+    <div><dt>{{ t("local.item") }}</dt><dd>#{{ preview.plan.item_id }}</dd></div>
+    <div><dt>{{ t("local.file_count") }}</dt><dd>{{ preview.plan.files|length }}</dd></div>
+    <div><dt>{{ t("local.duplicates") }}</dt><dd>{{ preview.duplicates|length }}</dd></div>
+  </dl>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>{{ t("local.file") }}</th><th>{{ t("local.mime") }}</th><th>{{ t("local.size") }}</th><th>SHA-256</th></tr></thead>
+      <tbody>
+      {% for file in preview.plan.files %}
+        <tr>
+          <td>{{ file.relative_path }}</td>
+          <td>{{ file.mime_type }}</td>
+          <td>{{ file.size_bytes }}</td>
+          <td><code>{{ file.sha256[:12] }}…</code></td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <form action="/items/local-media/confirm" method="post">
+    <input type="hidden" name="token" value="{{ token }}">
+    <input type="hidden" name="confirmation" value="confirm">
+    <button type="submit">{{ t("local.confirm") }}</button>
+  </form>
+</section>
+{% endblock %}

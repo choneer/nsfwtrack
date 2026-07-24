@@ -2,6 +2,51 @@
 
 每次开发提交代码后，逐项检查：
 
+## Phase 8 — v1.7.0 Local Media and Task Workflow
+
+```text
+Application development head = 1.7.0
+Schema = 6
+Phase 8 = complete
+Phase 7 = complete
+Manual acceptance = not started
+Latest stable release = v1.5.0
+Latest GitHub Release = v1.5.0
+Published image = none
+N100 = not deployed
+```
+
+- [x] **Local Preview/Confirm** — media-root-only single/directory Preview makes
+  zero writes; signed Confirm revalidates item/source and exact descriptor-based
+  file identity/MIME/size/SHA facts before idempotently creating queued tasks.
+- [x] **Executable task closure** — import, integrity, index, and recovery work
+  all execute through persisted transitions, leases, stages, events, retry,
+  cancel and conservative restart recovery; no placeholder task exists.
+- [x] **Durable proof** — a new Session proves exact task, single local-asset
+  provenance, file identity/hash/size and matching usable index before final
+  success. Post-write uncertainty is `outcome_unknown`; pre-write validation
+  failure is stable and retryable.
+- [x] **Storage safety** — existing descriptor/no-follow scans, bounded content
+  validation, media lock, atomic publication/write coordination, ENOSPC handling,
+  index invalidation/rebuild and no-delete-original boundaries are reused.
+- [x] **Provider/egress truthfulness** — default/direct are supported;
+  proxy_pool remains visible but unavailable and cannot be saved/reported valid
+  until pinned transport guarantees exist. Runtime invalidation and failure
+  isolation remain intact.
+- [x] **HLS / diagnostics / UI** — offline HLS statistics and line errors,
+  relative URIs and association; redacted diagnostics for effective task/local
+  asset/recovery/index/egress facts; bilingual authenticated POST/PRG pages.
+- [x] **Local automated evidence** — `1565 passed`, `pip check`, compileall,
+  and diff check succeeded. An isolated named-volume production Docker
+  two-lifecycle smoke proved Application 1.7.0 / Schema 6, non-root read-only
+  runtime, image without `tests/`, authenticated required pages, local import,
+  task/link/index persistence, restart interruption, and explicit recovery.
+  Its dedicated container, volume, and image were removed.
+- [ ] **Exact-commit Actions** — filled after the final ordinary main push and
+  both `test` and `Docker production smoke` jobs succeed.
+- [x] **Release boundary** — no manual acceptance, Hermes, v1.7.0 Tag/Release,
+  published image, or N100 deployment.
+
 ## Phase 7 corrective — v1.6.0 Provider Runtime Activation
 
 ```text

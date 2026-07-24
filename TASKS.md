@@ -46,11 +46,12 @@
 - [x] latest stable 与 Latest Release 同步为 `v1.3.0`
 - [x] Phase 6-R4 = released；未发布镜像、未部署 N100、未再次调用 Hermes
 
-## Phase 7 corrective — v1.6.0 Provider Runtime Activation（已完成）
+## Phase 8 — v1.7.0 Local Media and Task Workflow（已完成）
 
 ```text
-Application development head = 1.6.0
+Application development head = 1.7.0
 Schema = 6
+Phase 8 = complete
 Phase 7 = complete
 Phase 7 corrective = complete
 Provider Runtime activation = closed
@@ -60,6 +61,26 @@ Latest GitHub Release = v1.5.0
 Published image = none
 N100 = not deployed
 ```
+
+- [x] 本地单文件/目录 Preview 零写入、Session-bound signed Confirm、文件身份/
+  MIME/size/SHA-256 快照复核、重复检测和可选 ItemSource provenance。
+- [x] 本地导入、完整性、索引刷新、恢复均接入真实持久任务；显式执行、进度/
+  阶段、取消、重试、restart interruption、幂等和事件完整。
+- [x] ItemLocalAsset、文件和 media index 在 commit 后由独立 Session 精确验证，
+  通过后才允许 `succeeded / durable_verified`；不可证明的 post-write 状态为
+  `outcome_unknown`，pre-write 失败保持 retryable。
+- [x] 复用 descriptor/O_NOFOLLOW 扫描、media operation lock、原子写入/
+  ENOSPC 已有安全实现、index invalidation/rebuild，绝不自动删除用户原文件。
+- [x] Provider Runtime/egress 能力一致：default/direct 支持，proxy_pool 可见但
+  当前不可用且不可误报；配置变化继续失效健康状态，Provider 故障隔离。
+- [x] HLS 离线 master/media/variant/audio/subtitle/encryption/local association，
+  增加 version、duration/end-list 统计、相对 URI 和错误行定位。
+- [x] `/items/{id}`、`/tasks`、`/tasks/{id}`、`/playback`、`/diagnostics`、
+  `/providers` 双语状态与真实操作完成，无占位按钮或私有路径/凭据泄漏。
+- [x] Application `1.7.0`、Schema `6`、stable/GitHub Release `v1.5.0`；
+  不做人工验收、Hermes、Tag/Release、镜像发布或 N100 部署。
+
+## Phase 7 corrective — v1.6.0 Provider Runtime Activation（已完成）
 
 - [x] Schema 6：Provider Runtime 状态表、fresh Schema 6、Schema 5 → 6
   preview/apply/postcheck 与事务 rollback；Backup v2 / v1-v2 restore 兼容。

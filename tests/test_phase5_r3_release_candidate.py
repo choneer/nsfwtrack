@@ -19,7 +19,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def test_release_candidate_versions_and_production_catalogs_are_frozen() -> None:
-    assert app.version == "1.6.0"
+    assert app.version == "1.7.0"
     assert CURRENT_SCHEMA_VERSION == 6
     assert BACKUP_SCHEMA_V1 == "nsfwtrack.backup.v1"
     assert BACKUP_SCHEMA_V2 == "nsfwtrack.backup.v2"

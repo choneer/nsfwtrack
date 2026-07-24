@@ -32,7 +32,7 @@ def _route_matrix(router: object) -> dict[str, set[str]]:
 
 
 def test_v1_5_0_runtime_cookiecloud_hls_and_catalogs() -> None:
-    assert app.version == "1.6.0"
+    assert app.version == "1.7.0"
     assert CURRENT_SCHEMA_VERSION == 6
     assert BACKUP_SCHEMA_V1 == "nsfwtrack.backup.v1"
     assert BACKUP_SCHEMA_V2 == "nsfwtrack.backup.v2"
@@ -105,8 +105,8 @@ def test_synthetic_adapters_remain_tests_only() -> None:
 
 def test_readme_records_v1_6_0_development_head_and_v1_5_0_stable_release() -> None:
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
-    assert "Application development head: `1.6.0` (Schema `6`)" in readme
-    assert "Application development head = 1.6.0" in readme
+    assert "Application development head: `1.7.0` (Schema `6`)" in readme
+    assert "Application development head = 1.7.0" in readme
     assert "Schema = 6" in readme
     assert "Phase 7 = complete" in readme
     assert "Manual acceptance = not started" in readme
@@ -133,7 +133,7 @@ def test_phase7_status_is_consistent_across_current_documents() -> None:
     for relative_path in ("README.md", "PLAN.md", "TASKS.md", "REVIEW.md"):
         text = (ROOT / relative_path).read_text(encoding="utf-8")
         for marker in (
-            "Application development head = 1.6.0",
+            "Application development head = 1.7.0",
             "Schema = 6",
             "Phase 7 = complete",
             "Manual acceptance = not started",

@@ -38,6 +38,15 @@ from app.models import (
     OperationTask,
     SourceCheckFact,
     TaskEvent,
+    ItemLocalAsset,
+)
+from app.local_workflow.service import (
+    LOCAL_PROVIDER,
+    INTEGRITY_PROVIDER,
+    INDEX_PROVIDER,
+    RECOVERY_PROVIDER,
+    effective_task_state,
+    execute_local_task,
 )
 from app.provider_apply.web import (
     ProviderApplyWebError,
@@ -61,7 +70,14 @@ from app.tasks import PersistentTaskService, TaskState, TaskTransitionError
 router = APIRouter(tags=["tasks"])
 templates = Jinja2Templates(directory="app/templates")
 _PAGE_SIZE = 25
-_VISIBLE_STATES = {state.value for state in TaskState}
+_VISIBLE_STATES = {state.value for state in TaskState} | {"interrupted", "retryable"}
+_NON_RETRYABLE_STAGES = (
+    "published",
+    "db_linked",
+    "index_coordinated",
+    "durable_verified",
+    "recovery_required",
+)
 
 
 def get_acquisition_registry() -> AcquisitionRegistry:
@@ -103,7 +119,21 @@ def task_list(
     page = max(1, min(page, 100_000))
     query = select(OperationTask)
     count_query = select(func.count()).select_from(OperationTask)
-    if state in _VISIBLE_STATES:
+    if state == "interrupted":
+        state_filter = (
+            OperationTask.state.in_((TaskState.PAUSED.value, TaskState.BLOCKED.value))
+            & (OperationTask.error_code == "restart_recovery_required")
+        )
+        query = query.where(state_filter)
+        count_query = count_query.where(state_filter)
+    elif state == "retryable":
+        state_filter = (
+            OperationTask.state.in_((TaskState.FAILED.value, TaskState.BLOCKED.value))
+            & OperationTask.stage.not_in(_NON_RETRYABLE_STAGES)
+        )
+        query = query.where(state_filter)
+        count_query = count_query.where(state_filter)
+    elif state in _VISIBLE_STATES:
         query = query.where(OperationTask.state == state)
         count_query = count_query.where(OperationTask.state == state)
     if task_type in {"asset_download", "source_check", "metadata_update"}:
@@ -120,7 +150,15 @@ def task_list(
     return _render(
         request,
         "tasks.html",
-        {"tasks": tasks, "state_filter": state, "type_filter": task_type, "page": page, "total": total, "page_size": _PAGE_SIZE},
+        {
+            "tasks": tasks,
+            "effective_task_state": effective_task_state,
+            "state_filter": state,
+            "type_filter": task_type,
+            "page": page,
+            "total": total,
+            "page_size": _PAGE_SIZE,
+        },
     )
 
 
@@ -145,6 +183,9 @@ def task_detail(request: Request, task_id: int, db: Session = Depends(get_db)) -
             .order_by(DiscoveredAssetFact.id.asc())
         ).all()
     )
+    local_asset = db.scalar(
+        select(ItemLocalAsset).where(ItemLocalAsset.task_id == task_id)
+    )
     return _render(
         request,
         "task_detail.html",
@@ -156,6 +197,8 @@ def task_detail(request: Request, task_id: int, db: Session = Depends(get_db)) -
             "assets": assets,
             "item": item,
             "source": source,
+            "local_asset": local_asset,
+            "effective_state": effective_task_state(task),
         },
     )
 
@@ -382,7 +425,20 @@ async def task_start(
     db: Session = Depends(get_db),
 ) -> RedirectResponse:
     try:
-        await _run_download(db, registry, task_id, resume=False)
+        task = db.get(OperationTask, task_id)
+        if task is not None and task.provider_key in {
+            LOCAL_PROVIDER,
+            INTEGRITY_PROVIDER,
+            INDEX_PROVIDER,
+            RECOVERY_PROVIDER,
+        }:
+            execute_local_task(
+                db,
+                task_id=task_id,
+                max_concurrency=get_settings().task_max_concurrency,
+            )
+        else:
+            await _run_download(db, registry, task_id, resume=False)
     except Exception:
         return _failure(request, f"/tasks/{task_id}")
     return RedirectResponse(f"/tasks/{task_id}", status_code=303)
@@ -396,7 +452,21 @@ async def task_resume(
     db: Session = Depends(get_db),
 ) -> RedirectResponse:
     try:
-        await _run_download(db, registry, task_id, resume=True)
+        task = db.get(OperationTask, task_id)
+        if task is not None and task.provider_key in {
+            LOCAL_PROVIDER,
+            INTEGRITY_PROVIDER,
+            INDEX_PROVIDER,
+            RECOVERY_PROVIDER,
+        }:
+            execute_local_task(
+                db,
+                task_id=task_id,
+                max_concurrency=get_settings().task_max_concurrency,
+                resume=True,
+            )
+        else:
+            await _run_download(db, registry, task_id, resume=True)
     except Exception:
         return _failure(request, f"/tasks/{task_id}")
     return RedirectResponse(f"/tasks/{task_id}", status_code=303)

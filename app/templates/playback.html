@@ -22,6 +22,7 @@
   <section class="card stack">
     <h2>{{ t("playback.result") }}</h2>
     <p>{{ t("playback.variants") }}: {{ result.manifest.variant_count }} · {{ t("playback.audio") }}: {{ result.manifest.audio_rendition_count }} · {{ t("playback.subtitles") }}: {{ result.manifest.subtitle_rendition_count }} · {{ t("playback.segments") }}: {{ result.manifest.segment_count }}</p>
+    <p>{{ t("playback.total_duration") }}: {{ result.manifest.total_duration_seconds }}s · {{ t("playback.target_duration") }}: {{ result.manifest.target_duration_seconds if result.manifest.target_duration_seconds is not none else t("common.none") }} · {{ t("playback.end_list") }}: {{ t("cookiecloud.yes") if result.manifest.end_list else t("cookiecloud.no") }}</p>
     <p>{{ t("playback.encrypted") }}: {{ t("cookiecloud.yes") if result.manifest.encrypted else t("cookiecloud.no") }}</p>
     {% if result.local_media_association.requested %}<p>{{ t("playback.local_association") }}: {{ t("playback.association_found") if result.local_media_association.found else t("playback.association_missing") }}</p>{% endif %}
   </section>

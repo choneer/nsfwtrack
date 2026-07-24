@@ -33,7 +33,7 @@ def _route_matrix(router: object) -> dict[str, set[str]]:
 
 
 def test_v1_3_0_candidate_versions_and_empty_production_catalogs() -> None:
-    assert app.version == "1.6.0"
+    assert app.version == "1.7.0"
     assert CURRENT_SCHEMA_VERSION == 6
     assert BACKUP_SCHEMA_V1 == "nsfwtrack.backup.v1"
     assert BACKUP_SCHEMA_V2 == "nsfwtrack.backup.v2"
@@ -113,7 +113,7 @@ def test_formal_release_documents_preserve_release_and_history_boundaries() -> N
     changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
     plan = (ROOT / "PLAN.md").read_text(encoding="utf-8")
     migrations = (ROOT / "app/services/migrations.py").read_text(encoding="utf-8")
-    assert "Application development head: `1.6.0` (Schema `6`)" in readme
+    assert "Application development head: `1.7.0` (Schema `6`)" in readme
     assert "v1.3.0" in readme
     assert "releases/tag/v1.3.0" in readme
     assert "Phase 6 = complete/frozen" in readme

@@ -19,7 +19,7 @@ if TYPE_CHECKING:
 
 ReadinessMode = Literal["live_capable", "fixture_fallback", "not_configured"]
 
-# Default catalog keys (Application 1.6.0+); keep aligned with production_catalog.
+# Default catalog keys (Application 1.7.0+); keep aligned with production_catalog.
 DEFAULT_CATALOG_KEYS: tuple[str, ...] = (
     "javdb_metadata",
     "jiuse_vod",
@@ -129,7 +129,7 @@ def _inactive_provider(
 
 def build_catalog_readiness(
     *,
-    application_version: str = "1.6.0",
+    application_version: str = "1.7.0",
     runtime_providers: tuple["ProviderRuntimeView", ...] | None = None,
 ) -> CatalogReadinessSnapshot:
     """Pure readiness for default catalog keys (no network, no secrets)."""

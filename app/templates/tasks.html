@@ -3,12 +3,16 @@
 {% block content %}
 <div class="toolbar">
   <div><h1>{{ t("tasks.title") }}</h1><p class="muted">{{ t("tasks.subtitle") }}</p></div>
+  <div class="actions">
+    <form action="/tasks/media-index/create" method="post"><button class="secondary" type="submit">{{ t("tasks.create_index") }}</button></form>
+    <form action="/tasks/media-recovery/create" method="post"><button class="secondary" type="submit">{{ t("tasks.create_recovery") }}</button></form>
+  </div>
 </div>
 <form class="card form-grid filter-panel" method="get" action="/tasks">
   <label>{{ t("tasks.state") }}
     <select name="state">
       <option value="">{{ t("common.any") }}</option>
-      {% for value in ["planned","awaiting_confirmation","queued","running","paused","cancelling","cancelled","succeeded","failed","blocked","outcome_unknown"] %}
+      {% for value in ["planned","awaiting_confirmation","queued","running","interrupted","retryable","paused","cancelling","cancelled","succeeded","failed","blocked","outcome_unknown"] %}
         <option value="{{ value }}" {% if state_filter == value %}selected{% endif %}>{{ t("task_state." + value) }}</option>
       {% endfor %}
     </select>
@@ -31,9 +35,10 @@
         <strong>#{{ task.id }} · {{ t("task_type." + task.task_type) }}</strong>
         <p class="muted">{{ task.created_at }}</p>
       </div>
-      <span class="pill state">{{ t("task_state." + task.state) }}</span>
+      <span class="pill state">{{ t("task_state." + effective_task_state(task)) }}</span>
     </div>
     <p>{{ t("tasks.progress") }}: {{ task.bytes_processed }}{% if task.expected_bytes is not none %} / {{ task.expected_bytes }}{% endif %}</p>
+    <p class="muted">{{ t("tasks.stage") }}: {{ task.stage }}{% if task.provider_key %} · {{ task.provider_key }}{% endif %}</p>
     {% if task.error_code %}<p class="muted">{{ t("tasks.error_code") }}: {{ task.error_code }}</p>{% endif %}
     <a class="button secondary" href="/tasks/{{ task.id }}">{{ t("tasks.open") }}</a>
   </article>

@@ -309,6 +309,67 @@
     {% endif %}
   </section>
 
+  <section class="card detail-section">
+    <h2>{{ t("local.heading") }}</h2>
+    <p class="muted">{{ t("local.import_help") }}</p>
+    <form class="relation-form" action="/items/{{ item.id }}/local-media/preview" method="post">
+      <label>{{ t("local.path") }}
+        <input name="media_path" required placeholder="/media/library/example.jpg" autocomplete="off">
+      </label>
+      <label>{{ t("local.mode") }}
+        <select name="import_mode">
+          <option value="file">{{ t("local.single_file") }}</option>
+          <option value="directory">{{ t("local.directory") }}</option>
+        </select>
+      </label>
+      <label>{{ t("local.source") }}
+        <select name="source_id">
+          <option value="">{{ t("common.none") }}</option>
+          {% for source in item_sources %}
+            <option value="{{ source.id }}">#{{ source.id }} · {{ source.title or source.provider_key or "source" }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <button type="submit">{{ t("local.preview") }}</button>
+    </form>
+    {% if local_assets %}
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>{{ t("local.file") }}</th><th>{{ t("local.mime") }}</th><th>{{ t("local.size") }}</th><th>{{ t("detail.actions") }}</th></tr></thead>
+          <tbody>
+          {% for asset in local_assets %}
+            <tr>
+              <td>{{ asset.relative_path }}</td>
+              <td>{{ asset.mime_type }}</td>
+              <td>{{ asset.size_bytes }}</td>
+              <td>
+                <form action="/items/{{ item.id }}/local-assets/{{ asset.id }}/check" method="post">
+                  <button class="secondary compact" type="submit">{{ t("local.check") }}</button>
+                </form>
+              </td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p class="muted">{{ t("local.none") }}</p>
+    {% endif %}
+  </section>
+
+  <section class="card detail-section">
+    <h2>{{ t("tasks.item_tasks") }}</h2>
+    {% if item_tasks %}
+      <ul class="relation-list">
+      {% for task in item_tasks %}
+        <li><a href="/tasks/{{ task.id }}">#{{ task.id }}</a> · {{ task.provider_key or task.task_type }} · {{ task.state }} · {{ task.stage }}</li>
+      {% endfor %}
+      </ul>
+    {% else %}
+      <p class="muted">{{ t("tasks.empty") }}</p>
+    {% endif %}
+  </section>
+
   <script>
     fetch("/items/{{ item.id }}/view", {
       method: "POST",

@@ -17,6 +17,7 @@ from app.provider_runtime.service import (
     ProviderRuntimeError,
     ProviderRuntimeRegistry,
     ProviderRuntimeView,
+    egress_profile_statuses,
 )
 from app.provider_runtime.catalog import run_runtime_health_check
 
@@ -78,7 +79,11 @@ def provider_detail_page(
     return templates.TemplateResponse(
         request,
         "provider_detail.html",
-        _context(request, provider=provider, egress_profiles=("default", "direct", "proxy_pool")),
+        _context(
+            request,
+            provider=provider,
+            egress_profiles=egress_profile_statuses(),
+        ),
     )
 
 

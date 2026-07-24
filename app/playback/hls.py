@@ -11,6 +11,7 @@ and remain unresolved.
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
+from math import isfinite
 from typing import Any
 from urllib.parse import urljoin, urlparse
 
@@ -53,6 +54,10 @@ class HlsManifest:
     variants: tuple[HlsVariant, ...]
     audio_renditions: tuple[HlsRendition, ...]
     subtitle_renditions: tuple[HlsRendition, ...]
+    version: int | None
+    target_duration_seconds: float | None
+    total_duration_seconds: float
+    end_list: bool
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -67,6 +72,15 @@ class HlsManifest:
             "variant_count": len(self.variants),
             "audio_rendition_count": len(self.audio_renditions),
             "subtitle_rendition_count": len(self.subtitle_renditions),
+            "version": self.version,
+            "target_duration_seconds": self.target_duration_seconds,
+            "total_duration_seconds": self.total_duration_seconds,
+            "average_segment_duration_seconds": (
+                self.total_duration_seconds / len(self.segments)
+                if self.segments
+                else 0.0
+            ),
+            "end_list": self.end_list,
         }
 
 
@@ -154,8 +168,11 @@ def parse_hls_manifest(
     expect_variant = False
     variant_bandwidth: int | None = None
     variant_resolution: str | None = None
+    version: int | None = None
+    target_duration: float | None = None
+    end_list = False
 
-    for line in lines:
+    for line_number, line in enumerate(lines, start=1):
         if not line:
             continue
         if line.startswith("#EXT-X-KEY"):
@@ -168,16 +185,41 @@ def parse_hls_manifest(
             try:
                 sequence = int(line.split(":", 1)[1])
             except ValueError as exc:
-                raise PlaybackError("HLS media sequence is invalid") from exc
+                raise PlaybackError(f"HLS media sequence is invalid at line {line_number}") from exc
+            if sequence < 0:
+                raise PlaybackError(f"HLS media sequence is invalid at line {line_number}")
+            continue
+        if line.startswith("#EXT-X-VERSION:"):
+            try:
+                version = int(line.split(":", 1)[1])
+            except ValueError as exc:
+                raise PlaybackError(f"HLS version is invalid at line {line_number}") from exc
+            if version < 1:
+                raise PlaybackError(f"HLS version is invalid at line {line_number}")
+            continue
+        if line.startswith("#EXT-X-TARGETDURATION:"):
+            try:
+                target_duration = float(line.split(":", 1)[1])
+            except ValueError as exc:
+                raise PlaybackError(f"HLS target duration is invalid at line {line_number}") from exc
+            if not isfinite(target_duration) or target_duration <= 0:
+                raise PlaybackError(f"HLS target duration is invalid at line {line_number}")
+            continue
+        if line == "#EXT-X-ENDLIST":
+            end_list = True
             continue
         if line.startswith("#EXTINF:"):
             raw_duration = line.split(":", 1)[1].split(",", 1)[0]
             try:
                 duration = float(raw_duration)
             except ValueError as exc:
-                raise PlaybackError("HLS segment duration is invalid") from exc
+                raise PlaybackError(f"HLS segment duration is invalid at line {line_number}") from exc
+            if not isfinite(duration) or duration < 0:
+                raise PlaybackError(f"HLS segment duration is invalid at line {line_number}")
             continue
         if line.startswith("#EXT-X-STREAM-INF:"):
+            if expect_variant:
+                raise PlaybackError(f"HLS variant URI is missing before line {line_number}")
             expect_variant = True
             variant_bandwidth = _int_attribute(line, "BANDWIDTH")
             variant_resolution = _attribute(line, "RESOLUTION")
@@ -206,6 +248,8 @@ def parse_hls_manifest(
 
         url = _approved_url(line, base_url, allowed)
         if expect_variant:
+            if duration is not None:
+                raise PlaybackError(f"HLS master/media tags are mixed at line {line_number}")
             variants.append(HlsVariant(url, variant_bandwidth, variant_resolution))
             expect_variant = False
             variant_bandwidth = None
@@ -219,6 +263,10 @@ def parse_hls_manifest(
 
     if expect_variant:
         raise PlaybackError("HLS variant URI is missing")
+    if duration is not None:
+        raise PlaybackError("HLS segment URI is missing after EXTINF")
+    if variants and segments:
+        raise PlaybackError("HLS master and media playlist entries cannot be mixed")
 
     return HlsManifest(
         bool(variants),
@@ -228,6 +276,10 @@ def parse_hls_manifest(
         tuple(variants),
         tuple(audio_renditions),
         tuple(subtitle_renditions),
+        version,
+        target_duration,
+        sum(segment.duration_seconds or 0.0 for segment in segments),
+        end_list,
     )
 
 

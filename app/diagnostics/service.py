@@ -8,8 +8,9 @@ from dataclasses import asdict, dataclass
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.models import OperationTask
-from app.provider_runtime.service import ProviderRuntimeRegistry
+from app.models import ItemLocalAsset, OperationTask
+from app.local_workflow.service import effective_task_state
+from app.provider_runtime.service import ProviderRuntimeRegistry, egress_profile_statuses
 from app.services.media_index import get_media_index_status
 from app.services.schema_version import CURRENT_SCHEMA_VERSION, get_schema_status
 
@@ -29,7 +30,7 @@ class DiagnosticsSnapshot:
         return asdict(self)
 
 
-def build_diagnostics_snapshot(db: Session, *, application_version: str = "1.6.0") -> DiagnosticsSnapshot:
+def build_diagnostics_snapshot(db: Session, *, application_version: str = "1.7.0") -> DiagnosticsSnapshot:
     """Return local facts only; never fetches Provider/CookieCloud/egress URLs."""
 
     schema_status = get_schema_status(db.get_bind())
@@ -59,6 +60,10 @@ def build_diagnostics_snapshot(db: Session, *, application_version: str = "1.6.0
         for value in db.scalars(
             select(OperationTask.state).order_by(OperationTask.state)
         ).all()
+    )
+    effective_counts = Counter(
+        effective_task_state(task)
+        for task in db.scalars(select(OperationTask)).all()
     )
     try:
         media = get_media_index_status(db)
@@ -92,9 +97,34 @@ def build_diagnostics_snapshot(db: Session, *, application_version: str = "1.6.0
             "expired": int(session_counts.get("expired", 0)),
         },
         egress={
-            "profiles": ["default", "direct", "proxy_pool"],
+            "profiles": list(egress_profile_statuses()),
+            "provider_profile_consistent": all(
+                view.configuration_status != "valid"
+                or any(
+                    profile["name"] == view.egress_profile and profile["supported"]
+                    for profile in egress_profile_statuses()
+                )
+                for view in runtime
+            ),
             "network_probe_on_get": False,
         },
-        tasks={key: int(value) for key, value in sorted(task_counts.items())},
-        media_index=media_report,
+        tasks={
+            **{key: int(value) for key, value in sorted(task_counts.items())},
+            "interrupted": int(effective_counts.get("interrupted", 0)),
+            "retryable": int(effective_counts.get("retryable", 0)),
+        },
+        media_index={
+            **media_report,
+            "linked_local_assets": int(
+                db.scalar(select(func.count()).select_from(ItemLocalAsset)) or 0
+            ),
+            "pending_recovery_tasks": int(
+                db.scalar(
+                    select(func.count()).select_from(OperationTask).where(
+                        OperationTask.stage == "recovery_required"
+                    )
+                )
+                or 0
+            ),
+        },
     )

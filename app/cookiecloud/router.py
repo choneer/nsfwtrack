@@ -77,7 +77,7 @@ def cookiecloud_page(request: Request, db: Session = Depends(get_db)) -> HTMLRes
 
     runtime_providers = ProviderRuntimeRegistry(db).list()
     readiness = build_catalog_readiness(
-        application_version="1.6.0",
+        application_version="1.7.0",
         runtime_providers=runtime_providers,
     )
     path = default_cookie_store_path("javdb_metadata")
@@ -297,7 +297,7 @@ def providers_readiness(db: Session = Depends(get_db)) -> JSONResponse:
     """Catalog readiness for default providers (no secrets)."""
 
     snap = build_catalog_readiness(
-        application_version="1.6.0",
+        application_version="1.7.0",
         runtime_providers=ProviderRuntimeRegistry(db).list(),
     )
     return JSONResponse(snap.to_dict(), headers={"Cache-Control": "no-store"})
